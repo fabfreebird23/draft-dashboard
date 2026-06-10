@@ -191,6 +191,31 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .st-nm small{ display:block; font-weight:600; color:var(--mut2); font-size:9.5px; }
 .st-gap{ font-weight:800; } .st-gap.steal{ color:#1c7a44; } .st-gap.trap{ color:#b3261e; }
 .st-none{ color:var(--mut2); font-size:11px; padding:3px; }
+.st-head{ cursor:help; }
+/* clickable steal/trap rows */
+[class*="_steals"] .stButton, [class*="_traps"] .stButton{ margin:0; }
+[class*="_steals"] .stButton button, [class*="_traps"] .stButton button{
+  width:100%; text-align:left; justify-content:flex-start; padding:4px 8px; min-height:30px;
+  font-size:11px; font-weight:700; border-radius:6px; line-height:1.15; margin:2px 0;
+  white-space:normal; border:1px solid var(--line); }
+[class*="_steals"] .stButton button{ background:#f0faf3; color:#15663a; border-left:3px solid #1c8a4d; }
+[class*="_steals"] .stButton button:hover{ background:#e2f5e9; border-color:#1c8a4d; }
+[class*="_traps"] .stButton button{ background:#fdf1f1; color:#9a2820; border-left:3px solid #b3261e; }
+[class*="_traps"] .stButton button:hover{ background:#fbe4e4; border-color:#b3261e; }
+/* clickable pick-predictor rows (headshot ::before injected per row) */
+[class*="_pp_"] .stButton{ margin:0; }
+[class*="_pp_"] .stButton button{ width:100%; text-align:left; justify-content:flex-start;
+  position:relative; padding:5px 8px 5px 34px; min-height:32px; font-size:11px; font-weight:700;
+  line-height:1.15; margin:2px 0; border:1px solid var(--line); border-left-width:4px;
+  border-radius:7px; background:#fff; color:var(--ink); white-space:normal; }
+[class*="_pp_"] .stButton button::before{ content:""; position:absolute; left:7px; top:50%;
+  transform:translateY(-50%); width:22px; height:22px; border-radius:50%;
+  background:#eef1f5 center/cover no-repeat; border:1px solid var(--line); }
+[class*="_pp_"] .stButton button:hover{ box-shadow:0 2px 8px rgba(0,0,0,.10); }
+[class*="_pp_QB"] .stButton button{ border-left-color:var(--qb); }
+[class*="_pp_RB"] .stButton button{ border-left-color:var(--rb); }
+[class*="_pp_WR"] .stButton button{ border-left-color:var(--wr); }
+[class*="_pp_TE"] .stButton button{ border-left-color:var(--te); }
 
 /* ---- league board (opponent rosters/needs) ---- */
 .lb{ display:flex; flex-direction:column; gap:3px; }
@@ -265,7 +290,13 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 /* ---- by-position cheat sheet ---- */
 .dr-cheat{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
 .cheat-col{ border:1px solid var(--line); border-radius:9px; background:#fff; overflow:hidden; }
-.cheat-head{ font-weight:800; color:#fff; text-align:center; padding:5px; font-size:12px; letter-spacing:1px; }
+.cheat-head{ font-weight:800; color:#fff; text-align:center; padding:5px; font-size:12px;
+  letter-spacing:1px; border-radius:7px; margin-bottom:2px; }
+/* slim tier divider for the narrow by-position columns */
+.ptier-mini{ font-weight:800; font-size:9.5px; letter-spacing:.8px; color:var(--mut2);
+  text-transform:uppercase; padding:5px 2px 2px; margin-top:2px;
+  border-top:1px solid var(--line2); }
+.ptier-mini:first-child{ border-top:none; padding-top:1px; }
 .cheat-row{ display:flex; align-items:center; gap:6px; padding:5px 8px; font-size:12px;
   border-bottom:1px solid var(--line2); }
 .cheat-row .chs{ width:22px; height:22px; border-radius:50%; object-fit:cover; background:var(--line2); }

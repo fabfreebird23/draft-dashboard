@@ -9,8 +9,8 @@ import streamlit as st
 
 from .. import draft_history
 from . import components as C
-from .widgets import (clickable_board, predict_upcoming, queue_manager,
-                      select_player, spotlight_panel)
+from .widgets import (clickable_board, predict_upcoming, predictor_widget,
+                      queue_manager, select_player, spotlight_panel, steals_traps_widget)
 
 _PICK_DELAY = 0.7  # seconds between AI picks in live-pace mode
 
@@ -212,13 +212,14 @@ def render(ctx) -> None:
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=taken,
                         draft_fn=(draft if is_my_turn else None))
         preds = predict_upcoming(ctx, taken, pick_no, my_slot, kept_by_overall)
-        st.markdown(C.predictor_html(preds, slot_names, reg, n), unsafe_allow_html=True)
+        predictor_widget(preds, slot_names, reg, n, f"{mkey}_pw", show_card)
         if ctx.get("value"):
             from .. import value as V
             steals, traps = V.steals_and_traps(board_avail, ctx["value"], reg, ctx["adp_rank"],
                                                pool_size=total)
-            with st.expander("Steals & Traps"):
-                st.markdown(C.steals_traps_html(steals, traps, reg), unsafe_allow_html=True)
+            with st.expander("Steals & Traps", expanded=False):
+                st.caption("Market value vs. ADP — click any player to open their card.")
+                steals_traps_widget(steals, traps, reg, f"{mkey}_st", show_card)
         with st.expander("League board — rosters & needs"):
             st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
                                             ctx["roster_slots"], reg, on_clock_slot=on_slot),

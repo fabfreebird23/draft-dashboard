@@ -239,14 +239,26 @@ def spotlight_html(pm, *, pos_rank="", adp=None, tier=None, byes=None, next_pick
     val_bits = []
     if vorp is not None:
         sign = "+" if vorp >= 0 else ""
-        val_bits.append(f'<span class="pc-vorp">VALUE {sign}{vorp:.0f}</span>')
+        val_bits.append(
+            f'<span class="pc-vorp" title="VORP — projected fantasy points above a '
+            f'replacement-level starter at this position. Higher = more draft value; '
+            f'it accounts for scarcity, so a 0 here is a waiver-wire-level player.">'
+            f'VALUE {sign}{vorp:.0f}</span>')
     if marg is not None:
         ms = "+" if marg >= 0 else ""
-        val_bits.append(f'<span class="pc-marg">{ms}{marg:.0f} for you</span>')
+        val_bits.append(
+            f'<span class="pc-marg" title="Value adjusted for YOUR roster — depth at a '
+            f'position you have already filled is worth less to you than this player\'s '
+            f'raw value.">{ms}{marg:.0f} for you</span>')
     if proj:
-        val_bits.append(f'<span class="pc-proj">{proj:.0f} proj</span>')
+        val_bits.append(f'<span class="pc-proj" title="Projected {scoring.upper()} fantasy '
+                        f'points for the upcoming season.">{proj:.0f} proj</span>')
     if verdict:
-        val_bits.append(f'<span class="pc-verdict {verdict[1]}">{verdict[0]}</span>')
+        val_bits.append(
+            f'<span class="pc-verdict {verdict[1]}" title="Draft urgency — combines how '
+            f'likely this player survives to your next pick with how few startable players '
+            f'remain at the position. GRAB NOW = scarce & unlikely to return; CAN WAIT = '
+            f'likely still there next time.">{verdict[0]}</span>')
     val_block = f'<div class="pc-value">{"".join(val_bits)}</div>' if val_bits else ""
 
     # survival % — chance this player is still on the board at your next pick
@@ -256,8 +268,12 @@ def spotlight_html(pm, *, pos_rank="", adp=None, tier=None, byes=None, next_pick
         sc = C.survival_colors(sv)
         extra = ""
         if drop_next:
-            extra = f' · <span class="pc-drop">−{drop_next:.0f} to next tier</span>'
-        sv_block = (f'<div class="pc-surv">There at your next pick (#{int(next_pick)}): '
+            extra = (f' · <span class="pc-drop" title="Projected-point drop from this tier '
+                     f'to the best player in the next tier — how steep the cliff is.">'
+                     f'−{drop_next:.0f} to next tier</span>')
+        sv_block = (f'<div class="pc-surv" title="Chance this player is still on the board at '
+                    f'your next pick, modeled from ADP. Low % = grab now.">'
+                    f'There at your next pick (#{int(next_pick)}): '
                     f'<span class="svbox" style="background:{sc[0]};color:{sc[1]}">{sv}%</span>{extra}</div>')
 
     syn_block = ""
@@ -298,16 +314,23 @@ def spotlight_html(pm, *, pos_rank="", adp=None, tier=None, byes=None, next_pick
                     if pts is not None else "")
         # opportunity usage (snap %, volume, red-zone)
         opp = opportunity_stats(s, pm.position, g)
-        opp_block = ("<div class='pc-opp'>" + "".join(
+        opp_title = ("Opportunity / usage last season — snap share, volume per game, and "
+                     "red-zone looks. Usage predicts fantasy points better than past points "
+                     "do, so it's a leading indicator for breakouts.")
+        opp_block = (f"<div class='pc-opp' title='{opp_title}'>" + "".join(
             f'<span class="pc-ochip"><b>{v}</b> {k}</span>' for k, v in opp) + "</div>") if opp else ""
         # boom / bust from week-to-week scores
         prof = weekly_profile(pm.sleeper_pid, season, scoring)
         bb_block = ""
         if prof:
             bb = boom_bust(prof, pm.position)
-            boom = f'<span class="pc-boom">{bb[0]}% boom</span>' if bb else ""
-            bust = f'<span class="pc-bust">{bb[1]}% bust</span>' if bb else ""
-            bb_block = (f'<div class="pc-bb"><span class="pc-fc">Floor '
+            boom = (f'<span class="pc-boom" title="Share of games last season with an elite, '
+                    f'league-winning score. High = big upside.">{bb[0]}% boom</span>') if bb else ""
+            bust = (f'<span class="pc-bust" title="Share of games last season with a dud score '
+                    f'that sinks your week. High = risky.">{bb[1]}% bust</span>') if bb else ""
+            bb_block = (f'<div class="pc-bb"><span class="pc-fc" title="Floor = average of the '
+                        f'worst quarter of games; Ceiling = average of the best quarter. The '
+                        f'gap is the player\'s week-to-week range.">Floor '
                         f'<b>{prof["floor"]:.0f}</b> · Ceiling <b>{prof["ceiling"]:.0f}</b></span>'
                         f'{boom}{bust}</div>')
         statblock = f'{pts_line}<div class="pc-grid">{cells}</div>{opp_block}{bb_block}'

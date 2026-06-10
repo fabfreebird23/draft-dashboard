@@ -6,7 +6,8 @@ import streamlit as st
 
 from ..providers.espn import EspnAuthError
 from . import components as C
-from .widgets import predict_upcoming, queue_manager, spotlight_panel
+from .widgets import (predict_upcoming, predictor_widget, queue_manager,
+                      select_player, spotlight_panel, steals_traps_widget)
 
 
 def render(ctx) -> None:
@@ -154,14 +155,19 @@ def render(ctx) -> None:
         spotlight_panel(ctx, board_avail, reg, f"{akey}_sp",
                         default_pid=(rec_row["pid"] if rec_row else None),
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=drafted)
+
+        def _inspect(pid):
+            select_player(f"{akey}_sp", pid)
+            st.rerun()
         preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall)
-        st.markdown(C.predictor_html(preds, slot_names, reg, n), unsafe_allow_html=True)
+        predictor_widget(preds, slot_names, reg, n, f"{akey}_pw", _inspect)
         if ctx.get("value"):
             from .. import value as V
             steals, traps = V.steals_and_traps(board_avail, ctx["value"], reg, ctx["adp_rank"],
                                                pool_size=n * rounds)
-            with st.expander("Steals & Traps"):
-                st.markdown(C.steals_traps_html(steals, traps, reg), unsafe_allow_html=True)
+            with st.expander("Steals & Traps", expanded=False):
+                st.caption("Market value vs. ADP — click any player to open their card.")
+                steals_traps_widget(steals, traps, reg, f"{akey}_st", _inspect)
         with st.expander("League board — rosters & needs"):
             st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
                                             ctx["roster_slots"], reg, on_clock_slot=on_slot),

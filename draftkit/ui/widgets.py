@@ -71,7 +71,15 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         vchip = f' · V {"+" if v >= 0 else ""}{v:.0f}' if v is not None else ""
         return f'{star}{pr} · {r["name"]} · {pm.team} · ADP {adps}{bye_s}{vchip}{vt}'
 
-    def emit_row(r):
+    def compact_label(r, pm):
+        """Short label for the narrow by-position columns: rank, short name, value."""
+        pr = pos_rank.get(str(r["pid"]), pm.position)
+        star = "★ " if str(r["pid"]) == star_pid else ""
+        v = vm.vorp_of(r["pid"]) if vm else None
+        vchip = f'  ·  V {"+" if v >= 0 else ""}{v:.0f}' if v is not None else ""
+        return f'{star}{pr}  {C.short_name(r["name"])}{vchip}'
+
+    def emit_row(r, compact=False):
         pm = reg.meta(r["pid"])
         rk = f'{key_prefix}_brow_{pm.position}_{r["pid"]}'
         # per-row painted pseudo-elements: headshot (::before) + survival box (::after)
@@ -89,8 +97,10 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         tip = PC.tooltip_text(pm, pos_rank=pos_rank.get(str(r["pid"]), pm.position),
                               adp=adp_rank(pm.name, pm.position), tier=r.get("tier"), byes=byes)
         with st.container(key=rk):
-            st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
-            if st.button(label(r, pm), key=f'{key_prefix}_pick_{r["pid"]}',
+            if not compact:
+                st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
+            text = compact_label(r, pm) if compact else label(r, pm)
+            if st.button(text, key=f'{key_prefix}_pick_{r["pid"]}',
                          use_container_width=True, help=tip):
                 draft_fn(r["pid"])
 
@@ -105,9 +115,10 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
                     for r in plist:
                         t = pos_tier.get(str(r["pid"]))
                         if t != last:
-                            st.markdown(C.tier_band(f"{pos} Tier {t}", t), unsafe_allow_html=True)
+                            st.markdown(f'<div class="ptier-mini">Tier {t}</div>',
+                                        unsafe_allow_html=True)
                             last = t
-                        emit_row(r)
+                        emit_row(r, compact=True)
                     if not plist:
                         st.caption("—")
     else:
@@ -120,6 +131,66 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
                     st.markdown(C.tier_band(f"Tier {r['tier']}", r["tier"]), unsafe_allow_html=True)
                     last = r["tier"]
                 emit_row(r)
+
+
+def predictor_widget(predictions, slot_names, registry, n, key_prefix, on_click) -> None:
+    """Pick Predictor as clickable rows — the most-likely opponent picks before your
+    next turn; click one to open that player's card (e.g. to grab him first)."""
+    st.markdown('<div class="dr-h" style="margin:2px 0 4px;" title="Simulated most-likely '
+                'picks by the managers between now and your next turn, from their draft '
+                'history and ADP. Click a player to open his card.">Pick Predictor — likely '
+                'before you\'re up</div>', unsafe_allow_html=True)
+    if not predictions:
+        st.caption("—")
+        return
+    for ov, slot, pid in predictions:
+        pm = registry.meta(pid)
+        rd, inrd = (ov - 1) // n + 1, (ov - 1) % n + 1
+        nm = slot_names[slot] if slot < len(slot_names) else f"Team {slot + 1}"
+        rk = f'{key_prefix}_pp_{pm.position}_{ov}'
+        css = (f'.st-key-{rk} .stButton button::before{{'
+               f'background-image:url("{theme.headshot_src(pid)}")}}')
+        with st.container(key=rk):
+            st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
+            if st.button(f'{rd}.{inrd:02d}  {nm[:11]}  →  {pm.name} · {pm.position}',
+                         key=f'{key_prefix}_ppb_{ov}', use_container_width=True,
+                         help=f'{nm} is predicted to take {pm.name}. Click to open his card.'):
+                on_click(pid)
+
+
+def steals_traps_widget(steals, traps, registry, key_prefix, on_click) -> None:
+    """Steals & Traps as clickable rows — click a player to open their card.
+    STEAL = value rank beats ADP (falling past worth); TRAP = ADP beats value
+    (over-drafted). Each row's tooltip explains the number."""
+    cols = st.columns(2, gap="small")
+    blocks = [
+        ("STEALS", "steals", steals, "+",
+         "Undervalued: their value rank (VORP) is better than where they're drafted "
+         "(ADP). The number is how many spots they're falling past their worth — a "
+         "bargain if they reach you."),
+        ("TRAPS", "traps", traps, "−",
+         "Overvalued: they're drafted (ADP) earlier than their value rank (VORP) "
+         "warrants. The number is how many spots they're being over-drafted — usually "
+         "a reach to avoid."),
+    ]
+    for col, (head, cls, items, sym, helptext) in zip(cols, blocks):
+        with col:
+            st.markdown(f'<div class="st-head {("steal" if cls=="steals" else "trap")}" '
+                        f'title="{helptext}">{head} ⓘ</div>', unsafe_allow_html=True)
+            with st.container(key=f"{key_prefix}_{cls}"):
+                if not items:
+                    st.caption("—")
+                for r, gap, vr, adp in items:
+                    pm = registry.meta(r["pid"])
+                    g = abs(int(gap))
+                    tip = (f"Value rank #{vr} vs ADP {adp} — "
+                           + (f"falling {g} spots past its value" if sym == "+"
+                              else f"going {g} spots ahead of its value")
+                           + ". Click to open card.")
+                    if st.button(f'{sym}{g}  {C.short_name(r["name"])} · {pm.position}',
+                                 key=f'{key_prefix}_{cls}_{r["pid"]}',
+                                 use_container_width=True, help=tip):
+                        on_click(r["pid"])
 
 
 def select_player(widget_key, pid):
