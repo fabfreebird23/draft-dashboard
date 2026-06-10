@@ -44,10 +44,37 @@ def _secret(name: str) -> str:
         return ""
 
 
+# Your saved leagues — one-click import (edit this list to add/remove).
+SAVED_LEAGUES = [
+    {"label": "🏈 The Kreeper League", "platform": "sleeper",
+     "league_id": "1310907162930733056", "season": 2026},
+    {"label": "👶 Babies and Boomer", "platform": "sleeper",
+     "league_id": "1312885282554535936", "season": 2026},
+]
+
+
+def _select_league(preset: dict) -> None:
+    st.session_state.league = {
+        "platform": preset["platform"], "league_id": preset["league_id"],
+        "season": int(preset.get("season") or config.current_season()),
+        "espn_s2": preset.get("espn_s2"), "swid": preset.get("swid"),
+    }
+    st.rerun()
+
+
 # ------------------------------------------------------------------ league pick
 def league_picker():
     st.markdown(f'<h1>{theme.logo_html(40)}</h1>', unsafe_allow_html=True)
-    st.caption("Import a league to start. Sleeper is public by league ID; ESPN works "
+
+    if SAVED_LEAGUES:
+        st.markdown("##### Your leagues")
+        cols = st.columns(len(SAVED_LEAGUES))
+        for col, preset in zip(cols, SAVED_LEAGUES):
+            if col.button(preset["label"], use_container_width=True, key=f"saved_{preset['league_id']}"):
+                _select_league(preset)
+        st.divider()
+
+    st.caption("…or import another league. Sleeper is public by league ID; ESPN works "
                "for public leagues by ID, and private leagues with espn_s2 + SWID cookies.")
     platform = st.radio("Platform", ["Sleeper", "ESPN"], horizontal=True)
     with st.form("import"):
