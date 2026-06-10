@@ -397,9 +397,11 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
    survival box, tighter padding) so labels word-wrap instead of going vertical */
 [class*="_board_QB"] .stButton button,[class*="_board_RB"] .stButton button,
 [class*="_board_WR"] .stButton button,[class*="_board_TE"] .stButton button{
-  padding:6px 7px; min-height:32px; font-size:10.5px; line-height:1.2; font-weight:700; }
+  padding:6px 6px 6px 29px; min-height:32px; font-size:10.5px; line-height:1.2; font-weight:700; }
+/* small headshot in the narrow columns; survival box hidden (no room) */
 [class*="_board_QB"] .stButton button::before,[class*="_board_RB"] .stButton button::before,
-[class*="_board_WR"] .stButton button::before,[class*="_board_TE"] .stButton button::before,
+[class*="_board_WR"] .stButton button::before,[class*="_board_TE"] .stButton button::before{
+  width:21px; height:21px; left:4px; }
 [class*="_board_QB"] .stButton button::after,[class*="_board_RB"] .stButton button::after,
 [class*="_board_WR"] .stButton button::after,[class*="_board_TE"] .stButton button::after{ display:none; }
 </style>

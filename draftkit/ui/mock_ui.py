@@ -165,6 +165,9 @@ def render(ctx) -> None:
                              key=f"{mkey}_sort", label_visibility="collapsed")
         search = topc[2].text_input("Search", key=f"{mkey}_search",
                                     placeholder="Search…", label_visibility="collapsed")
+        st.caption("**V** = Value Over Replacement (VORP): projected points above a "
+                   "replaceable starter at the position — higher V means more draft value. "
+                   "Sort by **Value** to rank the board by it. ▼ falling past ADP · ★ top pick")
         avail = C.filter_search(board_avail, search, reg)
         by_value = sort == "Value" and ctx.get("value")
         if by_value and view == "List":

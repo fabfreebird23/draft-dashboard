@@ -97,8 +97,9 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         tip = PC.tooltip_text(pm, pos_rank=pos_rank.get(str(r["pid"]), pm.position),
                               adp=adp_rank(pm.name, pm.position), tier=r.get("tier"), byes=byes)
         with st.container(key=rk):
-            if not compact:
-                st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
+            # always inject the headshot (::before); the survival ::after is hidden by
+            # the narrow-column CSS in compact/by-position mode
+            st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
             text = compact_label(r, pm) if compact else label(r, pm)
             if st.button(text, key=f'{key_prefix}_pick_{r["pid"]}',
                          use_container_width=True, help=tip):
