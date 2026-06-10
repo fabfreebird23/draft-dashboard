@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "draftroom",
+      "runtimeExecutable": ".venv/bin/streamlit",
+      "runtimeArgs": ["run", "app.py", "--server.headless", "true", "--server.port", "8536", "--server.address", "127.0.0.1"],
+      "port": 8536
+    }
+  ]
+}
