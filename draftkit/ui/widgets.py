@@ -31,7 +31,12 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
 
     def emit_row(r):
         pm = reg.meta(r["pid"])
-        with st.container(key=f'{key_prefix}_brow_{pm.position}_{r["pid"]}'):
+        rk = f'{key_prefix}_brow_{pm.position}_{r["pid"]}'
+        with st.container(key=rk):
+            # per-row player headshot painted onto the button's ::before circle
+            st.markdown(f'<style>.st-key-{rk} .stButton>button::before{{'
+                        f'background-image:url("{theme.headshot_src(r["pid"])}")}}</style>',
+                        unsafe_allow_html=True)
             if st.button(label(r, pm), key=f'{key_prefix}_pick_{r["pid"]}',
                          use_container_width=True):
                 draft_fn(r["pid"])

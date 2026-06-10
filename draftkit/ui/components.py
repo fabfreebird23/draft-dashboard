@@ -216,6 +216,21 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
     return '<div class="neonwrap dr-board-scroll">' + grid + "</div>"
 
 
+def last_pick_html(overall, n, team_name, pid, registry) -> str:
+    """A prominent 'who was just taken' banner for the most recent pick."""
+    pm = registry.meta(pid)
+    rd, inrd = (overall - 1) // n + 1, (overall - 1) % n + 1
+    return (f'<div class="dr-lastpick pos-{pm.position}">'
+            f'<span class="lp-pk">{rd}.{inrd:02d}</span>'
+            f'{theme.img_tag(pid, "lp-img")}'
+            f'<span class="lp-txt"><b>{team_name}</b> selected '
+            f'<b class="lp-nm">{pm.name}</b> <small>{pm.position} · {pm.team}</small></span></div>')
+
+
+def on_clock_html(team_name) -> str:
+    return f'<div class="dr-onclock">⏳ <b>{team_name}</b> is on the clock…</div>'
+
+
 def recent_ticker_html(picks_by_overall, registry, n=7) -> str:
     """A horizontal strip of the most recent picks (newest first)."""
     if not picks_by_overall:

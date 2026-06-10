@@ -51,6 +51,13 @@ def get_draft_order_override(platform: str, league_id: str):
     return keepers_mod.load_draft_order(league_id)
 
 
+@st.cache_data(ttl=900, show_spinner=False)
+def get_manager_names(platform: str, league_id: str):
+    if platform != "sleeper":
+        return {}
+    return keepers_mod.load_manager_names(league_id)
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_tendencies(platform: str, league_id: str):
     if platform != "sleeper":
@@ -136,13 +143,21 @@ def build_context(sel: dict) -> dict:
                             espn_s2=sel.get("espn_s2"), swid=sel.get("swid"))
     meta = provider.get_league_meta()
     order = provider.get_draft_order()
-    # Override draft-slot order from the league's keeper dashboard, when it has one.
+    # Real manager names + draft-slot order from the league's keeper dashboard.
+    mgr_names = get_manager_names(meta.platform, meta.league_id)
     scraped = get_draft_order_override(meta.platform, meta.league_id)
+    from draftkit.providers import Team
+
+    def disp(oid, fallback):
+        return mgr_names.get(str(oid)) or fallback
+
     if scraped:
-        from draftkit.providers import Team
         name_by_owner = {str(t.team_id): t.name for t in order}
-        order = [Team(slot=i, team_id=str(oid), name=name_by_owner.get(str(oid), f"Team {oid}"))
+        order = [Team(slot=i, team_id=str(oid),
+                      name=disp(oid, name_by_owner.get(str(oid), f"Team {oid}")))
                  for i, oid in enumerate(scraped)]
+    elif mgr_names:
+        order = [Team(slot=t.slot, team_id=t.team_id, name=disp(t.team_id, t.name)) for t in order]
     slot_names = [t.name for t in order] or [f"Team {i+1}" for i in range(meta.num_teams)]
     owner_by_slot = {t.slot: t.team_id for t in order}
     owner_slot = {t.team_id: t.slot for t in order}

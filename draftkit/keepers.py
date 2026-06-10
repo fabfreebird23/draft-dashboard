@@ -47,6 +47,29 @@ def load_draft_order(league_id: str) -> List[str]:
     return []
 
 
+def load_manager_names(league_id: str) -> dict:
+    """{owner_id: real manager name} scraped from the keeper-dashboard config.yaml
+    `managers` map, so we can show people's names instead of Sleeper team names."""
+    import re
+    cfg = KEEPER_REPOS.get(str(league_id))
+    if not cfg:
+        return {}
+    for branch in ("main", "master"):
+        url = _CONFIG_RAW.format(repo=cfg["repo"], branch=branch)
+        try:
+            r = requests.get(url, timeout=12)
+            if r.status_code != 200 or "managers" not in r.text:
+                continue
+            out = {}
+            for m in re.finditer(r'"(\d+)"\s*:\s*\{[^}]*?\bname:\s*"([^"]+)"', r.text):
+                out[m.group(1)] = m.group(2)
+            if out:
+                return out
+        except Exception:  # noqa: BLE001
+            continue
+    return {}
+
+
 def _parse_draft_order(text: str) -> List[str]:
     import re
     out, in_block = [], False

@@ -206,6 +206,20 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .dr-rdlabel{ display:flex; align-items:center; justify-content:center; font-weight:800;
   font-size:12px; color:#fff; background:var(--blue); border-radius:6px; }
 
+/* ---- last-pick / on-the-clock banners ---- */
+.dr-lastpick{ display:flex; align-items:center; gap:9px; background:#fff; border:1px solid var(--line);
+  border-left:5px solid var(--blue); border-radius:8px; padding:7px 12px; margin-bottom:8px; font-size:13px; }
+.dr-lastpick.pos-QB{ border-left-color:var(--qb);} .dr-lastpick.pos-RB{ border-left-color:var(--rb);}
+.dr-lastpick.pos-WR{ border-left-color:var(--wr);} .dr-lastpick.pos-TE{ border-left-color:var(--te);}
+.dr-lastpick .lp-pk{ font-weight:800; color:var(--mut2); font-size:11px; min-width:30px; }
+.dr-lastpick .lp-img{ width:26px; height:26px; border-radius:50%; object-fit:cover; background:#eef1f5;
+  border:1px solid var(--line); }
+.dr-lastpick .lp-nm{ color:var(--ink); }
+.dr-lastpick small{ color:var(--mut2); }
+.dr-onclock{ background:#fff8ec; border:1px solid #f6d3a8; color:#9a6500; border-radius:8px;
+  padding:7px 12px; margin-bottom:8px; font-weight:700; font-size:13px; animation:ocpulse 1.3s ease-in-out infinite; }
+@keyframes ocpulse{ 0%,100%{opacity:1;} 50%{opacity:.6;} }
+
 /* ---- recent-picks ticker ---- */
 .dr-ticker{ display:flex; align-items:center; gap:6px; overflow-x:auto; padding:2px 0 8px;
   white-space:nowrap; }
@@ -226,10 +240,14 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="_brow_"]{ margin:0 !important; }
 [class*="_brow_"] .stButton{ margin:0; }
 [class*="_brow_"] .stButton>button{ width:100%; text-align:left; justify-content:flex-start;
-  padding:8px 12px; font-size:13px; font-weight:700; min-height:0; line-height:1.25;
+  padding:8px 12px 8px 46px; font-size:13px; font-weight:700; min-height:42px; line-height:1.25;
   border:1px solid var(--line); border-left-width:5px; border-radius:7px; background:#fff;
-  color:var(--ink); white-space:normal; }
+  color:var(--ink); white-space:normal; position:relative; }
 [class*="_brow_"] .stButton>button>div{ width:100%; text-align:left; }
+/* player headshot as a ::before circle (per-row background-image injected inline) */
+[class*="_brow_"] .stButton>button::before{ content:""; position:absolute; left:9px; top:50%;
+  transform:translateY(-50%); width:28px; height:28px; border-radius:50%; background:#eef1f5 center/cover no-repeat;
+  border:1px solid var(--line); }
 [class*="_brow_"] .stButton>button:hover{ border-color:var(--ink); box-shadow:0 2px 8px rgba(0,0,0,.10); }
 [class*="_brow_QB"] .stButton>button{ border-left-color:var(--qb); }
 [class*="_brow_QB"] .stButton>button:hover{ background:#fdf2f2; }
@@ -251,10 +269,14 @@ def headshot(pid: str) -> str:
     return SLEEPER_IMG.format(pid=pid)
 
 
-def img_tag(pid: str, cls: str = "hs") -> str:
+def headshot_src(pid: str) -> str:
+    """Best headshot URL for a player (ESPN if known, else Sleeper thumb)."""
     eid = _ESPN_BY_PID.get(str(pid))
-    src = ESPN_IMG.format(eid=eid) if eid else headshot(pid)
-    return f'<img class="{cls}" src="{src}" loading="lazy">'
+    return ESPN_IMG.format(eid=eid) if eid else headshot(pid)
+
+
+def img_tag(pid: str, cls: str = "hs") -> str:
+    return f'<img class="{cls}" src="{headshot_src(pid)}" loading="lazy">'
 
 
 def logo_html(size: int = 30, tag: str | None = "Mock + Live Draft") -> str:
