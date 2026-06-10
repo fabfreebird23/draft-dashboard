@@ -146,7 +146,8 @@ def _scoring_pts(s: dict, scoring: str) -> Optional[float]:
 # ---- Spotlight card (B) ------------------------------------------------------
 def spotlight_html(pm, *, pos_rank="", adp=None, tier=None, byes=None, next_pick=None,
                    season: int, scoring: str = "ppr", prev_label: str = "",
-                   vorp=None, proj=None, verdict=None, synergy=None, drop_next=None) -> str:
+                   vorp=None, proj=None, verdict=None, synergy=None, drop_next=None,
+                   marg=None) -> str:
     """Rich inspect card: headshot, identity, VORP value, grab/wait verdict, survival
     %, roster synergy (handcuff/stack), tier drop-off, prior-season stats, injury."""
     from . import components as C
@@ -160,6 +161,9 @@ def spotlight_html(pm, *, pos_rank="", adp=None, tier=None, byes=None, next_pick
     if vorp is not None:
         sign = "+" if vorp >= 0 else ""
         val_bits.append(f'<span class="pc-vorp">VALUE {sign}{vorp:.0f}</span>')
+    if marg is not None:
+        ms = "+" if marg >= 0 else ""
+        val_bits.append(f'<span class="pc-marg">{ms}{marg:.0f} for you</span>')
     if proj:
         val_bits.append(f'<span class="pc-proj">{proj:.0f} proj</span>')
     if verdict:

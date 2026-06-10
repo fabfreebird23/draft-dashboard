@@ -148,6 +148,8 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .pc-value{ display:flex; align-items:center; gap:7px; margin-top:9px; flex-wrap:wrap; }
 .pc-vorp{ font-weight:800; font-size:13px; color:#fff; background:var(--green);
   padding:2px 9px; border-radius:6px; }
+.pc-marg{ font-size:11px; font-weight:800; color:#7a4ddb; background:#f1ecfb;
+  padding:1px 7px; border-radius:5px; }
 .pc-proj{ font-size:11.5px; font-weight:700; color:var(--muted); }
 .pc-verdict{ font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:20px;
   letter-spacing:.3px; margin-left:auto; }
@@ -166,6 +168,39 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .pc-v{ display:block; font-weight:800; font-size:14px; } .pc-k{ display:block; font-size:9.5px;
   color:var(--mut2); text-transform:uppercase; letter-spacing:.3px; }
 .pc-nostat{ margin-top:8px; font-size:12px; color:var(--mut2); font-style:italic; }
+
+/* ---- steals & traps ---- */
+.st-wrap{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.st-head{ font-size:10.5px; font-weight:800; letter-spacing:.4px; margin-bottom:4px; }
+.st-head small{ display:block; font-weight:600; color:var(--mut2); letter-spacing:0; }
+.st-head.steal{ color:#1c7a44; } .st-head.trap{ color:#b3261e; }
+.st-row{ display:flex; align-items:center; gap:6px; padding:3px 4px; border-radius:6px; font-size:11.5px; }
+.st-row.steal{ background:#f0faf3; } .st-row.trap{ background:#fdf1f1; }
+.st-img{ width:20px; height:20px; border-radius:50%; object-fit:cover; }
+.st-nm{ flex:1; font-weight:700; line-height:1.05; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.st-nm small{ display:block; font-weight:600; color:var(--mut2); font-size:9.5px; }
+.st-gap{ font-weight:800; } .st-gap.steal{ color:#1c7a44; } .st-gap.trap{ color:#b3261e; }
+.st-none{ color:var(--mut2); font-size:11px; padding:3px; }
+
+/* ---- league board (opponent rosters/needs) ---- */
+.lb{ display:flex; flex-direction:column; gap:3px; }
+.lb-row{ display:flex; align-items:center; gap:6px; font-size:11px; padding:2px 5px; border-radius:6px; }
+.lb-row.me{ background:#f3f9f5; font-weight:700; } .lb-row.clk{ box-shadow:inset 0 0 0 1.5px var(--blue); }
+.lb-nm{ width:84px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lb-chips{ display:flex; gap:3px; }
+.lb-pc{ font-size:9.5px; font-weight:800; background:#eef1f4; color:var(--mut2); padding:1px 5px; border-radius:4px; }
+.lb-pc.lb-low{ background:#fdecec; color:#b3261e; }
+.lb-need{ margin-left:auto; font-size:10px; color:var(--mut2); font-weight:600; }
+
+/* ---- post-draft recap ---- */
+.recap{ background:#fff; border:1px solid var(--line); border-radius:11px; padding:13px; margin:6px 0; }
+.rc-top{ display:flex; align-items:center; gap:13px; }
+.rc-grade{ font-size:30px; font-weight:900; width:54px; height:54px; border-radius:12px;
+  display:flex; align-items:center; justify-content:center; color:#fff; }
+.rc-grade.gA{ background:#1c8a4d; } .rc-grade.gB{ background:#1f6fd6; }
+.rc-grade.gC{ background:#b3650a; } .rc-grade.gD{ background:#b3232a; }
+.rc-rank{ font-size:14px; } .rc-pts{ font-size:12px; color:var(--muted); margin-top:2px; }
+.rc-line{ font-size:12px; margin-top:8px; } .rc-line b{ color:var(--ink); }
 
 /* ---- roster strength ---- */
 .rs{ display:flex; flex-direction:column; gap:3px; margin-bottom:8px; }
@@ -317,6 +352,15 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="_brow_WR"] .stButton button:hover{ background:#eef4fc; }
 [class*="_brow_TE"] .stButton button{ border-left-color:var(--te); }
 [class*="_brow_TE"] .stButton button:hover{ background:#fdf6ec; }
+/* by-position cheat columns are narrow — compact the clickable rows (no headshot/
+   survival box, tighter padding) so labels word-wrap instead of going vertical */
+[class*="_board_QB"] .stButton button,[class*="_board_RB"] .stButton button,
+[class*="_board_WR"] .stButton button,[class*="_board_TE"] .stButton button{
+  padding:6px 7px; min-height:32px; font-size:10.5px; line-height:1.2; font-weight:700; }
+[class*="_board_QB"] .stButton button::before,[class*="_board_RB"] .stButton button::before,
+[class*="_board_WR"] .stButton button::before,[class*="_board_TE"] .stButton button::before,
+[class*="_board_QB"] .stButton button::after,[class*="_board_RB"] .stButton button::after,
+[class*="_board_WR"] .stButton button::after,[class*="_board_TE"] .stButton button::after{ display:none; }
 </style>
 """
 

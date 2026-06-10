@@ -127,6 +127,10 @@ def render(ctx) -> None:
 
     if done:
         st.success("Mock complete — your team is on the left. Reset to run another.")
+        st.markdown('<div class="dr-h">Draft Recap</div>', unsafe_allow_html=True)
+        st.markdown(C.draft_recap_html(pids_by_slot, my_slot, slot_names, ctx["roster_slots"],
+                                       reg, ctx.get("value"), ctx["adp_rank"]),
+                    unsafe_allow_html=True)
         return
 
     def draft(pid):
@@ -176,8 +180,15 @@ def render(ctx) -> None:
                                      pos_rank=ctx["pos_rank"], current_pick=pick_no),
                         unsafe_allow_html=True)
 
+    # opponent needs + the slots picking before your next turn (for run detection)
+    need_map = C.needs_by_slot(pids_by_slot, slot_names, ctx["roster_slots"], reg)
+    upcoming_slots = ([snake(k - 1) for k in range(pick_no + 1, next_user_pick)]
+                      if next_user_pick else [])
+
     with right:
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
+        st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), taken, reg),
+                    unsafe_allow_html=True)
         queue = [p for p in st.session_state.get(qkey, []) if str(p) not in taken]
         rec_row = next((r for r in board_avail if str(r["pid"]) == str(queue[0])), None) if queue else None
         rec_tag = "from your queue"
@@ -187,7 +198,8 @@ def render(ctx) -> None:
             rec_row, _, rec_tag = V.best_pick(
                 board_avail, ctx["value"], reg, needs, taken, next_pick=next_user_pick,
                 survival_fn=lambda pid: C.survival_pct(
-                    ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_user_pick))
+                    ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_user_pick),
+                my_pids=my_pids, roster_slots=ctx["roster_slots"])
             if rec_row is None:
                 rec_row = board_avail[0]
         if rec_row:
@@ -201,6 +213,16 @@ def render(ctx) -> None:
                         draft_fn=(draft if is_my_turn else None))
         preds = predict_upcoming(ctx, taken, pick_no, my_slot, kept_by_overall)
         st.markdown(C.predictor_html(preds, slot_names, reg, n), unsafe_allow_html=True)
+        if ctx.get("value"):
+            from .. import value as V
+            steals, traps = V.steals_and_traps(board_avail, ctx["value"], reg, ctx["adp_rank"],
+                                               pool_size=total)
+            with st.expander("Steals & Traps"):
+                st.markdown(C.steals_traps_html(steals, traps, reg), unsafe_allow_html=True)
+        with st.expander("League board — rosters & needs"):
+            st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
+                                            ctx["roster_slots"], reg, on_clock_slot=on_slot),
+                        unsafe_allow_html=True)
         queue_manager(ctx, qkey, ranks, taken, reg, f"{mkey}_q")
 
     kept_note = (f" · {len(kept_pids)} keepers locked" if kept_pids else "")

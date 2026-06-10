@@ -44,12 +44,16 @@ class ValueModel:
     vorp: Dict[str, float]                       # pid -> value over replacement
     replacement_pts: Dict[str, float]            # pos -> replacement-level points
     pos_sorted: Dict[str, list] = field(default_factory=dict)  # pos -> [(pid, pts)] desc
+    overall_rank: Dict[str, int] = field(default_factory=dict)  # pid -> rank by VORP
 
     def vorp_of(self, pid) -> float:
         return self.vorp.get(str(pid), 0.0)
 
     def proj_of(self, pid) -> float:
         return self.proj.get(str(pid), 0.0)
+
+    def rank_of(self, pid):
+        return self.overall_rank.get(str(pid))
 
     def startable_left(self, pos: str, drafted: set) -> int:
         """How many at this position are still above replacement and available."""
@@ -85,8 +89,78 @@ def build_value(proj: Dict[str, float], registry, roster_slots, n_teams) -> Valu
         repl = replacement_pts.get(pos, 0.0)
         for pid, pts in players:
             vorp[pid] = round(pts - repl, 1)
+    # overall draft-value rank: every player ordered by VORP (cross-position)
+    overall_rank = {pid: i + 1 for i, (pid, _) in
+                    enumerate(sorted(vorp.items(), key=lambda x: x[1], reverse=True))}
     return ValueModel(proj=proj, vorp=vorp, replacement_pts=replacement_pts,
-                      pos_sorted=pos_players)
+                      pos_sorted=pos_players, overall_rank=overall_rank)
+
+
+def team_demand(roster_slots) -> Dict[str, float]:
+    """Per-team starter demand at each position (slots + flex share, no ×teams)."""
+    c = Counter(roster_slots or [])
+    flex = sum(c.get(name, 0) for name in _FLEX_NAMES)
+    superflex = sum(c.get(name, 0) for name in _SUPERFLEX_NAMES)
+    d: Dict[str, float] = {}
+    for pos in _POSITIONS:
+        v = c.get(pos, 0) + flex * _FLEX_SPLIT.get(pos, 0)
+        if pos == "QB":
+            v += superflex
+        d[pos] = v
+    return d
+
+
+def marginal_vorp(model: "ValueModel", pid, my_pids, registry, roster_slots) -> float:
+    """VORP adjusted for YOUR roster: once your starter slots at a position are
+    full, each additional player there is depth and depreciates."""
+    pm = registry.meta(pid)
+    base = model.vorp_of(pid)
+    demand = team_demand(roster_slots).get(pm.position, 1)
+    have = sum(1 for p in (my_pids or []) if registry.meta(p).position == pm.position)
+    if have < demand:
+        return base
+    extra = have - demand + 1                 # 1st surplus, 2nd surplus, …
+    factor = max(0.35, 0.8 ** extra)
+    return round(base * factor, 1)
+
+
+def steals_and_traps(board_avail, model: "ValueModel", registry, adp_rank, *,
+                     k=6, thresh=8, pool_size=180):
+    """Find market inefficiencies among *draftable* players: STEALS go later than
+    their value warrants (ADP rank ≫ value rank), TRAPS go earlier. Restricted to
+    players whose ADP and value rank are both inside the draftable pool, so deep
+    waiver-wire names with projection-noise don't pollute the list. Returns
+    (steals, traps) as lists of (row, gap, value_rank, adp)."""
+    cap = pool_size * 1.25                     # a little past the last pick
+    steals, traps = [], []
+    for r in board_avail:
+        pid = str(r["pid"])
+        pm = registry.meta(pid)
+        vr = model.rank_of(pid)
+        adp = adp_rank(pm.name, pm.position)
+        if not vr or not adp or adp > cap or vr > cap:
+            continue
+        gap = adp - vr                        # +: falling past value → steal
+        if gap >= thresh:
+            steals.append((r, gap, vr, int(adp), pm.position))
+        elif gap <= -thresh:
+            traps.append((r, gap, vr, int(adp), pm.position))
+    steals.sort(key=lambda x: -x[1])
+    traps.sort(key=lambda x: x[1])
+
+    def diversify(items, per_pos=2):
+        seen, out = {}, []
+        for it in items:
+            pos = it[4]
+            if seen.get(pos, 0) >= per_pos:
+                continue
+            seen[pos] = seen.get(pos, 0) + 1
+            out.append(it[:4])
+            if len(out) >= k:
+                break
+        return out
+
+    return diversify(steals), diversify(traps)
 
 
 def synergy(pm, my_pids, registry) -> List[tuple]:
@@ -114,17 +188,19 @@ def synergy(pm, my_pids, registry) -> List[tuple]:
 
 
 def best_pick(board_avail, model: "ValueModel", registry, needs, taken,
-              next_pick=None, survival_fn=None):
-    """Roster-aware recommendation: rank available players by VORP, boosted for
-    positions you still need and for scarcity (few startable left / unlikely to
-    survive to your next pick). Returns (row, score, reason) or (None, 0, '')."""
+              next_pick=None, survival_fn=None, my_pids=None, roster_slots=None):
+    """Roster-aware recommendation: rank available players by VORP (marginal —
+    adjusted for the roster you've already built), boosted for positions you still
+    need and for scarcity. Returns (row, score, reason) or (None, 0, '')."""
     needs = needs or set()
     taken_s = {str(x) for x in (taken or [])}
+    use_marginal = my_pids is not None and roster_slots is not None
     best = None
     for r in board_avail[:60]:
         pid = str(r["pid"])
         pm = registry.meta(pid)
-        v = model.vorp_of(pid)
+        v = (marginal_vorp(model, pid, my_pids, registry, roster_slots)
+             if use_marginal else model.vorp_of(pid))
         score = v
         reasons = [f"+{v:.0f} value"]
         if pm.position in needs:

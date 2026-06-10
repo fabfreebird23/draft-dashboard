@@ -98,8 +98,9 @@ def short_name(name: str) -> str:
     return f"{parts[0][0]}. {' '.join(parts[1:])}"
 
 
-def lineup_html(pids: list, roster_slots: List[str], registry, bench_cap: int = 8) -> str:
-    """My-Team panel: fill starter slots (QB/RB/WR/TE/FLEX/…), overflow to bench."""
+def fill_lineup(pids: list, roster_slots: List[str], registry):
+    """Greedily place players into starter slots; overflow to bench. Returns
+    (slots, filled, bench) where filled[i] is the pid in slots[i] (or None)."""
     slots = roster_slots or ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX"]
     filled = [None] * len(slots)
     bench = []
@@ -119,6 +120,12 @@ def lineup_html(pids: list, roster_slots: List[str], registry, bench_cap: int = 
                     break
         if not placed:
             bench.append(pid)
+    return slots, filled, bench
+
+
+def lineup_html(pids: list, roster_slots: List[str], registry, bench_cap: int = 8) -> str:
+    """My-Team panel: fill starter slots (QB/RB/WR/TE/FLEX/…), overflow to bench."""
+    slots, filled, bench = fill_lineup(pids, roster_slots, registry)
     rows = []
     for s, pid in zip(slots, filled):
         nm = registry.meta(pid).name if pid else "—"
@@ -402,6 +409,150 @@ def roster_strength_html(pids_by_slot, my_slot, slot_names, registry, adp_rank) 
     head = (f'<div class="dr-h">Roster Strength — you\'re #{rank} of {len(rows)}</div>'
             if rank else '<div class="dr-h">Roster Strength</div>')
     return head + '<div class="rs">' + "".join(bars) + "</div>"
+
+
+def steals_traps_html(steals, traps, registry) -> str:
+    """Market-inefficiency board: STEALS falling past their value, TRAPS going
+    too early. `steals`/`traps` are (row, gap, value_rank, adp) tuples."""
+    def cell(item, sym, cls):
+        r, gap, vr, adp = item
+        pm = registry.meta(r["pid"])
+        return (f'<div class="st-row {cls}">{theme.img_tag(r["pid"], "st-img")}'
+                f'<span class="st-nm">{r["name"]}<small>{pm.position}·{pm.team}</small></span>'
+                f'<span class="st-gap {cls}">{sym}{abs(int(gap))}</span></div>')
+    if not steals and not traps:
+        return ""
+    s_html = "".join(cell(x, "+", "steal") for x in steals) or '<div class="st-none">—</div>'
+    t_html = "".join(cell(x, "−", "trap") for x in traps) or '<div class="st-none">—</div>'
+    return ('<div class="st-wrap"><div class="st-col"><div class="st-head steal">STEALS '
+            '<small>falling past value</small></div>' + s_html + '</div>'
+            '<div class="st-col"><div class="st-head trap">TRAPS <small>going too early</small>'
+            '</div>' + t_html + '</div></div>')
+
+
+def _pos_counts(pids, registry):
+    c = {"QB": 0, "RB": 0, "WR": 0, "TE": 0}
+    for pid in pids:
+        p = registry.meta(pid).position
+        if p in c:
+            c[p] += 1
+    return c
+
+
+def league_board_html(pids_by_slot, slot_names, my_slot, roster_slots, registry,
+                      on_clock_slot=None) -> str:
+    """Every manager's roster-by-position and what they still need — so you can read
+    the room (and anticipate runs)."""
+    demand = {}
+    for s in (roster_slots or []):
+        if s in ("QB", "RB", "WR", "TE"):
+            demand[s] = demand.get(s, 0) + 1
+    rows = []
+    for slot in range(len(slot_names)):
+        pids = pids_by_slot.get(slot, [])
+        cnt = _pos_counts(pids, registry)
+        need = [p for p in ("QB", "RB", "WR", "TE") if cnt[p] < demand.get(p, 0)]
+        chips = "".join(
+            f'<span class="lb-pc {("lb-low" if cnt[p] < demand.get(p, 0) else "")}">'
+            f'{p} {cnt[p]}</span>' for p in ("QB", "RB", "WR", "TE"))
+        me = " me" if slot == my_slot else ""
+        clk = " clk" if slot == on_clock_slot else ""
+        nm = slot_names[slot] if slot < len(slot_names) else f"Team {slot+1}"
+        need_s = ("needs " + ", ".join(need)) if need else "set"
+        rows.append(f'<div class="lb-row{me}{clk}"><span class="lb-nm">{nm[:13]}</span>'
+                    f'<span class="lb-chips">{chips}</span>'
+                    f'<span class="lb-need">{need_s}</span></div>')
+    return '<div class="lb">' + "".join(rows) + "</div>"
+
+
+def run_alert_html(upcoming_slots, need_map, value, taken, registry) -> str:
+    """Flag a likely positional run: when more of the managers picking before your
+    next turn need a position than there are startable players left at it."""
+    if not upcoming_slots or value is None:
+        return ""
+    from collections import Counter
+    # count UNIQUE managers picking before you who still need each position — a
+    # manager who picks twice only takes ~one player at a given position
+    unique_slots = set(upcoming_slots)
+    tally = Counter()
+    for s in unique_slots:
+        for pos in need_map.get(s, ()):
+            tally[pos] += 1
+    taken_s = {str(x) for x in (taken or [])}
+    n_mgrs = len(unique_slots)
+    chips = []
+    for pos, dem in sorted(tally.items(), key=lambda x: -x[1]):
+        left = value.startable_left(pos, taken_s)
+        if dem >= 2 and dem >= left:
+            chips.append(f'<span class="alert run">{pos} run likely — {dem} of {n_mgrs} '
+                         f'managers before you need {pos}, {left} startable left</span>')
+    return ('<div class="dr-alerts">' + "".join(chips) + "</div>") if chips else ""
+
+
+def needs_by_slot(pids_by_slot, slot_names, roster_slots, registry):
+    """{slot: set(open positions)} — drives the need-aware pick predictor."""
+    demand = {}
+    for s in (roster_slots or []):
+        if s in ("QB", "RB", "WR", "TE"):
+            demand[s] = demand.get(s, 0) + 1
+    out = {}
+    for slot in range(len(slot_names)):
+        cnt = _pos_counts(pids_by_slot.get(slot, []), registry)
+        out[slot] = {p for p in ("QB", "RB", "WR", "TE") if cnt[p] < demand.get(p, 0)}
+    return out
+
+
+def draft_recap_html(pids_by_slot, my_slot, slot_names, roster_slots, registry,
+                     value, adp_rank) -> str:
+    """Post-draft scorecard: grade your starters vs the league, project a finish,
+    and surface your best values and biggest reaches."""
+    if value is None:
+        return ""
+
+    def starter_pts(pids):
+        _, filled, _ = fill_lineup(pids, roster_slots, registry)
+        return sum(value.proj_of(p) for p in filled if p)
+
+    teams = [(slot, starter_pts(pids_by_slot.get(slot, [])))
+             for slot in range(len(slot_names))]
+    teams.sort(key=lambda x: -x[1])
+    rank = next((i + 1 for i, t in enumerate(teams) if t[0] == my_slot), None)
+    n = len(teams)
+    mine = pids_by_slot.get(my_slot, [])
+    my_pts = starter_pts(mine)
+    avg = (sum(t[1] for t in teams) / n) if n else 0
+    # letter grade from rank percentile
+    pct_rank = 1 - ((rank - 1) / max(1, n - 1)) if rank else 0.5
+    grade = ("A+" if pct_rank >= 0.95 else "A" if pct_rank >= 0.82 else "B+" if pct_rank >= 0.68
+             else "B" if pct_rank >= 0.5 else "C+" if pct_rank >= 0.34 else "C"
+             if pct_rank >= 0.18 else "D")
+
+    # best values / reaches among MY picks (value rank vs ADP)
+    scored = []
+    for pid in mine:
+        pm = registry.meta(pid)
+        vr = value.rank_of(pid)
+        adp = adp_rank(pm.name, pm.position)
+        if vr and adp:
+            scored.append((pid, int(adp - vr), pm))
+    scored.sort(key=lambda x: -x[1])
+    steals = [s for s in scored if s[1] >= 6][:3]
+    reaches = [s for s in scored if s[1] <= -6][-3:][::-1]
+
+    def names(items):
+        return ", ".join(f'{m.name} (+{g})' if g > 0 else f'{m.name} ({g})'
+                         for _, g, m in items) or "—"
+
+    diff = my_pts - avg
+    diff_s = f'{"+" if diff >= 0 else ""}{diff:.0f} vs league avg'
+    return (
+        f'<div class="recap"><div class="rc-top">'
+        f'<div class="rc-grade g{grade[0]}">{grade}</div>'
+        f'<div class="rc-sum"><div class="rc-rank">Projected finish: '
+        f'<b>#{rank} of {n}</b></div>'
+        f'<div class="rc-pts">{my_pts:.0f} starter pts · {diff_s}</div></div></div>'
+        f'<div class="rc-line"><b>Best values:</b> {names(steals)}</div>'
+        f'<div class="rc-line"><b>Biggest reaches:</b> {names(reaches)}</div></div>')
 
 
 def by_position_html(board_avail, registry, adp_rank, pos_rank, current_pick,

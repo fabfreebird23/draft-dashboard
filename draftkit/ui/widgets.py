@@ -170,6 +170,11 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
         adp = ctx["adp_rank"](pm.name, pm.position)
         vorp = vm.vorp_of(pid) if vm else None
         proj = vm.proj_of(pid) if vm else None
+        marg = None
+        if vm and my_pids is not None:
+            m = V.marginal_vorp(vm, pid, my_pids, registry, ctx["roster_slots"])
+            if vorp is not None and abs(m - vorp) >= 1:
+                marg = m
         verdict = None
         drop_next = None
         if vm:
@@ -191,7 +196,8 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                 adp=adp, tier=tier, byes=ctx["byes"],
                 next_pick=next_pick, season=config.current_season() - 1,
                 scoring=ctx["meta"].scoring, prev_label=str(config.current_season() - 1),
-                vorp=vorp, proj=proj, verdict=verdict, synergy=synergy, drop_next=drop_next),
+                vorp=vorp, proj=proj, verdict=verdict, synergy=synergy, drop_next=drop_next,
+                marg=marg),
             unsafe_allow_html=True)
         if draft_fn is not None:
             if st.button(f"Draft {pm.name}", key=f"{widget_key}_spdraft", type="primary",
