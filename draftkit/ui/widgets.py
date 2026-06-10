@@ -18,6 +18,37 @@ def _vchip(adp, pick):
     return ""
 
 
+def clickable_by_position(ctx, board_avail, draft_fn, key_prefix, current_pick=None,
+                          per_pos=16) -> None:
+    """Best-available in 4 position columns, each grouped by per-position tier,
+    every row a clickable whole-row button (scoped CSS `[class*="_brow_<POS>"]`)."""
+    reg, pick = ctx["registry"], current_pick
+    pos_tier, adp_rank = ctx["pos_tier"], ctx["adp_rank"]
+    star_pid = str(board_avail[0]["pid"]) if board_avail else None
+    cols = st.columns(4, gap="small")
+    for col, pos in zip(cols, ("QB", "RB", "WR", "TE")):
+        plist = [r for r in board_avail if reg.meta(r["pid"]).position == pos][:per_pos]
+        with col:
+            st.markdown(f'<div class="cheat-head {pos}">{pos}</div>', unsafe_allow_html=True)
+            with st.container(key=f"{key_prefix}_brow_{pos}"):
+                last = None
+                for r in plist:
+                    pm = reg.meta(r["pid"])
+                    t = pos_tier.get(str(r["pid"]))
+                    if t != last:
+                        st.markdown(f'<div class="ptier">{pos} TIER {t}</div>', unsafe_allow_html=True)
+                        last = t
+                    adp = adp_rank(pm.name, pm.position)
+                    d = (adp - pick) if (adp and pick) else 0
+                    vt = f"  ▼+{int(d)}" if d >= 8 else (f"  ▲{int(d)}" if d <= -8 else "")
+                    star = "★ " if str(r["pid"]) == star_pid else ""
+                    lbl = f'{star}{r["name"]} · {pm.team} · {int(adp) if adp else "—"}{vt}'
+                    if st.button(lbl, key=f'{key_prefix}_bp_{r["pid"]}', use_container_width=True):
+                        draft_fn(r["pid"])
+                if not plist:
+                    st.caption("—")
+
+
 def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *,
                     limit=70) -> None:
     """Best-available as a clean FantasyPros-style table — rich rows (headshot,

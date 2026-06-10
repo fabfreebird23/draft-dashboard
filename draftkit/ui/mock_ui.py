@@ -7,7 +7,7 @@ import streamlit as st
 
 from .. import draft_history
 from . import components as C
-from .widgets import clickable_board, queue_manager
+from .widgets import clickable_board, clickable_by_position, queue_manager
 
 
 def render(ctx) -> None:
@@ -81,6 +81,8 @@ def render(ctx) -> None:
     # ----- status + board on TOP -----
     st.markdown(C.status_html(pick_no, n, slot_names[on_slot], (not done) and on_slot == my_slot),
                 unsafe_allow_html=True)
+    non_keeper = {ov: pid for ov, pid in board.items() if ov not in kept_by_overall}
+    st.markdown(C.recent_ticker_html(non_keeper, reg), unsafe_allow_html=True)
     st.markdown('<div class="dr-h">📋 Draft Board</div>', unsafe_allow_html=True)
     st.markdown(C.grid_html(board, n, slot_names, my_slot, on_clock or 0, rounds, reg,
                             kept_overalls=set(kept_by_overall)), unsafe_allow_html=True)
@@ -137,9 +139,7 @@ def render(ctx) -> None:
                                placeholder="Filter by name or team…", label_visibility="collapsed")
         avail = C.filter_search(board_avail, search, reg)
         if view == "By position":
-            st.markdown(C.by_position_html(avail, reg, ctx["adp_rank"], ctx["pos_rank"],
-                                           pick_no, pos_tier=ctx["pos_tier"]), unsafe_allow_html=True)
-            st.caption("Switch to **List** to draft with one click.")
+            clickable_by_position(ctx, avail, draft, mkey, current_pick=pick_no)
         else:
             clickable_board(ctx, avail, draft, mkey, current_pick=pick_no)
 

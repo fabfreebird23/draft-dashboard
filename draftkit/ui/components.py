@@ -193,7 +193,21 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
                              f'<span class="nm">—</span></div>')
     grid = (f'<div class="dr-grid" style="grid-template-columns:34px repeat({n},{cw});">'
             + "".join(cells) + "</div>")
-    return '<div class="neonwrap" style="overflow:auto;">' + grid + "</div>"
+    return '<div class="neonwrap dr-board-scroll">' + grid + "</div>"
+
+
+def recent_ticker_html(picks_by_overall, registry, n=7) -> str:
+    """A horizontal strip of the most recent picks (newest first)."""
+    if not picks_by_overall:
+        return ""
+    items = sorted(picks_by_overall.items(), key=lambda x: -x[0])[:n]
+    chips = []
+    for ov, pid in items:
+        pm = registry.meta(pid)
+        chips.append(f'<span class="tk-chip pos-{pm.position}"><b>{ov}</b> '
+                     f'{short_name(pm.name)} <small>{pm.position}</small></span>')
+    return ('<div class="dr-ticker"><span class="tk-l">RECENT</span>'
+            + "".join(chips) + "</div>")
 
 
 def open_needs(my_pids, roster_slots, registry) -> set:

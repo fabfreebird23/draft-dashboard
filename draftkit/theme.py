@@ -206,6 +206,33 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .dr-rdlabel{ display:flex; align-items:center; justify-content:center; font-weight:800;
   font-size:12px; color:#fff; background:var(--blue); border-radius:6px; }
 
+/* ---- recent-picks ticker ---- */
+.dr-ticker{ display:flex; align-items:center; gap:6px; overflow-x:auto; padding:2px 0 8px;
+  white-space:nowrap; }
+.dr-ticker .tk-l{ font-weight:800; font-size:9px; letter-spacing:1px; color:var(--mut2); }
+.tk-chip{ font-size:11px; font-weight:600; background:#fff; border:1px solid var(--line);
+  border-left-width:3px; border-radius:6px; padding:3px 9px; }
+.tk-chip b{ color:var(--mut2); font-weight:800; margin-right:3px; }
+.tk-chip small{ color:var(--mut2); }
+.tk-chip.pos-QB{ border-left-color:var(--qb);} .tk-chip.pos-RB{ border-left-color:var(--rb);}
+.tk-chip.pos-WR{ border-left-color:var(--wr);} .tk-chip.pos-TE{ border-left-color:var(--te);}
+.tk-chip.pos-K{ border-left-color:var(--k);} .tk-chip.pos-DST,.tk-chip.pos-D{ border-left-color:var(--dst);}
+
+/* keep the draft board compact so the rest of the page stays visible */
+.dr-board-scroll{ max-height:430px; overflow:auto; border:1px solid var(--line); border-radius:10px; }
+
+/* ---- clickable whole-row buttons (By-position view) ---- */
+[class*="_brow"] .stButton{ margin-bottom:2px; }
+[class*="_brow"] .stButton>button{ width:100%; text-align:left; justify-content:flex-start;
+  padding:3px 9px; font-size:12px; font-weight:600; min-height:0; line-height:1.3;
+  border:1px solid var(--line); border-left-width:4px; border-radius:5px; background:#fff; color:var(--ink); }
+[class*="_brow"] .stButton>button>div{ width:100%; text-align:left; }
+[class*="_brow"] .stButton>button:hover{ background:#f7f9fc; border-color:var(--blue); }
+[class*="_brow_QB"] .stButton>button{ border-left-color:var(--qb); }
+[class*="_brow_RB"] .stButton>button{ border-left-color:var(--rb); }
+[class*="_brow_WR"] .stButton>button{ border-left-color:var(--wr); }
+[class*="_brow_TE"] .stButton>button{ border-left-color:var(--te); }
+
 /* ---- compact green Draft buttons in the FP-style clickable table ---- */
 [class*="_fpbtn"] [data-testid="stHorizontalBlock"]{ gap:.4rem; align-items:center;
   border-bottom:1px solid var(--line2); }

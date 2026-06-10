@@ -74,6 +74,9 @@ def render(ctx) -> None:
     # ----- status + board on TOP -----
     st.markdown(C.status_html(pick_no, n, slot_names[on_slot], on_slot == my_slot,
                               picks_until_me=until), unsafe_allow_html=True)
+    real_picks = {p.overall: p.player.sleeper_pid for p in picks
+                  if p.player and p.player.sleeper_pid}
+    st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
     st.markdown('<div class="dr-h">📋 Draft Board</div>', unsafe_allow_html=True)
     st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
                             kept_overalls=kept_at), unsafe_allow_html=True)
