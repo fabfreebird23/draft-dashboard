@@ -216,12 +216,17 @@ def main():
             del st.session_state.league
             st.rerun()
 
-    t1, t2, t3 = st.tabs(["📥 My Rankings", "🎯 Live Draft Assistant", "🧪 Mock Draft"])
-    with t1:
+    # Persisted nav (st.tabs resets to the first tab on every rerun — drafting
+    # triggers reruns, so we use a keyed radio styled as tabs instead).
+    nav = ["📥 My Rankings", "🎯 Live Draft Assistant", "🧪 Mock Draft"]
+    with st.container(key="navbar"):
+        section = st.radio("nav", nav, horizontal=True, key="nav_section",
+                           label_visibility="collapsed")
+    if section == nav[0]:
         rankings_ui.render(ctx)
-    with t2:
+    elif section == nav[1]:
         assistant_ui.render(ctx)
-    with t3:
+    else:
         mock_ui.render(ctx)
 
 

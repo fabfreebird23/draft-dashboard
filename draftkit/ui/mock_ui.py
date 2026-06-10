@@ -129,14 +129,19 @@ def render(ctx) -> None:
                         unsafe_allow_html=True)
 
         head = st.columns([3, 2])
-        head[0].markdown('<div class="dr-h" style="margin:2px 0;">🎯 Click to Draft — Best Available</div>',
+        head[0].markdown('<div class="dr-h" style="margin:2px 0;">🎯 Best Available — click Draft</div>',
                          unsafe_allow_html=True)
-        view = head[1].radio("view", ["By position", "Overall"], horizontal=True,
+        view = head[1].radio("view", ["List", "By position"], horizontal=True,
                              key=f"{mkey}_view", label_visibility="collapsed")
         search = st.text_input("🔎 Search", key=f"{mkey}_search",
                                placeholder="Filter by name or team…", label_visibility="collapsed")
         avail = C.filter_search(board_avail, search, reg)
-        clickable_board(ctx, avail, draft, mkey, current_pick=pick_no, view=view)
+        if view == "By position":
+            st.markdown(C.by_position_html(avail, reg, ctx["adp_rank"], ctx["pos_rank"],
+                                           pick_no, pos_tier=ctx["pos_tier"]), unsafe_allow_html=True)
+            st.caption("Switch to **List** to draft with one click.")
+        else:
+            clickable_board(ctx, avail, draft, mkey, current_pick=pick_no)
 
         queue_manager(ctx, qkey, ranks, taken, reg, f"{mkey}_q")
 
