@@ -8,9 +8,11 @@ from . import components as C
 
 
 def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall, *,
-                     limit=10):
-    """Simulate the most-likely opponent picks from `current_overall` up to (but
-    excluding) your next active pick. Returns [(overall, slot, pid), ...]."""
+                     limit=9):
+    """Simulate the most-likely OPPONENT picks coming up. Your own picks are
+    simulated (assumed best-available) so the predictor keeps showing opponents
+    even at the snake turn where you pick back-to-back. Returns
+    [(overall, slot, pid), ...]."""
     reg, adp_pool, tend = ctx["registry"], ctx["adp_pool"], ctx["tendencies"]
     owner_by_slot = ctx["owner_by_slot"]
     n = len(ctx["slot_names"])
@@ -20,17 +22,18 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
     out, ov = [], current_overall
     while ov <= total and len(out) < limit:
         slot = snake(ov - 1)
-        if slot == my_slot and ov != current_overall:
-            break  # reached your next pick
         if ov in kept_by_overall:
             sim.add(str(kept_by_overall[ov]))
             ov += 1
             continue
-        if slot == my_slot:
-            ov += 1  # don't predict your own current pick
-            continue
         rnd = (ov - 1) // n + 1
         pool = [p for p in adp_pool if p["pid"] not in sim]
+        if slot == my_slot:
+            # assume you take the best available, so the sim keeps moving
+            if pool:
+                sim.add(pool[0]["pid"])
+            ov += 1
+            continue
         ch = draft_history.pick_for_owner(owner_by_slot.get(slot), rnd, pool, tend, reg)
         if not ch:
             break
@@ -61,18 +64,23 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         adps = int(adp) if adp else "—"
         star = "★ " if str(r["pid"]) == star_pid else ""
         bye_s = f" · Bye {bye}" if bye else ""
-        surv = C.survival_tag(C.survival_pct(adp, next_pick)) if next_pick else ""
-        surv_s = f"   ·   {surv}" if surv else ""
-        return f'{star}{pr} · {r["name"]} · {pm.team} · ADP {adps}{bye_s}{vt}{surv_s}'
+        return f'{star}{pr} · {r["name"]} · {pm.team} · ADP {adps}{bye_s}{vt}'
 
     def emit_row(r):
         pm = reg.meta(r["pid"])
         rk = f'{key_prefix}_brow_{pm.position}_{r["pid"]}'
+        # per-row painted pseudo-elements: headshot (::before) + survival box (::after)
+        css = (f'.st-key-{rk} .stButton>button::before{{'
+               f'background-image:url("{theme.headshot_src(r["pid"])}")}}')
+        if next_pick:
+            adp = adp_rank(pm.name, pm.position)
+            sc = C.survival_colors(C.survival_pct(adp, next_pick))
+            if sc:
+                pct = C.survival_pct(adp, next_pick)
+                css += (f'.st-key-{rk} .stButton>button::after{{content:"{pct}%";'
+                        f'background:{sc[0]};color:{sc[1]}}}')
         with st.container(key=rk):
-            # per-row player headshot painted onto the button's ::before circle
-            st.markdown(f'<style>.st-key-{rk} .stButton>button::before{{'
-                        f'background-image:url("{theme.headshot_src(r["pid"])}")}}</style>',
-                        unsafe_allow_html=True)
+            st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
             if st.button(label(r, pm), key=f'{key_prefix}_pick_{r["pid"]}',
                          use_container_width=True):
                 draft_fn(r["pid"])

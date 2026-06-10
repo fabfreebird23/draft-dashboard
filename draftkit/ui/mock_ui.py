@@ -113,8 +113,11 @@ def render(ctx) -> None:
     pids_by_slot = {}
     for ov, pid in board.items():
         pids_by_slot.setdefault(snake(ov - 1), []).append(pid)
-    # your next active (non-keeper) pick — used for survival %
-    nxt = (pick_no + 1)
+    # your next pick AFTER the upcoming opponent run (skip back-to-back snake
+    # picks so survival % reflects who'll be gone once opponents pick) — for survival %
+    nxt = pick_no + 1
+    while nxt <= total and snake(nxt - 1) == my_slot:        # skip your consecutive picks
+        nxt += 1
     while nxt <= total and (snake(nxt - 1) != my_slot or nxt in kept_by_overall):
         nxt += 1
     next_user_pick = nxt if nxt <= total else None

@@ -91,7 +91,14 @@ def render(ctx) -> None:
             pids_by_slot.setdefault(p.slot, []).append(p.player.sleeper_pid)
     for ov, pid in kept_overall.items():
         pids_by_slot.setdefault(snake(ov - 1), []).append(pid)
-    next_user_pick = pick_no + until if until else None
+    # your next pick after the upcoming opponent run (skip back-to-back picks)
+    total = n * rounds
+    nxt = pick_no
+    while nxt <= total and snake(nxt - 1) == my_slot:
+        nxt += 1
+    while nxt <= total and snake(nxt - 1) != my_slot:
+        nxt += 1
+    next_user_pick = nxt if nxt <= total else None
 
     board = C.filter_pos(ranks, pos_f, reg)
     board_avail = [r for r in board if r.get("pid") and str(r["pid"]) not in drafted]

@@ -27,11 +27,19 @@ def survival_pct(adp, next_pick):
     return max(0, min(100, round(p * 100)))
 
 
-def survival_tag(pct):
+def survival_colors(pct):
+    """(bg, fg) for a shaded availability box — a smooth red→amber→green gradient."""
     if pct is None:
+        return None
+    hue = int(max(0, min(100, pct)) * 1.2)   # 0=red … 120=green
+    return (f"hsl({hue},70%,85%)", f"hsl({hue},60%,30%)")
+
+
+def survival_box_html(pct):
+    c = survival_colors(pct)
+    if not c:
         return ""
-    dot = "🟢" if pct >= 70 else ("🟡" if pct >= 35 else "🔴")
-    return f"{dot} {pct}%"
+    return f'<span class="svbox" style="background:{c[0]};color:{c[1]}">{pct}%</span>'
 
 
 def predictor_html(predictions, slot_names, registry, n) -> str:
@@ -209,7 +217,7 @@ def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
         pr_html = f'<span class="posrank {pm.position}">{pr}</span>' if pr else ""
         vchip = _value_chip(adp, current_pick)
         sv = survival_pct(adp, next_pick) if next_pick else None
-        sv_td = (f'<td class="sv">{survival_tag(sv)}</td>' if sv is not None else '<td class="sv"></td>')
+        sv_td = f'<td class="sv">{survival_box_html(sv)}</td>'
         body.append(
             f'<tr{rec}><td class="r">{r["rank"]}</td>'
             f'<td>{theme.img_tag(r["pid"])}{pr_html}<b>{r["name"]}</b>{badge}{vchip}'

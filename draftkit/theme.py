@@ -127,7 +127,9 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .pp-pos{ font-size:9px; font-weight:800; color:#fff; border-radius:3px; padding:1px 5px; }
 .pp-pos.pos-QB{ background:var(--qb);} .pp-pos.pos-RB{ background:var(--rb);}
 .pp-pos.pos-WR{ background:var(--wr);} .pp-pos.pos-TE{ background:var(--te);}
-.dr-avail td.sv{ text-align:right; white-space:nowrap; font-weight:700; font-size:11px; color:var(--muted); }
+.dr-avail td.sv{ text-align:right; white-space:nowrap; }
+.svbox{ display:inline-block; font-weight:800; font-size:11px; padding:3px 7px; border-radius:5px;
+  min-width:36px; text-align:center; }
 
 /* ---- roster strength ---- */
 .rs{ display:flex; flex-direction:column; gap:3px; margin-bottom:8px; }
@@ -257,7 +259,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="_brow_"]{ margin:0 !important; }
 [class*="_brow_"] .stButton{ margin:0; }
 [class*="_brow_"] .stButton>button{ width:100%; text-align:left; justify-content:flex-start;
-  padding:8px 12px 8px 46px; font-size:13px; font-weight:700; min-height:42px; line-height:1.25;
+  padding:8px 58px 8px 46px; font-size:13px; font-weight:700; min-height:42px; line-height:1.25;
   border:1px solid var(--line); border-left-width:5px; border-radius:7px; background:#fff;
   color:var(--ink); white-space:normal; position:relative; }
 [class*="_brow_"] .stButton>button>div{ width:100%; text-align:left; }
@@ -265,6 +267,10 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="_brow_"] .stButton>button::before{ content:""; position:absolute; left:9px; top:50%;
   transform:translateY(-50%); width:28px; height:28px; border-radius:50%; background:#eef1f5 center/cover no-repeat;
   border:1px solid var(--line); }
+/* availability % as a shaded ::after box (per-row content+colors injected inline) */
+[class*="_brow_"] .stButton>button::after{ position:absolute; right:7px; top:50%;
+  transform:translateY(-50%); font-size:11px; font-weight:800; padding:3px 6px; border-radius:5px;
+  line-height:1.1; min-width:34px; text-align:center; }
 [class*="_brow_"] .stButton>button:hover{ border-color:var(--ink); box-shadow:0 2px 8px rgba(0,0,0,.10); }
 [class*="_brow_QB"] .stButton>button{ border-left-color:var(--qb); }
 [class*="_brow_QB"] .stButton>button:hover{ background:#fdf2f2; }
