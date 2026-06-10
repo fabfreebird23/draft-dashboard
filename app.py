@@ -115,12 +115,20 @@ def build_context(sel: dict) -> dict:
             return adp_lk[key]
         return adp_lk.get(normalize_name(name))
 
+    adp_pool = rankings_mod.adp_pool(registry, adp_df)
+    # Positional rank (RB5, WR7…) keyed by sleeper pid, from ADP order.
+    pos_rank, counts = {}, {}
+    for p in adp_pool:
+        pos = p["pos"]
+        counts[pos] = counts.get(pos, 0) + 1
+        pos_rank[str(p["pid"])] = f"{pos}{counts[pos]}"
+
     league_key = f"{meta.platform}_{meta.league_id}"
     return {
         "registry": registry, "provider": provider, "meta": meta,
         "slot_names": slot_names, "roster_slots": provider.get_roster_slots(),
-        "adp_df": adp_df, "adp_rank": adp_rank,
-        "adp_pool": rankings_mod.adp_pool(registry, adp_df),
+        "adp_df": adp_df, "adp_rank": adp_rank, "adp_pool": adp_pool,
+        "pos_rank": pos_rank,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
     }
 

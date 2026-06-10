@@ -192,13 +192,52 @@ table.dr-avail td.a{ text-align:right; color:#8b86a0; white-space:nowrap; }
 .dr-avail .recbadge{ background:#16b8a6; color:#fff; font-size:9px; padding:1px 6px; border-radius:5px;
   font-family:'Anton'; letter-spacing:.5px; margin-left:6px; }
 .dr-avail .pp{ font-size:10px; color:#8b86a0; }
-.dr-grid{ display:grid; gap:2px; font-family:'Oswald'; }
-.dr-cell{ font-size:8.5px; line-height:1.1; padding:3px; border-radius:4px; background:#faf7ff;
-  min-height:34px; border:1px solid #efeaf8; overflow:hidden; }
-.dr-cell .pk{ color:#b6aecd; } .dr-cell.me{ background:rgba(22,184,166,.16); }
-.dr-cell.now{ box-shadow:0 0 0 2px #ff4f9d; } .dr-cell.empty{ opacity:.5; }
-.dr-colhead{ font-family:'Anton'; font-size:8px; text-align:center; color:var(--ink);
-  text-transform:uppercase; padding:2px; }
+/* ---- redesigned, readable draft board ---- */
+.dr-grid{ display:grid; gap:3px; font-family:'Oswald'; min-width:max-content; }
+.dr-cell{ position:relative; font-size:11px; line-height:1.15; padding:5px 6px 5px 8px;
+  border-radius:6px; background:#fbf9ff; min-height:46px; border:1px solid #ece5f8;
+  overflow:hidden; display:flex; flex-direction:column; justify-content:center; }
+.dr-cell .pk{ position:absolute; top:2px; right:4px; font-size:8px; color:#c3b8db; font-weight:600; }
+.dr-cell .nm{ font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; max-width:100%; }
+.dr-cell .meta{ font-size:9px; color:#9089ab; font-weight:600; letter-spacing:.3px; }
+/* position-colored left bar + tint */
+.dr-cell.pos-QB{ background:rgba(245,165,36,.13); box-shadow:inset 4px 0 0 var(--amber); }
+.dr-cell.pos-RB{ background:rgba(22,184,166,.13); box-shadow:inset 4px 0 0 var(--teal); }
+.dr-cell.pos-WR{ background:rgba(43,181,232,.13); box-shadow:inset 4px 0 0 var(--cyan); }
+.dr-cell.pos-TE{ background:rgba(255,79,157,.12); box-shadow:inset 4px 0 0 var(--pink); }
+.dr-cell.pos-K{ background:rgba(144,137,171,.13); box-shadow:inset 4px 0 0 #9089ab; }
+.dr-cell.pos-DST,.dr-cell.pos-D{ background:rgba(123,92,255,.12); box-shadow:inset 4px 0 0 var(--purple); }
+.dr-cell.me{ outline:2px solid rgba(22,184,166,.45); outline-offset:-2px; }
+.dr-cell.now{ box-shadow:0 0 0 3px var(--pink), 0 4px 14px rgba(255,79,157,.35);
+  animation:drpulse 1.4s ease-in-out infinite; }
+.dr-cell.empty{ background:#f7f4fd; color:#cabfe2; min-height:46px; }
+.dr-cell.empty .nm{ color:#cabfe2; font-weight:400; font-style:italic; font-size:10px; }
+.dr-colhead{ font-family:'Anton'; font-size:10px; text-align:center; color:var(--ink);
+  text-transform:uppercase; padding:5px 3px; background:#f1ebfb; border-radius:6px 6px 0 0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:.5px; }
+.dr-colhead.me{ background:var(--teal); color:#fff; }
+.dr-colhead.rd{ background:var(--purple); color:#fff; font-size:11px; }
+.dr-rdlabel{ display:flex; align-items:center; justify-content:center; font-family:'Anton';
+  font-size:12px; color:#fff; background:var(--purple); border-radius:6px; }
+
+/* ---- value / context chips on the available board ---- */
+.dr-avail .posrank{ display:inline-block; font-family:'Anton'; font-size:9px; color:#fff;
+  border-radius:4px; padding:1px 5px; margin-right:5px; vertical-align:middle; }
+.posrank.QB{ background:var(--amber);} .posrank.RB{ background:var(--teal);}
+.posrank.WR{ background:var(--cyan);} .posrank.TE{ background:var(--pink);}
+.posrank.K{ background:#9089ab;} .posrank.DST,.posrank.D{ background:var(--purple);}
+.dr-avail .vchip{ font-size:9px; font-weight:700; padding:1px 5px; border-radius:4px; margin-left:6px; }
+.vchip.value{ background:rgba(22,184,166,.18); color:#0c7a6e; }
+.vchip.reach{ background:rgba(229,72,77,.15); color:#b3232a; }
+.dr-avail .bye{ font-size:9px; color:#b6aecd; }
+
+/* roster-needs strip */
+.dr-needs{ display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 8px; }
+.dr-needs .need{ font-family:'Oswald'; font-weight:600; font-size:11px; padding:3px 9px;
+  border-radius:14px; border:1.5px solid var(--line); background:#fff; }
+.dr-needs .need.open{ border-color:var(--pink); color:var(--pink); }
+.dr-needs .need.full{ opacity:.5; text-decoration:line-through; }
 
 /* ---------------- mobile ---------------- */
 @media (max-width: 640px){

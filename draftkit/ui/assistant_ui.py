@@ -1,5 +1,5 @@
 """Live Draft Assistant tab — polls the live draft (Sleeper or ESPN) and renders
-the same FantasyPros-style board from a normalized Pick list."""
+the same readable, value-aware board from a normalized Pick list."""
 from __future__ import annotations
 
 import streamlit as st
@@ -49,27 +49,41 @@ def render(ctx) -> None:
                if p.slot == my_slot and p.player and p.player.sleeper_pid]
 
     pick_no = len(picks) + 1
-    on_slot = C.snake(n)(pick_no - 1)
-    st.markdown(C.status_html(pick_no, n, slot_names[on_slot], on_slot == my_slot),
+    snake = C.snake(n)
+    on_slot = snake(pick_no - 1)
+    # picks until my next turn
+    until = 0
+    for k in range(pick_no - 1, pick_no - 1 + n * rounds):
+        if snake(k) == my_slot:
+            until = k - (pick_no - 1)
+            break
+    st.markdown(C.status_html(pick_no, n, slot_names[on_slot], on_slot == my_slot,
+                              picks_until_me=until),
                 unsafe_allow_html=True)
 
     left, right = st.columns([1, 2])
     with left:
         st.markdown('<div class="dr-h">🧢 My Team</div>', unsafe_allow_html=True)
+        st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
         st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
     with right:
         st.markdown('<div class="dr-h">🎯 Best Available — Your Board</div>', unsafe_allow_html=True)
-        st.markdown(C.avail_html(C.filter_pos(ranks, pos_f, reg), drafted, reg, ctx["adp_rank"]),
+        search = st.text_input("🔎 Search the board", key=f"{akey}_search",
+                               placeholder="Filter by name or team…")
+        board = C.filter_search(C.filter_pos(ranks, pos_f, reg), search, reg)
+        st.markdown(C.avail_html(board, drafted, reg, ctx["adp_rank"],
+                                 pos_rank=ctx["pos_rank"], current_pick=pick_no),
                     unsafe_allow_html=True)
 
-    with st.expander("📋 Draft Board"):
-        cell = {p.overall: (p.player.name.split()[-1] if p.player else p.raw_id)
-                for p in picks if p.overall}
-        st.markdown(C.grid_html(cell, n, slot_names, my_slot, pick_no, rounds),
-                    unsafe_allow_html=True)
+    st.markdown('<div class="dr-h" style="margin-top:12px;">📋 Draft Board</div>',
+                unsafe_allow_html=True)
+    pick_pids = {p.overall: (p.player.sleeper_pid if p.player else None)
+                 for p in picks if p.overall}
+    st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg),
+                unsafe_allow_html=True)
     if not picks:
         st.caption("Waiting on the draft to start — picks will stream in here. "
                    "Toggle auto-refresh (or hit Refresh) once it's live.")
     else:
         st.caption("Live from your draft — best available is your UDK board, tier-colored, "
-                   "drafted players removed, ★ = top recommendation.")
+                   "drafted players removed, ★ = top pick, ▼ = falling value, ▲ = reach.")
