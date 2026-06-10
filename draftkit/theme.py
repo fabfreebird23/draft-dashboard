@@ -112,6 +112,23 @@ div[data-testid="stRadio"] label{ font-size:12px; }
   border-radius:8px; padding:8px 13px; margin-bottom:9px; font-size:13px; }
 .dr-rec b{ color:var(--green); } .dr-rec .why{ color:var(--muted); }
 
+/* ---- pick predictor ---- */
+.dr-predict{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 10px;
+  margin-bottom:9px; }
+.pp-row{ display:flex; align-items:center; gap:6px; padding:4px 4px; border-bottom:1px solid var(--line2);
+  font-size:12px; border-left:4px solid var(--mut2); padding-left:7px; border-radius:0; margin-bottom:1px; }
+.pp-row.pos-QB{ border-left-color:var(--qb);} .pp-row.pos-RB{ border-left-color:var(--rb);}
+.pp-row.pos-WR{ border-left-color:var(--wr);} .pp-row.pos-TE{ border-left-color:var(--te);}
+.pp-pk{ font-weight:800; color:var(--mut2); font-size:10px; min-width:26px; }
+.pp-tm{ color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80px; }
+.pp-arrow{ color:var(--mut2); }
+.pp-img{ width:20px; height:20px; border-radius:50%; object-fit:cover; background:var(--line2); }
+.pp-pl{ font-weight:700; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pp-pos{ font-size:9px; font-weight:800; color:#fff; border-radius:3px; padding:1px 5px; }
+.pp-pos.pos-QB{ background:var(--qb);} .pp-pos.pos-RB{ background:var(--rb);}
+.pp-pos.pos-WR{ background:var(--wr);} .pp-pos.pos-TE{ background:var(--te);}
+.dr-avail td.sv{ text-align:right; white-space:nowrap; font-weight:700; font-size:11px; color:var(--muted); }
+
 /* ---- roster strength ---- */
 .rs{ display:flex; flex-direction:column; gap:3px; margin-bottom:8px; }
 .rs-row{ display:flex; align-items:center; gap:7px; font-size:12px; padding:2px 4px; border-radius:6px; }

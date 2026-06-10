@@ -6,7 +6,7 @@ import streamlit as st
 
 from ..providers.espn import EspnAuthError
 from . import components as C
-from .widgets import queue_manager
+from .widgets import predict_upcoming, queue_manager
 
 
 def render(ctx) -> None:
@@ -85,15 +85,18 @@ def render(ctx) -> None:
     recent_positions = [p.player.position for p in sorted(picks, key=lambda x: x.overall)[-6:]
                         if p.player]
     qkey = f"queue_{ctx['league_key']}"
-    # roster value per team (live picks + keepers)
     pids_by_slot = {}
     for p in picks:
         if p.player and p.player.sleeper_pid:
             pids_by_slot.setdefault(p.slot, []).append(p.player.sleeper_pid)
     for ov, pid in kept_overall.items():
         pids_by_slot.setdefault(snake(ov - 1), []).append(pid)
+    next_user_pick = pick_no + until if until else None
 
-    left, right = st.columns([1, 2])
+    board = C.filter_pos(ranks, pos_f, reg)
+    board_avail = [r for r in board if r.get("pid") and str(r["pid"]) not in drafted]
+
+    left, mid, right = st.columns([1, 1.5, 1.1])
     with left:
         st.markdown('<div class="dr-h">🧢 My Team</div>', unsafe_allow_html=True)
         st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
@@ -101,11 +104,23 @@ def render(ctx) -> None:
         st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
         st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg, ctx["adp_rank"]),
                     unsafe_allow_html=True)
+    with mid:
+        head = st.columns([2, 3])
+        head[0].markdown('<div class="dr-h" style="margin:2px 0;">🎯 Best Available</div>',
+                         unsafe_allow_html=True)
+        view = head[1].radio("view", ["List", "By position"], horizontal=True,
+                             key=f"{akey}_view", label_visibility="collapsed")
+        if view == "By position":
+            st.markdown(C.by_position_html(board_avail, reg, ctx["adp_rank"], ctx["pos_rank"],
+                                           pick_no, pos_tier=ctx["pos_tier"]), unsafe_allow_html=True)
+        else:
+            search = st.text_input("🔎 Search", key=f"{akey}_search",
+                                   placeholder="Search…", label_visibility="collapsed")
+            st.markdown(C.avail_html(C.filter_search(board, search, reg), drafted, reg,
+                                     ctx["adp_rank"], pos_rank=ctx["pos_rank"], current_pick=pick_no,
+                                     next_pick=next_user_pick), unsafe_allow_html=True)
     with right:
-        board = C.filter_pos(ranks, pos_f, reg)
-        board_avail = [r for r in board if r.get("pid") and str(r["pid"]) not in drafted]
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
-        # recommendation prefers your top queued available player
         queue = [p for p in st.session_state.get(qkey, []) if str(p) not in drafted]
         rec_row = next((r for r in board_avail if str(r["pid"]) == str(queue[0])), None) if queue else None
         if rec_row is None and board_avail:
@@ -116,21 +131,9 @@ def render(ctx) -> None:
                    else C.rec_reason(rec_row, reg, ctx["adp_rank"], pick_no, needs))
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({tpm.position} · {tpm.team}) '
                         f'— <span class="why">{why}</span></div>', unsafe_allow_html=True)
+        preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall)
+        st.markdown(C.predictor_html(preds, slot_names, reg, n), unsafe_allow_html=True)
         queue_manager(ctx, qkey, ranks, drafted, reg, f"{akey}_q")
-        head = st.columns([3, 2])
-        head[0].markdown('<div class="dr-h" style="margin:2px 0;">🎯 Best Available — Your Board</div>',
-                         unsafe_allow_html=True)
-        view = head[1].radio("view", ["By position", "Overall"], horizontal=True,
-                             key=f"{akey}_view", label_visibility="collapsed")
-        if view == "By position":
-            st.markdown(C.by_position_html(board_avail, reg, ctx["adp_rank"], ctx["pos_rank"],
-                                           pick_no, pos_tier=ctx["pos_tier"]), unsafe_allow_html=True)
-        else:
-            search = st.text_input("🔎 Search the board", key=f"{akey}_search",
-                                   placeholder="Filter by name or team…", label_visibility="collapsed")
-            st.markdown(C.avail_html(C.filter_search(board, search, reg), drafted, reg,
-                                     ctx["adp_rank"], pos_rank=ctx["pos_rank"], current_pick=pick_no),
-                        unsafe_allow_html=True)
 
     if not picks:
         kept_note = (f" {len(kept_pids)} keepers are pre-marked." if kept_pids else "")

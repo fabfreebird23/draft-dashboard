@@ -6,9 +6,52 @@ chips, bye weeks, a readable color-coded draft board, and a roster-needs strip.
 """
 from __future__ import annotations
 
+import math
 from typing import Callable, List
 
 from .. import theme
+
+
+def _phi(z):
+    return 0.5 * (1 + math.erf(z / math.sqrt(2)))
+
+
+def survival_pct(adp, next_pick):
+    """Probability (0-100) a player with this ADP is still available at your next
+    pick — models draft position as Normal(adp, sigma) with sigma growing for
+    later ADPs, and returns P(not drafted before next_pick)."""
+    if not adp or not next_pick:
+        return None
+    sigma = max(3.0, 0.16 * float(adp))
+    p = 1 - _phi((float(next_pick) - float(adp)) / sigma)
+    return max(0, min(100, round(p * 100)))
+
+
+def survival_tag(pct):
+    if pct is None:
+        return ""
+    dot = "🟢" if pct >= 70 else ("🟡" if pct >= 35 else "🔴")
+    return f"{dot} {pct}%"
+
+
+def predictor_html(predictions, slot_names, registry, n) -> str:
+    """🔮 Pick Predictor — the most-likely upcoming picks before your next turn."""
+    if not predictions:
+        return ""
+    rows = []
+    for ov, slot, pid in predictions:
+        pm = registry.meta(pid)
+        rd, inrd = (ov - 1) // n + 1, (ov - 1) % n + 1
+        nm = slot_names[slot] if slot < len(slot_names) else f"Team {slot + 1}"
+        rows.append(
+            f'<div class="pp-row pos-{pm.position}"><span class="pp-pk">{rd}.{inrd:02d}</span>'
+            f'<span class="pp-tm">{nm[:13]}</span>'
+            f'<span class="pp-arrow">→</span>'
+            f'{theme.img_tag(pid, "pp-img")}'
+            f'<span class="pp-pl">{pm.name}</span>'
+            f'<span class="pp-pos pos-{pm.position}">{pm.position}</span></div>')
+    return ('<div class="dr-predict"><div class="dr-h" style="margin-bottom:4px;">🔮 Pick '
+            'Predictor — likely before you\'re up</div>' + "".join(rows) + "</div>")
 
 _FLEX_OK = {"RB", "WR", "TE"}
 _STARTABLE = {"QB", "RB", "WR", "TE", "K", "DST", "D"}
@@ -140,8 +183,9 @@ def _value_chip(adp: float | None, current_pick: int | None) -> str:
 
 
 def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
-               current_pick=None, limit=140, recommend=True) -> str:
-    """Tiered best-available board: positional rank, ADP, and value/reach chips."""
+               current_pick=None, next_pick=None, limit=140, recommend=True) -> str:
+    """Tiered best-available board: positional rank, ADP, value/reach chips, and a
+    survival % (chance the player lasts to your next pick)."""
     pos_rank = pos_rank or {}
     body, shown, last_tier, first = [], 0, None, True
     for r in rows:
@@ -152,7 +196,7 @@ def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
         shown += 1
         if r["tier"] != last_tier:
             c = tier_color(r["tier"])
-            body.append(f'<tr class="tierband" style="background:{c}"><td colspan="3" '
+            body.append(f'<tr class="tierband" style="background:{c}"><td colspan="4" '
                         f'style="color:#fff">TIER {r["tier"]}</td></tr>')
             last_tier = r["tier"]
         pm = registry.meta(r["pid"])
@@ -164,11 +208,13 @@ def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
         pr = pos_rank.get(str(r["pid"]), "")
         pr_html = f'<span class="posrank {pm.position}">{pr}</span>' if pr else ""
         vchip = _value_chip(adp, current_pick)
+        sv = survival_pct(adp, next_pick) if next_pick else None
+        sv_td = (f'<td class="sv">{survival_tag(sv)}</td>' if sv is not None else '<td class="sv"></td>')
         body.append(
             f'<tr{rec}><td class="r">{r["rank"]}</td>'
             f'<td>{theme.img_tag(r["pid"])}{pr_html}<b>{r["name"]}</b>{badge}{vchip}'
             f'<div class="pp">{pm.position} · {pm.team}</div></td>'
-            f'<td class="a">ADP<br>{adp_disp}</td></tr>'
+            f'<td class="a">ADP<br>{adp_disp}</td>{sv_td}</tr>'
         )
     return ('<div class="neonwrap" style="max-height:620px;overflow:auto;">'
             '<table class="dr-avail"><tbody>' + "".join(body) + '</tbody></table></div>')

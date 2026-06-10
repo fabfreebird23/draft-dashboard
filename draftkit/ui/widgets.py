@@ -3,16 +3,50 @@ from __future__ import annotations
 
 import streamlit as st
 
-from .. import theme
+from .. import draft_history, theme
 from . import components as C
 
 
+def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall, *,
+                     limit=10):
+    """Simulate the most-likely opponent picks from `current_overall` up to (but
+    excluding) your next active pick. Returns [(overall, slot, pid), ...]."""
+    reg, adp_pool, tend = ctx["registry"], ctx["adp_pool"], ctx["tendencies"]
+    owner_by_slot = ctx["owner_by_slot"]
+    n = len(ctx["slot_names"])
+    total = n * ctx["meta"].draft_rounds
+    snake = C.snake(n)
+    sim = {str(p) for p in taken_pids}
+    out, ov = [], current_overall
+    while ov <= total and len(out) < limit:
+        slot = snake(ov - 1)
+        if slot == my_slot and ov != current_overall:
+            break  # reached your next pick
+        if ov in kept_by_overall:
+            sim.add(str(kept_by_overall[ov]))
+            ov += 1
+            continue
+        if slot == my_slot:
+            ov += 1  # don't predict your own current pick
+            continue
+        rnd = (ov - 1) // n + 1
+        pool = [p for p in adp_pool if p["pid"] not in sim]
+        ch = draft_history.pick_for_owner(owner_by_slot.get(slot), rnd, pool, tend, reg)
+        if not ch:
+            break
+        sim.add(ch["pid"])
+        out.append((ov, slot, ch["pid"]))
+        ov += 1
+    return out
+
+
 def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *,
-                    view="List", per_pos=16, limit=70) -> None:
+                    view="List", per_pos=16, limit=70, next_pick=None) -> None:
     """Best-available board where the WHOLE player row is the draft button
     (no separate button). Position-colored left bar (scoped `[class*="_brow_<POS>"]`),
-    bold color-coded tier bands. `view`='List' groups by overall tier; 'By position'
-    splits into QB/RB/WR/TE columns grouped by per-position tier."""
+    bold color-coded tier bands, and a survival % (chance the player lasts to your
+    next pick). `view`='List' groups by overall tier; 'By position' splits into
+    QB/RB/WR/TE columns grouped by per-position tier."""
     reg, pick = ctx["registry"], current_pick
     pos_tier, pos_rank, adp_rank = ctx["pos_tier"], ctx["pos_rank"], ctx["adp_rank"]
     byes = ctx.get("byes", {})
@@ -27,7 +61,9 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         adps = int(adp) if adp else "—"
         star = "★ " if str(r["pid"]) == star_pid else ""
         bye_s = f" · Bye {bye}" if bye else ""
-        return f'{star}{pr} · {r["name"]} · {pm.team} · ADP {adps}{bye_s}{vt}'
+        surv = C.survival_tag(C.survival_pct(adp, next_pick)) if next_pick else ""
+        surv_s = f"   ·   {surv}" if surv else ""
+        return f'{star}{pr} · {r["name"]} · {pm.team} · ADP {adps}{bye_s}{vt}{surv_s}'
 
     def emit_row(r):
         pm = reg.meta(r["pid"])

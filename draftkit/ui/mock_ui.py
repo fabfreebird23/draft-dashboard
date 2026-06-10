@@ -9,7 +9,7 @@ import streamlit as st
 
 from .. import draft_history
 from . import components as C
-from .widgets import clickable_board, queue_manager
+from .widgets import clickable_board, predict_upcoming, queue_manager
 
 _PICK_DELAY = 0.7  # seconds between AI picks in live-pace mode
 
@@ -113,8 +113,24 @@ def render(ctx) -> None:
     pids_by_slot = {}
     for ov, pid in board.items():
         pids_by_slot.setdefault(snake(ov - 1), []).append(pid)
+    # your next active (non-keeper) pick — used for survival %
+    nxt = (pick_no + 1)
+    while nxt <= total and (snake(nxt - 1) != my_slot or nxt in kept_by_overall):
+        nxt += 1
+    next_user_pick = nxt if nxt <= total else None
 
-    left, right = st.columns([1, 2])
+    if done:
+        st.success("✅ Mock complete — your team is on the left. Reset to run another.")
+        return
+
+    def draft(pid):
+        made[on_clock] = str(pid)
+        st.rerun()
+
+    board_avail = [r for r in C.filter_pos(ranks, pos_f, reg)
+                   if r.get("pid") and str(r["pid"]) not in taken]
+
+    left, mid, right = st.columns([1, 1.5, 1.1])
     with left:
         st.markdown('<div class="dr-h">🧢 My Team</div>', unsafe_allow_html=True)
         st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
@@ -123,20 +139,28 @@ def render(ctx) -> None:
         st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg, ctx["adp_rank"]),
                     unsafe_allow_html=True)
 
+    with mid:
+        hdr = ("🎯 Best Available — click to draft" if is_my_turn else "🎯 Best Available")
+        st.markdown(f'<div class="dr-h" style="margin:2px 0;">{hdr}</div>', unsafe_allow_html=True)
+        topc = st.columns([2, 3])
+        view = topc[0].radio("view", ["List", "By position"], horizontal=True,
+                             key=f"{mkey}_view", label_visibility="collapsed")
+        search = topc[1].text_input("🔎 Search", key=f"{mkey}_search",
+                                    placeholder="Search…", label_visibility="collapsed")
+        avail = C.filter_search(board_avail, search, reg)
+        if is_my_turn:
+            clickable_board(ctx, avail, draft, mkey, current_pick=pick_no, view=view,
+                            next_pick=next_user_pick)
+        elif view == "By position":
+            st.markdown(C.by_position_html(avail, reg, ctx["adp_rank"], ctx["pos_rank"],
+                                           pick_no, pos_tier=ctx["pos_tier"]), unsafe_allow_html=True)
+        else:
+            st.markdown(C.avail_html(avail, taken, reg, ctx["adp_rank"],
+                                     pos_rank=ctx["pos_rank"], current_pick=pick_no),
+                        unsafe_allow_html=True)
+
     with right:
-        board_avail = [r for r in C.filter_pos(ranks, pos_f, reg)
-                       if r.get("pid") and str(r["pid"]) not in taken]
-        if done:
-            st.success("✅ Mock complete — your team is on the left. Reset to run another.")
-            return
-
-        def draft(pid):
-            made[on_clock] = str(pid)
-            st.rerun()
-
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
-
-        # recommendation (prefer top queued available, else top of board)
         queue = [p for p in st.session_state.get(qkey, []) if str(p) not in taken]
         rec_row = next((r for r in board_avail if str(r["pid"]) == str(queue[0])), None) if queue else None
         if rec_row is None and board_avail:
@@ -148,28 +172,8 @@ def render(ctx) -> None:
             cue = "click the board to draft" if is_my_turn else "your top target"
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({rpm.position} · {rpm.team}) '
                         f'— <span class="why">{tag}</span> · <i>{cue}</i></div>', unsafe_allow_html=True)
-
-        head = st.columns([3, 2])
-        hdr = ("🎯 Best Available — click any player to draft" if is_my_turn
-               else "🎯 Best Available")
-        head[0].markdown(f'<div class="dr-h" style="margin:2px 0;">{hdr}</div>', unsafe_allow_html=True)
-        view = head[1].radio("view", ["List", "By position"], horizontal=True,
-                             key=f"{mkey}_view", label_visibility="collapsed")
-        search = st.text_input("🔎 Search", key=f"{mkey}_search",
-                               placeholder="Filter by name or team…", label_visibility="collapsed")
-        avail = C.filter_search(board_avail, search, reg)
-        if is_my_turn:
-            clickable_board(ctx, avail, draft, mkey, current_pick=pick_no, view=view)
-        else:
-            # opponent on the clock — show the board read-only while they pick
-            if view == "By position":
-                st.markdown(C.by_position_html(avail, reg, ctx["adp_rank"], ctx["pos_rank"],
-                                               pick_no, pos_tier=ctx["pos_tier"]), unsafe_allow_html=True)
-            else:
-                st.markdown(C.avail_html(avail, taken, reg, ctx["adp_rank"],
-                                         pos_rank=ctx["pos_rank"], current_pick=pick_no),
-                            unsafe_allow_html=True)
-
+        preds = predict_upcoming(ctx, taken, pick_no, my_slot, kept_by_overall)
+        st.markdown(C.predictor_html(preds, slot_names, reg, n), unsafe_allow_html=True)
         queue_manager(ctx, qkey, ranks, taken, reg, f"{mkey}_q")
 
     kept_note = (f" · 🔒 {len(kept_pids)} keepers locked" if kept_pids else "")
