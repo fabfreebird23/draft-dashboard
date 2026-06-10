@@ -244,6 +244,94 @@ def insights_html(board_avail, recent_positions, needs_open) -> str:
     return '<div class="dr-alerts">' + "".join(chips) + "</div>"
 
 
+def bye_conflict_html(my_pids, byes, registry) -> str:
+    """Warn when ≥3 of your players share a bye week (a lineup hole that week)."""
+    if not byes:
+        return ""
+    from collections import Counter
+    weeks = Counter()
+    for pid in my_pids:
+        pm = registry.meta(pid)
+        if pm.position in ("QB", "RB", "WR", "TE"):
+            wk = byes.get(pm.team)
+            if wk:
+                weeks[wk] += 1
+    bad = [(wk, c) for wk, c in sorted(weeks.items()) if c >= 3]
+    if not bad:
+        return ""
+    chips = "".join(f'<span class="alert run">🗓 Bye {wk}: {c} players</span>' for wk, c in bad)
+    return '<div class="dr-alerts">' + chips + "</div>"
+
+
+def player_value(pid, registry, adp_rank) -> float:
+    """A simple draft-value proxy from overall ADP rank (higher = better)."""
+    pm = registry.meta(pid)
+    r = adp_rank(pm.name, pm.position)
+    return max(0.0, 220.0 - float(r)) if r else 8.0
+
+
+def roster_strength_html(pids_by_slot, my_slot, slot_names, registry, adp_rank) -> str:
+    """Project each team's roster value and rank yours against the league."""
+    rows = []
+    for slot, pids in pids_by_slot.items():
+        val = sum(player_value(p, registry, adp_rank) for p in pids)
+        rows.append((slot, val, len(pids)))
+    if not rows:
+        return ""
+    rows.sort(key=lambda x: -x[1])
+    rank = next((i + 1 for i, r in enumerate(rows) if r[0] == my_slot), None)
+    maxv = max((r[1] for r in rows), default=1) or 1
+    bars = []
+    for pos, (slot, val, cnt) in enumerate(rows, 1):
+        me = " me" if slot == my_slot else ""
+        nm = slot_names[slot] if slot < len(slot_names) else f"Team {slot+1}"
+        pct = int(100 * val / maxv)
+        bars.append(f'<div class="rs-row{me}"><span class="rs-rk">{pos}</span>'
+                    f'<span class="rs-nm">{nm[:14]}</span>'
+                    f'<span class="rs-bar"><i style="width:{pct}%"></i></span>'
+                    f'<span class="rs-val">{int(val)}</span></div>')
+    head = (f'<div class="dr-h">💪 Roster Strength — you\'re #{rank} of {len(rows)}</div>'
+            if rank else '<div class="dr-h">💪 Roster Strength</div>')
+    return head + '<div class="rs">' + "".join(bars) + "</div>"
+
+
+def by_position_html(board_avail, registry, adp_rank, pos_rank, current_pick, per=10) -> str:
+    """Cheat-sheet view: best available in side-by-side QB/RB/WR/TE columns."""
+    cols = {"QB": [], "RB": [], "WR": [], "TE": []}
+    for r in board_avail:
+        pm = registry.meta(r["pid"])
+        if pm.position in cols and len(cols[pm.position]) < per:
+            cols[pm.position].append((r, pm))
+    out = ['<div class="dr-cheat">']
+    for pos in ("QB", "RB", "WR", "TE"):
+        out.append(f'<div class="cheat-col"><div class="cheat-head {pos}">{pos}</div>')
+        for r, pm in cols[pos]:
+            adp = adp_rank(pm.name, pm.position)
+            adp_s = int(adp) if adp else "—"
+            pr = pos_rank.get(str(r["pid"]), "")
+            v = _value_chip(adp, current_pick)
+            out.append(f'<div class="cheat-row">{theme.img_tag(r["pid"], "chs")}'
+                       f'<span class="cn">{r["name"]}</span>'
+                       f'<span class="ca">{pr or pm.team} · {adp_s}{(" "+v) if v else ""}</span></div>')
+        out.append("</div>")
+    out.append("</div>")
+    return "".join(out)
+
+
+def queue_html(queue_pids, drafted, registry) -> str:
+    """The pick queue / watchlist: ordered, drafted players struck through."""
+    if not queue_pids:
+        return '<div class="dr-queue"><div class="q-row gone">— queue is empty —</div></div>'
+    rows = []
+    for pid in queue_pids:
+        pm = registry.meta(pid)
+        gone = " gone" if str(pid) in drafted else ""
+        rows.append(f'<div class="q-row{gone}">{theme.img_tag(pid, "chs")}'
+                    f'<span class="qn">{pm.name}</span>'
+                    f'<span class="qp">{pm.position} · {pm.team}</span></div>')
+    return '<div class="dr-queue">' + "".join(rows) + "</div>"
+
+
 def rec_reason(top_row, registry, adp_rank, current_pick, needs_open) -> str:
     """One-line reasoning for the top recommended pick (VBD/need/value/tier)."""
     pm = registry.meta(top_row["pid"])

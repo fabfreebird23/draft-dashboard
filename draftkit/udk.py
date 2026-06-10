@@ -20,11 +20,12 @@ from __future__ import annotations
 import io
 import json
 import re
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 import requests
 
+from . import config
 from .adp.base import BROWSER_HEADERS
 from .names import normalize_name
 
@@ -90,6 +91,28 @@ def _extract_json_array(html: str, key: str):
     return None
 
 
+def _byes_path(season: int):
+    return config.DATA_DIR / f"byes_{season}.json"
+
+
+def save_byes(byes: Dict[str, int], season: int) -> None:
+    try:
+        config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        _byes_path(season).write_text(json.dumps(byes))
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def load_byes(season: int) -> Dict[str, int]:
+    p = _byes_path(season)
+    if not p.exists():
+        return {}
+    try:
+        return {k: int(v) for k, v in json.loads(p.read_text()).items()}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _via_inline(cookie: str, scoring: str = "ppr") -> List[dict]:
     """Strategy 1 — pull the inline `projections` array out of the page HTML."""
     r = requests.get(UDK_PAGE, headers=_cookie_header(cookie), timeout=25)
@@ -97,6 +120,14 @@ def _via_inline(cookie: str, scoring: str = "ppr") -> List[dict]:
     proj = _extract_json_array(r.text, "projections")
     if not proj:
         return []
+    # Capture team bye weeks (per-team) for conflict warnings — best effort.
+    byes = {}
+    for p in proj:
+        t, b = p.get("team"), p.get("bye_week")
+        if t and b:
+            byes[t] = int(b)
+    if byes:
+        save_byes(byes, config.current_season())
     adp_field = _ADP_FIELD.get(scoring, "adp_ppr")
     # Dedupe by player (the array repeats each player once per analyst). ADP is
     # identical across analysts, so keep the first occurrence.
@@ -128,6 +159,24 @@ def _tier_by_gap(players: List[dict]) -> List[dict]:
             prev = adp
         rows.append({"name": p["name"], "tier": tier, "adp": adp})
     return rows
+
+
+def ensure_byes(cookie: str, season: int) -> Dict[str, int]:
+    """Team byes from disk; derive from the UDK page if missing and a cookie is set."""
+    byes = load_byes(season)
+    if byes or not cookie:
+        return byes
+    try:
+        r = requests.get(UDK_PAGE, headers=_cookie_header(cookie), timeout=25)
+        r.raise_for_status()
+        proj = _extract_json_array(r.text, "projections") or []
+        byes = {p["team"]: int(p["bye_week"]) for p in proj
+                if p.get("team") and p.get("bye_week")}
+        if byes:
+            save_byes(byes, season)
+    except Exception:  # noqa: BLE001
+        return {}
+    return byes
 
 
 def _via_html(cookie: str, scoring: str = "ppr") -> List[dict]:

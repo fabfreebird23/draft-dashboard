@@ -249,6 +249,40 @@ table.dr-avail td.a{ text-align:right; color:#8b86a0; white-space:nowrap; }
   font-family:'Oswald'; font-size:13px; }
 .dr-rec b{ color:#0c7a6e; } .dr-rec .why{ color:#6a6580; font-size:12px; }
 
+/* roster strength vs league */
+.rs{ display:flex; flex-direction:column; gap:3px; margin-bottom:8px; }
+.rs-row{ display:flex; align-items:center; gap:7px; font-family:'Oswald'; font-size:12px;
+  padding:2px 6px; border-radius:6px; }
+.rs-row.me{ background:rgba(22,184,166,.14); font-weight:700; }
+.rs-rk{ width:16px; color:#b6aecd; font-family:'Anton'; font-size:11px; text-align:center; }
+.rs-nm{ width:96px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rs-bar{ flex:1; height:9px; background:#efeaf8; border-radius:5px; overflow:hidden; }
+.rs-bar i{ display:block; height:100%; background:linear-gradient(90deg,var(--teal),var(--cyan)); }
+.rs-row.me .rs-bar i{ background:linear-gradient(90deg,var(--pink),var(--purple)); }
+.rs-val{ width:34px; text-align:right; color:#8b86a0; font-weight:600; }
+
+/* by-position cheat sheet */
+.dr-cheat{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.cheat-col{ border:1px solid var(--line); border-radius:9px; background:rgba(255,255,255,.7);
+  overflow:hidden; }
+.cheat-head{ font-family:'Anton'; color:#fff; text-align:center; padding:4px; font-size:13px;
+  letter-spacing:1px; }
+.cheat-head.QB{ background:var(--amber);} .cheat-head.RB{ background:var(--teal);}
+.cheat-head.WR{ background:var(--cyan);} .cheat-head.TE{ background:var(--pink);}
+.cheat-row{ display:flex; align-items:center; gap:5px; padding:4px 6px; font-family:'Oswald';
+  font-size:11.5px; border-bottom:1px solid #f1ecfa; }
+.cheat-row .chs{ width:20px; height:20px; border-radius:50%; object-fit:cover; background:#efeaf8; }
+.cheat-row .cn{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; }
+.cheat-row .ca{ color:#9089ab; font-size:10px; white-space:nowrap; }
+
+/* pick queue */
+.dr-queue{ display:flex; flex-direction:column; gap:3px; }
+.q-row{ display:flex; align-items:center; gap:6px; font-family:'Oswald'; font-size:12.5px;
+  padding:3px 7px; border:1px solid var(--line); border-radius:7px; background:#fff; }
+.q-row.gone{ opacity:.4; text-decoration:line-through; }
+.q-row .qn{ font-weight:600; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.q-row .qp{ font-size:10px; color:#8b86a0; }
+
 /* roster-needs strip */
 .dr-needs{ display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 8px; }
 .dr-needs .need{ font-family:'Oswald'; font-weight:600; font-size:11px; padding:3px 9px;

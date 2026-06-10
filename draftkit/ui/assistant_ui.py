@@ -6,6 +6,7 @@ import streamlit as st
 
 from ..providers.espn import EspnAuthError
 from . import components as C
+from .widgets import queue_manager
 
 
 def render(ctx) -> None:
@@ -80,28 +81,52 @@ def render(ctx) -> None:
     needs = C.open_needs(my_pids, ctx["roster_slots"], reg)
     recent_positions = [p.player.position for p in sorted(picks, key=lambda x: x.overall)[-6:]
                         if p.player]
+    qkey = f"queue_{ctx['league_key']}"
+    # roster value per team (live picks + keepers)
+    pids_by_slot = {}
+    for p in picks:
+        if p.player and p.player.sleeper_pid:
+            pids_by_slot.setdefault(p.slot, []).append(p.player.sleeper_pid)
+    for ov, pid in kept_overall.items():
+        pids_by_slot.setdefault(snake(ov - 1), []).append(pid)
 
     left, right = st.columns([1, 2])
     with left:
         st.markdown('<div class="dr-h">🧢 My Team</div>', unsafe_allow_html=True)
         st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+        st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
         st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+        st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg, ctx["adp_rank"]),
+                    unsafe_allow_html=True)
     with right:
-        st.markdown('<div class="dr-h">🎯 Best Available — Your Board</div>', unsafe_allow_html=True)
         board = C.filter_pos(ranks, pos_f, reg)
         board_avail = [r for r in board if r.get("pid") and str(r["pid"]) not in drafted]
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
-        if board_avail:
-            tp = board_avail[0]
-            tpm = reg.meta(tp["pid"])
-            why = C.rec_reason(tp, reg, ctx["adp_rank"], pick_no, needs)
-            st.markdown(f'<div class="dr-rec">★ <b>{tp["name"]}</b> ({tpm.position} · {tpm.team}) '
+        # recommendation prefers your top queued available player
+        queue = [p for p in st.session_state.get(qkey, []) if str(p) not in drafted]
+        rec_row = next((r for r in board_avail if str(r["pid"]) == str(queue[0])), None) if queue else None
+        if rec_row is None and board_avail:
+            rec_row = board_avail[0]
+        if rec_row:
+            tpm = reg.meta(rec_row["pid"])
+            why = ("from your queue" if (queue and str(rec_row["pid"]) == str(queue[0]))
+                   else C.rec_reason(rec_row, reg, ctx["adp_rank"], pick_no, needs))
+            st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({tpm.position} · {tpm.team}) '
                         f'— <span class="why">{why}</span></div>', unsafe_allow_html=True)
-        search = st.text_input("🔎 Search the board", key=f"{akey}_search",
-                               placeholder="Filter by name or team…")
-        st.markdown(C.avail_html(C.filter_search(board, search, reg), drafted, reg,
-                                 ctx["adp_rank"], pos_rank=ctx["pos_rank"], current_pick=pick_no),
+        queue_manager(ctx, qkey, ranks, drafted, reg, f"{akey}_q")
+        view = st.radio("Best Available view", ["List", "By position"], horizontal=True,
+                        key=f"{akey}_view")
+        st.markdown('<div class="dr-h" style="margin-top:6px;">🎯 Best Available — Your Board</div>',
                     unsafe_allow_html=True)
+        if view == "By position":
+            st.markdown(C.by_position_html(board_avail, reg, ctx["adp_rank"], ctx["pos_rank"], pick_no),
+                        unsafe_allow_html=True)
+        else:
+            search = st.text_input("🔎 Search the board", key=f"{akey}_search",
+                                   placeholder="Filter by name or team…")
+            st.markdown(C.avail_html(C.filter_search(board, search, reg), drafted, reg,
+                                     ctx["adp_rank"], pos_rank=ctx["pos_rank"], current_pick=pick_no),
+                        unsafe_allow_html=True)
 
     if not picks:
         kept_note = (f" {len(kept_pids)} keepers are pre-marked." if kept_pids else "")

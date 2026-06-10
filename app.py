@@ -54,6 +54,13 @@ def get_tendencies(platform: str, league_id: str):
         return {}
 
 
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_byes(season: int):
+    from draftkit import udk
+    cookie = _secret("udk_cookie")
+    return udk.ensure_byes(cookie, season)
+
+
 def _secret(name: str) -> str:
     try:
         return st.secrets.get(name, "") or ""
@@ -155,7 +162,7 @@ def build_context(sel: dict) -> dict:
         "slot_names": slot_names, "roster_slots": provider.get_roster_slots(),
         "owner_by_slot": owner_by_slot, "owner_slot": owner_slot,
         "adp_df": adp_df, "adp_rank": adp_rank, "adp_pool": adp_pool,
-        "pos_rank": pos_rank,
+        "pos_rank": pos_rank, "byes": get_byes(config.current_season()),
         "keepers_raw": keepers_raw, "keepers": placements, "tendencies": tendencies,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
     }
