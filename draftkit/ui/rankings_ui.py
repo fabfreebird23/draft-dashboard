@@ -38,7 +38,7 @@ def render(ctx) -> None:
         if st.button("⚡ Pull from UDK (stored login)", type="primary",
                      disabled=not cookie, use_container_width=True):
             with st.spinner("Scraping the UDK…"):
-                got = udk.fetch_udk(cookie, reg)
+                got = udk.fetch_udk(cookie, reg, ctx["meta"].scoring)
             if got:
                 _set(ctx, got)
                 st.success(f"Pulled {len(got)} players from the UDK.")

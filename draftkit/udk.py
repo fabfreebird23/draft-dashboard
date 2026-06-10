@@ -1,21 +1,24 @@
 """Ultimate Draft Kit (The Fantasy Footballers) rankings — server-side scrape.
 
-The UDK position-rankings page is gated behind a WordPress "UDK+" login and is
-JS-rendered, so there's no single stable public endpoint. We try a swappable
-fallback chain with a stored session cookie, and the app keeps a no-credentials
-fallback (the one-click bookmarklet + CSV upload, in the rankings UI):
+The UDK position-rankings page is gated behind a WordPress "UDK+" login. It does
+NOT fetch rankings from an API — the full board is server-rendered inline into the
+page HTML as a big JSON `"projections":[...]` array (confirmed via DevTools: no
+XHR fires, the data is in `window.udk.data.projections`). So the scrape is simply:
 
-  1. authenticated JSON (admin-ajax / wp-json) — the real data call
-  2. authenticated rendered-HTML <table> parse
-  3. (UI) bookmarklet + CSV upload — always works
+  1. GET the page with the stored login cookie, extract the inline `projections`
+     JSON, dedupe (the array has one row per analyst — Andy/Mike/Jason — so each
+     player appears ~3x), and order by the scoring-appropriate ADP.
+  2. (fallback) parse a rendered <table>, if the page layout ever changes.
+  3. (UI) the one-click bookmarklet + CSV upload — always works, no credentials.
 
-The exact JSON route can only be confirmed from a logged-in browser's DevTools
-Network tab. It lives in ONE constant below so discovery is a one-line swap; until
-then strategies 1/2 simply fail and the UI falls back to upload.
+Each projection row carries: name, fantasy_position, team, adp / adp_ppr /
+adp_half_ppr / adp_2qb, plus full projection stats. We rank by ADP (matching the
+bookmarklet's behavior) and tier by natural ADP gaps.
 """
 from __future__ import annotations
 
 import io
+import json
 import re
 from typing import List, Optional
 
@@ -26,13 +29,9 @@ from .adp.base import BROWSER_HEADERS
 from .names import normalize_name
 
 UDK_PAGE = "https://www.thefantasyfootballers.com/2026-ultimate-draft-kit/udk-position-rankings/"
-# Swap this once the real data call is found in DevTools (admin-ajax action or a
-# /wp-json/ REST route). Leave as None to skip Strategy 1 cleanly.
-UDK_JSON_URL: Optional[str] = None
-UDK_JSON_PARAMS: dict = {}
 
-_POSITIONS = ("QB", "RB", "WR", "TE")
-# Strip a trailing "WR (10)" / "RB BUF (3)" style suffix from a UDK name cell.
+# Pick the ADP column that matches league scoring.
+_ADP_FIELD = {"ppr": "adp_ppr", "half": "adp_half_ppr", "std": "adp", "2qb": "adp_2qb"}
 _SUFFIX_RE = re.compile(r"\s+[A-Z]{2,4}\s*\(\d+\)\s*$")
 
 # One-click UDK grabber bookmarklet (no credentials needed — runs in the user's
@@ -58,26 +57,81 @@ def _cookie_header(cookie: str) -> dict:
     return {**BROWSER_HEADERS, "Cookie": cookie.strip()}
 
 
-def _via_json(cookie: str) -> List[dict]:
-    if not UDK_JSON_URL:
-        return []
-    r = requests.get(UDK_JSON_URL, headers=_cookie_header(cookie),
-                     params=UDK_JSON_PARAMS or None, timeout=20)
+def _extract_json_array(html: str, key: str):
+    """Balanced-bracket extraction of a `"key":[ ... ]` JSON array from raw HTML."""
+    start = html.find(f'"{key}":')
+    if start < 0:
+        return None
+    i = html.find("[", start)
+    if i < 0:
+        return None
+    depth, in_str, esc = 0, False, False
+    for j in range(i, len(html)):
+        c = html[j]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+        else:
+            if c == '"':
+                in_str = True
+            elif c == "[":
+                depth += 1
+            elif c == "]":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(html[i:j + 1])
+                    except json.JSONDecodeError:
+                        return None
+    return None
+
+
+def _via_inline(cookie: str, scoring: str = "ppr") -> List[dict]:
+    """Strategy 1 — pull the inline `projections` array out of the page HTML."""
+    r = requests.get(UDK_PAGE, headers=_cookie_header(cookie), timeout=25)
     r.raise_for_status()
-    data = r.json()
-    rows = data if isinstance(data, list) else data.get("data") or data.get("players") or []
-    out = []
-    for it in rows:
-        name = it.get("name") or it.get("player") or ""
-        if not name:
+    proj = _extract_json_array(r.text, "projections")
+    if not proj:
+        return []
+    adp_field = _ADP_FIELD.get(scoring, "adp_ppr")
+    # Dedupe by player (the array repeats each player once per analyst). ADP is
+    # identical across analysts, so keep the first occurrence.
+    seen, players = set(), []
+    for p in proj:
+        name = (p.get("name") or "").strip()
+        pos = p.get("fantasy_position")
+        if not name or pos not in ("QB", "RB", "WR", "TE"):
             continue
-        out.append({"name": _SUFFIX_RE.sub("", str(name)).strip(),
-                    "tier": int(it.get("tier") or 1),
-                    "adp": _to_float(it.get("adp"))})
-    return out
+        pkey = str(p.get("player_id") or normalize_name(name))
+        if pkey in seen:
+            continue
+        seen.add(pkey)
+        adp = _to_float(p.get(adp_field)) or _to_float(p.get("adp_ppr")) or _to_float(p.get("adp"))
+        players.append({"name": name, "pos": pos, "team": p.get("team") or "", "adp": adp})
+    # Order by ADP (no-ADP players sink to the bottom), then assign gap-based tiers.
+    players.sort(key=lambda x: (x["adp"] is None, x["adp"] if x["adp"] is not None else 1e9))
+    return _tier_by_gap(players)
 
 
-def _via_html(cookie: str) -> List[dict]:
+def _tier_by_gap(players: List[dict]) -> List[dict]:
+    """Assign tiers from natural ADP gaps (a jump opens a new tier)."""
+    rows, tier, prev = [], 1, None
+    for p in players:
+        adp = p["adp"]
+        if prev is not None and adp is not None and (adp - prev) > max(1.6, 0.10 * adp):
+            tier += 1
+        if adp is not None:
+            prev = adp
+        rows.append({"name": p["name"], "tier": tier, "adp": adp})
+    return rows
+
+
+def _via_html(cookie: str, scoring: str = "ppr") -> List[dict]:
+    """Strategy 2 — parse a rendered <table>, if the inline JSON ever disappears."""
     r = requests.get(UDK_PAGE, headers=_cookie_header(cookie), timeout=20)
     r.raise_for_status()
     tables = pd.read_html(io.StringIO(r.text))
@@ -102,15 +156,15 @@ def _via_html(cookie: str) -> List[dict]:
     return out
 
 
-def fetch_udk(cookie: str, registry) -> Optional[List[dict]]:
+def fetch_udk(cookie: str, registry, scoring: str = "ppr") -> Optional[List[dict]]:
     """Try the authenticated strategies in order. Returns ranking rows
-    [{rank,name,tier,pid}] sorted by ADP, or None if every strategy failed (the
-    caller then falls back to the bookmarklet + CSV upload)."""
+    [{rank,name,tier,pid}], or None if every strategy failed (the caller then
+    falls back to the bookmarklet + CSV upload)."""
     if not cookie:
         return None
-    for strategy in (_via_json, _via_html):
+    for strategy in (_via_inline, _via_html):
         try:
-            rows = strategy(cookie)
+            rows = strategy(cookie, scoring)
         except Exception:  # noqa: BLE001 - try the next strategy
             rows = []
         if rows:
@@ -133,6 +187,7 @@ def _match(rows: List[dict], registry) -> List[dict]:
 
 def _to_float(x):
     try:
-        return float(str(x).strip())
+        v = float(str(x).strip())
+        return v if v > 0 else None
     except (TypeError, ValueError):
         return None
