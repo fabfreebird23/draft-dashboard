@@ -295,8 +295,11 @@ def roster_strength_html(pids_by_slot, my_slot, slot_names, registry, adp_rank) 
     return head + '<div class="rs">' + "".join(bars) + "</div>"
 
 
-def by_position_html(board_avail, registry, adp_rank, pos_rank, current_pick, per=10) -> str:
-    """Cheat-sheet view: best available in side-by-side QB/RB/WR/TE columns."""
+def by_position_html(board_avail, registry, adp_rank, pos_rank, current_pick,
+                     pos_tier=None, per=16) -> str:
+    """Cheat-sheet view: best available in side-by-side QB/RB/WR/TE columns,
+    grouped by per-position tiers."""
+    pos_tier = pos_tier or {}
     cols = {"QB": [], "RB": [], "WR": [], "TE": []}
     for r in board_avail:
         pm = registry.meta(r["pid"])
@@ -305,14 +308,18 @@ def by_position_html(board_avail, registry, adp_rank, pos_rank, current_pick, pe
     out = ['<div class="dr-cheat">']
     for pos in ("QB", "RB", "WR", "TE"):
         out.append(f'<div class="cheat-col"><div class="cheat-head {pos}">{pos}</div>')
+        last_t = None
         for r, pm in cols[pos]:
+            t = pos_tier.get(str(r["pid"]))
+            if t is not None and t != last_t:
+                out.append(f'<div class="ptier">{pos} TIER {t}</div>')
+                last_t = t
             adp = adp_rank(pm.name, pm.position)
             adp_s = int(adp) if adp else "—"
-            pr = pos_rank.get(str(r["pid"]), "")
             v = _value_chip(adp, current_pick)
             out.append(f'<div class="cheat-row">{theme.img_tag(r["pid"], "chs")}'
                        f'<span class="cn">{r["name"]}</span>'
-                       f'<span class="ca">{pr or pm.team} · {adp_s}{(" "+v) if v else ""}</span></div>')
+                       f'<span class="ca">{pm.team} · {adp_s}{(" "+v) if v else ""}</span></div>')
         out.append("</div>")
     out.append("</div>")
     return "".join(out)

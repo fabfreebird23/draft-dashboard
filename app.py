@@ -142,12 +142,22 @@ def build_context(sel: dict) -> dict:
         return adp_lk.get(normalize_name(name))
 
     adp_pool = rankings_mod.adp_pool(registry, adp_df)
-    # Positional rank (RB5, WR7…) keyed by sleeper pid, from ADP order.
+    # Positional rank (RB5, WR7…) + per-position tiers (talent cliffs by ADP gap).
     pos_rank, counts = {}, {}
+    pos_tier, by_pos = {}, {}
     for p in adp_pool:
         pos = p["pos"]
         counts[pos] = counts.get(pos, 0) + 1
         pos_rank[str(p["pid"])] = f"{pos}{counts[pos]}"
+        by_pos.setdefault(pos, []).append(p)
+    for pos, lst in by_pos.items():
+        tier, prev = 1, None
+        for p in lst:                       # lst is already ADP-ordered
+            adp = p["adp"]
+            if prev is not None and (adp - prev) > max(2.0, 0.13 * adp):
+                tier += 1
+            prev = adp
+            pos_tier[str(p["pid"])] = tier
 
     # Keepers (from the league's companion keeper dashboard) + placements.
     keepers_raw = get_keepers(meta.platform, meta.league_id, config.current_season())
@@ -162,7 +172,7 @@ def build_context(sel: dict) -> dict:
         "slot_names": slot_names, "roster_slots": provider.get_roster_slots(),
         "owner_by_slot": owner_by_slot, "owner_slot": owner_slot,
         "adp_df": adp_df, "adp_rank": adp_rank, "adp_pool": adp_pool,
-        "pos_rank": pos_rank, "byes": get_byes(config.current_season()),
+        "pos_rank": pos_rank, "pos_tier": pos_tier, "byes": get_byes(config.current_season()),
         "keepers_raw": keepers_raw, "keepers": placements, "tendencies": tendencies,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
     }

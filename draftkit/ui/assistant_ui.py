@@ -114,16 +114,17 @@ def render(ctx) -> None:
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({tpm.position} · {tpm.team}) '
                         f'— <span class="why">{why}</span></div>', unsafe_allow_html=True)
         queue_manager(ctx, qkey, ranks, drafted, reg, f"{akey}_q")
-        view = st.radio("Best Available view", ["List", "By position"], horizontal=True,
-                        key=f"{akey}_view")
-        st.markdown('<div class="dr-h" style="margin-top:6px;">🎯 Best Available — Your Board</div>',
-                    unsafe_allow_html=True)
+        head = st.columns([3, 2])
+        head[0].markdown('<div class="dr-h" style="margin:2px 0;">🎯 Best Available — Your Board</div>',
+                         unsafe_allow_html=True)
+        view = head[1].radio("view", ["By position", "Overall"], horizontal=True,
+                             key=f"{akey}_view", label_visibility="collapsed")
         if view == "By position":
-            st.markdown(C.by_position_html(board_avail, reg, ctx["adp_rank"], ctx["pos_rank"], pick_no),
-                        unsafe_allow_html=True)
+            st.markdown(C.by_position_html(board_avail, reg, ctx["adp_rank"], ctx["pos_rank"],
+                                           pick_no, pos_tier=ctx["pos_tier"]), unsafe_allow_html=True)
         else:
             search = st.text_input("🔎 Search the board", key=f"{akey}_search",
-                                   placeholder="Filter by name or team…")
+                                   placeholder="Filter by name or team…", label_visibility="collapsed")
             st.markdown(C.avail_html(C.filter_search(board, search, reg), drafted, reg,
                                      ctx["adp_rank"], pos_rank=ctx["pos_rank"], current_pick=pick_no),
                         unsafe_allow_html=True)

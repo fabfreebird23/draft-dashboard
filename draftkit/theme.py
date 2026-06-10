@@ -73,8 +73,17 @@ html, body, [class*="css"]{ font-family:'Oswald', sans-serif; color:var(--ink); 
 /* headings */
 h1,h2,h3{ font-family:'Anton', sans-serif !important; letter-spacing:1px; text-transform:uppercase; }
 h1{ color:var(--pink); }
-h2{ color:var(--purple); }
+h2{ color:var(--purple); font-size:1.5rem; }
 h3{ color:var(--ink); }
+
+/* desktop density: wider content, tighter padding + vertical rhythm */
+.block-container{ padding-top:2rem; padding-left:2.4rem; padding-right:2.4rem;
+  max-width:100%; }
+[data-testid="stVerticalBlock"]{ gap:.5rem; }
+[data-testid="stHorizontalBlock"]{ gap:.7rem; }
+[data-testid="stExpander"]{ border:none; }
+[data-testid="stCaptionContainer"]{ font-size:11.5px; }
+div[data-testid="stRadio"] label{ font-size:12px; }
 
 /* graffiti wordmark — pink with teal retro offset */
 .neon-logo{ font-family:'Rubik Wet Paint', cursive; color:var(--pink); line-height:1;
@@ -89,9 +98,33 @@ h3{ color:var(--ink); }
 [data-testid="stSidebar"] [role="radiogroup"] label:hover{ border-color:var(--pink); }
 [data-testid="stSidebar"] [role="radiogroup"] label p{ font-weight:600; text-transform:uppercase; letter-spacing:.5px; font-size:13px;}
 
-.stButton>button{ font-family:'Anton'; letter-spacing:1px; text-transform:uppercase;
-  background:var(--pink); color:#fff; border:none; border-radius:4px; }
-.stButton>button:hover{ background:var(--purple); color:#fff; }
+/* refined, compact buttons (desktop) — flat secondary, pink primary */
+.stButton>button{ font-family:'Oswald'; font-weight:600; letter-spacing:.3px;
+  border-radius:7px; padding:5px 13px; font-size:13px; transition:.12s; }
+.stButton>button[kind="secondary"]{ background:#fff; color:var(--ink);
+  border:1.5px solid var(--line); }
+.stButton>button[kind="secondary"]:hover{ border-color:var(--pink); color:var(--pink); }
+.stButton>button[kind="primary"],
+.stButton>button[kind="primaryFormSubmit"]{ background:var(--pink); color:#fff; border:none; }
+.stButton>button[kind="primary"]:hover{ background:var(--purple); }
+
+/* per-position tier band */
+.ptier{ font-family:'Anton'; font-size:9px; letter-spacing:1.5px; color:var(--purple);
+  background:#f1ebfb; border-radius:4px; padding:2px 8px; margin:5px 0 2px; }
+
+/* clickable best-available rows (scoped to keyed containers per position) */
+[class*="_col_"] .stButton{ margin-bottom:2px; }
+[class*="_col_"] .stButton>button{ width:100%; text-align:left; justify-content:flex-start;
+  padding:3px 9px; font-size:12px; font-weight:600; min-height:0; line-height:1.35;
+  border:1px solid #eee6f7; border-left-width:4px; border-radius:5px; background:#fff; }
+[class*="_col_"] .stButton>button>div{ width:100%; text-align:left; }
+[class*="_col_"] .stButton>button:hover{ background:#faf7ff; border-color:var(--pink);
+  transform:none; }
+[class*="_col_QB"] .stButton>button{ border-left-color:var(--amber); }
+[class*="_col_RB"] .stButton>button{ border-left-color:var(--teal); }
+[class*="_col_WR"] .stButton>button{ border-left-color:var(--cyan); }
+[class*="_col_TE"] .stButton>button{ border-left-color:var(--pink); }
+[class*="_col_ALL"] .stButton>button{ border-left-color:var(--purple); }
 
 /* ---- shared custom tables ---- */
 .neonwrap{ overflow-x:auto; border:1px solid var(--line); border-radius:10px;

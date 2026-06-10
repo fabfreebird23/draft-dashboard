@@ -7,7 +7,7 @@ import streamlit as st
 
 from .. import draft_history
 from . import components as C
-from .widgets import queue_manager
+from .widgets import clickable_board, queue_manager
 
 
 def render(ctx) -> None:
@@ -107,64 +107,40 @@ def render(ctx) -> None:
                        if r.get("pid") and str(r["pid"]) not in taken]
         if done:
             st.success("✅ Mock complete — your team is on the left. Reset to run another.")
-        else:
-            st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
+            return
 
-            def draft(pid):
-                made[on_clock] = str(pid)
-                st.rerun()
+        def draft(pid):
+            made[on_clock] = str(pid)
+            st.rerun()
 
-            # smart recommendation (prefer top queued available, else top of board)
-            queue = [p for p in st.session_state.get(qkey, []) if str(p) not in taken]
-            rec_row = None
-            if queue:
-                rec_row = next((r for r in board_avail if str(r["pid"]) == str(queue[0])), None)
-            if rec_row is None and board_avail:
-                rec_row = board_avail[0]
-            if rec_row:
-                rpm = reg.meta(rec_row["pid"])
-                tag = "from your queue" if (queue and str(rec_row["pid"]) == str(queue[0])) \
-                    else C.rec_reason(rec_row, reg, ctx["adp_rank"], pick_no, needs)
-                st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> '
-                            f'({rpm.position} · {rpm.team}) — <span class="why">{tag}</span></div>',
-                            unsafe_allow_html=True)
-                if st.button(f'★ DRAFT {rec_row["name"]}', key=f'{mkey}_best_{pick_no}',
-                             type="primary", use_container_width=True):
-                    draft(rec_row["pid"])
+        st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
 
-            avail = C.filter_search(board_avail, st.session_state.get(f"{mkey}_search", ""), reg)
-            st.text_input("🔎 Search any player to draft", key=f"{mkey}_search",
-                          placeholder="Type a name… e.g. Bijan, Chase, Nabers")
-            st.caption(f"{len(avail)} available" + (" — showing 18, search to narrow"
-                                                    if len(avail) > 18 else ""))
-            bcols = st.columns(3)
-            for i, r in enumerate(avail[:18]):
-                pm = reg.meta(r["pid"])
-                pr = ctx["pos_rank"].get(str(r["pid"]), pm.position)
-                adp = ctx["adp_rank"](pm.name, pm.position)
-                adp_s = f" · ADP {int(adp)}" if adp else ""
-                if bcols[i % 3].button(f'{r["name"]}\n{pr} · {pm.team}{adp_s}',
-                                       key=f'{mkey}_pk_{pick_no}_{r["pid"]}',
-                                       use_container_width=True):
-                    draft(r["pid"])
+        # compact recommendation line (the board's ★ row is the same player — click it)
+        queue = [p for p in st.session_state.get(qkey, []) if str(p) not in taken]
+        rec_row = next((r for r in board_avail if str(r["pid"]) == str(queue[0])), None) if queue else None
+        if rec_row is None and board_avail:
+            rec_row = board_avail[0]
+        if rec_row:
+            rpm = reg.meta(rec_row["pid"])
+            tag = ("from your queue" if (queue and str(rec_row["pid"]) == str(queue[0]))
+                   else C.rec_reason(rec_row, reg, ctx["adp_rank"], pick_no, needs))
+            st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({rpm.position} · {rpm.team}) '
+                        f'— <span class="why">{tag}</span> · <i>click the board to draft</i></div>',
+                        unsafe_allow_html=True)
+
+        head = st.columns([3, 2])
+        head[0].markdown('<div class="dr-h" style="margin:2px 0;">🎯 Click to Draft — Best Available</div>',
+                         unsafe_allow_html=True)
+        view = head[1].radio("view", ["By position", "Overall"], horizontal=True,
+                             key=f"{mkey}_view", label_visibility="collapsed")
+        search = st.text_input("🔎 Search", key=f"{mkey}_search",
+                               placeholder="Filter by name or team…", label_visibility="collapsed")
+        avail = C.filter_search(board_avail, search, reg)
+        clickable_board(ctx, avail, draft, mkey, current_pick=pick_no, view=view)
 
         queue_manager(ctx, qkey, ranks, taken, reg, f"{mkey}_q")
 
-        view = st.radio("Best Available view", ["List", "By position"], horizontal=True,
-                        key=f"{mkey}_view")
-        st.markdown('<div class="dr-h" style="margin-top:6px;">🎯 Best Available — Your Board</div>',
-                    unsafe_allow_html=True)
-        full_avail = [r for r in C.filter_pos(ranks, pos_f, reg)
-                      if r.get("pid") and str(r["pid"]) not in taken]
-        if view == "By position":
-            st.markdown(C.by_position_html(full_avail, reg, ctx["adp_rank"], ctx["pos_rank"], pick_no),
-                        unsafe_allow_html=True)
-        else:
-            st.markdown(C.avail_html(C.filter_pos(ranks, pos_f, reg), taken, reg, ctx["adp_rank"],
-                                     pos_rank=ctx["pos_rank"], current_pick=pick_no),
-                        unsafe_allow_html=True)
-
     kept_note = (f" · 🔒 {len(kept_pids)} keepers locked" if kept_pids else "")
     tnote = " · opponents draft by historical tendencies" if tendencies else ""
-    st.caption("Draft anyone via ★, the quick buttons, or search. ★ Queue players to plan "
-               f"ahead. ↶ Undo rolls back your last pick.{kept_note}{tnote}")
+    st.caption("Click any player on the board to draft them. ★ Queue players to plan ahead. "
+               f"↶ Undo rolls back your last pick.{kept_note}{tnote}")
