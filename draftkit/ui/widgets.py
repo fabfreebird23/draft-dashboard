@@ -16,13 +16,13 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
     [(overall, slot, pid), ...]."""
     reg, adp_pool, tend = ctx["registry"], ctx["adp_pool"], ctx["tendencies"]
     owner_by_slot = ctx["owner_by_slot"]
+    owner = ctx["pick_owner_slot"]            # traded-pick-aware ownership
     n = len(ctx["slot_names"])
     total = n * ctx["meta"].draft_rounds
-    snake = C.snake(n)
     sim = {str(p) for p in taken_pids}
     out, ov = [], current_overall
     while ov <= total and len(out) < limit:
-        slot = snake(ov - 1)
+        slot = owner(ov)
         if ov in kept_by_overall:
             sim.add(str(kept_by_overall[ov]))
             ov += 1

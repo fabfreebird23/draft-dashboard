@@ -179,6 +179,27 @@ def build_context(sel: dict) -> dict:
     slot_names = [t.name for t in order] or [f"Team {i+1}" for i in range(meta.num_teams)]
     owner_by_slot = {t.slot: t.team_id for t in order}
     owner_slot = {t.team_id: t.slot for t in order}
+
+    # Traded draft picks: a snake assumes each team picks once per round at a fixed
+    # slot, but leagues trade picks (you can hold 2 in a round, 0 in another). Build
+    # pick_owner_slot(overall) so turn order, my-picks, and AI ownership are correct.
+    from draftkit.ui import components as _C
+    try:
+        traded = provider.get_traded_picks()
+    except Exception:  # noqa: BLE001 — never break the draft over a trade fetch
+        traded = {}
+    _n = len(slot_names)
+    _snake = _C.snake(_n)
+
+    def pick_owner_slot(overall: int) -> int:
+        """0-based slot of the manager who actually owns this overall pick."""
+        col = _snake(overall - 1)
+        if not traded:
+            return col
+        rnd = (overall - 1) // _n + 1
+        orig_team = owner_by_slot.get(col)
+        owner_team = traded.get((rnd, str(orig_team)), str(orig_team))
+        return owner_slot.get(owner_team, col)
     # ADP for the current season (the draftable pool + best-available ranks).
     adp_df, adp_lk = get_adp(config.current_season())
 
@@ -209,7 +230,8 @@ def build_context(sel: dict) -> dict:
     # Keepers (from the league's companion keeper dashboard) + placements.
     keepers_raw = get_keepers(meta.platform, meta.league_id, config.current_season())
     placements = keepers_mod.build_placements(
-        keepers_raw, owner_slot, meta.num_teams, meta.draft_rounds)
+        keepers_raw, owner_slot, meta.num_teams, meta.draft_rounds,
+        pick_owner_slot=pick_owner_slot)
     # Historical draft tendencies (how each manager drafts by round).
     tendencies = get_tendencies(meta.platform, meta.league_id)
 
@@ -231,6 +253,7 @@ def build_context(sel: dict) -> dict:
         "pos_rank": pos_rank, "pos_tier": pos_tier, "byes": get_byes(config.current_season()),
         "keepers_raw": keepers_raw, "keepers": placements, "tendencies": tendencies,
         "value": value, "proj": proj, "schedule": schedule, "dvp": dvp,
+        "pick_owner_slot": pick_owner_slot, "traded_picks": traded,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
     }
 

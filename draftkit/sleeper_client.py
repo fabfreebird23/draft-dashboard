@@ -73,6 +73,12 @@ def get_draft_picks_fresh(draft_id: str) -> List[Dict[str, Any]]:
     return _get(f"draft/{draft_id}/picks") or []
 
 
+def get_traded_picks(draft_id: str) -> List[Dict[str, Any]]:
+    """Picks swapped between rosters — [{round, roster_id, owner_id, previous_owner_id}]
+    (ids are roster_ids). Lets us reflect real, traded draft capital."""
+    return _disk(f"tpicks_{draft_id}", 1800, lambda: _get(f"draft/{draft_id}/traded_picks") or [])
+
+
 def get_draft_picks(draft_id: str) -> List[Dict[str, Any]]:
     """Cached past-draft picks (for history/tendency analysis, not live use)."""
     return _disk(f"picks_{draft_id}", 86400, lambda: _get(f"draft/{draft_id}/picks") or [])

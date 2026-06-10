@@ -108,7 +108,7 @@ def load_keepers(league_id: str, season: int) -> Dict[str, List[dict]]:
 
 
 def build_placements(keepers: Dict[str, List[dict]], owner_slot: Dict[str, int],
-                     n_teams: int, rounds: int) -> dict:
+                     n_teams: int, rounds: int, pick_owner_slot=None) -> dict:
     """Map each keeper onto the draft board.
 
     Returns {
@@ -116,45 +116,60 @@ def build_placements(keepers: Dict[str, List[dict]], owner_slot: Dict[str, int],
       "kept_pids":  set(pid),                 # all kept players (remove from pool)
       "by_owner":   {owner_id -> [pid,...]},
     }
-    Snake order; a keeper occupies its owner's pick in `cost_round`. If two
-    keepers collide on a round, the second bumps to the owner's next free round.
+    A keeper occupies one of its owner's *actual* picks nearest `cost_round`. When
+    `pick_owner_slot(overall)` is given it respects traded picks (an owner may hold
+    two picks in a round, or none); otherwise it falls back to a plain snake.
     """
     by_overall: Dict[int, str] = {}
     kept_pids = set()
     by_owner: Dict[str, list] = {}
+    total = n_teams * rounds
 
-    def overall_for(slot: int, rnd: int) -> int:
-        # 0-based slot, 1-based round, snake.
-        if rnd % 2 == 1:
-            col = slot
-        else:
-            col = n_teams - 1 - slot
+    def snake_overall(slot: int, rnd: int) -> int:
+        col = slot if rnd % 2 == 1 else n_teams - 1 - slot
         return (rnd - 1) * n_teams + col + 1
+
+    # owner slot -> {round -> [overall picks they actually own]}
+    owned: Dict[int, Dict[int, list]] = {}
+    if pick_owner_slot:
+        for ov in range(1, total + 1):
+            s = pick_owner_slot(ov)
+            rnd = (ov - 1) // n_teams + 1
+            owned.setdefault(s, {}).setdefault(rnd, []).append(ov)
 
     for owner_id, klist in keepers.items():
         slot = owner_slot.get(str(owner_id))
         if slot is None:
             continue
-        used_rounds = set()
+        slot_owned = owned.get(slot, {})
+        used_ov = set()
         # place lowest-round (most expensive) keepers first for stable assignment
         for k in sorted(klist, key=lambda x: x.get("cost_round") or rounds):
             pid = str(k.get("player_id") or "")
             if not pid:
                 continue
             want = max(1, min(rounds, int(k.get("cost_round") or rounds)))
-            # nearest free round to the cost round (search outward), so two keepers
-            # never collide even at the last round.
-            rnd = want
+            ov = None
+            # search outward from the cost round for one of this owner's free picks
             for d in range(rounds):
                 for cand in ((want + d), (want - d)):
-                    if 1 <= cand <= rounds and cand not in used_rounds:
-                        rnd = cand
-                        break
-                else:
-                    continue
-                break
-            used_rounds.add(rnd)
-            ov = overall_for(slot, rnd)
+                    if not (1 <= cand <= rounds):
+                        continue
+                    if pick_owner_slot:
+                        free = [o for o in slot_owned.get(cand, []) if o not in used_ov]
+                        if free:
+                            ov = free[0]
+                            break
+                    else:
+                        cov = snake_overall(slot, cand)
+                        if cov not in used_ov:
+                            ov = cov
+                            break
+                if ov is not None:
+                    break
+            if ov is None:
+                ov = snake_overall(slot, want)      # last-resort fallback
+            used_ov.add(ov)
             by_overall[ov] = pid
             kept_pids.add(pid)
             by_owner.setdefault(str(owner_id), []).append(pid)

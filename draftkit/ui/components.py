@@ -242,11 +242,13 @@ def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
 
 
 def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
-              kept_overalls=None) -> str:
+              kept_overalls=None, owner_fn=None) -> str:
     """Readable color-coded draft board: rounds × teams, snake order, names shown.
 
     `pick_pids` maps overall pick number -> sleeper pid (or None).
-    `kept_overalls` is a set of overall picks that are keepers (badged 'K')."""
+    `kept_overalls` is a set of overall picks that are keepers (badged 'K').
+    `owner_fn(overall)` -> slot of the pick's real owner (handles traded picks); when
+    given, your cells are highlighted by ownership rather than by column."""
     kept_overalls = kept_overalls or set()
     cw = "minmax(86px,1fr)"
     head = ['<div class="dr-colhead rd">RD</div>']
@@ -260,7 +262,8 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
             overall = (r - 1) * n + (c if r % 2 == 1 else n - c + 1)
             pid = pick_pids.get(overall)
             klass = "dr-cell"
-            if (c - 1) == my_slot:
+            owned = (owner_fn(overall) == my_slot) if owner_fn else ((c - 1) == my_slot)
+            if owned:
                 klass += " me"
             if overall == current_pick:
                 klass += " now"

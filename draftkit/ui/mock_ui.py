@@ -32,7 +32,7 @@ def render(ctx) -> None:
     tendencies = ctx["tendencies"]
     owner_by_slot = ctx["owner_by_slot"]
     adp_pool = ctx["adp_pool"]
-    snake = C.snake(n)
+    owner = ctx["pick_owner_slot"]   # who owns each overall pick (handles traded picks)
     total = n * rounds
 
     top = st.columns([2, 1, 1])
@@ -56,7 +56,7 @@ def render(ctx) -> None:
     made = state["made"]
 
     if undo and made:
-        mine = [ov for ov in made if snake(ov - 1) == my_slot]
+        mine = [ov for ov in made if owner(ov) == my_slot]
         if mine:
             del made[max(mine)]
 
@@ -73,7 +73,7 @@ def render(ctx) -> None:
         rnd = (ov - 1) // n + 1
         tk = taken_pids()
         pool = [p for p in adp_pool if p["pid"] not in tk]
-        choice = draft_history.pick_for_owner(owner_by_slot.get(snake(ov - 1)), rnd, pool, tendencies, reg)
+        choice = draft_history.pick_for_owner(owner_by_slot.get(owner(ov)), rnd, pool, tendencies, reg)
         if choice:
             made[ov] = choice["pid"]
             return True
@@ -82,14 +82,14 @@ def render(ctx) -> None:
     on_clock = first_unresolved()
     # Instant mode: resolve all opponent picks up to your turn right now.
     if not live_pace:
-        while on_clock and snake(on_clock - 1) != my_slot:
+        while on_clock and owner(on_clock) != my_slot:
             if not ai_pick(on_clock):
                 break
             on_clock = first_unresolved()
 
     done = on_clock is None
     pick_no = on_clock or total
-    on_slot = snake(pick_no - 1)
+    on_slot = owner(pick_no)
     is_my_turn = (not done) and on_slot == my_slot
     ai_on_clock = (not done) and not is_my_turn
     taken = taken_pids()
@@ -99,7 +99,7 @@ def render(ctx) -> None:
     st.markdown(C.status_html(pick_no, n, slot_names[on_slot], is_my_turn), unsafe_allow_html=True)
     if made:
         lo = max(made)
-        st.markdown(C.last_pick_html(lo, n, slot_names[snake(lo - 1)], made[lo], reg),
+        st.markdown(C.last_pick_html(lo, n, slot_names[owner(lo)], made[lo], reg),
                     unsafe_allow_html=True)
     if ai_on_clock:
         st.markdown(C.on_clock_html(slot_names[on_slot]), unsafe_allow_html=True)
@@ -107,21 +107,22 @@ def render(ctx) -> None:
     st.markdown(C.recent_ticker_html(non_keeper, reg), unsafe_allow_html=True)
     st.markdown('<div class="dr-h">Draft Board</div>', unsafe_allow_html=True)
     st.markdown(C.grid_html(board, n, slot_names, my_slot, on_clock or 0, rounds, reg,
-                            kept_overalls=set(kept_by_overall)), unsafe_allow_html=True)
+                            kept_overalls=set(kept_by_overall), owner_fn=owner),
+                unsafe_allow_html=True)
 
-    my_pids = ([pid for ov, pid in made.items() if snake(ov - 1) == my_slot]
-               + [pid for ov, pid in kept_by_overall.items() if snake(ov - 1) == my_slot])
+    my_pids = ([pid for ov, pid in made.items() if owner(ov) == my_slot]
+               + [pid for ov, pid in kept_by_overall.items() if owner(ov) == my_slot])
     needs = C.open_needs(my_pids, ctx["roster_slots"], reg)
     recent_positions = [reg.meta(board[ov]).position for ov in sorted(board)[-6:]]
     pids_by_slot = {}
     for ov, pid in board.items():
-        pids_by_slot.setdefault(snake(ov - 1), []).append(pid)
+        pids_by_slot.setdefault(owner(ov), []).append(pid)
     # your next pick AFTER the upcoming opponent run (skip back-to-back snake
     # picks so survival % reflects who'll be gone once opponents pick) — for survival %
     nxt = pick_no + 1
-    while nxt <= total and snake(nxt - 1) == my_slot:        # skip your consecutive picks
+    while nxt <= total and owner(nxt) == my_slot:           # skip your consecutive picks
         nxt += 1
-    while nxt <= total and (snake(nxt - 1) != my_slot or nxt in kept_by_overall):
+    while nxt <= total and (owner(nxt) != my_slot or nxt in kept_by_overall):
         nxt += 1
     next_user_pick = nxt if nxt <= total else None
 
@@ -185,7 +186,7 @@ def render(ctx) -> None:
 
     # opponent needs + the slots picking before your next turn (for run detection)
     need_map = C.needs_by_slot(pids_by_slot, slot_names, ctx["roster_slots"], reg)
-    upcoming_slots = ([snake(k - 1) for k in range(pick_no + 1, next_user_pick)]
+    upcoming_slots = ([owner(k) for k in range(pick_no + 1, next_user_pick)]
                       if next_user_pick else [])
 
     with right:

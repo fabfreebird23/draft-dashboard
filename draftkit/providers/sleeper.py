@@ -73,6 +73,25 @@ class SleeperProvider(Provider):
             teams.append(Team(slot=i, team_id=str(r.get("owner_id")), name=uname(r.get("owner_id"))))
         return teams
 
+    def get_traded_picks(self) -> dict:
+        """{(round, original_owner_user_id): current_owner_user_id}. Sleeper tracks
+        traded picks by roster_id, so we translate to the user_id space the rest of
+        the app keys teams on."""
+        lg = self._league()
+        draft_id = lg.get("draft_id")
+        if not draft_id:
+            return {}
+        rosters = api.get_rosters(self.league_id) or []
+        rid_to_uid = {r.get("roster_id"): str(r.get("owner_id")) for r in rosters}
+        out = {}
+        for t in (api.get_traded_picks(draft_id) or []):
+            rnd = t.get("round")
+            orig = rid_to_uid.get(t.get("roster_id"))
+            owner = rid_to_uid.get(t.get("owner_id"))
+            if rnd and orig and owner:
+                out[(int(rnd), orig)] = owner
+        return out
+
     def get_roster_slots(self) -> List[str]:
         roster_pos = self._league().get("roster_positions") or []
         starters = [p for p in roster_pos if p not in _BENCH]

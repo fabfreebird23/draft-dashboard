@@ -61,16 +61,16 @@ def render(ctx) -> None:
     drafted |= set(kept_pids)
     my_pids = [p.player.sleeper_pid for p in picks
                if p.slot == my_slot and p.player and p.player.sleeper_pid]
+    owner = ctx["pick_owner_slot"]            # traded-pick-aware ownership
     my_pids += [pid for ov, pid in kept_overall.items()
-                if C.snake(n)(ov - 1) == my_slot and pid not in my_pids]
+                if owner(ov) == my_slot and pid not in my_pids]
 
     pick_no = len(picks) + 1
-    snake = C.snake(n)
-    on_slot = snake(pick_no - 1)
+    on_slot = owner(pick_no)
     until = 0
-    for k in range(pick_no - 1, pick_no - 1 + n * rounds):
-        if snake(k) == my_slot:
-            until = k - (pick_no - 1)
+    for k in range(pick_no, pick_no + n * rounds):
+        if owner(k) == my_slot:
+            until = k - pick_no
             break
 
     # ----- status + board on TOP -----
@@ -81,7 +81,7 @@ def render(ctx) -> None:
     st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
     st.markdown('<div class="dr-h">Draft Board</div>', unsafe_allow_html=True)
     st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
-                            kept_overalls=kept_at), unsafe_allow_html=True)
+                            kept_overalls=kept_at, owner_fn=owner), unsafe_allow_html=True)
 
     needs = C.open_needs(my_pids, ctx["roster_slots"], reg)
     recent_positions = [p.player.position for p in sorted(picks, key=lambda x: x.overall)[-6:]
@@ -92,13 +92,13 @@ def render(ctx) -> None:
         if p.player and p.player.sleeper_pid:
             pids_by_slot.setdefault(p.slot, []).append(p.player.sleeper_pid)
     for ov, pid in kept_overall.items():
-        pids_by_slot.setdefault(snake(ov - 1), []).append(pid)
+        pids_by_slot.setdefault(owner(ov), []).append(pid)
     # your next pick after the upcoming opponent run (skip back-to-back picks)
     total = n * rounds
     nxt = pick_no
-    while nxt <= total and snake(nxt - 1) == my_slot:
+    while nxt <= total and owner(nxt) == my_slot:
         nxt += 1
-    while nxt <= total and snake(nxt - 1) != my_slot:
+    while nxt <= total and owner(nxt) != my_slot:
         nxt += 1
     next_user_pick = nxt if nxt <= total else None
 
@@ -129,7 +129,7 @@ def render(ctx) -> None:
                                      ctx["adp_rank"], pos_rank=ctx["pos_rank"], current_pick=pick_no,
                                      next_pick=next_user_pick), unsafe_allow_html=True)
     need_map = C.needs_by_slot(pids_by_slot, slot_names, ctx["roster_slots"], reg)
-    upcoming_slots = ([snake(k - 1) for k in range(pick_no + 1, next_user_pick)]
+    upcoming_slots = ([owner(k) for k in range(pick_no + 1, next_user_pick)]
                       if next_user_pick else [])
 
     with right:

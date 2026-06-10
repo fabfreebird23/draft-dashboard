@@ -65,3 +65,9 @@ class Provider(ABC):
     @abstractmethod
     def get_live_picks(self) -> List[Pick]:
         """Fresh (uncached) normalized picks. Empty list before a draft starts."""
+
+    def get_traded_picks(self) -> dict:
+        """Draft picks swapped via trades, keyed by (round, original_team_id) ->
+        current_owner_team_id (team_id is the same id space as Team.team_id). Default
+        empty = a clean snare draft. Platforms that support pick trades override this."""
+        return {}
