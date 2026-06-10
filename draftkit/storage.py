@@ -120,6 +120,9 @@ def save_rankings(key: str, rankings: List[dict]) -> None:
         pass
 
 
+_SEED = config.ROOT / "data_seed" / "udk_default.json"
+
+
 def load_rankings(key: str) -> List[dict]:
     if _gh_config() is not None:
         try:
@@ -129,10 +132,18 @@ def load_rankings(key: str) -> List[dict]:
         except Exception:  # noqa: BLE001
             pass
     p = _local_path(key)
-    if not p.exists():
-        return []
-    try:
-        with _LOCK:
-            return json.loads(p.read_text())
-    except Exception:  # noqa: BLE001
-        return []
+    if p.exists():
+        try:
+            with _LOCK:
+                return json.loads(p.read_text())
+        except Exception:  # noqa: BLE001
+            pass
+    # Committed UDK seed so a fresh / cloud deploy ships with a board even when the
+    # server-side UDK pull is blocked (The Fantasy Footballers blocks datacenter IPs)
+    # and local storage was wiped on reboot.
+    if _SEED.exists():
+        try:
+            return json.loads(_SEED.read_text())
+        except Exception:  # noqa: BLE001
+            pass
+    return []

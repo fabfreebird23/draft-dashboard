@@ -27,10 +27,10 @@ def render(ctx) -> None:
     if rkey not in st.session_state:
         st.session_state[rkey] = storage.load_rankings(ctx["league_key"])
 
-    st.caption("Import your **UDK rankings** from The Fantasy Footballers. With a "
-               "stored UDK login the app pulls them server-side; otherwise use the "
-               "one-click bookmarklet, or paste / upload / link a CSV. Tiers, ranks, "
-               "positions and teams are handled, and it's saved per league.")
+    st.caption("Your league ships with a current **UDK board** already loaded. To "
+               "refresh it from The Fantasy Footballers, use the one-click bookmarklet "
+               "(it runs in your browser, where you're logged in), or paste / upload / "
+               "link a CSV. Tiers, ranks, positions and teams are handled, saved per league.")
 
     cookie = _udk_cookie()
     c1, c2 = st.columns([1, 1])
@@ -43,10 +43,13 @@ def render(ctx) -> None:
                 _set(ctx, got)
                 st.success(f"Pulled {len(got)} players from the UDK.")
             else:
-                st.error("Couldn't scrape the UDK server-side (login/endpoint). "
-                         "Use the bookmarklet + upload below instead.")
+                st.warning("Server-side pull is blocked on the hosted app — The Fantasy "
+                           "Footballers blocks cloud-server IPs (it works when you run the "
+                           "app locally). Your seeded UDK board is already loaded below; to "
+                           "refresh, use the **one-click bookmarklet** and upload the CSV.")
         if not cookie:
-            st.caption("Add `udk_cookie` to secrets to enable server-side pull.")
+            st.caption("Server-side pull only runs locally (the host blocks cloud IPs). "
+                       "Use the bookmarklet below to refresh on the hosted app.")
 
     with st.expander("One-click UDK bookmarklet (no login needed)"):
         st.markdown(

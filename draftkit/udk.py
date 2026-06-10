@@ -104,13 +104,13 @@ def save_byes(byes: Dict[str, int], season: int) -> None:
 
 
 def load_byes(season: int) -> Dict[str, int]:
-    p = _byes_path(season)
-    if not p.exists():
-        return {}
-    try:
-        return {k: int(v) for k, v in json.loads(p.read_text()).items()}
-    except Exception:  # noqa: BLE001
-        return {}
+    for p in (_byes_path(season), config.ROOT / "data_seed" / f"byes_{season}.json"):
+        if p.exists():
+            try:
+                return {k: int(v) for k, v in json.loads(p.read_text()).items()}
+            except Exception:  # noqa: BLE001
+                continue
+    return {}
 
 
 def _via_inline(cookie: str, scoring: str = "ppr") -> List[dict]:

@@ -279,6 +279,13 @@ def main():
             st.rerun()
         return
 
+    # Preload the saved/seeded UDK board so every tab has rankings (not just after
+    # visiting My Rankings) — the seed ships a board even when the server-side pull
+    # is blocked on the hosted app.
+    from draftkit import storage
+    if ctx["ranks_key"] not in st.session_state:
+        st.session_state[ctx["ranks_key"]] = storage.load_rankings(ctx["league_key"])
+
     meta = ctx["meta"]
     head = st.columns([4, 1])
     with head[0]:
