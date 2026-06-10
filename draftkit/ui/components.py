@@ -13,6 +13,24 @@ from .. import theme
 _FLEX_OK = {"RB", "WR", "TE"}
 _STARTABLE = {"QB", "RB", "WR", "TE", "K", "DST", "D"}
 
+# Distinct, high-contrast tier colors (white text) so tier breaks pop.
+_TIER_COLORS = ["#4338ca", "#1f6fd6", "#0e9488", "#1c8a4d", "#b3650a",
+                "#c2410c", "#b3232a", "#7c3aed", "#0b7285", "#5f6b7a"]
+
+
+def tier_color(tier) -> str:
+    try:
+        return _TIER_COLORS[(int(tier) - 1) % len(_TIER_COLORS)]
+    except (TypeError, ValueError):
+        return _TIER_COLORS[0]
+
+
+def tier_band(label, tier, cls="ptier") -> str:
+    """A bold, color-coded tier separator."""
+    c = tier_color(tier)
+    return (f'<div class="{cls}" style="background:{c};color:#fff;border-left:5px solid '
+            f'rgba(0,0,0,.25)">{label}</div>')
+
 
 def snake(n: int) -> Callable[[int], int]:
     def slot(i: int) -> int:
@@ -133,7 +151,9 @@ def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
             continue
         shown += 1
         if r["tier"] != last_tier:
-            body.append(f'<tr class="tierband"><td colspan="3">TIER {r["tier"]}</td></tr>')
+            c = tier_color(r["tier"])
+            body.append(f'<tr class="tierband" style="background:{c}"><td colspan="3" '
+                        f'style="color:#fff">TIER {r["tier"]}</td></tr>')
             last_tier = r["tier"]
         pm = registry.meta(r["pid"])
         rec = ' class="rec"' if (recommend and first) else ""
@@ -326,7 +346,7 @@ def by_position_html(board_avail, registry, adp_rank, pos_rank, current_pick,
         for r, pm in cols[pos]:
             t = pos_tier.get(str(r["pid"]))
             if t is not None and t != last_t:
-                out.append(f'<div class="ptier">{pos} TIER {t}</div>')
+                out.append(tier_band(f"{pos} TIER {t}", t))
                 last_t = t
             adp = adp_rank(pm.name, pm.position)
             adp_s = int(adp) if adp else "—"

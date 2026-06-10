@@ -26,6 +26,46 @@ def league_has_keepers(league_id: str) -> bool:
     return str(league_id) in KEEPER_REPOS
 
 
+_CONFIG_RAW = "https://raw.githubusercontent.com/{repo}/{branch}/config.yaml"
+
+
+def load_draft_order(league_id: str) -> List[str]:
+    """Owner IDs in draft-slot order (slot 1 first), scraped from the league's
+    keeper-dashboard config.yaml. Returns [] if the dashboard hasn't set one
+    (then we fall back to Sleeper's own order)."""
+    cfg = KEEPER_REPOS.get(str(league_id))
+    if not cfg:
+        return []
+    for branch in ("main", "master"):
+        url = _CONFIG_RAW.format(repo=cfg["repo"], branch=branch)
+        try:
+            r = requests.get(url, timeout=12)
+            if r.status_code == 200 and "draft_order" in r.text:
+                return _parse_draft_order(r.text)
+        except Exception:  # noqa: BLE001
+            continue
+    return []
+
+
+def _parse_draft_order(text: str) -> List[str]:
+    import re
+    out, in_block = [], False
+    for line in text.splitlines():
+        if re.match(r"^draft_order\s*:", line):
+            in_block = True
+            continue
+        if not in_block:
+            continue
+        m = re.match(r'^\s*-\s*"?(\d+)"?', line)
+        if m:
+            out.append(m.group(1))
+            continue
+        # a new top-level key (no indent, has a colon) ends the block
+        if line.strip() and not line[0].isspace() and not line.lstrip().startswith("#"):
+            break
+    return out
+
+
 def load_keepers(league_id: str, season: int) -> Dict[str, List[dict]]:
     """{owner_id: [keeper dicts]} for the league/season, or {} if none/unknown."""
     cfg = KEEPER_REPOS.get(str(league_id))

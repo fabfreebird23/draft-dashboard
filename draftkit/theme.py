@@ -128,8 +128,8 @@ table.dr-avail{ width:100%; border-collapse:collapse; }
 table.dr-avail td{ padding:6px 10px; border-bottom:1px solid var(--line2); font-size:13px; }
 table.dr-avail td.r{ color:var(--mut2); width:30px; text-align:center; font-weight:700; }
 table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; font-weight:700; }
-.dr-avail .tierband td{ background:#eef3fb; color:var(--blue); font-weight:800; font-size:10px;
-  letter-spacing:1px; text-transform:uppercase; padding:4px 10px; }
+.dr-avail .tierband td{ background:var(--blue); color:#fff; font-weight:800; font-size:11px;
+  letter-spacing:1.5px; text-transform:uppercase; padding:5px 10px; }
 .dr-avail tr.rec td{ background:#fbfdff; box-shadow:inset 3px 0 0 var(--blue); }
 .dr-avail .recbadge{ background:var(--blue); color:#fff; font-size:9px; padding:1px 6px;
   border-radius:4px; font-weight:800; margin-left:6px; }
@@ -171,8 +171,8 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .cheat-row .chs{ width:22px; height:22px; border-radius:50%; object-fit:cover; background:var(--line2); }
 .cheat-row .cn{ font-weight:600; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .cheat-row .ca{ color:var(--mut2); font-size:10px; white-space:nowrap; }
-.ptier{ font-weight:800; font-size:9px; letter-spacing:1px; color:var(--blue); background:#eef3fb;
-  padding:3px 9px; margin:4px 0 1px; }
+.ptier{ font-weight:800; font-size:11px; letter-spacing:1.5px; color:#fff; background:var(--blue);
+  padding:4px 10px; margin:6px 0 3px; border-radius:5px; text-transform:uppercase; }
 
 /* ---- pick queue ---- */
 .dr-queue{ display:flex; flex-direction:column; gap:3px; }
@@ -221,25 +221,24 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 /* keep the draft board compact so the rest of the page stays visible */
 .dr-board-scroll{ max-height:430px; overflow:auto; border:1px solid var(--line); border-radius:10px; }
 
-/* ---- clickable whole-row buttons (By-position view) ---- */
-[class*="_brow"] .stButton{ margin-bottom:2px; }
-[class*="_brow"] .stButton>button{ width:100%; text-align:left; justify-content:flex-start;
-  padding:3px 9px; font-size:12px; font-weight:600; min-height:0; line-height:1.3;
-  border:1px solid var(--line); border-left-width:4px; border-radius:5px; background:#fff; color:var(--ink); }
-[class*="_brow"] .stButton>button>div{ width:100%; text-align:left; }
-[class*="_brow"] .stButton>button:hover{ background:#f7f9fc; border-color:var(--blue); }
+/* ---- whole-row clickable draft cards ---- */
+[class*="_board_"] [data-testid="stVerticalBlock"]{ gap:3px; }
+[class*="_brow_"]{ margin:0 !important; }
+[class*="_brow_"] .stButton{ margin:0; }
+[class*="_brow_"] .stButton>button{ width:100%; text-align:left; justify-content:flex-start;
+  padding:8px 12px; font-size:13px; font-weight:700; min-height:0; line-height:1.25;
+  border:1px solid var(--line); border-left-width:5px; border-radius:7px; background:#fff;
+  color:var(--ink); white-space:normal; }
+[class*="_brow_"] .stButton>button>div{ width:100%; text-align:left; }
+[class*="_brow_"] .stButton>button:hover{ border-color:var(--ink); box-shadow:0 2px 8px rgba(0,0,0,.10); }
 [class*="_brow_QB"] .stButton>button{ border-left-color:var(--qb); }
+[class*="_brow_QB"] .stButton>button:hover{ background:#fdf2f2; }
 [class*="_brow_RB"] .stButton>button{ border-left-color:var(--rb); }
+[class*="_brow_RB"] .stButton>button:hover{ background:#eefaf2; }
 [class*="_brow_WR"] .stButton>button{ border-left-color:var(--wr); }
+[class*="_brow_WR"] .stButton>button:hover{ background:#eef4fc; }
 [class*="_brow_TE"] .stButton>button{ border-left-color:var(--te); }
-
-/* ---- compact green Draft buttons in the FP-style clickable table ---- */
-[class*="_fpbtn"] [data-testid="stHorizontalBlock"]{ gap:.4rem; align-items:center;
-  border-bottom:1px solid var(--line2); }
-[class*="_fpbtn"] .stButton>button{ background:var(--green); color:#fff; border:none;
-  padding:4px 14px; font-size:11px; font-weight:800; border-radius:6px; min-height:0; }
-[class*="_fpbtn"] .stButton>button:hover{ background:#15703d; }
-[class*="_fpbtn"] [data-testid="stMarkdownContainer"]{ font-size:13px; }
+[class*="_brow_TE"] .stButton>button:hover{ background:#fdf6ec; }
 </style>
 """
 

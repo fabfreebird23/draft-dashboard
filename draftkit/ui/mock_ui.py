@@ -7,7 +7,7 @@ import streamlit as st
 
 from .. import draft_history
 from . import components as C
-from .widgets import clickable_board, clickable_by_position, queue_manager
+from .widgets import clickable_board, queue_manager
 
 
 def render(ctx) -> None:
@@ -131,17 +131,14 @@ def render(ctx) -> None:
                         unsafe_allow_html=True)
 
         head = st.columns([3, 2])
-        head[0].markdown('<div class="dr-h" style="margin:2px 0;">🎯 Best Available — click Draft</div>',
+        head[0].markdown('<div class="dr-h" style="margin:2px 0;">🎯 Best Available — click any player to draft</div>',
                          unsafe_allow_html=True)
         view = head[1].radio("view", ["List", "By position"], horizontal=True,
                              key=f"{mkey}_view", label_visibility="collapsed")
         search = st.text_input("🔎 Search", key=f"{mkey}_search",
                                placeholder="Filter by name or team…", label_visibility="collapsed")
         avail = C.filter_search(board_avail, search, reg)
-        if view == "By position":
-            clickable_by_position(ctx, avail, draft, mkey, current_pick=pick_no)
-        else:
-            clickable_board(ctx, avail, draft, mkey, current_pick=pick_no)
+        clickable_board(ctx, avail, draft, mkey, current_pick=pick_no, view=view)
 
         queue_manager(ctx, qkey, ranks, taken, reg, f"{mkey}_q")
 

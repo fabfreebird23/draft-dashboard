@@ -44,6 +44,13 @@ def get_keepers(platform: str, league_id: str, season: int):
     return keepers_mod.load_keepers(league_id, season)
 
 
+@st.cache_data(ttl=900, show_spinner=False)
+def get_draft_order_override(platform: str, league_id: str):
+    if platform != "sleeper":
+        return []
+    return keepers_mod.load_draft_order(league_id)
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_tendencies(platform: str, league_id: str):
     if platform != "sleeper":
@@ -129,6 +136,13 @@ def build_context(sel: dict) -> dict:
                             espn_s2=sel.get("espn_s2"), swid=sel.get("swid"))
     meta = provider.get_league_meta()
     order = provider.get_draft_order()
+    # Override draft-slot order from the league's keeper dashboard, when it has one.
+    scraped = get_draft_order_override(meta.platform, meta.league_id)
+    if scraped:
+        from draftkit.providers import Team
+        name_by_owner = {str(t.team_id): t.name for t in order}
+        order = [Team(slot=i, team_id=str(oid), name=name_by_owner.get(str(oid), f"Team {oid}"))
+                 for i, oid in enumerate(scraped)]
     slot_names = [t.name for t in order] or [f"Team {i+1}" for i in range(meta.num_teams)]
     owner_by_slot = {t.slot: t.team_id for t in order}
     owner_slot = {t.team_id: t.slot for t in order}

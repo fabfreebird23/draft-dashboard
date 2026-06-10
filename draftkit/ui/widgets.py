@@ -7,79 +7,59 @@ from .. import theme
 from . import components as C
 
 
-def _vchip(adp, pick):
-    if not adp or not pick:
-        return ""
-    d = adp - pick
-    if d >= 8:
-        return f'<span class="vchip value">▼ +{int(d)}</span>'
-    if d <= -8:
-        return f'<span class="vchip reach">▲ {int(d)}</span>'
-    return ""
-
-
-def clickable_by_position(ctx, board_avail, draft_fn, key_prefix, current_pick=None,
-                          per_pos=16) -> None:
-    """Best-available in 4 position columns, each grouped by per-position tier,
-    every row a clickable whole-row button (scoped CSS `[class*="_brow_<POS>"]`)."""
-    reg, pick = ctx["registry"], current_pick
-    pos_tier, adp_rank = ctx["pos_tier"], ctx["adp_rank"]
-    star_pid = str(board_avail[0]["pid"]) if board_avail else None
-    cols = st.columns(4, gap="small")
-    for col, pos in zip(cols, ("QB", "RB", "WR", "TE")):
-        plist = [r for r in board_avail if reg.meta(r["pid"]).position == pos][:per_pos]
-        with col:
-            st.markdown(f'<div class="cheat-head {pos}">{pos}</div>', unsafe_allow_html=True)
-            with st.container(key=f"{key_prefix}_brow_{pos}"):
-                last = None
-                for r in plist:
-                    pm = reg.meta(r["pid"])
-                    t = pos_tier.get(str(r["pid"]))
-                    if t != last:
-                        st.markdown(f'<div class="ptier">{pos} TIER {t}</div>', unsafe_allow_html=True)
-                        last = t
-                    adp = adp_rank(pm.name, pm.position)
-                    d = (adp - pick) if (adp and pick) else 0
-                    vt = f"  ▼+{int(d)}" if d >= 8 else (f"  ▲{int(d)}" if d <= -8 else "")
-                    star = "★ " if str(r["pid"]) == star_pid else ""
-                    lbl = f'{star}{r["name"]} · {pm.team} · {int(adp) if adp else "—"}{vt}'
-                    if st.button(lbl, key=f'{key_prefix}_bp_{r["pid"]}', use_container_width=True):
-                        draft_fn(r["pid"])
-                if not plist:
-                    st.caption("—")
-
-
 def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *,
-                    limit=70) -> None:
-    """Best-available as a clean FantasyPros-style table — rich rows (headshot,
-    position badge, ADP, value badge) grouped by tier, each with a green Draft
-    button. Clicking Draft calls draft_fn(pid)."""
+                    view="List", per_pos=16, limit=70) -> None:
+    """Best-available board where the WHOLE player row is the draft button
+    (no separate button). Position-colored left bar (scoped `[class*="_brow_<POS>"]`),
+    bold color-coded tier bands. `view`='List' groups by overall tier; 'By position'
+    splits into QB/RB/WR/TE columns grouped by per-position tier."""
     reg, pick = ctx["registry"], current_pick
-    pos_rank, adp_rank = ctx["pos_rank"], ctx["adp_rank"]
+    pos_tier, pos_rank, adp_rank = ctx["pos_tier"], ctx["pos_rank"], ctx["adp_rank"]
     byes = ctx.get("byes", {})
     star_pid = str(board_avail[0]["pid"]) if board_avail else None
 
-    with st.container(key=f"{key_prefix}_fpbtn"):
-        last = None
-        for r in board_avail[:limit]:
-            pm = reg.meta(r["pid"])
-            if r["tier"] != last:
-                st.markdown(f'<div class="ptier">TIER {r["tier"]}</div>', unsafe_allow_html=True)
-                last = r["tier"]
-            adp = adp_rank(pm.name, pm.position)
-            pr = pos_rank.get(str(r["pid"]), pm.position)
-            bye = byes.get(pm.team, "")
-            st_ = '<span class="fp-star">★</span>' if str(r["pid"]) == star_pid else ""
-            row = (f'<div class="fp-row">{st_}{theme.img_tag(r["pid"])}'
-                   f'<span class="posrank {pm.position}">{pr}</span>'
-                   f'<span class="nm">{r["name"]}</span><span class="tm">{pm.team}</span>'
-                   f'{_vchip(adp, pick)}<span class="sp"></span>'
-                   f'<span class="by">Bye {bye}</span>'
-                   f'<span class="adp">{int(adp) if adp else "—"} <small>ADP</small></span></div>')
-            c = st.columns([8, 1.2], vertical_alignment="center")
-            c[0].markdown(row, unsafe_allow_html=True)
-            if c[1].button("Draft", key=f'{key_prefix}_d_{r["pid"]}'):
+    def label(r, pm):
+        adp = adp_rank(pm.name, pm.position)
+        pr = pos_rank.get(str(r["pid"]), pm.position)
+        bye = byes.get(pm.team, "")
+        d = (adp - pick) if (adp and pick) else 0
+        vt = f"   ▼ +{int(d)}" if d >= 8 else (f"   ▲ {int(d)}" if d <= -8 else "")
+        adps = int(adp) if adp else "—"
+        star = "★ " if str(r["pid"]) == star_pid else ""
+        bye_s = f" · Bye {bye}" if bye else ""
+        return f'{star}{pr} · {r["name"]} · {pm.team} · ADP {adps}{bye_s}{vt}'
+
+    def emit_row(r):
+        pm = reg.meta(r["pid"])
+        with st.container(key=f'{key_prefix}_brow_{pm.position}_{r["pid"]}'):
+            if st.button(label(r, pm), key=f'{key_prefix}_pick_{r["pid"]}',
+                         use_container_width=True):
                 draft_fn(r["pid"])
+
+    if view == "By position":
+        cols = st.columns(4, gap="small")
+        for col, pos in zip(cols, ("QB", "RB", "WR", "TE")):
+            plist = [r for r in board_avail if reg.meta(r["pid"]).position == pos][:per_pos]
+            with col:
+                st.markdown(f'<div class="cheat-head {pos}">{pos}</div>', unsafe_allow_html=True)
+                with st.container(key=f"{key_prefix}_board_{pos}"):
+                    last = None
+                    for r in plist:
+                        t = pos_tier.get(str(r["pid"]))
+                        if t != last:
+                            st.markdown(C.tier_band(f"{pos} Tier {t}", t), unsafe_allow_html=True)
+                            last = t
+                        emit_row(r)
+                    if not plist:
+                        st.caption("—")
+    else:
+        with st.container(key=f"{key_prefix}_board_all"):
+            last = None
+            for r in board_avail[:limit]:
+                if r["tier"] != last:
+                    st.markdown(C.tier_band(f"Tier {r['tier']}", r["tier"]), unsafe_allow_html=True)
+                    last = r["tier"]
+                emit_row(r)
 
 
 def queue_manager(ctx, qkey, ranks, taken, registry, widget_key) -> None:
