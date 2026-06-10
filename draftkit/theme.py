@@ -232,6 +232,23 @@ table.dr-avail td.a{ text-align:right; color:#8b86a0; white-space:nowrap; }
 .vchip.reach{ background:rgba(229,72,77,.15); color:#b3232a; }
 .dr-avail .bye{ font-size:9px; color:#b6aecd; }
 
+/* keeper cells on the board */
+.dr-cell.kept{ outline:2px dashed rgba(217,138,0,.8); outline-offset:-2px; }
+.dr-cell .ktag{ position:absolute; top:2px; left:5px; font-family:'Anton'; font-size:8px;
+  color:#fff; background:#d98a00; border-radius:3px; padding:0 3px; letter-spacing:.5px; }
+
+/* war-room alert chips */
+.dr-alerts{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 10px; }
+.dr-alerts .alert{ font-family:'Oswald'; font-weight:700; font-size:12px; padding:4px 11px;
+  border-radius:14px; }
+.alert.cliff{ background:rgba(229,72,77,.14); color:#b3232a; border:1.5px solid rgba(229,72,77,.4); }
+.alert.run{ background:rgba(245,165,36,.16); color:#9a6500; border:1.5px solid rgba(245,165,36,.5); }
+.alert.need{ background:rgba(22,184,166,.14); color:#0c7a6e; border:1.5px solid rgba(22,184,166,.4); }
+.dr-rec{ background:linear-gradient(90deg,rgba(22,184,166,.14),rgba(22,184,166,.03));
+  border:1.5px solid rgba(22,184,166,.4); border-radius:10px; padding:8px 12px; margin-bottom:8px;
+  font-family:'Oswald'; font-size:13px; }
+.dr-rec b{ color:#0c7a6e; } .dr-rec .why{ color:#6a6580; font-size:12px; }
+
 /* roster-needs strip */
 .dr-needs{ display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 8px; }
 .dr-needs .need{ font-family:'Oswald'; font-weight:600; font-size:11px; padding:3px 9px;

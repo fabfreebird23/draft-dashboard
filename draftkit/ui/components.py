@@ -154,10 +154,13 @@ def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
             '<table class="dr-avail"><tbody>' + "".join(body) + '</tbody></table></div>')
 
 
-def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry) -> str:
+def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
+              kept_overalls=None) -> str:
     """Readable color-coded draft board: rounds × teams, snake order, names shown.
 
-    `pick_pids` maps overall pick number -> sleeper pid (or None)."""
+    `pick_pids` maps overall pick number -> sleeper pid (or None).
+    `kept_overalls` is a set of overall picks that are keepers (badged 'K')."""
+    kept_overalls = kept_overalls or set()
     cw = "minmax(86px,1fr)"
     head = ['<div class="dr-colhead rd">RD</div>']
     for c, s in enumerate(slot_names):
@@ -177,8 +180,12 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry)
             if pid:
                 pm = registry.meta(pid)
                 klass += f" pos-{pm.position or 'NA'}"
+                kept = overall in kept_overalls
+                if kept:
+                    klass += " kept"
+                tag = '<span class="ktag">K</span>' if kept else ""
                 cells.append(
-                    f'<div class="{klass}"><span class="pk">{r}.{c:02d}</span>'
+                    f'<div class="{klass}"><span class="pk">{r}.{c:02d}</span>{tag}'
                     f'<span class="nm">{short_name(pm.name)}</span>'
                     f'<span class="meta">{pm.position} · {pm.team}</span></div>')
             else:
@@ -187,6 +194,67 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry)
     grid = (f'<div class="dr-grid" style="grid-template-columns:34px repeat({n},{cw});">'
             + "".join(cells) + "</div>")
     return '<div class="neonwrap" style="overflow:auto;">' + grid + "</div>"
+
+
+def open_needs(my_pids, roster_slots, registry) -> set:
+    """Set of starting positions the team still needs (QB/RB/WR/TE + FLEX)."""
+    need = {}
+    for s in roster_slots:
+        if s in _STARTABLE or s == "FLEX":
+            need[s] = need.get(s, 0) + 1
+    have, flex = {}, 0
+    for pid in my_pids:
+        pos = registry.meta(pid).position
+        if pos in need and have.get(pos, 0) < need[pos]:
+            have[pos] = have.get(pos, 0) + 1
+        elif pos in _FLEX_OK:
+            flex += 1
+    out = set()
+    for s, total in need.items():
+        got = min(flex, total) if s == "FLEX" else have.get(s, 0)
+        if got < total:
+            out.add(s)
+    if "FLEX" in out:
+        out |= _FLEX_OK
+    return out
+
+
+def insights_html(board_avail, recent_positions, needs_open) -> str:
+    """War-room alert chips: tier cliff, positional run, and need cues."""
+    from collections import Counter
+    chips = []
+    if board_avail:
+        top_tier = board_avail[0]["tier"]
+        left = sum(1 for r in board_avail if r["tier"] == top_tier)
+        if left <= 4:
+            chips.append(f'<span class="alert cliff">⚠ Tier {top_tier} cliff — '
+                         f'{left} left</span>')
+    recent = [p for p in recent_positions[-6:] if p]
+    if recent:
+        pos, ct = Counter(recent).most_common(1)[0]
+        if ct >= 4:
+            chips.append(f'<span class="alert run">🔥 {pos} run — {ct} of last '
+                         f'{len(recent)}</span>')
+    if needs_open:
+        order = [p for p in ("QB", "RB", "WR", "TE") if p in needs_open]
+        if order:
+            chips.append('<span class="alert need">🎯 Need: ' + ", ".join(order) + "</span>")
+    if not chips:
+        return ""
+    return '<div class="dr-alerts">' + "".join(chips) + "</div>"
+
+
+def rec_reason(top_row, registry, adp_rank, current_pick, needs_open) -> str:
+    """One-line reasoning for the top recommended pick (VBD/need/value/tier)."""
+    pm = registry.meta(top_row["pid"])
+    bits = []
+    adp = adp_rank(pm.name, pm.position)
+    if adp and current_pick and adp - current_pick >= 6:
+        bits.append(f"falling +{int(adp - current_pick)} vs ADP")
+    if pm.position in needs_open:
+        bits.append(f"fills {pm.position} need")
+    bits.append(f"top of your board · T{top_row['tier']}")
+    return " · ".join(bits)
 
 
 def filter_pos(rows, pos_f, registry):

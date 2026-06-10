@@ -13,7 +13,7 @@ from draftkit import config, players, theme
 from draftkit.adp import consensus
 from draftkit.names import normalize_name
 from draftkit.providers import get_provider, EspnAuthError
-from draftkit import rankings as rankings_mod
+from draftkit import draft_history, keepers as keepers_mod, rankings as rankings_mod
 from draftkit.ui import assistant_ui, mock_ui, rankings_ui
 
 st.set_page_config(page_title="Draft Room — Mock + Live Draft", page_icon="🏈", layout="wide")
@@ -35,6 +35,23 @@ def get_adp(season: int):
         except Exception:  # noqa: BLE001 - ADP is best-effort; mock degrades without it
             df = consensus.load(season)
     return df, consensus.adp_lookup(season)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def get_keepers(platform: str, league_id: str, season: int):
+    if platform != "sleeper":
+        return {}
+    return keepers_mod.load_keepers(league_id, season)
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_tendencies(platform: str, league_id: str):
+    if platform != "sleeper":
+        return {}
+    try:
+        return draft_history.owner_tendencies(league_id)
+    except Exception:  # noqa: BLE001
+        return {}
 
 
 def _secret(name: str) -> str:
@@ -106,6 +123,8 @@ def build_context(sel: dict) -> dict:
     meta = provider.get_league_meta()
     order = provider.get_draft_order()
     slot_names = [t.name for t in order] or [f"Team {i+1}" for i in range(meta.num_teams)]
+    owner_by_slot = {t.slot: t.team_id for t in order}
+    owner_slot = {t.team_id: t.slot for t in order}
     # ADP for the current season (the draftable pool + best-available ranks).
     adp_df, adp_lk = get_adp(config.current_season())
 
@@ -123,12 +142,21 @@ def build_context(sel: dict) -> dict:
         counts[pos] = counts.get(pos, 0) + 1
         pos_rank[str(p["pid"])] = f"{pos}{counts[pos]}"
 
+    # Keepers (from the league's companion keeper dashboard) + placements.
+    keepers_raw = get_keepers(meta.platform, meta.league_id, config.current_season())
+    placements = keepers_mod.build_placements(
+        keepers_raw, owner_slot, meta.num_teams, meta.draft_rounds)
+    # Historical draft tendencies (how each manager drafts by round).
+    tendencies = get_tendencies(meta.platform, meta.league_id)
+
     league_key = f"{meta.platform}_{meta.league_id}"
     return {
         "registry": registry, "provider": provider, "meta": meta,
         "slot_names": slot_names, "roster_slots": provider.get_roster_slots(),
+        "owner_by_slot": owner_by_slot, "owner_slot": owner_slot,
         "adp_df": adp_df, "adp_rank": adp_rank, "adp_pool": adp_pool,
         "pos_rank": pos_rank,
+        "keepers_raw": keepers_raw, "keepers": placements, "tendencies": tendencies,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
     }
 
@@ -158,8 +186,14 @@ def main():
     head = st.columns([4, 1])
     with head[0]:
         st.markdown(f'<h2>{theme.logo_html(28, tag=None)} · {meta.name}</h2>', unsafe_allow_html=True)
+        extras = ""
+        n_keep = len(ctx["keepers"]["kept_pids"])
+        if n_keep:
+            extras += f" · 🔒 {n_keep} keepers"
+        if ctx["tendencies"]:
+            extras += f" · 🧠 history-aware AI ({len(ctx['tendencies'])} mgrs)"
         st.caption(f"{meta.platform.upper()} · {meta.num_teams} teams · {meta.draft_rounds} rounds "
-                   f"· {meta.scoring.upper()} · {len(ctx['adp_pool'])} players in ADP pool")
+                   f"· {meta.scoring.upper()} · {len(ctx['adp_pool'])} ADP players{extras}")
     with head[1]:
         if st.button("↺ Switch league"):
             del st.session_state.league

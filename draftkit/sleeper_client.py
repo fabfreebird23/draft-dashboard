@@ -73,6 +73,28 @@ def get_draft_picks_fresh(draft_id: str) -> List[Dict[str, Any]]:
     return _get(f"draft/{draft_id}/picks") or []
 
 
+def get_draft_picks(draft_id: str) -> List[Dict[str, Any]]:
+    """Cached past-draft picks (for history/tendency analysis, not live use)."""
+    return _disk(f"picks_{draft_id}", 86400, lambda: _get(f"draft/{draft_id}/picks") or [])
+
+
+def league_chain(league_id: str) -> List[Dict[str, Any]]:
+    """Walk previous_league_id back to the start. Newest-first list of
+    {season, league_id, draft_id}."""
+    chain: List[Dict[str, Any]] = []
+    lid: Optional[str] = league_id
+    seen = set()
+    while lid and lid not in ("0", None) and lid not in seen:
+        seen.add(lid)
+        lg = get_league(lid)
+        if not lg:
+            break
+        chain.append({"season": int(lg["season"]), "league_id": lg["league_id"],
+                      "draft_id": lg.get("draft_id")})
+        lid = lg.get("previous_league_id")
+    return chain
+
+
 def get_players() -> Dict[str, Any]:
     """Sleeper's full NFL player map (~5MB), cached to disk and refreshed daily."""
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)

@@ -1,5 +1,5 @@
-"""Live Draft Assistant tab — polls the live draft (Sleeper or ESPN) and renders
-the same readable, value-aware board from a normalized Pick list."""
+"""Live Draft Assistant tab — polls the live draft (Sleeper or ESPN), overlays
+keepers, and renders a war-room board on top with value/tier/run intelligence."""
 from __future__ import annotations
 
 import streamlit as st
@@ -19,6 +19,8 @@ def render(ctx) -> None:
     n = len(slot_names)
     rounds = ctx["meta"].draft_rounds
     akey = f"live_{ctx['league_key']}"
+    kept_overall = ctx["keepers"]["by_overall"]
+    kept_pids = ctx["keepers"]["kept_pids"]
 
     top = st.columns([2, 1, 1])
     me = top[0].selectbox("Your team", slot_names, key=f"{akey}_me")
@@ -44,22 +46,40 @@ def render(ctx) -> None:
         st.error(f"Couldn't read the live draft ({type(e).__name__}). Try Refresh.")
         return
 
+    # Board = real picks; overlay keepers on any empty keeper slots.
+    pick_pids = {p.overall: (p.player.sleeper_pid if p.player else None)
+                 for p in picks if p.overall}
+    kept_at = set()
+    for ov, pid in kept_overall.items():
+        if ov not in pick_pids or not pick_pids[ov]:
+            pick_pids[ov] = pid
+            kept_at.add(ov)
     drafted = {p.player.sleeper_pid for p in picks if p.player and p.player.sleeper_pid}
+    drafted |= set(kept_pids)
     my_pids = [p.player.sleeper_pid for p in picks
                if p.slot == my_slot and p.player and p.player.sleeper_pid]
+    my_pids += [pid for ov, pid in kept_overall.items()
+                if C.snake(n)(ov - 1) == my_slot and pid not in my_pids]
 
     pick_no = len(picks) + 1
     snake = C.snake(n)
     on_slot = snake(pick_no - 1)
-    # picks until my next turn
     until = 0
     for k in range(pick_no - 1, pick_no - 1 + n * rounds):
         if snake(k) == my_slot:
             until = k - (pick_no - 1)
             break
+
+    # ----- status + board on TOP -----
     st.markdown(C.status_html(pick_no, n, slot_names[on_slot], on_slot == my_slot,
-                              picks_until_me=until),
-                unsafe_allow_html=True)
+                              picks_until_me=until), unsafe_allow_html=True)
+    st.markdown('<div class="dr-h">📋 Draft Board</div>', unsafe_allow_html=True)
+    st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
+                            kept_overalls=kept_at), unsafe_allow_html=True)
+
+    needs = C.open_needs(my_pids, ctx["roster_slots"], reg)
+    recent_positions = [p.player.position for p in sorted(picks, key=lambda x: x.overall)[-6:]
+                        if p.player]
 
     left, right = st.columns([1, 2])
     with left:
@@ -68,22 +88,25 @@ def render(ctx) -> None:
         st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
     with right:
         st.markdown('<div class="dr-h">🎯 Best Available — Your Board</div>', unsafe_allow_html=True)
+        board = C.filter_pos(ranks, pos_f, reg)
+        board_avail = [r for r in board if r.get("pid") and str(r["pid"]) not in drafted]
+        st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
+        if board_avail:
+            tp = board_avail[0]
+            tpm = reg.meta(tp["pid"])
+            why = C.rec_reason(tp, reg, ctx["adp_rank"], pick_no, needs)
+            st.markdown(f'<div class="dr-rec">★ <b>{tp["name"]}</b> ({tpm.position} · {tpm.team}) '
+                        f'— <span class="why">{why}</span></div>', unsafe_allow_html=True)
         search = st.text_input("🔎 Search the board", key=f"{akey}_search",
                                placeholder="Filter by name or team…")
-        board = C.filter_search(C.filter_pos(ranks, pos_f, reg), search, reg)
-        st.markdown(C.avail_html(board, drafted, reg, ctx["adp_rank"],
-                                 pos_rank=ctx["pos_rank"], current_pick=pick_no),
+        st.markdown(C.avail_html(C.filter_search(board, search, reg), drafted, reg,
+                                 ctx["adp_rank"], pos_rank=ctx["pos_rank"], current_pick=pick_no),
                     unsafe_allow_html=True)
 
-    st.markdown('<div class="dr-h" style="margin-top:12px;">📋 Draft Board</div>',
-                unsafe_allow_html=True)
-    pick_pids = {p.overall: (p.player.sleeper_pid if p.player else None)
-                 for p in picks if p.overall}
-    st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg),
-                unsafe_allow_html=True)
     if not picks:
-        st.caption("Waiting on the draft to start — picks will stream in here. "
-                   "Toggle auto-refresh (or hit Refresh) once it's live.")
+        kept_note = (f" {len(kept_pids)} keepers are pre-marked." if kept_pids else "")
+        st.caption("Waiting on the draft to start — picks will stream in here." + kept_note +
+                   " Toggle auto-refresh (or hit Refresh) once it's live.")
     else:
-        st.caption("Live from your draft — best available is your UDK board, tier-colored, "
-                   "drafted players removed, ★ = top pick, ▼ = falling value, ▲ = reach.")
+        st.caption("Live — best available is your UDK board, drafted+kept players removed, "
+                   "★ = top pick, ▼ = falling value, ⚠ = tier cliff, 🔥 = position run.")
