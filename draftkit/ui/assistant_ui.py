@@ -6,7 +6,7 @@ import streamlit as st
 
 from ..providers.espn import EspnAuthError
 from . import components as C
-from .widgets import predict_upcoming, queue_manager
+from .widgets import predict_upcoming, queue_manager, spotlight_panel
 
 
 def render(ctx) -> None:
@@ -23,13 +23,14 @@ def render(ctx) -> None:
     kept_overall = ctx["keepers"]["by_overall"]
     kept_pids = ctx["keepers"]["kept_pids"]
 
-    top = st.columns([2, 1, 1])
+    top = st.columns([2, 1])
     me = top[0].selectbox("Your team", slot_names, key=f"{akey}_me")
-    pos_f = top[1].selectbox("Position", ["All", "QB", "RB", "WR", "TE", "FLEX"], key=f"{akey}_pos")
-    with top[2]:
+    with top[1]:
         st.write("")
         auto = st.checkbox("Auto-refresh", key=f"{akey}_auto")
-        st.button("🔄 Refresh", key=f"{akey}_refresh")
+        st.button("Refresh", key=f"{akey}_refresh")
+    # Position filtering lives in the Best Available panel ("By position" view).
+    pos_f = "All"
     if auto:
         try:
             from streamlit_autorefresh import st_autorefresh
@@ -77,7 +78,7 @@ def render(ctx) -> None:
     real_picks = {p.overall: p.player.sleeper_pid for p in picks
                   if p.player and p.player.sleeper_pid}
     st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
-    st.markdown('<div class="dr-h">📋 Draft Board</div>', unsafe_allow_html=True)
+    st.markdown('<div class="dr-h">Draft Board</div>', unsafe_allow_html=True)
     st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
                             kept_overalls=kept_at), unsafe_allow_html=True)
 
@@ -105,7 +106,7 @@ def render(ctx) -> None:
 
     left, mid, right = st.columns([1, 1.5, 1.1])
     with left:
-        st.markdown('<div class="dr-h">🧢 My Team</div>', unsafe_allow_html=True)
+        st.markdown('<div class="dr-h">My Team</div>', unsafe_allow_html=True)
         st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
         st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
         st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
@@ -113,7 +114,7 @@ def render(ctx) -> None:
                     unsafe_allow_html=True)
     with mid:
         head = st.columns([2, 3])
-        head[0].markdown('<div class="dr-h" style="margin:2px 0;">🎯 Best Available</div>',
+        head[0].markdown('<div class="dr-h" style="margin:2px 0;">Best Available</div>',
                          unsafe_allow_html=True)
         view = head[1].radio("view", ["List", "By position"], horizontal=True,
                              key=f"{akey}_view", label_visibility="collapsed")
@@ -121,7 +122,7 @@ def render(ctx) -> None:
             st.markdown(C.by_position_html(board_avail, reg, ctx["adp_rank"], ctx["pos_rank"],
                                            pick_no, pos_tier=ctx["pos_tier"]), unsafe_allow_html=True)
         else:
-            search = st.text_input("🔎 Search", key=f"{akey}_search",
+            search = st.text_input("Search", key=f"{akey}_search",
                                    placeholder="Search…", label_visibility="collapsed")
             st.markdown(C.avail_html(C.filter_search(board, search, reg), drafted, reg,
                                      ctx["adp_rank"], pos_rank=ctx["pos_rank"], current_pick=pick_no,
@@ -130,14 +131,22 @@ def render(ctx) -> None:
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
         queue = [p for p in st.session_state.get(qkey, []) if str(p) not in drafted]
         rec_row = next((r for r in board_avail if str(r["pid"]) == str(queue[0])), None) if queue else None
+        why = "from your queue"
         if rec_row is None and board_avail:
-            rec_row = board_avail[0]
+            from .. import value as V
+            rec_row, _, why = V.best_pick(
+                board_avail, ctx["value"], reg, needs, drafted, next_pick=next_user_pick,
+                survival_fn=lambda pid: C.survival_pct(
+                    ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_user_pick))
+            if rec_row is None:
+                rec_row = board_avail[0]
         if rec_row:
             tpm = reg.meta(rec_row["pid"])
-            why = ("from your queue" if (queue and str(rec_row["pid"]) == str(queue[0]))
-                   else C.rec_reason(rec_row, reg, ctx["adp_rank"], pick_no, needs))
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({tpm.position} · {tpm.team}) '
                         f'— <span class="why">{why}</span></div>', unsafe_allow_html=True)
+        spotlight_panel(ctx, board_avail, reg, f"{akey}_sp",
+                        default_pid=(rec_row["pid"] if rec_row else None),
+                        next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=drafted)
         preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall)
         st.markdown(C.predictor_html(preds, slot_names, reg, n), unsafe_allow_html=True)
         queue_manager(ctx, qkey, ranks, drafted, reg, f"{akey}_q")
@@ -148,4 +157,4 @@ def render(ctx) -> None:
                    " Toggle auto-refresh (or hit Refresh) once it's live.")
     else:
         st.caption("Live — best available is your UDK board, drafted+kept players removed, "
-                   "★ = top pick, ▼ = falling value, ⚠ = tier cliff, 🔥 = position run.")
+                   "★ = top pick · ▼ = falling value · tier-cliff and position-run alerts show on the right.")

@@ -23,6 +23,15 @@ class Player:
     name: str
     position: str
     team: str
+    # status/bio (from Sleeper's player blob; absent for synthetic/ESPN-only recs)
+    age: Optional[int] = None
+    years_exp: Optional[int] = None
+    injury_status: Optional[str] = None
+    injury_body_part: Optional[str] = None
+    status: Optional[str] = None
+    depth_chart_order: Optional[int] = None
+    number: Optional[int] = None
+    college: Optional[str] = None
 
 
 class PlayerRegistry:
@@ -81,7 +90,13 @@ def build_registry(season: int) -> PlayerRegistry:
         if existing is not None and existing.team and not p.get("team"):
             continue
         rec = Player(sleeper_pid=str(pid), espn_id=p.get("espn_id"),
-                     name=name, position=p.get("position", ""), team=p.get("team") or "")
+                     name=name, position=p.get("position", ""), team=p.get("team") or "",
+                     age=p.get("age"), years_exp=p.get("years_exp"),
+                     injury_status=p.get("injury_status"),
+                     injury_body_part=p.get("injury_body_part"),
+                     status=p.get("status"),
+                     depth_chart_order=p.get("depth_chart_order"),
+                     number=p.get("number"), college=p.get("college"))
         reg.by_norm[nm] = rec
         reg.by_sleeper[str(pid)] = rec
 

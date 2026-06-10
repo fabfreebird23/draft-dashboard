@@ -35,7 +35,7 @@ def render(ctx) -> None:
     cookie = _udk_cookie()
     c1, c2 = st.columns([1, 1])
     with c1:
-        if st.button("⚡ Pull from UDK (stored login)", type="primary",
+        if st.button("Pull from UDK (stored login)", type="primary",
                      disabled=not cookie, use_container_width=True):
             with st.spinner("Scraping the UDK…"):
                 got = udk.fetch_udk(cookie, reg, ctx["meta"].scoring)
@@ -48,7 +48,7 @@ def render(ctx) -> None:
         if not cookie:
             st.caption("Add `udk_cookie` to secrets to enable server-side pull.")
 
-    with st.expander("🔖 One-click UDK bookmarklet (no login needed)"):
+    with st.expander("One-click UDK bookmarklet (no login needed)"):
         st.markdown(
             "Runs **in your browser** (where you're already logged into the UDK):\n\n"
             "1. Bookmark this page, edit the bookmark, name it *Grab UDK*, and replace "
@@ -94,9 +94,9 @@ def render(ctx) -> None:
     st.success(f"**{len(ranks)}** ranked · **{len(ranks) - len(unmatched)}** matched"
                f" · **{len(unmatched)}** unmatched.")
     if unmatched:
-        with st.expander(f"⚠️ {len(unmatched)} names didn't match — fix spelling & re-import"):
+        with st.expander(f"{len(unmatched)} names didn't match — fix spelling & re-import"):
             st.write(", ".join(unmatched))
-    st.download_button("⬇ Save my rankings (.json)", json.dumps(ranks),
+    st.download_button("Save my rankings (.json)", json.dumps(ranks),
                        file_name="my_rankings.json", mime="application/json")
     st.dataframe(pd.DataFrame([{"Rk": r["rank"], "Tier": r["tier"], "Player": r["name"],
                                 "Matched": "✓" if r.get("pid") else "—"} for r in ranks]),

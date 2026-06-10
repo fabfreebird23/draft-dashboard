@@ -43,7 +43,7 @@ def survival_box_html(pct):
 
 
 def predictor_html(predictions, slot_names, registry, n) -> str:
-    """🔮 Pick Predictor — the most-likely upcoming picks before your next turn."""
+    """Pick Predictor — the most-likely upcoming picks before your next turn."""
     if not predictions:
         return ""
     rows = []
@@ -58,7 +58,7 @@ def predictor_html(predictions, slot_names, registry, n) -> str:
             f'{theme.img_tag(pid, "pp-img")}'
             f'<span class="pp-pl">{pm.name}</span>'
             f'<span class="pp-pos pos-{pm.position}">{pm.position}</span></div>')
-    return ('<div class="dr-predict"><div class="dr-h" style="margin-bottom:4px;">🔮 Pick '
+    return ('<div class="dr-predict"><div class="dr-h" style="margin-bottom:4px;">Pick '
             'Predictor — likely before you\'re up</div>' + "".join(rows) + "</div>")
 
 _FLEX_OK = {"RB", "WR", "TE"}
@@ -190,6 +190,11 @@ def _value_chip(adp: float | None, current_pick: int | None) -> str:
     return ""
 
 
+def _tooltip(pm, pos_rank, adp, tier) -> str:
+    from . import playercard as PC  # local to avoid import-order coupling
+    return PC.tooltip_text(pm, pos_rank=pos_rank, adp=adp, tier=tier)
+
+
 def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
                current_pick=None, next_pick=None, limit=140, recommend=True) -> str:
     """Tiered best-available board: positional rank, ADP, value/reach chips, and a
@@ -218,8 +223,9 @@ def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
         vchip = _value_chip(adp, current_pick)
         sv = survival_pct(adp, next_pick) if next_pick else None
         sv_td = f'<td class="sv">{survival_box_html(sv)}</td>'
+        tip = _tooltip(pm, pr or pm.position, adp, r.get("tier")).replace('"', "&quot;")
         body.append(
-            f'<tr{rec}><td class="r">{r["rank"]}</td>'
+            f'<tr{rec} title="{tip}"><td class="r">{r["rank"]}</td>'
             f'<td>{theme.img_tag(r["pid"])}{pr_html}<b>{r["name"]}</b>{badge}{vchip}'
             f'<div class="pp">{pm.position} · {pm.team}</div></td>'
             f'<td class="a">ADP<br>{adp_disp}</td>{sv_td}</tr>'
@@ -330,18 +336,18 @@ def insights_html(board_avail, recent_positions, needs_open) -> str:
         top_tier = board_avail[0]["tier"]
         left = sum(1 for r in board_avail if r["tier"] == top_tier)
         if left <= 4:
-            chips.append(f'<span class="alert cliff">⚠ Tier {top_tier} cliff — '
+            chips.append(f'<span class="alert cliff">Tier {top_tier} cliff — '
                          f'{left} left</span>')
     recent = [p for p in recent_positions[-6:] if p]
     if recent:
         pos, ct = Counter(recent).most_common(1)[0]
         if ct >= 4:
-            chips.append(f'<span class="alert run">🔥 {pos} run — {ct} of last '
+            chips.append(f'<span class="alert run">{pos} run — {ct} of last '
                          f'{len(recent)}</span>')
     if needs_open:
         order = [p for p in ("QB", "RB", "WR", "TE") if p in needs_open]
         if order:
-            chips.append('<span class="alert need">🎯 Need: ' + ", ".join(order) + "</span>")
+            chips.append('<span class="alert need">Need: ' + ", ".join(order) + "</span>")
     if not chips:
         return ""
     return '<div class="dr-alerts">' + "".join(chips) + "</div>"
@@ -362,7 +368,7 @@ def bye_conflict_html(my_pids, byes, registry) -> str:
     bad = [(wk, c) for wk, c in sorted(weeks.items()) if c >= 3]
     if not bad:
         return ""
-    chips = "".join(f'<span class="alert run">🗓 Bye {wk}: {c} players</span>' for wk, c in bad)
+    chips = "".join(f'<span class="alert run">Bye {wk}: {c} players</span>' for wk, c in bad)
     return '<div class="dr-alerts">' + chips + "</div>"
 
 
@@ -393,8 +399,8 @@ def roster_strength_html(pids_by_slot, my_slot, slot_names, registry, adp_rank) 
                     f'<span class="rs-nm">{nm[:14]}</span>'
                     f'<span class="rs-bar"><i style="width:{pct}%"></i></span>'
                     f'<span class="rs-val">{int(val)}</span></div>')
-    head = (f'<div class="dr-h">💪 Roster Strength — you\'re #{rank} of {len(rows)}</div>'
-            if rank else '<div class="dr-h">💪 Roster Strength</div>')
+    head = (f'<div class="dr-h">Roster Strength — you\'re #{rank} of {len(rows)}</div>'
+            if rank else '<div class="dr-h">Roster Strength</div>')
     return head + '<div class="rs">' + "".join(bars) + "</div>"
 
 

@@ -5,6 +5,7 @@ import streamlit as st
 
 from .. import draft_history, theme
 from . import components as C
+from . import playercard as PC
 
 
 def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall, *,
@@ -44,7 +45,8 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
 
 
 def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *,
-                    view="List", per_pos=16, limit=70, next_pick=None) -> None:
+                    view="List", per_pos=16, limit=70, next_pick=None,
+                    show_bands=True) -> None:
     """Best-available board where the WHOLE player row is the draft button
     (no separate button). Position-colored left bar (scoped `[class*="_brow_<POS>"]`),
     bold color-coded tier bands, and a survival % (chance the player lasts to your
@@ -53,6 +55,7 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
     reg, pick = ctx["registry"], current_pick
     pos_tier, pos_rank, adp_rank = ctx["pos_tier"], ctx["pos_rank"], ctx["adp_rank"]
     byes = ctx.get("byes", {})
+    vm = ctx.get("value")
     star_pid = str(board_avail[0]["pid"]) if board_avail else None
 
     def label(r, pm):
@@ -64,25 +67,31 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         adps = int(adp) if adp else "—"
         star = "★ " if str(r["pid"]) == star_pid else ""
         bye_s = f" · Bye {bye}" if bye else ""
-        return f'{star}{pr} · {r["name"]} · {pm.team} · ADP {adps}{bye_s}{vt}'
+        v = vm.vorp_of(r["pid"]) if vm else None
+        vchip = f' · V {"+" if v >= 0 else ""}{v:.0f}' if v is not None else ""
+        return f'{star}{pr} · {r["name"]} · {pm.team} · ADP {adps}{bye_s}{vchip}{vt}'
 
     def emit_row(r):
         pm = reg.meta(r["pid"])
         rk = f'{key_prefix}_brow_{pm.position}_{r["pid"]}'
         # per-row painted pseudo-elements: headshot (::before) + survival box (::after)
-        css = (f'.st-key-{rk} .stButton>button::before{{'
+        # NB: `.stButton button` (descendant) not `>button` — st.button(help=…) wraps
+        # the button in tooltip divs, so a direct-child selector wouldn't match.
+        css = (f'.st-key-{rk} .stButton button::before{{'
                f'background-image:url("{theme.headshot_src(r["pid"])}")}}')
         if next_pick:
             adp = adp_rank(pm.name, pm.position)
             sc = C.survival_colors(C.survival_pct(adp, next_pick))
             if sc:
                 pct = C.survival_pct(adp, next_pick)
-                css += (f'.st-key-{rk} .stButton>button::after{{content:"{pct}%";'
+                css += (f'.st-key-{rk} .stButton button::after{{content:"{pct}%";'
                         f'background:{sc[0]};color:{sc[1]}}}')
+        tip = PC.tooltip_text(pm, pos_rank=pos_rank.get(str(r["pid"]), pm.position),
+                              adp=adp_rank(pm.name, pm.position), tier=r.get("tier"), byes=byes)
         with st.container(key=rk):
             st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
             if st.button(label(r, pm), key=f'{key_prefix}_pick_{r["pid"]}',
-                         use_container_width=True):
+                         use_container_width=True, help=tip):
                 draft_fn(r["pid"])
 
     if view == "By position":
@@ -104,11 +113,90 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
     else:
         with st.container(key=f"{key_prefix}_board_all"):
             last = None
+            if not show_bands:
+                st.markdown(C.tier_band("Sorted by value (VORP)", 1), unsafe_allow_html=True)
             for r in board_avail[:limit]:
-                if r["tier"] != last:
+                if show_bands and r["tier"] != last:
                     st.markdown(C.tier_band(f"Tier {r['tier']}", r["tier"]), unsafe_allow_html=True)
                     last = r["tier"]
                 emit_row(r)
+
+
+def select_player(widget_key, pid):
+    """Stage a player to be shown in the spotlight (called when a board square is
+    clicked). Consumed by `spotlight_panel` on the next run."""
+    st.session_state[f"{widget_key}_pending"] = str(pid)
+
+
+def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
+                    next_pick=None, draft_fn=None, my_pids=None, needs=None,
+                    taken=None) -> None:
+    """Player Spotlight (B): the focal detail card. Clicking a board square stages a
+    player here (via `select_player`); a dropdown also lets you browse. Shows the
+    headshot, VORP value + grab/wait verdict, roster synergy, survival %, tier
+    drop-off, prior-season stats, and injury. The Draft button here drafts."""
+    from .. import config, value as V
+    if not board_avail:
+        return
+    label_to_pid, pid_to_label, options = {}, {}, []
+    for r in board_avail:
+        pid = str(r["pid"])
+        pm = registry.meta(pid)
+        lbl = f'{r["name"]} · {pm.position}·{pm.team}'
+        label_to_pid[lbl] = pid
+        pid_to_label[pid] = lbl
+        options.append(lbl)
+
+    sb_key = f"{widget_key}_inspect"
+    pend_key = f"{widget_key}_pending"
+    # A board click stages a pid here → drive the dropdown to it.
+    pending = st.session_state.pop(pend_key, None)
+    if pending and str(pending) in pid_to_label:
+        st.session_state[sb_key] = pid_to_label[str(pending)]
+    # Keep the selection valid (player may have just been drafted/removed).
+    want = str(default_pid) if default_pid else options and label_to_pid[options[0]]
+    if st.session_state.get(sb_key) not in options:
+        st.session_state[sb_key] = pid_to_label.get(str(want), options[0])
+
+    with st.expander("Player Spotlight", expanded=True):
+        sel = st.selectbox("Inspect a player", options, key=sb_key,
+                           label_visibility="collapsed")
+        pid = label_to_pid[sel]
+        pm = registry.meta(pid)
+        tier = next((r.get("tier") for r in board_avail if str(r["pid"]) == pid), None)
+
+        # value signals
+        vm = ctx.get("value")
+        adp = ctx["adp_rank"](pm.name, pm.position)
+        vorp = vm.vorp_of(pid) if vm else None
+        proj = vm.proj_of(pid) if vm else None
+        verdict = None
+        drop_next = None
+        if vm:
+            taken_s = {str(x) for x in (taken or [])}
+            left = vm.startable_left(pm.position, taken_s)
+            sv = C.survival_pct(adp, next_pick) if next_pick else None
+            verdict = V.grab_verdict(sv, left, is_need=(pm.position in (needs or set())))
+            # tier drop-off: my projection minus the best available in the next tier
+            if tier is not None and proj:
+                nxt = [vm.proj_of(r["pid"]) for r in board_avail
+                       if r.get("tier") == tier + 1 and str(r["pid"]) != pid]
+                if nxt:
+                    drop_next = max(0.0, proj - max(nxt))
+        synergy = V.synergy(pm, my_pids, registry) if my_pids else None
+
+        st.markdown(
+            PC.spotlight_html(
+                pm, pos_rank=ctx["pos_rank"].get(pid, pm.position),
+                adp=adp, tier=tier, byes=ctx["byes"],
+                next_pick=next_pick, season=config.current_season() - 1,
+                scoring=ctx["meta"].scoring, prev_label=str(config.current_season() - 1),
+                vorp=vorp, proj=proj, verdict=verdict, synergy=synergy, drop_next=drop_next),
+            unsafe_allow_html=True)
+        if draft_fn is not None:
+            if st.button(f"Draft {pm.name}", key=f"{widget_key}_spdraft", type="primary",
+                         use_container_width=True):
+                draft_fn(pid)
 
 
 def queue_manager(ctx, qkey, ranks, taken, registry, widget_key) -> None:
@@ -130,7 +218,7 @@ def queue_manager(ctx, qkey, ranks, taken, registry, widget_key) -> None:
     cur = [str(x) for x in st.session_state.get(qkey, [])]
     cur_labels = [lbl for lbl in options if label_to_pid[lbl] in cur]
     n_avail = len([p for p in cur if p not in taken_s])
-    with st.expander(f"⭐ My Queue ({n_avail} available)"):
+    with st.expander(f"My Queue ({n_avail} available)"):
         picked = st.multiselect("Queue players to target", options,
                                 default=cur_labels, key=f"{widget_key}_ms")
         st.session_state[qkey] = [label_to_pid[lbl] for lbl in picked]

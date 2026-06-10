@@ -131,6 +131,42 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .svbox{ display:inline-block; font-weight:800; font-size:11px; padding:3px 7px; border-radius:5px;
   min-width:36px; text-align:center; }
 
+/* ---- player spotlight card (inspect) ---- */
+.pcard{ background:#fff; border:1px solid var(--line); border-radius:11px; padding:11px 12px;
+  margin:4px 0 10px; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+.pc-head{ display:flex; align-items:center; gap:11px; }
+.pc-img{ width:52px; height:52px; border-radius:50%; object-fit:cover; background:#eef1f4;
+  border:2px solid var(--line); }
+.pc-name{ font-weight:800; font-size:16px; line-height:1.1; }
+.pc-pos{ color:var(--muted); font-size:12px; font-weight:600; margin-top:1px; }
+.pc-flag{ display:inline-block; font-size:11px; font-weight:800; margin-top:3px;
+  padding:1px 7px; border-radius:20px; }
+.pc-flag.ok{ background:#eaf7ef; color:#1c7a44; } .pc-flag.ques{ background:#fef6e7; color:#9a6b07; }
+.pc-flag.out{ background:#fdecec; color:#b3261e; }
+.pc-meta{ margin-top:8px; font-size:12px; color:var(--ink); font-weight:600; }
+.pc-bio{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+.pc-value{ display:flex; align-items:center; gap:7px; margin-top:9px; flex-wrap:wrap; }
+.pc-vorp{ font-weight:800; font-size:13px; color:#fff; background:var(--green);
+  padding:2px 9px; border-radius:6px; }
+.pc-proj{ font-size:11.5px; font-weight:700; color:var(--muted); }
+.pc-verdict{ font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:20px;
+  letter-spacing:.3px; margin-left:auto; }
+.pc-verdict.grab{ background:#fdecec; color:#b3261e; } .pc-verdict.lean{ background:#fff4e5; color:#b3650a; }
+.pc-verdict.wait{ background:#eaf2fd; color:#1457b0; } .pc-verdict.ok{ background:#eef1f4; color:#55606b; }
+.pc-syns{ display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+.pc-syn{ font-size:10.5px; font-weight:700; background:#f0ecfb; color:#5b34c7;
+  padding:2px 8px; border-radius:6px; }
+.pc-drop{ color:#b3232a; font-weight:700; }
+.pc-surv{ margin-top:9px; font-size:12px; font-weight:600; color:var(--muted);
+  display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.pc-pts{ margin-top:9px; font-size:12.5px; } .pc-pts b{ color:var(--green); }
+.pc-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:7px; }
+.pc-stat{ background:#f7f9fb; border:1px solid var(--line); border-radius:7px; padding:5px 4px;
+  text-align:center; }
+.pc-v{ display:block; font-weight:800; font-size:14px; } .pc-k{ display:block; font-size:9.5px;
+  color:var(--mut2); text-transform:uppercase; letter-spacing:.3px; }
+.pc-nostat{ margin-top:8px; font-size:12px; color:var(--mut2); font-style:italic; }
+
 /* ---- roster strength ---- */
 .rs{ display:flex; flex-direction:column; gap:3px; margin-bottom:8px; }
 .rs-row{ display:flex; align-items:center; gap:7px; font-size:12px; padding:2px 4px; border-radius:6px; }
@@ -252,34 +288,35 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .tk-chip.pos-K{ border-left-color:var(--k);} .tk-chip.pos-DST,.tk-chip.pos-D{ border-left-color:var(--dst);}
 
 /* keep the draft board compact so the rest of the page stays visible */
-.dr-board-scroll{ max-height:430px; overflow:auto; border:1px solid var(--line); border-radius:10px; }
+.dr-board-scroll{ max-height:430px; overflow:auto; border:1px solid var(--line); border-radius:10px;
+  margin-bottom:18px; }
 
 /* ---- whole-row clickable draft cards ---- */
 [class*="_board_"] [data-testid="stVerticalBlock"]{ gap:3px; }
 [class*="_brow_"]{ margin:0 !important; }
 [class*="_brow_"] .stButton{ margin:0; }
-[class*="_brow_"] .stButton>button{ width:100%; text-align:left; justify-content:flex-start;
+[class*="_brow_"] .stButton button{ width:100%; text-align:left; justify-content:flex-start;
   padding:8px 58px 8px 46px; font-size:13px; font-weight:700; min-height:42px; line-height:1.25;
   border:1px solid var(--line); border-left-width:5px; border-radius:7px; background:#fff;
   color:var(--ink); white-space:normal; position:relative; }
-[class*="_brow_"] .stButton>button>div{ width:100%; text-align:left; }
+[class*="_brow_"] .stButton button>div{ width:100%; text-align:left; }
 /* player headshot as a ::before circle (per-row background-image injected inline) */
-[class*="_brow_"] .stButton>button::before{ content:""; position:absolute; left:9px; top:50%;
+[class*="_brow_"] .stButton button::before{ content:""; position:absolute; left:9px; top:50%;
   transform:translateY(-50%); width:28px; height:28px; border-radius:50%; background:#eef1f5 center/cover no-repeat;
   border:1px solid var(--line); }
 /* availability % as a shaded ::after box (per-row content+colors injected inline) */
-[class*="_brow_"] .stButton>button::after{ position:absolute; right:7px; top:50%;
+[class*="_brow_"] .stButton button::after{ position:absolute; right:7px; top:50%;
   transform:translateY(-50%); font-size:11px; font-weight:800; padding:3px 6px; border-radius:5px;
   line-height:1.1; min-width:34px; text-align:center; }
-[class*="_brow_"] .stButton>button:hover{ border-color:var(--ink); box-shadow:0 2px 8px rgba(0,0,0,.10); }
-[class*="_brow_QB"] .stButton>button{ border-left-color:var(--qb); }
-[class*="_brow_QB"] .stButton>button:hover{ background:#fdf2f2; }
-[class*="_brow_RB"] .stButton>button{ border-left-color:var(--rb); }
-[class*="_brow_RB"] .stButton>button:hover{ background:#eefaf2; }
-[class*="_brow_WR"] .stButton>button{ border-left-color:var(--wr); }
-[class*="_brow_WR"] .stButton>button:hover{ background:#eef4fc; }
-[class*="_brow_TE"] .stButton>button{ border-left-color:var(--te); }
-[class*="_brow_TE"] .stButton>button:hover{ background:#fdf6ec; }
+[class*="_brow_"] .stButton button:hover{ border-color:var(--ink); box-shadow:0 2px 8px rgba(0,0,0,.10); }
+[class*="_brow_QB"] .stButton button{ border-left-color:var(--qb); }
+[class*="_brow_QB"] .stButton button:hover{ background:#fdf2f2; }
+[class*="_brow_RB"] .stButton button{ border-left-color:var(--rb); }
+[class*="_brow_RB"] .stButton button:hover{ background:#eefaf2; }
+[class*="_brow_WR"] .stButton button{ border-left-color:var(--wr); }
+[class*="_brow_WR"] .stButton button:hover{ background:#eef4fc; }
+[class*="_brow_TE"] .stButton button{ border-left-color:var(--te); }
+[class*="_brow_TE"] .stButton button:hover{ background:#fdf6ec; }
 </style>
 """
 

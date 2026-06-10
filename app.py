@@ -75,6 +75,12 @@ def get_byes(season: int):
     return udk.ensure_byes(cookie, season)
 
 
+@st.cache_data(ttl=86400, show_spinner="Loading projections…")
+def get_projections(season: int, scoring: str):
+    from draftkit import projections
+    return projections.load_projections(season, scoring)
+
+
 def _secret(name: str) -> str:
     try:
         return st.secrets.get(name, "") or ""
@@ -84,9 +90,9 @@ def _secret(name: str) -> str:
 
 # Your saved leagues — one-click import (edit this list to add/remove).
 SAVED_LEAGUES = [
-    {"label": "🏈 The Kreeper League", "platform": "sleeper",
+    {"label": "The Kreeper League", "platform": "sleeper",
      "league_id": "1310907162930733056", "season": 2026},
-    {"label": "👶 Babies and Boomer", "platform": "sleeper",
+    {"label": "Babies and Boomer", "platform": "sleeper",
      "league_id": "1312885282554535936", "season": 2026},
 ]
 
@@ -195,14 +201,21 @@ def build_context(sel: dict) -> dict:
     # Historical draft tendencies (how each manager drafts by round).
     tendencies = get_tendencies(meta.platform, meta.league_id)
 
+    # Value engine: projected points → VORP vs league-specific replacement level.
+    from draftkit import value as value_mod
+    roster_slots = provider.get_roster_slots()
+    proj = get_projections(config.current_season(), meta.scoring)
+    value = value_mod.build_value(proj, registry, roster_slots, meta.num_teams)
+
     league_key = f"{meta.platform}_{meta.league_id}"
     return {
         "registry": registry, "provider": provider, "meta": meta,
-        "slot_names": slot_names, "roster_slots": provider.get_roster_slots(),
+        "slot_names": slot_names, "roster_slots": roster_slots,
         "owner_by_slot": owner_by_slot, "owner_slot": owner_slot,
         "adp_df": adp_df, "adp_rank": adp_rank, "adp_pool": adp_pool,
         "pos_rank": pos_rank, "pos_tier": pos_tier, "byes": get_byes(config.current_season()),
         "keepers_raw": keepers_raw, "keepers": placements, "tendencies": tendencies,
+        "value": value, "proj": proj,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
     }
 
@@ -235,19 +248,19 @@ def main():
         extras = ""
         n_keep = len(ctx["keepers"]["kept_pids"])
         if n_keep:
-            extras += f" · 🔒 {n_keep} keepers"
+            extras += f" · {n_keep} keepers"
         if ctx["tendencies"]:
-            extras += f" · 🧠 history-aware AI ({len(ctx['tendencies'])} mgrs)"
+            extras += f" · history-aware AI ({len(ctx['tendencies'])} mgrs)"
         st.caption(f"{meta.platform.upper()} · {meta.num_teams} teams · {meta.draft_rounds} rounds "
                    f"· {meta.scoring.upper()} · {len(ctx['adp_pool'])} ADP players{extras}")
     with head[1]:
-        if st.button("↺ Switch league"):
+        if st.button("Switch league"):
             del st.session_state.league
             st.rerun()
 
     # Persisted nav (st.tabs resets to the first tab on every rerun — drafting
     # triggers reruns, so we use a keyed radio styled as tabs instead).
-    nav = ["📥 My Rankings", "🎯 Live Draft Assistant", "🧪 Mock Draft"]
+    nav = ["My Rankings", "Live Draft Assistant", "Mock Draft"]
     with st.container(key="navbar"):
         section = st.radio("nav", nav, horizontal=True, key="nav_section",
                            label_visibility="collapsed")
