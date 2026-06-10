@@ -81,6 +81,18 @@ def get_projections(season: int, scoring: str):
     return projections.load_projections(season, scoring)
 
 
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_schedule(season: int):
+    from draftkit import schedule
+    return schedule.load_schedule(season)
+
+
+@st.cache_data(ttl=86400 * 7, show_spinner="Computing strength of schedule…")
+def get_dvp(prev_season: int, _registry, scoring: str):
+    from draftkit import schedule
+    return schedule.load_dvp(prev_season, _registry, scoring)
+
+
 def _secret(name: str) -> str:
     try:
         return st.secrets.get(name, "") or ""
@@ -206,6 +218,9 @@ def build_context(sel: dict) -> dict:
     roster_slots = provider.get_roster_slots()
     proj = get_projections(config.current_season(), meta.scoring)
     value = value_mod.build_value(proj, registry, roster_slots, meta.num_teams)
+    # Playoff strength of schedule (weeks 15-17) from real defense-vs-position.
+    schedule = get_schedule(config.current_season())
+    dvp = get_dvp(config.current_season() - 1, registry, meta.scoring)
 
     league_key = f"{meta.platform}_{meta.league_id}"
     return {
@@ -215,7 +230,7 @@ def build_context(sel: dict) -> dict:
         "adp_df": adp_df, "adp_rank": adp_rank, "adp_pool": adp_pool,
         "pos_rank": pos_rank, "pos_tier": pos_tier, "byes": get_byes(config.current_season()),
         "keepers_raw": keepers_raw, "keepers": placements, "tendencies": tendencies,
-        "value": value, "proj": proj,
+        "value": value, "proj": proj, "schedule": schedule, "dvp": dvp,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
     }
 

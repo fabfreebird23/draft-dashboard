@@ -189,6 +189,10 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                 if nxt:
                     drop_next = max(0.0, proj - max(nxt))
         synergy = V.synergy(pm, my_pids, registry) if my_pids else None
+        sos = None
+        if ctx.get("dvp") and ctx.get("schedule"):
+            from .. import schedule as SCH
+            sos = SCH.playoff_sos(pm.team, pm.position, ctx["dvp"], ctx["schedule"])
 
         st.markdown(
             PC.spotlight_html(
@@ -197,7 +201,7 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                 next_pick=next_pick, season=config.current_season() - 1,
                 scoring=ctx["meta"].scoring, prev_label=str(config.current_season() - 1),
                 vorp=vorp, proj=proj, verdict=verdict, synergy=synergy, drop_next=drop_next,
-                marg=marg),
+                marg=marg, sos=sos),
             unsafe_allow_html=True)
         if draft_fn is not None:
             if st.button(f"Draft {pm.name}", key=f"{widget_key}_spdraft", type="primary",

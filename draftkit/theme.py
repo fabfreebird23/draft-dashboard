@@ -168,6 +168,16 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .pc-v{ display:block; font-weight:800; font-size:14px; } .pc-k{ display:block; font-size:9.5px;
   color:var(--mut2); text-transform:uppercase; letter-spacing:.3px; }
 .pc-nostat{ margin-top:8px; font-size:12px; color:var(--mut2); font-style:italic; }
+.pc-syn.sos-easy{ background:#eaf7ef; color:#1c7a44; } .pc-syn.sos-hard{ background:#fdecec; color:#b3261e; }
+.pc-syn.sos-avg{ background:#eef1f4; color:#55606b; }
+.pc-opp{ display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+.pc-ochip{ font-size:10.5px; font-weight:600; color:var(--muted); background:#f1f5f9;
+  border:1px solid var(--line); border-radius:6px; padding:2px 7px; }
+.pc-ochip b{ color:var(--ink); font-weight:800; }
+.pc-bb{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px; font-size:11px; }
+.pc-fc{ color:var(--muted); font-weight:600; } .pc-fc b{ color:var(--ink); }
+.pc-boom{ font-weight:800; color:#1c7a44; background:#eaf7ef; padding:1px 7px; border-radius:5px; }
+.pc-bust{ font-weight:800; color:#b3261e; background:#fdecec; padding:1px 7px; border-radius:5px; }
 
 /* ---- steals & traps ---- */
 .st-wrap{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }

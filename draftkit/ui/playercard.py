@@ -100,6 +100,84 @@ def season_stats(pid, season: int) -> Optional[dict]:
     return stats or None
 
 
+def weekly_profile(pid, season: int, scoring: str = "ppr"):
+    """Floor/ceiling/consistency from last season's week-by-week scores. Returns
+    {games, ppg, floor, ceiling, boom, bust} or None. Lazy + disk-cached."""
+    if not pid:
+        return None
+    p = config.DATA_DIR / f"wk_{season}_{pid}.json"
+    config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    data = None
+    if p.exists() and (time.time() - p.stat().st_mtime) < _STATS_TTL:
+        try:
+            data = json.loads(p.read_text())
+        except Exception:  # noqa: BLE001
+            data = None
+    if data is None:
+        try:
+            url = f"{_STATS_BASE}/{pid}?season_type=regular&season={season}&grouping=week"
+            wk = requests.get(url, headers=_HEADERS, timeout=8).json() or {}
+            key = {"ppr": "pts_ppr", "half": "pts_half_ppr", "std": "pts_std"}.get(scoring, "pts_ppr")
+            data = [round(float((wk[w].get("stats") or {}).get(key)), 1)
+                    for w in wk if isinstance(wk[w], dict)
+                    and (wk[w].get("stats") or {}).get(key) is not None]
+            p.write_text(json.dumps(data))
+        except Exception:  # noqa: BLE001
+            return None
+    pts = sorted([x for x in (data or []) if x is not None])
+    g = len(pts)
+    if g < 4:
+        return None
+    floor = sum(pts[:max(1, g // 4)]) / max(1, g // 4)           # avg of worst quartile
+    ceiling = sum(pts[-max(1, g // 4):]) / max(1, g // 4)        # avg of best quartile
+    return {"games": g, "ppg": sum(pts) / g, "floor": floor, "ceiling": ceiling, "all": pts}
+
+
+_BOOM_BUST = {"QB": (24, 14), "RB": (20, 8), "WR": (20, 8), "TE": (14, 5)}
+
+
+def boom_bust(profile, pos):
+    """(boom%, bust%) — share of games above the elite / below the dud threshold."""
+    if not profile:
+        return None
+    boom_t, bust_t = _BOOM_BUST.get(pos, (20, 8))
+    pts = profile["all"]
+    g = len(pts)
+    boom = round(100 * sum(1 for x in pts if x >= boom_t) / g)
+    bust = round(100 * sum(1 for x in pts if x <= bust_t) / g)
+    return boom, bust
+
+
+def opportunity_stats(s: dict, pos: str, games):
+    """Usage that predicts fantasy better than past points: snap share, volume,
+    red-zone looks. Returns [(label, value), ...]."""
+    out = []
+    off, tm = s.get("off_snp"), s.get("tm_off_snp")
+    if off and tm:
+        out.append(("Snap %", f"{round(100 * off / tm)}%"))
+    g = games or s.get("gp") or s.get("gms_active") or 0
+    tgt, rush = s.get("rec_tgt"), s.get("rush_att")
+    if pos in ("WR", "TE"):
+        if tgt and g:
+            out.append(("Tgt/g", f"{tgt / g:.1f}"))
+        if s.get("rec_rz_tgt"):
+            out.append(("RZ tgt", _fmt(s["rec_rz_tgt"])))
+    elif pos == "RB":
+        if rush and g:
+            out.append(("Carry/g", f"{rush / g:.1f}"))
+        if tgt and g:
+            out.append(("Tgt/g", f"{tgt / g:.1f}"))
+        rz = (s.get("rush_rz_att") or 0) + (s.get("rec_rz_tgt") or 0)
+        if rz:
+            out.append(("RZ touch", _fmt(rz)))
+    elif pos == "QB":
+        if s.get("pass_att") and g:
+            out.append(("Pass att/g", f"{s['pass_att'] / g:.1f}"))
+        if s.get("rush_att") and g:
+            out.append(("Rush/g", f"{s['rush_att'] / g:.1f}"))
+    return out
+
+
 def _fmt(v) -> str:
     try:
         f = float(v)
@@ -147,9 +225,10 @@ def _scoring_pts(s: dict, scoring: str) -> Optional[float]:
 def spotlight_html(pm, *, pos_rank="", adp=None, tier=None, byes=None, next_pick=None,
                    season: int, scoring: str = "ppr", prev_label: str = "",
                    vorp=None, proj=None, verdict=None, synergy=None, drop_next=None,
-                   marg=None) -> str:
+                   marg=None, sos=None) -> str:
     """Rich inspect card: headshot, identity, VORP value, grab/wait verdict, survival
-    %, roster synergy (handcuff/stack), tier drop-off, prior-season stats, injury."""
+    %, roster synergy, tier drop-off, playoff SoS, prior-season stats + opportunity
+    usage + boom/bust profile, injury."""
     from . import components as C
     flag, fcls = injury_flag(pm)
     inj = getattr(pm, "injury_body_part", None)
@@ -182,8 +261,14 @@ def spotlight_html(pm, *, pos_rank="", adp=None, tier=None, byes=None, next_pick
                     f'<span class="svbox" style="background:{sc[0]};color:{sc[1]}">{sv}%</span>{extra}</div>')
 
     syn_block = ""
-    if synergy:
-        chips = "".join(f'<span class="pc-syn">{kind}: {who}</span>' for kind, who in synergy)
+    syns = list(synergy or [])
+    if sos:
+        syns = [("SoS", sos[0])] + syns        # surface playoff schedule first
+    if syns:
+        def _cls(kind, who):
+            return f"sos-{sos[1]}" if (kind == "SoS" and sos) else ""
+        chips = "".join(f'<span class="pc-syn {_cls(k, w)}" title="{sos[2] if k == "SoS" else ""}">'
+                        f'{w if k == "SoS" else f"{k}: {w}"}</span>' for k, w in syns)
         syn_block = f'<div class="pc-syns">{chips}</div>'
 
     meta_bits = []
@@ -211,7 +296,21 @@ def spotlight_html(pm, *, pos_rank="", adp=None, tier=None, byes=None, next_pick
         ppg = f" · {pts / g:.1f}/g" if (pts and g) else ""
         pts_line = (f'<div class="pc-pts">{prev_label} fantasy: <b>{pts:.0f}</b> pts{ppg}</div>'
                     if pts is not None else "")
-        statblock = f'{pts_line}<div class="pc-grid">{cells}</div>'
+        # opportunity usage (snap %, volume, red-zone)
+        opp = opportunity_stats(s, pm.position, g)
+        opp_block = ("<div class='pc-opp'>" + "".join(
+            f'<span class="pc-ochip"><b>{v}</b> {k}</span>' for k, v in opp) + "</div>") if opp else ""
+        # boom / bust from week-to-week scores
+        prof = weekly_profile(pm.sleeper_pid, season, scoring)
+        bb_block = ""
+        if prof:
+            bb = boom_bust(prof, pm.position)
+            boom = f'<span class="pc-boom">{bb[0]}% boom</span>' if bb else ""
+            bust = f'<span class="pc-bust">{bb[1]}% bust</span>' if bb else ""
+            bb_block = (f'<div class="pc-bb"><span class="pc-fc">Floor '
+                        f'<b>{prof["floor"]:.0f}</b> · Ceiling <b>{prof["ceiling"]:.0f}</b></span>'
+                        f'{boom}{bust}</div>')
+        statblock = f'{pts_line}<div class="pc-grid">{cells}</div>{opp_block}{bb_block}'
     else:
         statblock = f'<div class="pc-nostat">No {prev_label} stats (rookie or DNP).</div>'
 
