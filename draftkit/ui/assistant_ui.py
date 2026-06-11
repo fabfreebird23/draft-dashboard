@@ -24,51 +24,83 @@ def render(ctx) -> None:
     kept_overall = ctx["keepers"]["by_overall"]
     kept_pids = ctx["keepers"]["kept_pids"]
 
-    top = st.columns([2, 1])
+    owner = ctx["pick_owner_slot"]            # traded-pick-aware ownership
+    total = n * rounds
+    mankey = f"livemade_{ctx['league_key']}"
+
+    top = st.columns([1.5, 1.6, 1.1])
     me = top[0].selectbox("Your team", slot_names, key=f"{akey}_me")
-    with top[1]:
-        st.write("")
-        auto = st.checkbox("Auto-refresh", key=f"{akey}_auto")
-        st.button("Refresh", key=f"{akey}_refresh")
-    # Position filtering lives in the Best Available panel ("By position" view).
-    pos_f = "All"
-    if auto:
-        try:
-            from streamlit_autorefresh import st_autorefresh
-            st_autorefresh(interval=12000, key=f"{akey}_tick")
-        except Exception:  # noqa: BLE001
-            st.caption("(install streamlit-autorefresh for auto; use the button for now)")
-
+    mode = top[1].radio("Draft source", ["Live sync", "Manual entry"], horizontal=True,
+                        key=f"{akey}_mode",
+                        help="Live sync = pull picks automatically from Sleeper/ESPN. "
+                             "Manual entry = tap the player each team takes (no sync "
+                             "needed — works for any draft room).")
+    manual = mode == "Manual entry"
     my_slot = slot_names.index(me)
-    try:
-        picks = ctx["provider"].get_live_picks()
-    except EspnAuthError as e:
-        st.error(str(e))
-        return
-    except Exception as e:  # noqa: BLE001
-        st.error(f"Couldn't read the live draft ({type(e).__name__}). Try Refresh.")
-        return
+    auto = False
+    with top[2]:
+        st.write("")
+        if manual:
+            cc = st.columns(2)
+            reset = cc[0].button("Reset", key=f"{akey}_mreset", use_container_width=True)
+            undo = cc[1].button("Undo", key=f"{akey}_mundo", use_container_width=True)
+        else:
+            auto = st.checkbox("Auto-refresh", key=f"{akey}_auto")
+            st.button("Refresh", key=f"{akey}_refresh")
+            reset = undo = False
 
-    # Board = real picks; overlay keepers on any empty keeper slots.
-    pick_pids = {p.overall: (p.player.sleeper_pid if p.player else None)
-                 for p in picks if p.overall}
+    # ----- gather picks from the chosen source into a common {overall: pid} map -----
+    if manual:
+        made = st.session_state.setdefault(mankey, {})
+        if reset:
+            made = {}
+            st.session_state[mankey] = made
+        if undo and made:
+            del made[max(made)]                       # remove the most recent entry
+        pick_pids = {ov: pid for ov, pid in made.items()}
+        picks_exist = bool(made)
+    else:
+        if auto:
+            try:
+                from streamlit_autorefresh import st_autorefresh
+                st_autorefresh(interval=12000, key=f"{akey}_tick")
+            except Exception:  # noqa: BLE001
+                st.caption("(install streamlit-autorefresh for auto; use Refresh for now)")
+        try:
+            picks = ctx["provider"].get_live_picks()
+        except EspnAuthError as e:
+            st.error(str(e))
+            return
+        except Exception as e:  # noqa: BLE001
+            st.error(f"Couldn't read the live draft ({type(e).__name__}). Switch to "
+                     "**Manual entry** above, or try Refresh.")
+            return
+        pick_pids = {p.overall: (p.player.sleeper_pid if p.player else None)
+                     for p in picks if p.overall}
+        picks_exist = bool(picks)
+
+    # overlay keepers onto any empty keeper slots
     kept_at = set()
     for ov, pid in kept_overall.items():
         if ov not in pick_pids or not pick_pids[ov]:
             pick_pids[ov] = pid
             kept_at.add(ov)
-    drafted = {p.player.sleeper_pid for p in picks if p.player and p.player.sleeper_pid}
-    drafted |= set(kept_pids)
-    my_pids = [p.player.sleeper_pid for p in picks
-               if p.slot == my_slot and p.player and p.player.sleeper_pid]
-    owner = ctx["pick_owner_slot"]            # traded-pick-aware ownership
-    my_pids += [pid for ov, pid in kept_overall.items()
-                if owner(ov) == my_slot and pid not in my_pids]
+    # everything below is derived from pick_pids + owner() — identical for both modes
+    drafted = {str(pid) for pid in pick_pids.values() if pid} | {str(p) for p in kept_pids}
+    pids_by_slot = {}
+    for ov, pid in pick_pids.items():
+        if pid:
+            pids_by_slot.setdefault(owner(ov), []).append(pid)
+    my_pids = [pid for ov, pid in pick_pids.items() if pid and owner(ov) == my_slot]
 
-    pick_no = len(picks) + 1
+    # the pick on the clock: next overall not yet filled (keepers + entered picks)
+    pick_no = 1
+    while pick_no <= total and (pick_no in kept_overall or pick_pids.get(pick_no)):
+        pick_no += 1
+    pick_no = min(pick_no, total)
     on_slot = owner(pick_no)
     until = 0
-    for k in range(pick_no, pick_no + n * rounds):
+    for k in range(pick_no, pick_no + total):
         if owner(k) == my_slot:
             until = k - pick_no
             break
@@ -76,25 +108,17 @@ def render(ctx) -> None:
     # ----- status + board on TOP -----
     st.markdown(C.status_html(pick_no, n, slot_names[on_slot], on_slot == my_slot,
                               picks_until_me=until), unsafe_allow_html=True)
-    real_picks = {p.overall: p.player.sleeper_pid for p in picks
-                  if p.player and p.player.sleeper_pid}
+    real_picks = {ov: pid for ov, pid in pick_pids.items() if pid and ov not in kept_at}
     st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
     st.markdown('<div class="dr-h">Draft Board</div>', unsafe_allow_html=True)
     st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
                             kept_overalls=kept_at, owner_fn=owner), unsafe_allow_html=True)
 
     needs = C.open_needs(my_pids, ctx["roster_slots"], reg)
-    recent_positions = [p.player.position for p in sorted(picks, key=lambda x: x.overall)[-6:]
-                        if p.player]
+    recent_positions = [reg.meta(pid).position
+                        for ov, pid in sorted(real_picks.items())[-6:] if pid]
     qkey = f"queue_{ctx['league_key']}"
-    pids_by_slot = {}
-    for p in picks:
-        if p.player and p.player.sleeper_pid:
-            pids_by_slot.setdefault(p.slot, []).append(p.player.sleeper_pid)
-    for ov, pid in kept_overall.items():
-        pids_by_slot.setdefault(owner(ov), []).append(pid)
     # your next pick after the upcoming opponent run (skip back-to-back picks)
-    total = n * rounds
     nxt = pick_no
     while nxt <= total and owner(nxt) == my_slot:
         nxt += 1
@@ -115,6 +139,12 @@ def render(ctx) -> None:
         st.session_state[qkey] = q
         st.rerun()
 
+    def draft(pid):
+        """Manual mode: record this player at the pick on the clock and advance."""
+        made[pick_no] = str(pid)
+        st.session_state[mankey] = made
+        st.rerun()
+
     left, right = st.columns([1.85, 1.15])
     with left, st.container(key="dr_panel_board"):
         tabs = st.tabs(["Rankings", "Teams", "Queue"])
@@ -122,7 +152,7 @@ def render(ctx) -> None:
             ranks_active = rankings_tab(
                 ctx, key_prefix=akey, taken=drafted, queued=queued, is_my_turn=True,
                 pick_no=pick_no, next_pick=next_user_pick, on_click=_inspect,
-                on_star=toggle_queue, quick_draft=None)
+                on_star=toggle_queue, quick_draft=(draft if manual else None))
         with tabs[1]:
             st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
             st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
@@ -168,7 +198,8 @@ def render(ctx) -> None:
         predictor_widget(preds, slot_names, reg, n, f"{akey}_pw", _inspect)
         spotlight_panel(ctx, board_avail, reg, f"{akey}_sp",
                         default_pid=(rec_row["pid"] if rec_row else None),
-                        next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=drafted)
+                        next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=drafted,
+                        draft_fn=(draft if manual else None))
         if ctx.get("value"):
             from .. import value as V
             steals, traps = V.steals_and_traps(board_avail, ctx["value"], reg, ctx["adp_rank"],
@@ -177,10 +208,15 @@ def render(ctx) -> None:
                 st.caption("Market value vs. ADP — click any player to open their card.")
                 steals_traps_widget(steals, traps, reg, f"{akey}_st", _inspect)
 
-    if not picks:
-        kept_note = (f" {len(kept_pids)} keepers are pre-marked." if kept_pids else "")
+    kept_note = (f" {len(kept_pids)} keepers are pre-marked." if kept_pids else "")
+    if manual:
+        st.caption("Manual entry — tap the player each team takes (the green **Draft** "
+                   "button assigns him to whoever's on the clock). Undo removes the last "
+                   "pick." + kept_note)
+    elif not picks_exist:
         st.caption("Waiting on the draft to start — picks will stream in here." + kept_note +
-                   " Toggle auto-refresh (or hit Refresh) once it's live.")
+                   " Toggle auto-refresh (or hit Refresh) once it's live. No draft on this "
+                   "platform? Switch to **Manual entry** above.")
     else:
-        st.caption("Live — best available is your UDK board, drafted+kept players removed, "
+        st.caption("Live — best available is your board, drafted + kept players removed, "
                    "★ = top pick · ▼ = falling value · tier-cliff and position-run alerts show on the right.")
