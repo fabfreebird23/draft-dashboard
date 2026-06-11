@@ -173,31 +173,37 @@ def render(ctx) -> None:
     with mid, st.container(key="dr_panel_board"):
         hdr = ("Best Available — click a player to inspect" if is_my_turn else "Best Available")
         st.markdown(f'<div class="dr-h" style="margin:2px 0;">{hdr}</div>', unsafe_allow_html=True)
-        topc = st.columns([1.5, 1.5, 2])
+        topc = st.columns([1.3, 1.3, 1.2, 1.5])
         view = topc[0].radio("view", ["List", "By position"], horizontal=True,
                              key=f"{mkey}_view", label_visibility="collapsed")
         sort = topc[1].radio("sort", ["UDK rank", "Value"], horizontal=True,
                              key=f"{mkey}_sort", label_visibility="collapsed")
-        search = topc[2].text_input("Search", key=f"{mkey}_search",
+        show_drafted = topc[2].toggle("Show drafted", key=f"{mkey}_showdrafted")
+        search = topc[3].text_input("Search", key=f"{mkey}_search",
                                     placeholder="Search…", label_visibility="collapsed")
         st.caption("**V** = Value Over Replacement (VORP): projected points above a "
                    "replaceable starter at the position — higher V means more draft value. "
                    "Sort by **Value** to rank the board by it. ▼ falling past ADP · "
                    "tap the ☆ to add a player to your queue.")
-        avail = C.filter_search(board_avail, search, reg)
+        # 'Show drafted' keeps everyone in their tier, drafted struck through; off = clean
+        src = ([r for r in C.filter_pos(ranks, pos_f, reg) if r.get("pid")]
+               if (show_drafted and view == "List") else board_avail)
+        avail = C.filter_search(src, search, reg)
         by_value = sort == "Value" and ctx.get("value")
         if by_value and view == "List":
             avail = sorted(avail, key=lambda r: ctx["value"].vorp_of(r["pid"]), reverse=True)
+        strike = taken if (show_drafted and view == "List") else None
         if is_my_turn:
             clickable_board(ctx, avail, show_card, mkey, current_pick=pick_no, view=view,
                             next_pick=next_user_pick, show_bands=not by_value,
-                            on_star=toggle_queue, queued=queued)
+                            on_star=toggle_queue, queued=queued, taken=strike)
         elif view == "By position":
             st.markdown(C.by_position_html(avail, reg, ctx["adp_rank"], ctx["pos_rank"],
                                            pick_no, pos_tier=ctx["pos_tier"]), unsafe_allow_html=True)
         else:
             st.markdown(C.avail_html(avail, taken, reg, ctx["adp_rank"],
-                                     pos_rank=ctx["pos_rank"], current_pick=pick_no),
+                                     pos_rank=ctx["pos_rank"], current_pick=pick_no,
+                                     strike_taken=bool(strike)),
                         unsafe_allow_html=True)
 
     # opponent needs + the slots picking before your next turn (for run detection)

@@ -284,6 +284,21 @@ div[data-testid="stRadio"] label{ font-size:12px; }
    queue display), so a player isn't shown twice */
 [class*="_q_ms"] [data-baseweb="tag"]{ display:none !important; }
 
+/* ---- drafted players kept in the list (Show-drafted mode), struck through ---- */
+.brow-drafted{ display:flex; align-items:center; gap:9px; padding:6px 12px; margin:2px 0;
+  border:1px dashed var(--line); border-radius:7px; background:var(--panel2); opacity:.58; }
+.brow-drafted .bd-img{ width:24px; height:24px; border-radius:50%; object-fit:cover;
+  filter:grayscale(1); border:1px solid var(--line); }
+.brow-drafted .bd-nm{ flex:1; font-size:12px; font-weight:600; text-decoration:line-through;
+  color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.brow-drafted .bd-tag{ font-size:8.5px; font-weight:800; letter-spacing:.5px; color:var(--mut2);
+  background:var(--line2); padding:2px 6px; border-radius:4px; }
+.dr-avail tr.drafted{ opacity:.55; }
+.dr-avail tr.drafted b{ text-decoration:line-through; color:var(--muted); }
+.dr-avail tr.drafted img{ filter:grayscale(1); }
+.dr-avail .drafted-tag{ font-size:8px; font-weight:800; color:var(--mut2); background:var(--line2);
+  padding:1px 5px; border-radius:3px; margin-left:6px; letter-spacing:.5px; }
+
 /* ---- league board (opponent rosters/needs) ---- */
 .lb{ display:flex; flex-direction:column; gap:3px; }
 .lb-row{ display:flex; align-items:center; gap:6px; font-size:11px; padding:2px 5px; border-radius:6px; }

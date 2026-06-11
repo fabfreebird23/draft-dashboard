@@ -46,7 +46,7 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
 
 def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *,
                     view="List", per_pos=16, limit=70, next_pick=None,
-                    show_bands=True, on_star=None, queued=None) -> None:
+                    show_bands=True, on_star=None, queued=None, taken=None) -> None:
     """Best-available board where the WHOLE player row is the draft button
     (no separate button). Position-colored left bar (scoped `[class*="_brow_<POS>"]`),
     bold color-coded tier bands, and a survival % (chance the player lasts to your
@@ -87,9 +87,20 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
             vchip = f"  :{'green' if v >= 0 else 'red'}[V {'+' if v >= 0 else ''}{v:.0f}]"
         return f':{pc}[**{pr}**] **{C.short_name(r["name"])}**{vchip}'
 
+    taken_s = {str(x) for x in (taken or set())}
+
     def emit_row(r, compact=False):
         pm = reg.meta(r["pid"])
         rk = f'{key_prefix}_brow_{pm.position}_{r["pid"]}'
+        # drafted players (Show-drafted mode): keep them in their tier, struck-through
+        # and non-interactive, so tier depletion / runs stay visible.
+        if str(r["pid"]) in taken_s:
+            pr = pos_rank.get(str(r["pid"]), pm.position)
+            st.markdown(
+                f'<div class="brow-drafted">{theme.img_tag(r["pid"], "bd-img")}'
+                f'<span class="bd-nm">{pr} · {pm.name} · {pm.team}</span>'
+                f'<span class="bd-tag">DRAFTED</span></div>', unsafe_allow_html=True)
+            return
         # per-row painted pseudo-elements: headshot (::before) + survival box (::after)
         # NB: `.stButton button` (descendant) not `>button` — st.button(help=…) wraps
         # the button in tooltip divs, so a direct-child selector wouldn't match.

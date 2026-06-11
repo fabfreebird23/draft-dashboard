@@ -203,15 +203,21 @@ def _tooltip(pm, pos_rank, adp, tier) -> str:
 
 
 def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
-               current_pick=None, next_pick=None, limit=140, recommend=True) -> str:
+               current_pick=None, next_pick=None, limit=140, recommend=True,
+               strike_taken=False) -> str:
     """Tiered best-available board: positional rank, ADP, value/reach chips, and a
-    survival % (chance the player lasts to your next pick)."""
+    survival % (chance the player lasts to your next pick). When `strike_taken`,
+    drafted players stay in their tier struck-through instead of being removed."""
     pos_rank = pos_rank or {}
+    drafted = {str(x) for x in (drafted or set())}
     body, shown, last_tier, first = [], 0, None, True
     for r in rows:
         if shown >= limit:
             break
-        if not r.get("pid") or str(r["pid"]) in drafted:
+        if not r.get("pid"):
+            continue
+        is_taken = str(r["pid"]) in drafted
+        if is_taken and not strike_taken:
             continue
         shown += 1
         if r["tier"] != last_tier:
@@ -220,6 +226,14 @@ def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
                         f'style="color:#fff">TIER {r["tier"]}</td></tr>')
             last_tier = r["tier"]
         pm = registry.meta(r["pid"])
+        if is_taken:
+            body.append(
+                f'<tr class="drafted"><td class="r">{r["rank"]}</td>'
+                f'<td>{theme.img_tag(r["pid"])}<b>{r["name"]}</b>'
+                f'<span class="drafted-tag">DRAFTED</span>'
+                f'<div class="pp">{pm.position} · {pm.team}</div></td>'
+                f'<td class="a">—</td><td class="sv"></td></tr>')
+            continue
         rec = ' class="rec"' if (recommend and first) else ""
         badge = '<span class="recbadge">★ PICK</span>' if (recommend and first) else ""
         first = False
@@ -230,9 +244,8 @@ def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
         vchip = _value_chip(adp, current_pick)
         sv = survival_pct(adp, next_pick) if next_pick else None
         sv_td = f'<td class="sv">{survival_box_html(sv)}</td>'
-        tip = _tooltip(pm, pr or pm.position, adp, r.get("tier")).replace('"', "&quot;")
         body.append(
-            f'<tr{rec} title="{tip}"><td class="r">{r["rank"]}</td>'
+            f'<tr{rec}><td class="r">{r["rank"]}</td>'
             f'<td>{theme.img_tag(r["pid"])}{pr_html}<b>{r["name"]}</b>{badge}{vchip}'
             f'<div class="pp">{pm.position} · {pm.team}</div></td>'
             f'<td class="a">ADP<br>{adp_disp}</td>{sv_td}</tr>'
