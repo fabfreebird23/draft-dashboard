@@ -110,18 +110,43 @@ def team_demand(roster_slots) -> Dict[str, float]:
     return d
 
 
+def roster_multiplier(pos: str, my_pids, roster_slots, registry) -> float:
+    """How much YOU still value another player at ``pos``, given the roster you've
+    built. 1.0 = an unfilled *starting* slot (a real need); ~0.6-0.9 = useful
+    flex/bench depth; low = a luxury (the classic 'a 2nd QB or TE once your single
+    slot is full' that the recommender should stop pushing).
+
+    This is the heart of the roster-aware AI: it separates a dedicated starting
+    requirement (QB×1, TE×1, …) from FLEX depth, so once your one QB/TE is in, the
+    engine stops treating elite-but-redundant players at that position as top picks
+    and steers you to positions you actually still start."""
+    c = Counter(roster_slots or [])
+    flex_slots = sum(c.get(n, 0) for n in _FLEX_NAMES)
+    superflex = sum(c.get(n, 0) for n in _SUPERFLEX_NAMES)
+    have = Counter(registry.meta(p).position for p in (my_pids or []))
+    dedicated = c.get(pos, 0) + (superflex if pos == "QB" else 0)
+    h = have.get(pos, 0)
+    if h < dedicated:
+        return 1.0                                   # unfilled starter — full value
+    surplus = h - dedicated                          # extras already rostered
+    flex_elig = pos in ("RB", "WR", "TE") or (pos == "QB" and superflex)
+    flex_used = sum(max(0, have.get(p, 0) - c.get(p, 0)) for p in ("RB", "WR", "TE"))
+    flex_open = max(0, flex_slots - flex_used)
+    if flex_elig and flex_open > 0:
+        # can slot into a FLEX — useful, but a 2nd TE rarely actually flexes
+        base = 0.9 if pos in ("RB", "WR") else 0.55
+        return round(max(0.4, base * (0.85 ** surplus)), 2)
+    if pos in ("QB", "TE", "K", "DST"):
+        return round(max(0.1, 0.28 ** (surplus + 1)), 2)   # backup 1-slot spot: low
+    return round(max(0.3, 0.55 ** (surplus + 1)), 2)       # RB/WR bench depth
+
+
 def marginal_vorp(model: "ValueModel", pid, my_pids, registry, roster_slots) -> float:
-    """VORP adjusted for YOUR roster: once your starter slots at a position are
-    full, each additional player there is depth and depreciates."""
+    """VORP adjusted for YOUR roster (see ``roster_multiplier``): once your starter
+    slots at a position are full, each additional player there depreciates."""
     pm = registry.meta(pid)
-    base = model.vorp_of(pid)
-    demand = team_demand(roster_slots).get(pm.position, 1)
-    have = sum(1 for p in (my_pids or []) if registry.meta(p).position == pm.position)
-    if have < demand:
-        return base
-    extra = have - demand + 1                 # 1st surplus, 2nd surplus, …
-    factor = max(0.35, 0.8 ** extra)
-    return round(base * factor, 1)
+    mult = roster_multiplier(pm.position, my_pids, roster_slots, registry)
+    return round(model.vorp_of(pid) * mult, 1)
 
 
 def steals_and_traps(board_avail, model: "ValueModel", registry, adp_rank, *,
@@ -194,35 +219,49 @@ def best_pick(board_avail, model: "ValueModel", registry, needs, taken,
     need and for scarcity. Returns (row, score, reason) or (None, 0, '')."""
     needs = needs or set()
     taken_s = {str(x) for x in (taken or [])}
-    use_marginal = my_pids is not None and roster_slots is not None
+    use_roster = my_pids is not None and roster_slots is not None
     best = None
     for r in board_avail[:60]:
         pid = str(r["pid"])
         pm = registry.meta(pid)
-        v = (marginal_vorp(model, pid, my_pids, registry, roster_slots)
-             if use_marginal else model.vorp_of(pid))
-        score = v
-        reasons = [f"+{v:.0f} value"]
-        if pm.position in needs:
-            score += 18
-            reasons.append(f"fills {pm.position} need")
-        left = model.startable_left(pm.position, taken_s)
-        if left <= 3:
-            score += (4 - left) * 8
-            reasons.append(f"{left} startable {pm.position}s left")
-        if survival_fn and next_pick:
-            sv = survival_fn(pid)
-            if sv is not None and sv <= 35:
-                score += (35 - sv) * 0.5
-                reasons.append("unlikely to return")
+        mult = (roster_multiplier(pm.position, my_pids, roster_slots, registry)
+                if use_roster else 1.0)
+        raw = model.vorp_of(pid)
+        score = raw * mult                       # roster-discounted value
+        reasons = [f"+{raw:.0f} value"]
+        # reward filling an actual starting need; only lightly reward depth, and
+        # never push a redundant 1-slot position (a 2nd QB/TE) up the board.
+        if mult >= 0.999:
+            score += 22
+            reasons.append(f"fills {pm.position} starter")
+        elif mult >= 0.55:
+            score += 6
+            reasons.append(f"{pm.position} depth")
+        else:
+            reasons.append(f"{pm.position} bench — already set")
+        # scarcity & 'won't return' only matter for a spot you'd actually start
+        if mult >= 0.6:
+            left = model.startable_left(pm.position, taken_s)
+            if left <= 3:
+                score += (4 - left) * 8
+                reasons.append(f"{left} startable {pm.position}s left")
+            if survival_fn and next_pick:
+                sv = survival_fn(pid)
+                if sv is not None and sv <= 35:
+                    score += (35 - sv) * 0.5
+                    reasons.append("unlikely to return")
         if best is None or score > best[1]:
             best = (r, score, " · ".join(reasons[:3]))
     return best or (None, 0, "")
 
 
-def grab_verdict(survival_pct, startable_left, *, is_need=False):
+def grab_verdict(survival_pct, startable_left, *, is_need=False, mult=None):
     """Fuse 'how likely to fall to me' (survival) with 'how scarce' (startable left)
-    into a call to action. Returns (label, css_class) or None."""
+    into a call to action. ``mult`` is the roster multiplier — when you've already
+    filled this position's starting slots, the verdict says so instead of urging a
+    redundant grab. Returns (label, css_class) or None."""
+    if mult is not None and mult < 0.5:
+        return ("BENCH DEPTH", "wait")        # starters here are already set
     if survival_pct is None:
         return None
     scarce = startable_left is not None and startable_left <= 3

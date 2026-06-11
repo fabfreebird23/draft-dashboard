@@ -307,13 +307,20 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 
 /* ---- quick-draft button beside each best-available row (List view) ---- */
 [class*="_qdraft_"] .stButton{ margin:0; }
-[class*="_qdraft_"] .stButton button{ width:100%; min-height:42px; padding:0 6px;
-  border-radius:8px; border:1px solid var(--green); background:var(--green);
-  color:#fff; font-size:11px; font-weight:800; letter-spacing:.3px;
-  text-transform:uppercase; box-shadow:none; transition:filter .1s ease, transform .1s ease; }
-[class*="_qdraft_"] .stButton button:hover{ filter:brightness(1.07); transform:translateY(-1px);
-  border-color:var(--green); }
+[class*="_qdraft_"] .stButton button{ width:100%; min-height:42px; padding:0 4px;
+  border-radius:7px; border:none;
+  background:linear-gradient(180deg,#23a65d,#1b854a); color:#fff;
+  font-size:10px; font-weight:800; letter-spacing:.5px; text-transform:uppercase;
+  box-shadow:0 1px 2px rgba(27,133,74,.32);
+  transition:filter .12s ease, transform .12s ease, box-shadow .12s ease; }
+[class*="_qdraft_"] .stButton button:hover{ filter:brightness(1.06); transform:translateY(-1px);
+  box-shadow:0 3px 9px rgba(27,133,74,.42); }
+[class*="_qdraft_"] .stButton button:active{ transform:translateY(0); }
 [class*="_qdraft_"] .stButton button *{ justify-content:center !important; }
+
+/* drafted players left in the queue: struck through + dimmed */
+[class*="_brow_"] .stButton button:disabled{ text-decoration:line-through;
+  opacity:.5; filter:grayscale(.4); }
 
 /* ---- clickable queue rows (open the player's card) + remove ✕ ---- */
 [class*="_qrow_"] .stButton{ margin:0; }
@@ -464,9 +471,10 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .dr-cell.empty{ background:var(--panel2); } .dr-cell.empty .nm{ color:var(--mut2); font-weight:400; font-style:italic; }
 .dr-colhead{ font-weight:800; font-size:10px; text-align:center; color:var(--muted);
   text-transform:uppercase; padding:5px 3px; background:var(--line2); border-radius:6px 6px 0 0;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  position:sticky; top:0; z-index:6; box-shadow:0 2px 4px rgba(0,0,0,.06); }
 .dr-colhead.me{ background:var(--green); color:#fff; }
-.dr-colhead.rd{ background:var(--blue); color:#fff; }
+.dr-colhead.rd{ background:var(--blue); color:#fff; z-index:7; }
 .dr-rdlabel{ display:flex; align-items:center; justify-content:center; font-weight:800;
   font-size:12px; color:#fff; background:var(--blue); border-radius:6px; }
 

@@ -7,6 +7,41 @@ from .. import draft_history, theme
 from . import components as C
 from . import playercard as PC
 
+_POSCOL = {"QB": "red", "RB": "green", "WR": "blue", "TE": "orange"}
+
+
+def player_label(ctx, r, pm, *, pick=None) -> str:
+    """The rich markdown row label shared by the board and the queue: overall rank,
+    color-coded positional rank, name, team · ADP · bye, and the VORP value chip
+    (plus a ▼/▲ ADP-delta chip when a current pick is supplied)."""
+    pos_rank, adp_rank, byes = ctx["pos_rank"], ctx["adp_rank"], ctx.get("byes", {})
+    vm = ctx.get("value")
+    pid = str(r["pid"])
+    pr = pos_rank.get(pid, pm.position)
+    pc = _POSCOL.get(pm.position, "gray")
+    adp = adp_rank(pm.name, pm.position)
+    adps = int(adp) if adp else "—"
+    bye = byes.get(pm.team, "")
+    bye_s = f" · Bye {bye}" if bye else ""
+    rk = r.get("rank")
+    rk_s = f":gray[#{rk}] " if rk else ""
+    v = vm.vorp_of(pid) if vm else None
+    vchip = ""
+    if v is not None:
+        vchip = f"  :{'green' if v >= 0 else 'red'}[**V {'+' if v >= 0 else ''}{v:.0f}**]"
+    vt = ""
+    if pick:
+        d = (adp - pick) if (adp and pick) else 0
+        vt = f"  :red[▼+{int(d)}]" if d >= 8 else (f"  :violet[▲{int(d)}]" if d <= -8 else "")
+    meta = f":gray[{pm.team} · ADP {adps}{bye_s}]"
+    return f'{rk_s}:{pc}[**{pr}**] **{r["name"]}** {meta}{vchip}{vt}'
+
+
+def _headshot_css(container_key, pid) -> str:
+    """Inline CSS that paints a player's headshot into a `_brow_`-styled row."""
+    return (f'.st-key-{container_key} .stButton button::before{{'
+            f'background-image:url("{theme.headshot_src(pid)}")}}')
+
 
 def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall, *,
                      limit=9):
@@ -62,25 +97,10 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
 
     # Streamlit button labels support markdown (bold + :color[]) — use it to make
     # the rank / name / meta / value visually distinct instead of one flat string.
-    poscol = {"QB": "red", "RB": "green", "WR": "blue", "TE": "orange"}
+    poscol = _POSCOL
 
     def label(r, pm):
-        adp = adp_rank(pm.name, pm.position)
-        pr = pos_rank.get(str(r["pid"]), pm.position)
-        bye = byes.get(pm.team, "")
-        d = (adp - pick) if (adp and pick) else 0
-        vt = f"  :red[▼+{int(d)}]" if d >= 8 else (f"  :violet[▲{int(d)}]" if d <= -8 else "")
-        adps = int(adp) if adp else "—"
-        bye_s = f" · Bye {bye}" if bye else ""
-        pc = poscol.get(pm.position, "gray")
-        rk = r.get("rank")
-        rk_s = f":gray[#{rk}] " if rk else ""        # overall (UDK) rank — compare vs ADP
-        meta = f":gray[{pm.team} · ADP {adps}{bye_s}]"
-        v = vm.vorp_of(r["pid"]) if vm else None
-        vchip = ""
-        if v is not None:
-            vchip = f"  :{'green' if v >= 0 else 'red'}[**V {'+' if v >= 0 else ''}{v:.0f}**]"
-        return f'{rk_s}:{pc}[**{pr}**] **{r["name"]}** {meta}{vchip}{vt}'
+        return player_label(ctx, r, pm, pick=pick)
 
     def compact_label(r, pm):
         """Short label for the narrow by-position columns: rank, short name, value."""
@@ -147,7 +167,7 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         show_draft = quick_draft is not None and not compact
         # Layout the row: optional ★ (queue) · player (opens card) · optional Draft.
         if show_star and show_draft:
-            sc_ = st.columns([0.5, 6.6, 1.4], gap="small")
+            sc_ = st.columns([0.5, 7.1, 1.1], gap="small")
             with sc_[0]:
                 _star_btn()
             with sc_[1]:
@@ -161,7 +181,7 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
             with sc_[1]:
                 _player_btn()
         elif show_draft:
-            sc_ = st.columns([7, 1.4], gap="small")
+            sc_ = st.columns([7.4, 1.1], gap="small")
             with sc_[0]:
                 _player_btn()
             with sc_[1]:
@@ -400,7 +420,10 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
             taken_s = {str(x) for x in (taken or [])}
             left = vm.startable_left(pm.position, taken_s)
             sv = C.survival_pct(adp, next_pick) if next_pick else None
-            verdict = V.grab_verdict(sv, left, is_need=(pm.position in (needs or set())))
+            mult = (V.roster_multiplier(pm.position, my_pids, ctx["roster_slots"], registry)
+                    if my_pids is not None else None)
+            verdict = V.grab_verdict(sv, left, is_need=(pm.position in (needs or set())),
+                                     mult=mult)
             # tier drop-off: my projection minus the best available in the next tier
             if tier is not None and proj:
                 nxt = [vm.proj_of(r["pid"]) for r in board_avail
@@ -462,6 +485,8 @@ def queue_manager(ctx, qkey, ranks, taken, registry, widget_key, on_pick=None) -
     # without clobbering a fresh edit (the callback already synced those).
     if set(st.session_state.get(ms_key, [])) != set(cur_labels):
         st.session_state[ms_key] = cur_labels
+    # rank/tier rows so the queue can render the SAME rich row as the board
+    row_by_pid = {str(r["pid"]): r for r in ranks if r.get("pid")}
     with st.expander(f"My Queue ({n_avail})", expanded=bool(cur)):
         st.multiselect("Add to queue", options, key=ms_key, on_change=_sync_to_queue,
                        label_visibility="collapsed", placeholder="Search to add a player…")
@@ -470,12 +495,14 @@ def queue_manager(ctx, qkey, ranks, taken, registry, widget_key, on_pick=None) -
         for pid in cur:
             pm = registry.meta(pid)
             drafted = str(pid) in taken_s
-            row = st.columns([7, 1], gap="small")
-            with row[0], st.container(key=f"{widget_key}_qrow_{pid}"):
-                tag = "  · drafted" if drafted else ""
-                if st.button(f'{pm.name} · {pm.position}·{pm.team}{tag}',
-                             key=f"{widget_key}_qpick_{pid}", use_container_width=True,
-                             disabled=drafted) and on_pick:
+            r = row_by_pid.get(str(pid), {"pid": str(pid), "name": pm.name, "rank": None})
+            # reuse the board's `_brow_` row styling (headshot, pos bar, value chip)
+            rk = f"{widget_key}_qb_brow_{pm.position}_{pid}"
+            row = st.columns([8, 1], gap="small")
+            with row[0], st.container(key=rk):
+                st.markdown(f'<style>{_headshot_css(rk, pid)}</style>', unsafe_allow_html=True)
+                if st.button(player_label(ctx, r, pm), key=f"{widget_key}_qpick_{pid}",
+                             use_container_width=True, disabled=drafted) and on_pick:
                     on_pick(pid)
             with row[1], st.container(key=f"{widget_key}_qx_{pid}"):
                 if st.button("✕", key=f"{widget_key}_qrm_{pid}", use_container_width=True):

@@ -35,11 +35,18 @@ def render(ctx) -> None:
     owner = ctx["pick_owner_slot"]   # who owns each overall pick (handles traded picks)
     total = n * rounds
 
-    top = st.columns([2, 1, 1])
+    top = st.columns([1.7, 1.5, 1, 1])
     me = top[0].selectbox("Your draft slot", slot_names, key=f"{mkey}_slot")
-    live_pace = top[1].checkbox("Live pace", value=True, key=f"{mkey}_pace",
+    mode = top[1].radio("Opponents", ["AI mock", "Manual / live"], horizontal=True,
+                        key=f"{mkey}_mode",
+                        help="AI mock = opponents auto-draft from their tendencies. "
+                             "Manual / live = you enter every pick yourself (track a "
+                             "real draft without syncing to Sleeper/ESPN).")
+    manual = mode == "Manual / live"
+    live_pace = top[2].checkbox("Live pace", value=True, key=f"{mkey}_pace",
+                                disabled=manual,
                                 help="Opponents pick one at a time with a short delay.")
-    with top[2]:
+    with top[3]:
         st.write("")
         cc = st.columns(2)
         reset = cc[0].button("Reset", key=f"{mkey}_reset", use_container_width=True)
@@ -56,9 +63,16 @@ def render(ctx) -> None:
     made = state["made"]
 
     if undo and made:
-        mine = [ov for ov in made if owner(ov) == my_slot]
-        if mine:
-            del made[max(mine)]
+        if manual:
+            del made[max(made)]                       # roll back the most recent entry
+        else:
+            # roll back to your last pick: erase your last selection AND every
+            # opponent pick that came after it, so you're back on the clock.
+            mine = [ov for ov in made if owner(ov) == my_slot]
+            if mine:
+                cut = max(mine)
+                for ov in [o for o in list(made) if o >= cut]:
+                    del made[ov]
 
     def taken_pids():
         return set(made.values()) | set(kept_pids)
@@ -80,8 +94,8 @@ def render(ctx) -> None:
         return False
 
     on_clock = first_unresolved()
-    # Instant mode: resolve all opponent picks up to your turn right now.
-    if not live_pace:
+    # Instant mode: resolve all opponent picks up to your turn right now (AI only).
+    if not live_pace and not manual:
         while on_clock and owner(on_clock) != my_slot:
             if not ai_pick(on_clock):
                 break
@@ -91,7 +105,10 @@ def render(ctx) -> None:
     pick_no = on_clock or total
     on_slot = owner(pick_no)
     is_my_turn = (not done) and on_slot == my_slot
-    ai_on_clock = (not done) and not is_my_turn
+    # Manual/live: YOU enter every pick, so the board is draftable on every pick
+    # (whoever is on the clock); no AI ever fires.
+    can_draft = (not done) and (is_my_turn or manual)
+    ai_on_clock = (not done) and not is_my_turn and not manual
     taken = taken_pids()
     board = {**kept_by_overall, **made}
 
@@ -159,9 +176,9 @@ def render(ctx) -> None:
         with tabs[0]:
             ranks_active = rankings_tab(
                 ctx, key_prefix=mkey, taken=taken, queued=queued,
-                is_my_turn=is_my_turn, pick_no=pick_no, next_pick=next_user_pick,
+                is_my_turn=can_draft, pick_no=pick_no, next_pick=next_user_pick,
                 on_click=show_card, on_star=toggle_queue,
-                quick_draft=(draft if is_my_turn else None))
+                quick_draft=(draft if can_draft else None))
         with tabs[1]:
             st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
             st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
@@ -204,7 +221,7 @@ def render(ctx) -> None:
                 rec_row = board_avail[0]
         if rec_row:
             rpm = reg.meta(rec_row["pid"])
-            cue = "click any player to inspect" if is_my_turn else "your top target"
+            cue = "click any player to inspect" if can_draft else "your top target"
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({rpm.position} · {rpm.team}) '
                         f'— <span class="why">{rec_tag}</span> · <i>{cue}</i></div>', unsafe_allow_html=True)
         preds = predict_upcoming(ctx, taken, pick_no, my_slot, kept_by_overall)
@@ -212,7 +229,7 @@ def render(ctx) -> None:
         spotlight_panel(ctx, board_avail, reg, f"{mkey}_sp",
                         default_pid=(rec_row["pid"] if rec_row else None),
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=taken,
-                        draft_fn=(draft if is_my_turn else None))
+                        draft_fn=(draft if can_draft else None))
         if ctx.get("value"):
             from .. import value as V
             steals, traps = V.steals_and_traps(board_avail, ctx["value"], reg, ctx["adp_rank"],
@@ -222,9 +239,15 @@ def render(ctx) -> None:
                 steals_traps_widget(steals, traps, reg, f"{mkey}_st", show_card)
 
     kept_note = (f" · {len(kept_pids)} keepers locked" if kept_pids else "")
-    tnote = " · opponents draft by historical tendencies" if tendencies else ""
-    st.caption("Click any player on the board to open their card, then Draft from the card. "
-               f"Queue players to plan ahead. Undo rolls back your last pick.{kept_note}{tnote}")
+    if manual:
+        st.caption("Manual / live mode — tap the player each team takes (the green "
+                   "**Draft** button assigns him to whoever's on the clock) to track a "
+                   "real draft. Undo removes the last pick." + kept_note)
+    else:
+        tnote = " · opponents draft by historical tendencies" if tendencies else ""
+        st.caption("Click any player on the board to open their card, then Draft from the "
+                   "card. Undo rolls back to your last pick, erasing the opponent picks "
+                   f"after it.{kept_note}{tnote}")
 
     # ----- live pace: advance one opponent pick after rendering, with a slight delay -----
     if live_pace and ai_on_clock:
