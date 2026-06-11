@@ -164,12 +164,11 @@ def render(ctx) -> None:
             tpm = reg.meta(rec_row["pid"])
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({tpm.position} · {tpm.team}) '
                         f'— <span class="why">{why}</span></div>', unsafe_allow_html=True)
+        preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall)
+        predictor_widget(preds, slot_names, reg, n, f"{akey}_pw", _inspect)
         spotlight_panel(ctx, board_avail, reg, f"{akey}_sp",
                         default_pid=(rec_row["pid"] if rec_row else None),
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=drafted)
-
-        preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall)
-        predictor_widget(preds, slot_names, reg, n, f"{akey}_pw", _inspect)
         if ctx.get("value"):
             from .. import value as V
             steals, traps = V.steals_and_traps(board_avail, ctx["value"], reg, ctx["adp_rank"],

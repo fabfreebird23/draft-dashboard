@@ -198,6 +198,25 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
                 emit_row(r)
 
 
+def _position_tiers(rows, pos_tier_map):
+    """Renumber tiers for a single-position view so the list starts at Tier 1 and
+    bumps at real (ADP-gap) tier breaks — instead of inheriting the overall board's
+    tier numbers (which skip around, e.g. Tier 1, Tier 3, Tier 6 for one position)."""
+    out, disp, prev = [], 0, None
+    for r in rows:
+        src = pos_tier_map.get(str(r["pid"]))
+        if disp == 0:
+            disp = 1
+        elif src is not None and prev is not None and src > prev:
+            disp += 1
+        if src is not None:
+            prev = src
+        nr = dict(r)
+        nr["tier"] = disp
+        out.append(nr)
+    return out
+
+
 def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
                  pick_no=None, next_pick=None, on_click=None, on_star=None,
                  quick_draft=None):
@@ -247,6 +266,9 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
     by_value = sort == "Value" and ctx.get("value")
     if by_value:
         avail = sorted(avail, key=lambda r: ctx["value"].vorp_of(r["pid"]), reverse=True)
+    elif pos_f != "All":
+        # filtering to one position → show that position's own tiers (T1, T2, …)
+        avail = _position_tiers(avail, ctx.get("pos_tier", {}))
     strike = taken if show_drafted else None
 
     if is_my_turn and on_click is not None:

@@ -207,12 +207,12 @@ def render(ctx) -> None:
             cue = "click any player to inspect" if is_my_turn else "your top target"
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({rpm.position} · {rpm.team}) '
                         f'— <span class="why">{rec_tag}</span> · <i>{cue}</i></div>', unsafe_allow_html=True)
+        preds = predict_upcoming(ctx, taken, pick_no, my_slot, kept_by_overall)
+        predictor_widget(preds, slot_names, reg, n, f"{mkey}_pw", show_card)
         spotlight_panel(ctx, board_avail, reg, f"{mkey}_sp",
                         default_pid=(rec_row["pid"] if rec_row else None),
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=taken,
                         draft_fn=(draft if is_my_turn else None))
-        preds = predict_upcoming(ctx, taken, pick_no, my_slot, kept_by_overall)
-        predictor_widget(preds, slot_names, reg, n, f"{mkey}_pw", show_card)
         if ctx.get("value"):
             from .. import value as V
             steals, traps = V.steals_and_traps(board_avail, ctx["value"], reg, ctx["adp_rank"],
