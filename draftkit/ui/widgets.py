@@ -58,26 +58,37 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
     vm = ctx.get("value")
     star_pid = str(board_avail[0]["pid"]) if board_avail else None
 
+    # Streamlit button labels support markdown (bold + :color[]) — use it to make
+    # the rank / name / meta / value visually distinct instead of one flat string.
+    poscol = {"QB": "red", "RB": "green", "WR": "blue", "TE": "orange"}
+
     def label(r, pm):
         adp = adp_rank(pm.name, pm.position)
         pr = pos_rank.get(str(r["pid"]), pm.position)
         bye = byes.get(pm.team, "")
         d = (adp - pick) if (adp and pick) else 0
-        vt = f"   ▼ +{int(d)}" if d >= 8 else (f"   ▲ {int(d)}" if d <= -8 else "")
+        vt = f"  :red[▼+{int(d)}]" if d >= 8 else (f"  :violet[▲{int(d)}]" if d <= -8 else "")
         adps = int(adp) if adp else "—"
         star = "★ " if str(r["pid"]) == star_pid else ""
         bye_s = f" · Bye {bye}" if bye else ""
+        pc = poscol.get(pm.position, "gray")
+        meta = f":gray[{pm.team} · ADP {adps}{bye_s}]"
         v = vm.vorp_of(r["pid"]) if vm else None
-        vchip = f' · V {"+" if v >= 0 else ""}{v:.0f}' if v is not None else ""
-        return f'{star}{pr} · {r["name"]} · {pm.team} · ADP {adps}{bye_s}{vchip}{vt}'
+        vchip = ""
+        if v is not None:
+            vchip = f"  :{'green' if v >= 0 else 'red'}[**V {'+' if v >= 0 else ''}{v:.0f}**]"
+        return f'{star}:{pc}[**{pr}**] **{r["name"]}** {meta}{vchip}{vt}'
 
     def compact_label(r, pm):
         """Short label for the narrow by-position columns: rank, short name, value."""
         pr = pos_rank.get(str(r["pid"]), pm.position)
         star = "★ " if str(r["pid"]) == star_pid else ""
+        pc = poscol.get(pm.position, "gray")
         v = vm.vorp_of(r["pid"]) if vm else None
-        vchip = f'  ·  V {"+" if v >= 0 else ""}{v:.0f}' if v is not None else ""
-        return f'{star}{pr}  {C.short_name(r["name"])}{vchip}'
+        vchip = ""
+        if v is not None:
+            vchip = f"  :{'green' if v >= 0 else 'red'}[V {'+' if v >= 0 else ''}{v:.0f}]"
+        return f'{star}:{pc}[**{pr}**] **{C.short_name(r["name"])}**{vchip}'
 
     def emit_row(r, compact=False):
         pm = reg.meta(r["pid"])
