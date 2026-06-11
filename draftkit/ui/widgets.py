@@ -198,6 +198,70 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
                 emit_row(r)
 
 
+def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
+                 pick_no=None, next_pick=None, on_click=None, on_star=None,
+                 quick_draft=None):
+    """The Rankings tab: a source dropdown (UDK / FantasyPros ECR / ESPN), position
+    pills (All/QB/RB/WR/TE/K/DST), Show-drafted, a Rank/Value sort, search, and the
+    tiered list. Returns the active source's board rows so the caller can drive the
+    intel panel from the same list. The list is clickable when it's your pick (open
+    card / ☆ queue / quick Draft), static HTML otherwise."""
+    from .. import rank_sources as RS
+    reg = ctx["registry"]
+    taken_s = {str(x) for x in (taken or set())}
+
+    # ---- ranking source ----
+    src_key = f"{key_prefix}_ranksrc"
+    source = st.selectbox("Ranking source", RS.SOURCES, key=src_key,
+                          label_visibility="collapsed")
+    if source == RS.UDK:
+        ranks = st.session_state.get(ctx["ranks_key"]) or []
+    else:
+        ranks = ctx["get_ranks"](source)
+        if not ranks:
+            st.caption(f"Couldn't load {source} right now (the host may block server "
+                       "pulls) — showing your UDK board.")
+            ranks = st.session_state.get(ctx["ranks_key"]) or []
+
+    # ---- position pills ----
+    present = {reg.meta(r["pid"]).position for r in ranks if r.get("pid")}
+    positions = ["All"] + [p for p in ("QB", "RB", "WR", "TE", "K", "DST") if p in present]
+    with st.container(key=f"{key_prefix}_posf"):
+        pos_f = st.radio("Position", positions, horizontal=True,
+                         key=f"{key_prefix}_pos", label_visibility="collapsed")
+
+    # ---- show-drafted · sort · search ----
+    ctrl = st.columns([1.3, 1.4, 2])
+    show_drafted = ctrl[0].toggle("Show drafted", key=f"{key_prefix}_showdrafted")
+    sort = ctrl[1].radio("Sort", ["Rank", "Value"], horizontal=True,
+                         key=f"{key_prefix}_sort", label_visibility="collapsed")
+    search = ctrl[2].text_input("Search", key=f"{key_prefix}_search",
+                                placeholder="Search…", label_visibility="collapsed")
+    st.caption("**#** overall rank · **V** value over replacement · ▼ falling past ADP "
+               "· tap **☆** to queue")
+
+    base = [r for r in C.filter_pos(ranks, pos_f, reg) if r.get("pid")]
+    if not show_drafted:
+        base = [r for r in base if str(r["pid"]) not in taken_s]
+    avail = C.filter_search(base, search, reg)
+    by_value = sort == "Value" and ctx.get("value")
+    if by_value:
+        avail = sorted(avail, key=lambda r: ctx["value"].vorp_of(r["pid"]), reverse=True)
+    strike = taken if show_drafted else None
+
+    if is_my_turn and on_click is not None:
+        clickable_board(ctx, avail, on_click, key_prefix, current_pick=pick_no,
+                        view="List", next_pick=next_pick, show_bands=not by_value,
+                        on_star=on_star, queued=queued, taken=strike,
+                        quick_draft=quick_draft)
+    else:
+        st.markdown(C.avail_html(avail, taken, reg, ctx["adp_rank"],
+                                 pos_rank=ctx["pos_rank"], current_pick=pick_no,
+                                 next_pick=next_pick, strike_taken=bool(strike)),
+                    unsafe_allow_html=True)
+    return ranks
+
+
 def predictor_widget(predictions, slot_names, registry, n, key_prefix, on_click) -> None:
     """Pick Predictor as clickable rows — the most-likely opponent picks before your
     next turn; click one to open that player's card (e.g. to grab him first)."""

@@ -117,6 +117,30 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 [class*="dr_panel_board"] [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked){
   background:#fff; color:var(--ink); box-shadow:var(--shadow); }
 
+/* ---- left-panel tabs: Rankings / Teams / Queue ---- */
+[class*="dr_panel_board"] [data-baseweb="tab-list"]{ gap:6px; margin-bottom:10px;
+  border-bottom:1px solid var(--line); }
+[class*="dr_panel_board"] button[data-baseweb="tab"]{ padding:7px 18px 9px; font-weight:800;
+  font-size:15px; color:var(--muted); }
+[class*="dr_panel_board"] button[data-baseweb="tab"]:hover{ color:var(--ink); }
+[class*="dr_panel_board"] button[data-baseweb="tab"][aria-selected="true"]{ color:var(--ink); }
+[class*="dr_panel_board"] [data-baseweb="tab-highlight"]{ background:var(--blue); height:3px;
+  border-radius:3px; }
+[class*="dr_panel_board"] [data-baseweb="tab-border"]{ display:none; }
+
+/* ---- position filter pills (All/QB/RB/WR/TE/K/DST) — flat, blue-selected ---- */
+[class*="_posf"] [data-testid="stRadio"] [role="radiogroup"]{ background:transparent !important;
+  border:none !important; padding:2px 0 !important; gap:3px !important; flex-wrap:wrap; }
+[class*="_posf"] [data-testid="stRadio"] [role="radiogroup"] label{ padding:3px 11px !important;
+  border-radius:14px; font-weight:800 !important; font-size:12.5px !important; color:var(--muted); }
+[class*="_posf"] [data-testid="stRadio"] [role="radiogroup"] label:hover{ color:var(--ink); }
+[class*="_posf"] [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked){
+  background:#eaf1fb !important; color:var(--blue) !important; box-shadow:none !important; }
+
+/* ---- ranking source dropdown (prominent, like the cheat-sheet picker) ---- */
+[class*="dr_panel_board"] [data-testid="stSelectbox"] > div > div{ border-radius:9px;
+  font-weight:700; }
+
 /* ---- status bar ---- */
 .dr-status{ display:flex; align-items:center; gap:18px; flex-wrap:wrap;
   background:linear-gradient(180deg,#ffffff,#f7f9fc);

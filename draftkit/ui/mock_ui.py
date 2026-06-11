@@ -9,8 +9,8 @@ import streamlit as st
 
 from .. import draft_history
 from . import components as C
-from .widgets import (clickable_board, predict_upcoming, predictor_widget,
-                      queue_manager, select_player, spotlight_panel, steals_traps_widget)
+from .widgets import (predict_upcoming, predictor_widget, queue_manager,
+                      rankings_tab, select_player, spotlight_panel, steals_traps_widget)
 
 _PICK_DELAY = 0.7  # seconds between AI picks in live-pace mode
 
@@ -153,60 +153,32 @@ def render(ctx) -> None:
 
     queued = {str(x) for x in st.session_state.get(qkey, [])}
 
-    board_avail = [r for r in C.filter_pos(ranks, pos_f, reg)
-                   if r.get("pid") and str(r["pid"]) not in taken]
-
-    left, mid, right = st.columns([1, 1.5, 1.1])
-    with left, st.container(key="dr_panel_team"):
-        st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
-        st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
-        st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
-        st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
-        st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg, ctx["adp_rank"]),
-                    unsafe_allow_html=True)
-        if st.toggle("League board — rosters & needs", key=f"{mkey}_lb"):
+    left, right = st.columns([1.85, 1.15])
+    with left, st.container(key="dr_panel_board"):
+        tabs = st.tabs(["Rankings", "Teams", "Queue"])
+        with tabs[0]:
+            ranks_active = rankings_tab(
+                ctx, key_prefix=mkey, taken=taken, queued=queued,
+                is_my_turn=is_my_turn, pick_no=pick_no, next_pick=next_user_pick,
+                on_click=show_card, on_star=toggle_queue,
+                quick_draft=(draft if is_my_turn else None))
+        with tabs[1]:
+            st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
+            st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+            st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
+            st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+            st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg, ctx["adp_rank"]),
+                        unsafe_allow_html=True)
+            st.markdown('<div class="dr-h">League Board</div>', unsafe_allow_html=True)
             st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
                                             ctx["roster_slots"], reg, on_clock_slot=on_slot),
                         unsafe_allow_html=True)
-        queue_manager(ctx, qkey, ranks, taken, reg, f"{mkey}_q", on_pick=show_card)
+        with tabs[2]:
+            queue_manager(ctx, qkey, st.session_state.get(ctx["ranks_key"]) or ranks_active,
+                          taken, reg, f"{mkey}_q", on_pick=show_card)
 
-    with mid, st.container(key="dr_panel_board"):
-        hdr = ("Best Available — click a player to inspect" if is_my_turn else "Best Available")
-        st.markdown(f'<div class="dr-h dr-title">{hdr}</div>', unsafe_allow_html=True)
-        topc = st.columns([1.3, 1.3, 1.2, 1.5])
-        view = topc[0].radio("view", ["List", "By position"], horizontal=True,
-                             key=f"{mkey}_view", label_visibility="collapsed")
-        sort = topc[1].radio("sort", ["UDK rank", "Value"], horizontal=True,
-                             key=f"{mkey}_sort", label_visibility="collapsed")
-        show_drafted = topc[2].toggle("Show drafted", key=f"{mkey}_showdrafted")
-        search = topc[3].text_input("Search", key=f"{mkey}_search",
-                                    placeholder="Search…", label_visibility="collapsed")
-        st.caption("**#** overall rank · **V** value over replacement · ▼ falling past ADP "
-                   "· tap **☆** to queue")
-        # 'Show drafted' keeps everyone in their tier, drafted struck through; off = clean
-        src = ([r for r in C.filter_pos(ranks, pos_f, reg) if r.get("pid")]
-               if (show_drafted and view == "List") else board_avail)
-        avail = C.filter_search(src, search, reg)
-        by_value = sort == "Value" and ctx.get("value")
-        if by_value:
-            avail = sorted(avail, key=lambda r: ctx["value"].vorp_of(r["pid"]), reverse=True)
-        strike = taken if (show_drafted and view == "List") else None
-        if is_my_turn:
-            clickable_board(ctx, avail, show_card, mkey, current_pick=pick_no, view=view,
-                            next_pick=next_user_pick, show_bands=not by_value,
-                            on_star=toggle_queue, queued=queued, taken=strike,
-                            quick_draft=draft)
-        elif view == "By position":
-            st.markdown(C.by_position_html(avail, reg, ctx["adp_rank"], ctx["pos_rank"],
-                                           pick_no, pos_tier=ctx["pos_tier"],
-                                           show_tiers=not by_value,
-                                           value=(ctx["value"] if by_value else None)),
-                        unsafe_allow_html=True)
-        else:
-            st.markdown(C.avail_html(avail, taken, reg, ctx["adp_rank"],
-                                     pos_rank=ctx["pos_rank"], current_pick=pick_no,
-                                     strike_taken=bool(strike)),
-                        unsafe_allow_html=True)
+    board_avail = [r for r in ranks_active
+                   if r.get("pid") and str(r["pid"]) not in taken]
 
     # opponent needs + the slots picking before your next turn (for run detection)
     need_map = C.needs_by_slot(pids_by_slot, slot_names, ctx["roster_slots"], reg)

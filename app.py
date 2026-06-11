@@ -93,6 +93,12 @@ def get_dvp(prev_season: int, _registry, scoring: str):
     return schedule.load_dvp(prev_season, _registry, scoring)
 
 
+@st.cache_data(ttl=3600 * 12, show_spinner="Loading rankings…")
+def get_ranks_source(source: str, season: int, scoring: str, _registry):
+    from draftkit import rank_sources
+    return rank_sources.load(source, season, scoring, _registry)
+
+
 def _secret(name: str) -> str:
     try:
         return st.secrets.get(name, "") or ""
@@ -244,9 +250,15 @@ def build_context(sel: dict) -> dict:
     schedule = get_schedule(config.current_season())
     dvp = get_dvp(config.current_season() - 1, registry, meta.scoring)
 
+    def get_ranks(source: str):
+        """Board rows for an alternate ranking source (FantasyPros ECR / ESPN),
+        cached. UDK is the league's saved board, handled by the caller."""
+        return get_ranks_source(source, config.current_season(), meta.scoring, registry)
+
     league_key = f"{meta.platform}_{meta.league_id}"
     return {
         "registry": registry, "provider": provider, "meta": meta,
+        "get_ranks": get_ranks,
         "slot_names": slot_names, "roster_slots": roster_slots,
         "owner_by_slot": owner_by_slot, "owner_slot": owner_slot,
         "adp_df": adp_df, "adp_rank": adp_rank, "adp_pool": adp_pool,

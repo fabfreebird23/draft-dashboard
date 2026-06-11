@@ -7,7 +7,7 @@ import streamlit as st
 from ..providers.espn import EspnAuthError
 from . import components as C
 from .widgets import (predict_upcoming, predictor_widget, queue_manager,
-                      select_player, spotlight_panel, steals_traps_widget)
+                      rankings_tab, select_player, spotlight_panel, steals_traps_widget)
 
 
 def render(ctx) -> None:
@@ -102,36 +102,44 @@ def render(ctx) -> None:
         nxt += 1
     next_user_pick = nxt if nxt <= total else None
 
-    board = C.filter_pos(ranks, pos_f, reg)
-    board_avail = [r for r in board if r.get("pid") and str(r["pid"]) not in drafted]
+    queued = {str(x) for x in st.session_state.get(qkey, [])}
 
-    left, mid, right = st.columns([1, 1.5, 1.1])
-    with left, st.container(key="dr_panel_team"):
-        st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
-        st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
-        st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
-        st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
-        st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg, ctx["adp_rank"]),
-                    unsafe_allow_html=True)
-        if st.toggle("League board — rosters & needs", key=f"{akey}_lb"):
+    def _inspect(pid):
+        select_player(f"{akey}_sp", pid)
+        st.rerun()
+
+    def toggle_queue(pid):
+        q = [str(x) for x in st.session_state.get(qkey, [])]
+        pid = str(pid)
+        q.remove(pid) if pid in q else q.append(pid)
+        st.session_state[qkey] = q
+        st.rerun()
+
+    left, right = st.columns([1.85, 1.15])
+    with left, st.container(key="dr_panel_board"):
+        tabs = st.tabs(["Rankings", "Teams", "Queue"])
+        with tabs[0]:
+            ranks_active = rankings_tab(
+                ctx, key_prefix=akey, taken=drafted, queued=queued, is_my_turn=True,
+                pick_no=pick_no, next_pick=next_user_pick, on_click=_inspect,
+                on_star=toggle_queue, quick_draft=None)
+        with tabs[1]:
+            st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
+            st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+            st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
+            st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+            st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg, ctx["adp_rank"]),
+                        unsafe_allow_html=True)
+            st.markdown('<div class="dr-h">League Board</div>', unsafe_allow_html=True)
             st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
                                             ctx["roster_slots"], reg, on_clock_slot=on_slot),
                         unsafe_allow_html=True)
-    with mid, st.container(key="dr_panel_board"):
-        head = st.columns([2, 3])
-        head[0].markdown('<div class="dr-h dr-title">Best Available</div>',
-                         unsafe_allow_html=True)
-        view = head[1].radio("view", ["List", "By position"], horizontal=True,
-                             key=f"{akey}_view", label_visibility="collapsed")
-        if view == "By position":
-            st.markdown(C.by_position_html(board_avail, reg, ctx["adp_rank"], ctx["pos_rank"],
-                                           pick_no, pos_tier=ctx["pos_tier"]), unsafe_allow_html=True)
-        else:
-            search = st.text_input("Search", key=f"{akey}_search",
-                                   placeholder="Search…", label_visibility="collapsed")
-            st.markdown(C.avail_html(C.filter_search(board, search, reg), drafted, reg,
-                                     ctx["adp_rank"], pos_rank=ctx["pos_rank"], current_pick=pick_no,
-                                     next_pick=next_user_pick), unsafe_allow_html=True)
+        with tabs[2]:
+            queue_manager(ctx, qkey, st.session_state.get(ctx["ranks_key"]) or ranks_active,
+                          drafted, reg, f"{akey}_q", on_pick=_inspect)
+
+    board_avail = [r for r in ranks_active
+                   if r.get("pid") and str(r["pid"]) not in drafted]
     need_map = C.needs_by_slot(pids_by_slot, slot_names, ctx["roster_slots"], reg)
     upcoming_slots = ([owner(k) for k in range(pick_no + 1, next_user_pick)]
                       if next_user_pick else [])
@@ -160,9 +168,6 @@ def render(ctx) -> None:
                         default_pid=(rec_row["pid"] if rec_row else None),
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=drafted)
 
-        def _inspect(pid):
-            select_player(f"{akey}_sp", pid)
-            st.rerun()
         preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall)
         predictor_widget(preds, slot_names, reg, n, f"{akey}_pw", _inspect)
         if ctx.get("value"):
@@ -172,7 +177,6 @@ def render(ctx) -> None:
             with st.expander("Steals & Traps", expanded=False):
                 st.caption("Market value vs. ADP — click any player to open their card.")
                 steals_traps_widget(steals, traps, reg, f"{akey}_st", _inspect)
-        queue_manager(ctx, qkey, ranks, drafted, reg, f"{akey}_q", on_pick=_inspect)
 
     if not picks:
         kept_note = (f" {len(kept_pids)} keepers are pre-marked." if kept_pids else "")
