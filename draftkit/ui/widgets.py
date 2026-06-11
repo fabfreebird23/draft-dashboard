@@ -46,7 +46,7 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
 
 def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *,
                     view="List", per_pos=16, limit=70, next_pick=None,
-                    show_bands=True) -> None:
+                    show_bands=True, on_star=None, queued=None) -> None:
     """Best-available board where the WHOLE player row is the draft button
     (no separate button). Position-colored left bar (scoped `[class*="_brow_<POS>"]`),
     bold color-coded tier bands, and a survival % (chance the player lasts to your
@@ -56,7 +56,6 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
     pos_tier, pos_rank, adp_rank = ctx["pos_tier"], ctx["pos_rank"], ctx["adp_rank"]
     byes = ctx.get("byes", {})
     vm = ctx.get("value")
-    star_pid = str(board_avail[0]["pid"]) if board_avail else None
 
     # Streamlit button labels support markdown (bold + :color[]) — use it to make
     # the rank / name / meta / value visually distinct instead of one flat string.
@@ -69,7 +68,6 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         d = (adp - pick) if (adp and pick) else 0
         vt = f"  :red[▼+{int(d)}]" if d >= 8 else (f"  :violet[▲{int(d)}]" if d <= -8 else "")
         adps = int(adp) if adp else "—"
-        star = "★ " if str(r["pid"]) == star_pid else ""
         bye_s = f" · Bye {bye}" if bye else ""
         pc = poscol.get(pm.position, "gray")
         meta = f":gray[{pm.team} · ADP {adps}{bye_s}]"
@@ -77,18 +75,17 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         vchip = ""
         if v is not None:
             vchip = f"  :{'green' if v >= 0 else 'red'}[**V {'+' if v >= 0 else ''}{v:.0f}**]"
-        return f'{star}:{pc}[**{pr}**] **{r["name"]}** {meta}{vchip}{vt}'
+        return f':{pc}[**{pr}**] **{r["name"]}** {meta}{vchip}{vt}'
 
     def compact_label(r, pm):
         """Short label for the narrow by-position columns: rank, short name, value."""
         pr = pos_rank.get(str(r["pid"]), pm.position)
-        star = "★ " if str(r["pid"]) == star_pid else ""
         pc = poscol.get(pm.position, "gray")
         v = vm.vorp_of(r["pid"]) if vm else None
         vchip = ""
         if v is not None:
             vchip = f"  :{'green' if v >= 0 else 'red'}[V {'+' if v >= 0 else ''}{v:.0f}]"
-        return f'{star}:{pc}[**{pr}**] **{C.short_name(r["name"])}**{vchip}'
+        return f':{pc}[**{pr}**] **{C.short_name(r["name"])}**{vchip}'
 
     def emit_row(r, compact=False):
         pm = reg.meta(r["pid"])
@@ -105,16 +102,31 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
                 pct = C.survival_pct(adp, next_pick)
                 css += (f'.st-key-{rk} .stButton button::after{{content:"{pct}%";'
                         f'background:{sc[0]};color:{sc[1]}}}')
-        tip = PC.tooltip_text(pm, pos_rank=pos_rank.get(str(r["pid"]), pm.position),
-                              adp=adp_rank(pm.name, pm.position), tier=r.get("tier"), byes=byes)
-        with st.container(key=rk):
-            # always inject the headshot (::before); the survival ::after is hidden by
-            # the narrow-column CSS in compact/by-position mode
-            st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
-            text = compact_label(r, pm) if compact else label(r, pm)
-            if st.button(text, key=f'{key_prefix}_pick_{r["pid"]}',
-                         use_container_width=True, help=tip):
-                draft_fn(r["pid"])
+        pid = str(r["pid"])
+        text = compact_label(r, pm) if compact else label(r, pm)
+
+        def _player_btn():
+            with st.container(key=rk):
+                # always inject the headshot (::before); survival ::after is hidden by
+                # the narrow-column CSS in compact/by-position mode. No help tooltip —
+                # the full detail lives in the player card.
+                st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
+                if st.button(text, key=f'{key_prefix}_pick_{pid}', use_container_width=True):
+                    draft_fn(pid)
+
+        # a ★ to add/remove the player from your queue, beside the row (List view)
+        if on_star is not None and not compact:
+            sc_ = st.columns([0.5, 8], gap="small")
+            with sc_[0]:
+                with st.container(key=f"{key_prefix}_qstar_{pid}"):
+                    starred = pid in (queued or set())
+                    if st.button("★" if starred else "☆", key=f"{key_prefix}_star_{pid}",
+                                 use_container_width=True):
+                        on_star(pid)
+            with sc_[1]:
+                _player_btn()
+        else:
+            _player_btn()
 
     if view == "By position":
         cols = st.columns(4, gap="small")
@@ -165,8 +177,7 @@ def predictor_widget(predictions, slot_names, registry, n, key_prefix, on_click)
         with st.container(key=rk):
             st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
             if st.button(f'{rd}.{inrd:02d}  {nm[:11]}  →  {pm.name} · {pm.position}',
-                         key=f'{key_prefix}_ppb_{ov}', use_container_width=True,
-                         help=f'{nm} is predicted to take {pm.name}. Click to open his card.'):
+                         key=f'{key_prefix}_ppb_{ov}', use_container_width=True):
                 on_click(pid)
 
 
@@ -195,13 +206,9 @@ def steals_traps_widget(steals, traps, registry, key_prefix, on_click) -> None:
                 for r, gap, vr, adp in items:
                     pm = registry.meta(r["pid"])
                     g = abs(int(gap))
-                    tip = (f"Value rank #{vr} vs ADP {adp} — "
-                           + (f"falling {g} spots past its value" if sym == "+"
-                              else f"going {g} spots ahead of its value")
-                           + ". Click to open card.")
                     if st.button(f'{sym}{g}  {C.short_name(r["name"])} · {pm.position}',
                                  key=f'{key_prefix}_{cls}_{r["pid"]}',
-                                 use_container_width=True, help=tip):
+                                 use_container_width=True):
                         on_click(r["pid"])
 
 
@@ -311,9 +318,20 @@ def queue_manager(ctx, qkey, ranks, taken, registry, widget_key) -> None:
     cur = [str(x) for x in st.session_state.get(qkey, [])]
     cur_labels = [lbl for lbl in options if label_to_pid[lbl] in cur]
     n_avail = len([p for p in cur if p not in taken_s])
+    ms_key = f"{widget_key}_ms"
+
+    def _sync_to_queue():
+        # user edited the multiselect → push selection to the shared queue
+        sel = st.session_state.get(ms_key, [])
+        st.session_state[qkey] = [label_to_pid[l] for l in sel if l in label_to_pid]
+
+    # Reconcile the widget value FROM the queue (so the ★ row toggles show up here),
+    # but not on a run where the user just edited it (the callback already synced).
+    if set(st.session_state.get(ms_key, [])) != set(cur_labels):
+        st.session_state[ms_key] = cur_labels
     with st.expander(f"My Queue ({n_avail} available)"):
-        picked = st.multiselect("Queue players to target", options,
-                                default=cur_labels, key=f"{widget_key}_ms")
-        st.session_state[qkey] = [label_to_pid[lbl] for lbl in picked]
-        st.markdown(C.queue_html(st.session_state[qkey], taken_s, registry),
-                    unsafe_allow_html=True)
+        st.multiselect("Queue players to target", options, key=ms_key,
+                       on_change=_sync_to_queue)
+        st.caption("Tap the ☆ next to a player on the board to add them too.")
+        st.markdown(C.queue_html([str(x) for x in st.session_state.get(qkey, [])],
+                                 taken_s, registry), unsafe_allow_html=True)

@@ -223,6 +223,15 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 [class*="_steals"] .stButton button *, [class*="_traps"] .stButton button *,
 [class*="_pp_"] .stButton button *{ text-align:left !important; justify-content:flex-start !important; }
 
+/* ---- queue ★ toggle beside each best-available row ---- */
+[class*="_qstar_"] .stButton{ margin:0; }
+[class*="_qstar_"] .stButton button{ border:none !important; background:transparent !important;
+  box-shadow:none !important; padding:0 !important; min-height:42px; min-width:0;
+  font-size:20px; line-height:1; color:#e0a106; }
+[class*="_qstar_"] .stButton button:hover{ background:transparent !important; color:#b87f00; }
+[class*="_qstar_"] .stButton button:focus,[class*="_qstar_"] .stButton button:active{
+  box-shadow:none !important; background:transparent !important; }
+
 /* ---- league board (opponent rosters/needs) ---- */
 .lb{ display:flex; flex-direction:column; gap:3px; }
 .lb-row{ display:flex; align-items:center; gap:6px; font-size:11px; padding:2px 5px; border-radius:6px; }

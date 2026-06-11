@@ -144,6 +144,15 @@ def render(ctx) -> None:
         select_player(f"{mkey}_sp", pid)
         st.rerun()
 
+    def toggle_queue(pid):
+        q = [str(x) for x in st.session_state.get(qkey, [])]
+        pid = str(pid)
+        q.remove(pid) if pid in q else q.append(pid)
+        st.session_state[qkey] = q
+        st.rerun()
+
+    queued = {str(x) for x in st.session_state.get(qkey, [])}
+
     board_avail = [r for r in C.filter_pos(ranks, pos_f, reg)
                    if r.get("pid") and str(r["pid"]) not in taken]
 
@@ -159,6 +168,7 @@ def render(ctx) -> None:
             st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
                                             ctx["roster_slots"], reg, on_clock_slot=on_slot),
                         unsafe_allow_html=True)
+        queue_manager(ctx, qkey, ranks, taken, reg, f"{mkey}_q")
 
     with mid:
         hdr = ("Best Available — click a player to inspect" if is_my_turn else "Best Available")
@@ -172,14 +182,16 @@ def render(ctx) -> None:
                                     placeholder="Search…", label_visibility="collapsed")
         st.caption("**V** = Value Over Replacement (VORP): projected points above a "
                    "replaceable starter at the position — higher V means more draft value. "
-                   "Sort by **Value** to rank the board by it. ▼ falling past ADP · ★ top pick")
+                   "Sort by **Value** to rank the board by it. ▼ falling past ADP · "
+                   "tap the ☆ to add a player to your queue.")
         avail = C.filter_search(board_avail, search, reg)
         by_value = sort == "Value" and ctx.get("value")
         if by_value and view == "List":
             avail = sorted(avail, key=lambda r: ctx["value"].vorp_of(r["pid"]), reverse=True)
         if is_my_turn:
             clickable_board(ctx, avail, show_card, mkey, current_pick=pick_no, view=view,
-                            next_pick=next_user_pick, show_bands=not by_value)
+                            next_pick=next_user_pick, show_bands=not by_value,
+                            on_star=toggle_queue, queued=queued)
         elif view == "By position":
             st.markdown(C.by_position_html(avail, reg, ctx["adp_rank"], ctx["pos_rank"],
                                            pick_no, pos_tier=ctx["pos_tier"]), unsafe_allow_html=True)
@@ -228,7 +240,6 @@ def render(ctx) -> None:
             with st.expander("Steals & Traps", expanded=False):
                 st.caption("Market value vs. ADP — click any player to open their card.")
                 steals_traps_widget(steals, traps, reg, f"{mkey}_st", show_card)
-        queue_manager(ctx, qkey, ranks, taken, reg, f"{mkey}_q")
 
     kept_note = (f" · {len(kept_pids)} keepers locked" if kept_pids else "")
     tnote = " · opponents draft by historical tendencies" if tendencies else ""
