@@ -120,6 +120,7 @@ div[data-testid="stRadio"] label{ font-size:12px; }
   box-shadow:0 2px 6px rgba(28,138,77,.3); }
 
 /* ---- My Team lineup ---- */
+.dr-lineup{ margin-bottom:16px; }
 .dr-lineup .slot{ display:flex; align-items:center; gap:8px; background:#fff;
   border:1px solid var(--line); border-radius:8px; padding:6px 11px; margin-bottom:4px; }
 .dr-lineup .slot .pos{ font-weight:800; color:#fff; background:#5b6b7f; border-radius:4px;
@@ -178,6 +179,7 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .pc-flag.ok{ background:#eaf7ef; color:#1c7a44; } .pc-flag.ques{ background:#fef6e7; color:#9a6b07; }
 .pc-flag.out{ background:#fdecec; color:#b3261e; }
 .pc-meta{ margin-top:8px; font-size:12px; color:var(--ink); font-weight:600; }
+.pc-meta .pc-mlbl{ font-weight:600; color:var(--mut2); font-size:10px; }
 .pc-bio{ font-size:11.5px; color:var(--muted); margin-top:2px; }
 .pc-value{ display:flex; align-items:center; gap:7px; margin-top:9px; flex-wrap:wrap; }
 .pc-vorp{ font-weight:800; font-size:13px; color:#fff; background:var(--green);
@@ -320,7 +322,7 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .rc-line{ font-size:12px; margin-top:8px; } .rc-line b{ color:var(--ink); }
 
 /* ---- roster strength ---- */
-.rs{ display:flex; flex-direction:column; gap:3px; margin-bottom:8px; }
+.rs{ display:flex; flex-direction:column; gap:3px; margin-bottom:16px; }
 .rs-row{ display:flex; align-items:center; gap:7px; font-size:12px; padding:2px 4px; border-radius:6px; }
 .rs-row.me{ background:#f3f9f5; font-weight:700; }
 .rs-rk{ width:14px; color:var(--mut2); font-weight:800; text-align:center; }

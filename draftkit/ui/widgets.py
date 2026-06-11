@@ -70,12 +70,14 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         adps = int(adp) if adp else "—"
         bye_s = f" · Bye {bye}" if bye else ""
         pc = poscol.get(pm.position, "gray")
+        rk = r.get("rank")
+        rk_s = f":gray[#{rk}] " if rk else ""        # overall (UDK) rank — compare vs ADP
         meta = f":gray[{pm.team} · ADP {adps}{bye_s}]"
         v = vm.vorp_of(r["pid"]) if vm else None
         vchip = ""
         if v is not None:
             vchip = f"  :{'green' if v >= 0 else 'red'}[**V {'+' if v >= 0 else ''}{v:.0f}**]"
-        return f':{pc}[**{pr}**] **{r["name"]}** {meta}{vchip}{vt}'
+        return f'{rk_s}:{pc}[**{pr}**] **{r["name"]}** {meta}{vchip}{vt}'
 
     def compact_label(r, pm):
         """Short label for the narrow by-position columns: rank, short name, value."""
@@ -264,7 +266,9 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                            label_visibility="collapsed")
         pid = label_to_pid[sel]
         pm = registry.meta(pid)
-        tier = next((r.get("tier") for r in board_avail if str(r["pid"]) == pid), None)
+        row = next((r for r in board_avail if str(r["pid"]) == pid), {})
+        tier = row.get("tier")
+        overall = row.get("rank")
 
         # value signals
         vm = ctx.get("value")
@@ -302,7 +306,7 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                 next_pick=next_pick, season=config.current_season() - 1,
                 scoring=ctx["meta"].scoring, prev_label=str(config.current_season() - 1),
                 vorp=vorp, proj=proj, verdict=verdict, synergy=synergy, drop_next=drop_next,
-                marg=marg, sos=sos),
+                marg=marg, sos=sos, overall=overall),
             unsafe_allow_html=True)
         if draft_fn is not None:
             if st.button(f"Draft {pm.name}", key=f"{widget_key}_spdraft", type="primary",

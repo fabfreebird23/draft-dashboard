@@ -225,7 +225,7 @@ def _scoring_pts(s: dict, scoring: str) -> Optional[float]:
 def spotlight_html(pm, *, pos_rank="", adp=None, tier=None, byes=None, next_pick=None,
                    season: int, scoring: str = "ppr", prev_label: str = "",
                    vorp=None, proj=None, verdict=None, synergy=None, drop_next=None,
-                   marg=None, sos=None) -> str:
+                   marg=None, sos=None, overall=None) -> str:
     """Rich inspect card: headshot, identity, VORP value, grab/wait verdict, survival
     %, roster synergy, tier drop-off, playoff SoS, prior-season stats + opportunity
     usage + boom/bust profile, injury."""
@@ -288,6 +288,8 @@ def spotlight_html(pm, *, pos_rank="", adp=None, tier=None, byes=None, next_pick
         syn_block = f'<div class="pc-syns">{chips}</div>'
 
     meta_bits = []
+    if overall:
+        meta_bits.append(f'<b>#{overall}</b> <span class="pc-mlbl">overall</span>')
     if pos_rank:
         meta_bits.append(f"<b>{pos_rank}</b>")
     if adp:
