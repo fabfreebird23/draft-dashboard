@@ -281,6 +281,16 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 [class*="_qstar_"] .stButton button:focus,[class*="_qstar_"] .stButton button:active{
   box-shadow:none !important; background:transparent !important; }
 
+/* ---- quick-draft button beside each best-available row (List view) ---- */
+[class*="_qdraft_"] .stButton{ margin:0; }
+[class*="_qdraft_"] .stButton button{ width:100%; min-height:42px; padding:0 6px;
+  border-radius:8px; border:1px solid var(--green); background:var(--green);
+  color:#fff; font-size:11px; font-weight:800; letter-spacing:.3px;
+  text-transform:uppercase; box-shadow:none; transition:filter .1s ease, transform .1s ease; }
+[class*="_qdraft_"] .stButton button:hover{ filter:brightness(1.07); transform:translateY(-1px);
+  border-color:var(--green); }
+[class*="_qdraft_"] .stButton button *{ justify-content:center !important; }
+
 /* ---- clickable queue rows (open the player's card) + remove ✕ ---- */
 [class*="_qrow_"] .stButton{ margin:0; }
 [class*="_qrow_"] .stButton button{ width:100%; text-align:left !important;

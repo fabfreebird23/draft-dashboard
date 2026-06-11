@@ -194,7 +194,8 @@ def render(ctx) -> None:
         if is_my_turn:
             clickable_board(ctx, avail, show_card, mkey, current_pick=pick_no, view=view,
                             next_pick=next_user_pick, show_bands=not by_value,
-                            on_star=toggle_queue, queued=queued, taken=strike)
+                            on_star=toggle_queue, queued=queued, taken=strike,
+                            quick_draft=draft)
         elif view == "By position":
             st.markdown(C.by_position_html(avail, reg, ctx["adp_rank"], ctx["pos_rank"],
                                            pick_no, pos_tier=ctx["pos_tier"],

@@ -46,11 +46,14 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
 
 def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *,
                     view="List", per_pos=16, limit=70, next_pick=None,
-                    show_bands=True, on_star=None, queued=None, taken=None) -> None:
-    """Best-available board where the WHOLE player row is the draft button
-    (no separate button). Position-colored left bar (scoped `[class*="_brow_<POS>"]`),
-    bold color-coded tier bands, and a survival % (chance the player lasts to your
-    next pick). `view`='List' groups by overall tier; 'By position' splits into
+                    show_bands=True, on_star=None, queued=None, taken=None,
+                    quick_draft=None) -> None:
+    """Best-available board. Clicking a player row opens their Spotlight card
+    (`draft_fn` here is really the inspect handler); when `quick_draft` is given,
+    each List-view row also gets a small **Draft** button to draft without opening
+    the card. Position-colored left bar (scoped `[class*="_brow_<POS>"]`), bold
+    color-coded tier bands, and a survival % (chance the player lasts to your next
+    pick). `view`='List' groups by overall tier; 'By position' splits into
     QB/RB/WR/TE columns grouped by per-position tier."""
     reg, pick = ctx["registry"], current_pick
     pos_tier, pos_rank, adp_rank = ctx["pos_tier"], ctx["pos_rank"], ctx["adp_rank"]
@@ -127,17 +130,42 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
                 if st.button(text, key=f'{key_prefix}_pick_{pid}', use_container_width=True):
                     draft_fn(pid)
 
-        # a ★ to add/remove the player from your queue, beside the row (List view)
-        if on_star is not None and not compact:
-            sc_ = st.columns([0.5, 8], gap="small")
+        def _star_btn():
+            with st.container(key=f"{key_prefix}_qstar_{pid}"):
+                starred = pid in (queued or set())
+                if st.button("★" if starred else "☆", key=f"{key_prefix}_star_{pid}",
+                             use_container_width=True):
+                    on_star(pid)
+
+        def _draft_btn():
+            with st.container(key=f"{key_prefix}_qdraft_{pid}"):
+                if st.button("Draft", key=f"{key_prefix}_qd_{pid}",
+                             use_container_width=True):
+                    quick_draft(pid)
+
+        show_star = on_star is not None and not compact
+        show_draft = quick_draft is not None and not compact
+        # Layout the row: optional ★ (queue) · player (opens card) · optional Draft.
+        if show_star and show_draft:
+            sc_ = st.columns([0.5, 6.6, 1.4], gap="small")
             with sc_[0]:
-                with st.container(key=f"{key_prefix}_qstar_{pid}"):
-                    starred = pid in (queued or set())
-                    if st.button("★" if starred else "☆", key=f"{key_prefix}_star_{pid}",
-                                 use_container_width=True):
-                        on_star(pid)
+                _star_btn()
             with sc_[1]:
                 _player_btn()
+            with sc_[2]:
+                _draft_btn()
+        elif show_star:
+            sc_ = st.columns([0.5, 8], gap="small")
+            with sc_[0]:
+                _star_btn()
+            with sc_[1]:
+                _player_btn()
+        elif show_draft:
+            sc_ = st.columns([7, 1.4], gap="small")
+            with sc_[0]:
+                _player_btn()
+            with sc_[1]:
+                _draft_btn()
         else:
             _player_btn()
 
