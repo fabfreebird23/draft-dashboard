@@ -106,7 +106,7 @@ def render(ctx) -> None:
     board_avail = [r for r in board if r.get("pid") and str(r["pid"]) not in drafted]
 
     left, mid, right = st.columns([1, 1.5, 1.1])
-    with left:
+    with left, st.container(key="dr_panel_team"):
         st.markdown('<div class="dr-h">My Team</div>', unsafe_allow_html=True)
         st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
         st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
@@ -117,7 +117,7 @@ def render(ctx) -> None:
             st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
                                             ctx["roster_slots"], reg, on_clock_slot=on_slot),
                         unsafe_allow_html=True)
-    with mid:
+    with mid, st.container(key="dr_panel_board"):
         head = st.columns([2, 3])
         head[0].markdown('<div class="dr-h" style="margin:2px 0;">Best Available</div>',
                          unsafe_allow_html=True)
@@ -136,7 +136,7 @@ def render(ctx) -> None:
     upcoming_slots = ([owner(k) for k in range(pick_no + 1, next_user_pick)]
                       if next_user_pick else [])
 
-    with right:
+    with right, st.container(key="dr_panel_intel"):
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
         st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), drafted, reg),
                     unsafe_allow_html=True)

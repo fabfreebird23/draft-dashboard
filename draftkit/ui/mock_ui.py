@@ -157,7 +157,7 @@ def render(ctx) -> None:
                    if r.get("pid") and str(r["pid"]) not in taken]
 
     left, mid, right = st.columns([1, 1.5, 1.1])
-    with left:
+    with left, st.container(key="dr_panel_team"):
         st.markdown('<div class="dr-h">My Team</div>', unsafe_allow_html=True)
         st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
         st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
@@ -170,7 +170,7 @@ def render(ctx) -> None:
                         unsafe_allow_html=True)
         queue_manager(ctx, qkey, ranks, taken, reg, f"{mkey}_q")
 
-    with mid:
+    with mid, st.container(key="dr_panel_board"):
         hdr = ("Best Available — click a player to inspect" if is_my_turn else "Best Available")
         st.markdown(f'<div class="dr-h" style="margin:2px 0;">{hdr}</div>', unsafe_allow_html=True)
         topc = st.columns([1.5, 1.5, 2])
@@ -205,7 +205,7 @@ def render(ctx) -> None:
     upcoming_slots = ([owner(k) for k in range(pick_no + 1, next_user_pick)]
                       if next_user_pick else [])
 
-    with right:
+    with right, st.container(key="dr_panel_intel"):
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
         st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), taken, reg),
                     unsafe_allow_html=True)

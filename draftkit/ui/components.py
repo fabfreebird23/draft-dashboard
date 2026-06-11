@@ -77,10 +77,10 @@ def tier_color(tier) -> str:
 
 
 def tier_band(label, tier, cls="ptier") -> str:
-    """A bold, color-coded tier separator."""
+    """A slim, color-coded tier divider (tinted bg + colored text + left accent)."""
     c = tier_color(tier)
-    return (f'<div class="{cls}" style="background:{c};color:#fff;border-left:5px solid '
-            f'rgba(0,0,0,.25)">{label}</div>')
+    return (f'<div class="{cls}" style="color:{c};border-left:3px solid {c};'
+            f'background:{c}14">{label}</div>')
 
 
 def snake(n: int) -> Callable[[int], int]:
