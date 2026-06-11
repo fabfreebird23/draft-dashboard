@@ -164,11 +164,11 @@ def render(ctx) -> None:
         st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
         st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg, ctx["adp_rank"]),
                     unsafe_allow_html=True)
-        with st.expander("League board — rosters & needs"):
+        if st.toggle("League board — rosters & needs", key=f"{mkey}_lb"):
             st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
                                             ctx["roster_slots"], reg, on_clock_slot=on_slot),
                         unsafe_allow_html=True)
-        queue_manager(ctx, qkey, ranks, taken, reg, f"{mkey}_q")
+        queue_manager(ctx, qkey, ranks, taken, reg, f"{mkey}_q", on_pick=show_card)
 
     with mid, st.container(key="dr_panel_board"):
         hdr = ("Best Available — click a player to inspect" if is_my_turn else "Best Available")

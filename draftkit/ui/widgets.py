@@ -299,12 +299,10 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                 draft_fn(pid)
 
 
-def queue_manager(ctx, qkey, ranks, taken, registry, widget_key) -> None:
-    """Pick-queue UI: a searchable multiselect builds the queue; it renders as a
-    watchlist with drafted players struck through, and drives the recommendation.
-
-    `qkey` is the shared session store (queue persists across tabs); `widget_key`
-    must be unique per tab so the two multiselects don't collide."""
+def queue_manager(ctx, qkey, ranks, taken, registry, widget_key, on_pick=None) -> None:
+    """Pick-queue UI: search to add, ★ on the board to add, and each queued player
+    is a clickable row that opens their card (so you can draft from your queue).
+    A ✕ removes it. `qkey` is the shared queue store; `widget_key` is per-tab."""
     label_to_pid, options = {}, []
     for r in ranks:
         pid = r.get("pid")
@@ -321,17 +319,35 @@ def queue_manager(ctx, qkey, ranks, taken, registry, widget_key) -> None:
     ms_key = f"{widget_key}_ms"
 
     def _sync_to_queue():
-        # user edited the multiselect → push selection to the shared queue
         sel = st.session_state.get(ms_key, [])
         st.session_state[qkey] = [label_to_pid[l] for l in sel if l in label_to_pid]
 
-    # Reconcile the widget value FROM the queue (so the ★ row toggles show up here),
-    # but not on a run where the user just edited it (the callback already synced).
+    def _remove(pid):
+        q = [str(x) for x in st.session_state.get(qkey, [])]
+        if str(pid) in q:
+            q.remove(str(pid))
+        st.session_state[qkey] = q
+        st.rerun()
+
+    # Reconcile the widget value FROM the queue (so the ★ toggles show up here)
+    # without clobbering a fresh edit (the callback already synced those).
     if set(st.session_state.get(ms_key, [])) != set(cur_labels):
         st.session_state[ms_key] = cur_labels
-    with st.expander(f"My Queue ({n_avail} available)"):
-        st.multiselect("Queue players to target", options, key=ms_key,
-                       on_change=_sync_to_queue)
-        st.caption("Tap the ☆ next to a player on the board to add them too.")
-        st.markdown(C.queue_html([str(x) for x in st.session_state.get(qkey, [])],
-                                 taken_s, registry), unsafe_allow_html=True)
+    with st.expander(f"My Queue ({n_avail})", expanded=bool(cur)):
+        st.multiselect("Add to queue", options, key=ms_key, on_change=_sync_to_queue,
+                       label_visibility="collapsed", placeholder="Search to add a player…")
+        if not cur:
+            st.caption("Tap the ☆ next to a player on the board, or search above.")
+        for pid in cur:
+            pm = registry.meta(pid)
+            drafted = str(pid) in taken_s
+            row = st.columns([7, 1], gap="small")
+            with row[0], st.container(key=f"{widget_key}_qrow_{pid}"):
+                tag = "  · drafted" if drafted else ""
+                if st.button(f'{pm.name} · {pm.position}·{pm.team}{tag}',
+                             key=f"{widget_key}_qpick_{pid}", use_container_width=True,
+                             disabled=drafted) and on_pick:
+                    on_pick(pid)
+            with row[1], st.container(key=f"{widget_key}_qx_{pid}"):
+                if st.button("✕", key=f"{widget_key}_qrm_{pid}", use_container_width=True):
+                    _remove(pid)

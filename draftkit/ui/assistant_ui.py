@@ -113,7 +113,7 @@ def render(ctx) -> None:
         st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
         st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg, ctx["adp_rank"]),
                     unsafe_allow_html=True)
-        with st.expander("League board — rosters & needs"):
+        if st.toggle("League board — rosters & needs", key=f"{akey}_lb"):
             st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
                                             ctx["roster_slots"], reg, on_clock_slot=on_slot),
                         unsafe_allow_html=True)
@@ -172,7 +172,7 @@ def render(ctx) -> None:
             with st.expander("Steals & Traps", expanded=False):
                 st.caption("Market value vs. ADP — click any player to open their card.")
                 steals_traps_widget(steals, traps, reg, f"{akey}_st", _inspect)
-        queue_manager(ctx, qkey, ranks, drafted, reg, f"{akey}_q")
+        queue_manager(ctx, qkey, ranks, drafted, reg, f"{akey}_q", on_pick=_inspect)
 
     if not picks:
         kept_note = (f" {len(kept_pids)} keepers are pre-marked." if kept_pids else "")

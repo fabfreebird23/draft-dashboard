@@ -266,6 +266,24 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 [class*="_qstar_"] .stButton button:focus,[class*="_qstar_"] .stButton button:active{
   box-shadow:none !important; background:transparent !important; }
 
+/* ---- clickable queue rows (open the player's card) + remove ✕ ---- */
+[class*="_qrow_"] .stButton{ margin:0; }
+[class*="_qrow_"] .stButton button{ width:100%; text-align:left !important;
+  justify-content:flex-start !important; padding:5px 10px; min-height:30px; font-size:11.5px;
+  font-weight:600; border-radius:7px; border:1px solid var(--line); background:#fff;
+  color:var(--ink); margin:2px 0; }
+[class*="_qrow_"] .stButton button *{ text-align:left !important; justify-content:flex-start !important; }
+[class*="_qrow_"] .stButton button:hover{ border-color:var(--blue); background:#f4f8fd; }
+[class*="_qrow_"] .stButton button:disabled{ color:var(--mut2); text-decoration:line-through;
+  background:var(--panel2); border-style:dashed; }
+[class*="_qx_"] .stButton{ margin:0; }
+[class*="_qx_"] .stButton button{ border:none !important; background:transparent !important;
+  color:var(--mut2); padding:0 !important; min-height:34px; font-size:13px; box-shadow:none !important; }
+[class*="_qx_"] .stButton button:hover{ color:var(--red); background:transparent !important; }
+/* the queue's add-box is search-only — hide its selected chips (the rows are the
+   queue display), so a player isn't shown twice */
+[class*="_q_ms"] [data-baseweb="tag"]{ display:none !important; }
+
 /* ---- league board (opponent rosters/needs) ---- */
 .lb{ display:flex; flex-direction:column; gap:3px; }
 .lb-row{ display:flex; align-items:center; gap:6px; font-size:11px; padding:2px 5px; border-radius:6px; }
