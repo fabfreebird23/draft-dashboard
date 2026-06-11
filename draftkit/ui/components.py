@@ -575,9 +575,11 @@ def draft_recap_html(pids_by_slot, my_slot, slot_names, roster_slots, registry,
 
 
 def by_position_html(board_avail, registry, adp_rank, pos_rank, current_pick,
-                     pos_tier=None, per=16) -> str:
-    """Cheat-sheet view: best available in side-by-side QB/RB/WR/TE columns,
-    grouped by per-position tiers."""
+                     pos_tier=None, per=16, show_tiers=True, value=None) -> str:
+    """Cheat-sheet view: best available in side-by-side QB/RB/WR/TE columns.
+    Grouped by per-position UDK tiers, unless ``value`` is supplied — then the
+    rows are already value-sorted and tier bands are suppressed (``show_tiers``)
+    in favour of a VORP chip."""
     pos_tier = pos_tier or {}
     cols = {"QB": [], "RB": [], "WR": [], "TE": []}
     for r in board_avail:
@@ -589,16 +591,23 @@ def by_position_html(board_avail, registry, adp_rank, pos_rank, current_pick,
         out.append(f'<div class="cheat-col"><div class="cheat-head {pos}">{pos}</div>')
         last_t = None
         for r, pm in cols[pos]:
-            t = pos_tier.get(str(r["pid"]))
-            if t is not None and t != last_t:
-                out.append(tier_band(f"{pos} TIER {t}", t))
-                last_t = t
+            if show_tiers:
+                t = pos_tier.get(str(r["pid"]))
+                if t is not None and t != last_t:
+                    out.append(tier_band(f"{pos} TIER {t}", t))
+                    last_t = t
             adp = adp_rank(pm.name, pm.position)
             adp_s = int(adp) if adp else "—"
-            v = _value_chip(adp, current_pick)
+            if value is not None:
+                vv = value.vorp_of(r["pid"])
+                cls = "value" if vv >= 0 else "reach"
+                chip = f'<span class="vchip {cls}">V {"+" if vv >= 0 else ""}{int(round(vv))}</span>'
+            else:
+                v = _value_chip(adp, current_pick)
+                chip = (" " + v) if v else ""
             out.append(f'<div class="cheat-row">{theme.img_tag(r["pid"], "chs")}'
                        f'<span class="cn">{r["name"]}</span>'
-                       f'<span class="ca">{pm.team} · {adp_s}{(" "+v) if v else ""}</span></div>')
+                       f'<span class="ca">{pm.team} · {adp_s}{chip}</span></div>')
         out.append("</div>")
     out.append("</div>")
     return "".join(out)

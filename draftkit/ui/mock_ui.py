@@ -188,7 +188,7 @@ def render(ctx) -> None:
                if (show_drafted and view == "List") else board_avail)
         avail = C.filter_search(src, search, reg)
         by_value = sort == "Value" and ctx.get("value")
-        if by_value and view == "List":
+        if by_value:
             avail = sorted(avail, key=lambda r: ctx["value"].vorp_of(r["pid"]), reverse=True)
         strike = taken if (show_drafted and view == "List") else None
         if is_my_turn:
@@ -197,7 +197,10 @@ def render(ctx) -> None:
                             on_star=toggle_queue, queued=queued, taken=strike)
         elif view == "By position":
             st.markdown(C.by_position_html(avail, reg, ctx["adp_rank"], ctx["pos_rank"],
-                                           pick_no, pos_tier=ctx["pos_tier"]), unsafe_allow_html=True)
+                                           pick_no, pos_tier=ctx["pos_tier"],
+                                           show_tiers=not by_value,
+                                           value=(ctx["value"] if by_value else None)),
+                        unsafe_allow_html=True)
         else:
             st.markdown(C.avail_html(avail, taken, reg, ctx["adp_rank"],
                                      pos_rank=ctx["pos_rank"], current_pick=pick_no,
