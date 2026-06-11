@@ -221,7 +221,7 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 [class*="_steals"] .stButton button, [class*="_traps"] .stButton button,
 [class*="_pp_"] .stButton button{ text-align:left !important; justify-content:flex-start !important; }
 [class*="_steals"] .stButton button *, [class*="_traps"] .stButton button *,
-[class*="_pp_"] .stButton button *{ text-align:left !important; }
+[class*="_pp_"] .stButton button *{ text-align:left !important; justify-content:flex-start !important; }
 
 /* ---- league board (opponent rosters/needs) ---- */
 .lb{ display:flex; flex-direction:column; gap:3px; }
@@ -382,11 +382,16 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   padding:8px 58px 8px 46px; font-size:13px; font-weight:700; min-height:42px; line-height:1.25;
   border:1px solid var(--line); border-left-width:5px; border-radius:7px; background:#fff;
   color:var(--ink); white-space:normal; position:relative; }
-/* keep the label left-aligned no matter how Streamlit wraps the button content */
+/* keep the label left-aligned no matter how Streamlit wraps the button content.
+   Streamlit 1.58 nests it as button(flex) > div(flex,justify:center) > span(flex)
+   > markdown > p — so a plain text-align can't win; we force flex-start on the
+   inner flex wrappers too. */
+[class*="_brow_"] .stButton button div,
+[class*="_brow_"] .stButton button span{ justify-content:flex-start !important; }
 [class*="_brow_"] .stButton button div,
 [class*="_brow_"] .stButton button p,
 [class*="_brow_"] .stButton button [data-testid="stMarkdownContainer"]{
-  width:100%; text-align:left !important; }
+  text-align:left !important; }
 /* player headshot as a ::before circle (per-row background-image injected inline) */
 [class*="_brow_"] .stButton button::before{ content:""; position:absolute; left:9px; top:50%;
   transform:translateY(-50%); width:28px; height:28px; border-radius:50%; background:#eef1f5 center/cover no-repeat;
