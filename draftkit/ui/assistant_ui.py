@@ -107,7 +107,7 @@ def render(ctx) -> None:
 
     left, mid, right = st.columns([1, 1.5, 1.1])
     with left, st.container(key="dr_panel_team"):
-        st.markdown('<div class="dr-h">My Team</div>', unsafe_allow_html=True)
+        st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
         st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
         st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
         st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
@@ -119,7 +119,7 @@ def render(ctx) -> None:
                         unsafe_allow_html=True)
     with mid, st.container(key="dr_panel_board"):
         head = st.columns([2, 3])
-        head[0].markdown('<div class="dr-h" style="margin:2px 0;">Best Available</div>',
+        head[0].markdown('<div class="dr-h dr-title">Best Available</div>',
                          unsafe_allow_html=True)
         view = head[1].radio("view", ["List", "By position"], horizontal=True,
                              key=f"{akey}_view", label_visibility="collapsed")

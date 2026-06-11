@@ -287,21 +287,24 @@ def main():
         st.session_state[ctx["ranks_key"]] = storage.load_rankings(ctx["league_key"])
 
     meta = ctx["meta"]
-    head = st.columns([4, 1])
-    with head[0]:
-        st.markdown(f'<h2>{theme.logo_html(28, tag=None)} · {meta.name}</h2>', unsafe_allow_html=True)
-        extras = ""
-        n_keep = len(ctx["keepers"]["kept_pids"])
-        if n_keep:
-            extras += f" · {n_keep} keepers"
-        if ctx["tendencies"]:
-            extras += f" · history-aware AI ({len(ctx['tendencies'])} mgrs)"
-        st.caption(f"{meta.platform.upper()} · {meta.num_teams} teams · {meta.draft_rounds} rounds "
-                   f"· {meta.scoring.upper()} · {len(ctx['adp_pool'])} ADP players{extras}")
-    with head[1]:
-        if st.button("Switch league"):
-            del st.session_state.league
-            st.rerun()
+    n_keep = len(ctx["keepers"]["kept_pids"])
+    pills = [meta.platform.upper(), f"{meta.num_teams} teams", f"{meta.draft_rounds} rds",
+             meta.scoring.upper()]
+    if n_keep:
+        pills.append(f"{n_keep} keepers")
+    if ctx["tendencies"]:
+        pills.append(f"AI · {len(ctx['tendencies'])} mgrs")
+    pill_html = "".join(f'<span class="tb-pill">{p}</span>' for p in pills)
+    with st.container(key="dr_topbar"):
+        head = st.columns([6, 1])
+        with head[0]:
+            st.markdown(f'<div class="tb-row">{theme.logo_html(20, tag=None)}'
+                        f'<span class="tb-name">{meta.name}</span>{pill_html}</div>',
+                        unsafe_allow_html=True)
+        with head[1]:
+            if st.button("Switch league"):
+                del st.session_state.league
+                st.rerun()
 
     # Persisted nav (st.tabs resets to the first tab on every rerun — drafting
     # triggers reruns, so we use a keyed radio styled as tabs instead).

@@ -128,10 +128,13 @@ def lineup_html(pids: list, roster_slots: List[str], registry, bench_cap: int = 
     slots, filled, bench = fill_lineup(pids, roster_slots, registry)
     rows = []
     for s, pid in zip(slots, filled):
-        nm = registry.meta(pid).name if pid else "—"
-        empty = "" if pid else " empty"
-        rows.append(f'<div class="slot{empty}"><span class="pos {s}">{s}</span>'
-                    f'<span class="nm">{nm}</span></div>')
+        if pid:
+            nm_html = f'<span class="nm">{registry.meta(pid).name}</span>'
+            empty = ""
+        else:
+            nm_html = '<span class="nm"><span class="empty-pill">Empty</span></span>'
+            empty = " empty"
+        rows.append(f'<div class="slot{empty}"><span class="pos {s}">{s}</span>{nm_html}</div>')
     for pid in bench[:bench_cap]:
         rows.append(f'<div class="slot"><span class="pos BN">BN</span>'
                     f'<span class="nm">{registry.meta(pid).name}</span></div>')

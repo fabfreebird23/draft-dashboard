@@ -158,7 +158,7 @@ def render(ctx) -> None:
 
     left, mid, right = st.columns([1, 1.5, 1.1])
     with left, st.container(key="dr_panel_team"):
-        st.markdown('<div class="dr-h">My Team</div>', unsafe_allow_html=True)
+        st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
         st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
         st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
         st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
@@ -172,7 +172,7 @@ def render(ctx) -> None:
 
     with mid, st.container(key="dr_panel_board"):
         hdr = ("Best Available — click a player to inspect" if is_my_turn else "Best Available")
-        st.markdown(f'<div class="dr-h" style="margin:2px 0;">{hdr}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="dr-h dr-title">{hdr}</div>', unsafe_allow_html=True)
         topc = st.columns([1.3, 1.3, 1.2, 1.5])
         view = topc[0].radio("view", ["List", "By position"], horizontal=True,
                              key=f"{mkey}_view", label_visibility="collapsed")
@@ -181,10 +181,8 @@ def render(ctx) -> None:
         show_drafted = topc[2].toggle("Show drafted", key=f"{mkey}_showdrafted")
         search = topc[3].text_input("Search", key=f"{mkey}_search",
                                     placeholder="Search…", label_visibility="collapsed")
-        st.caption("**V** = Value Over Replacement (VORP): projected points above a "
-                   "replaceable starter at the position — higher V means more draft value. "
-                   "Sort by **Value** to rank the board by it. ▼ falling past ADP · "
-                   "tap the ☆ to add a player to your queue.")
+        st.caption("**#** overall rank · **V** value over replacement · ▼ falling past ADP "
+                   "· tap **☆** to queue")
         # 'Show drafted' keeps everyone in their tier, drafted struck through; off = clean
         src = ([r for r in C.filter_pos(ranks, pos_f, reg) if r.get("pid")]
                if (show_drafted and view == "List") else board_avail)
