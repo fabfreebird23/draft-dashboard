@@ -216,6 +216,12 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 [class*="_pp_RB"] .stButton button{ border-left-color:var(--rb); }
 [class*="_pp_WR"] .stButton button{ border-left-color:var(--wr); }
 [class*="_pp_TE"] .stButton button{ border-left-color:var(--te); }
+/* force left-aligned labels inside every custom clickable row (Streamlit centers
+   button text by default; keep its inner markdown/p left no matter the wrapper) */
+[class*="_steals"] .stButton button, [class*="_traps"] .stButton button,
+[class*="_pp_"] .stButton button{ text-align:left !important; justify-content:flex-start !important; }
+[class*="_steals"] .stButton button *, [class*="_traps"] .stButton button *,
+[class*="_pp_"] .stButton button *{ text-align:left !important; }
 
 /* ---- league board (opponent rosters/needs) ---- */
 .lb{ display:flex; flex-direction:column; gap:3px; }
@@ -371,11 +377,16 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="_board_"] [data-testid="stVerticalBlock"]{ gap:3px; }
 [class*="_brow_"]{ margin:0 !important; }
 [class*="_brow_"] .stButton{ margin:0; }
-[class*="_brow_"] .stButton button{ width:100%; text-align:left; justify-content:flex-start;
+[class*="_brow_"] .stButton button{ width:100%; text-align:left !important;
+  justify-content:flex-start !important; align-items:center;
   padding:8px 58px 8px 46px; font-size:13px; font-weight:700; min-height:42px; line-height:1.25;
   border:1px solid var(--line); border-left-width:5px; border-radius:7px; background:#fff;
   color:var(--ink); white-space:normal; position:relative; }
-[class*="_brow_"] .stButton button>div{ width:100%; text-align:left; }
+/* keep the label left-aligned no matter how Streamlit wraps the button content */
+[class*="_brow_"] .stButton button div,
+[class*="_brow_"] .stButton button p,
+[class*="_brow_"] .stButton button [data-testid="stMarkdownContainer"]{
+  width:100%; text-align:left !important; }
 /* player headshot as a ::before circle (per-row background-image injected inline) */
 [class*="_brow_"] .stButton button::before{ content:""; position:absolute; left:9px; top:50%;
   transform:translateY(-50%); width:28px; height:28px; border-radius:50%; background:#eef1f5 center/cover no-repeat;

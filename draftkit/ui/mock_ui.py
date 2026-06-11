@@ -155,6 +155,10 @@ def render(ctx) -> None:
         st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
         st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg, ctx["adp_rank"]),
                     unsafe_allow_html=True)
+        with st.expander("League board — rosters & needs"):
+            st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
+                                            ctx["roster_slots"], reg, on_clock_slot=on_slot),
+                        unsafe_allow_html=True)
 
     with mid:
         hdr = ("Best Available — click a player to inspect" if is_my_turn else "Best Available")
@@ -224,10 +228,6 @@ def render(ctx) -> None:
             with st.expander("Steals & Traps", expanded=False):
                 st.caption("Market value vs. ADP — click any player to open their card.")
                 steals_traps_widget(steals, traps, reg, f"{mkey}_st", show_card)
-        with st.expander("League board — rosters & needs"):
-            st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
-                                            ctx["roster_slots"], reg, on_clock_slot=on_slot),
-                        unsafe_allow_html=True)
         queue_manager(ctx, qkey, ranks, taken, reg, f"{mkey}_q")
 
     kept_note = (f" · {len(kept_pids)} keepers locked" if kept_pids else "")
