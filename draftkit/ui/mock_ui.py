@@ -267,7 +267,7 @@ def render(ctx) -> None:
     with center, st.container(key="dr_panel_boardc"):
         if rec_row:
             rpm = reg.meta(rec_row["pid"])
-            cue = "click any player to inspect" if can_draft else "your top target"
+            cue = "click a player in the list to inspect" if can_draft else "your top target"
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({rpm.position} · {rpm.team}) '
                         f'— <span class="why">{rec_tag}</span> · <i>{cue}</i></div>',
                         unsafe_allow_html=True)

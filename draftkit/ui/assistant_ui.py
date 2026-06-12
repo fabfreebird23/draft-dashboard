@@ -208,7 +208,7 @@ def render(ctx) -> None:
         if rec_row:
             tpm = reg.meta(rec_row["pid"])
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({tpm.position} · {tpm.team}) '
-                        f'— <span class="why">{why}</span> · <i>click any player to inspect</i></div>',
+                        f'— <span class="why">{why}</span> · <i>click a player in the list to inspect</i></div>',
                         unsafe_allow_html=True)
         spotlight_panel(ctx, board_avail, reg, f"{akey}_sp",
                         default_pid=(rec_row["pid"] if rec_row else None),
