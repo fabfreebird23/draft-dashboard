@@ -305,6 +305,26 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 [class*="_qstar_"] .stButton button:focus,[class*="_qstar_"] .stButton button:active{
   box-shadow:none !important; background:transparent !important; }
 
+/* ---- opponent scouting cards (built from real draft history) ---- */
+.dr-scout{ display:flex; flex-direction:column; gap:8px; }
+.sc-card{ background:#fff; border:1px solid var(--line); border-left:4px solid #94a3b8;
+  border-radius:9px; padding:9px 12px; box-shadow:var(--shadow); }
+.sc-card.clk{ box-shadow:0 0 0 2px var(--blue), var(--shadow); }
+.sc-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.sc-nm{ font-weight:800; font-size:13px; color:var(--ink); }
+.sc-arch{ font-size:10px; font-weight:800; letter-spacing:.3px; padding:2px 8px;
+  border-radius:11px; text-transform:uppercase; white-space:nowrap; }
+.sc-pred{ display:flex; align-items:center; gap:7px; margin:5px 0 3px; }
+.sc-pbar{ flex:1; height:5px; border-radius:3px; background:var(--line2); overflow:hidden; }
+.sc-pbar>span{ display:block; height:100%; border-radius:3px; }
+.sc-plabel{ font-size:9.5px; font-weight:700; color:var(--mut2); white-space:nowrap; }
+.sc-tend{ margin:4px 0 0; padding-left:16px; }
+.sc-tend li{ font-size:11.5px; color:var(--ink); margin:2px 0; line-height:1.3; }
+.sc-target{ margin-top:6px; font-size:11px; font-weight:700; color:var(--muted);
+  border-top:1px dashed var(--line); padding-top:5px; }
+.sc-target b{ color:var(--blue); }
+.sc-thin,.sc-empty{ font-size:11px; color:var(--mut2); font-style:italic; }
+
 /* ---- quick-draft button beside each best-available row (List view) ---- */
 [class*="_qdraft_"] .stButton{ margin:0; }
 [class*="_qdraft_"] .stButton button{ width:100%; min-height:42px; padding:0 4px;

@@ -304,6 +304,87 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
     return ranks
 
 
+def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
+                    pick_no, on_click=None, on_star=None, quick_draft=None, queued=None):
+    """The Suggestions tab (FantasyPros-style): the model's top picks right now,
+    ranked by value × roster fit + starter need + positional scarcity + whether
+    he survives to your next pick (ADP vs your pick). Each row shows the headshot,
+    pos·team·bye, the survival % (chance he's there next time), a **FIT** badge
+    (the model's share of preference), and a one-tap Draft."""
+    from .. import value as V
+    reg = ctx["registry"]
+    taken_s = {str(x) for x in (taken or set())}
+
+    present = {reg.meta(r["pid"]).position for r in ranks if r.get("pid")}
+    positions = ["All"] + [p for p in ("QB", "RB", "WR", "TE", "K", "DST") if p in present]
+    with st.container(key=f"{key_prefix}_sg_posf"):
+        pos_f = st.radio("Position", positions, horizontal=True,
+                         key=f"{key_prefix}_spos", label_visibility="collapsed")
+    st.caption("Top picks by value, roster fit, scarcity & survival to your next pick. "
+               "**FIT** = the model's share of preference · the **%** box = chance he lasts "
+               "to your next pick.")
+
+    avail = [r for r in ranks if r.get("pid") and str(r["pid"]) not in taken_s
+             and (pos_f == "All" or reg.meta(r["pid"]).position == pos_f)]
+    sugg = V.top_suggestions(
+        avail, ctx["value"], reg, needs, taken_s, next_pick=next_pick,
+        survival_fn=lambda pid: C.survival_pct(
+            ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_pick),
+        my_pids=my_pids, roster_slots=ctx["roster_slots"], k=7)
+    if not sugg:
+        st.caption("— no players available —")
+        return
+    # FIT %: the model's share of preference across the shown suggestions
+    lo = min(s["score"] for s in sugg)
+    shifted = [max(0.1, s["score"] - lo + 1.0) for s in sugg]
+    tot = sum(shifted) or 1.0
+    for s, w in zip(sugg, shifted):
+        s["fit"] = max(1, round(100 * w / tot))
+
+    for s in sugg:
+        r, pm = s["row"], s["pm"]
+        pid = str(r["pid"])
+        adp = ctx["adp_rank"](pm.name, pm.position)
+        d = (adp - pick_no) if (adp and pick_no) else 0
+        if s["mult"] >= 0.999:
+            reason = f"  :green[**fills {pm.position}**]"
+        elif d >= 8:
+            reason = "  :red[**▼ falling**]"
+        elif s["left"] <= 2:
+            reason = f"  :orange[**{s['left']} {pm.position} left**]"
+        elif s["mult"] < 0.5:
+            reason = "  :gray[bench depth]"
+        else:
+            reason = "  :green[**value**]"
+        label = player_label(ctx, r, pm) + f"  :blue[**FIT {s['fit']}**]" + reason
+
+        rk = f"{key_prefix}_sg_brow_{pm.position}_{pid}"
+        css = _headshot_css(rk, pid)
+        if next_pick:
+            sc = C.survival_colors(s["sv"]) if s["sv"] is not None else None
+            if sc:
+                css += (f'.st-key-{rk} .stButton button::after{{content:"{s["sv"]}%";'
+                        f'background:{sc[0]};color:{sc[1]}}}')
+
+        layout = [0.5, 7.0, 1.1] if quick_draft else [0.5, 8.0]
+        cols = st.columns(layout, gap="small")
+        with cols[0], st.container(key=f"{key_prefix}_sg_qstar_{pid}"):
+            starred = pid in (queued or set())
+            if st.button("★" if starred else "☆", key=f"{key_prefix}_sgstar_{pid}",
+                         use_container_width=True) and on_star:
+                on_star(pid)
+        with cols[1], st.container(key=rk):
+            st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
+            if st.button(label, key=f"{key_prefix}_sgp_{pid}",
+                         use_container_width=True) and on_click:
+                on_click(pid)
+        if quick_draft:
+            with cols[2], st.container(key=f"{key_prefix}_sg_qdraft_{pid}"):
+                if st.button("Draft", key=f"{key_prefix}_sgqd_{pid}",
+                             use_container_width=True):
+                    quick_draft(pid)
+
+
 def predictor_widget(predictions, slot_names, registry, n, key_prefix, on_click) -> None:
     """Pick Predictor as clickable rows — the most-likely opponent picks before your
     next turn; click one to open that player's card (e.g. to grab him first)."""

@@ -10,7 +10,8 @@ import streamlit as st
 from .. import draft_history
 from . import components as C
 from .widgets import (predict_upcoming, predictor_widget, queue_manager,
-                      rankings_tab, select_player, spotlight_panel, steals_traps_widget)
+                      rankings_tab, select_player, spotlight_panel,
+                      steals_traps_widget, suggestions_tab)
 
 _PICK_DELAY = 0.7  # seconds between AI picks in live-pace mode
 
@@ -172,7 +173,7 @@ def render(ctx) -> None:
 
     left, right = st.columns([1.85, 1.15])
     with left, st.container(key="dr_panel_board"):
-        tabs = st.tabs(["Rankings", "Teams", "Queue"])
+        tabs = st.tabs(["Rankings", "Suggestions", "Teams", "Queue"])
         with tabs[0]:
             ranks_active = rankings_tab(
                 ctx, key_prefix=mkey, taken=taken, queued=queued,
@@ -180,6 +181,11 @@ def render(ctx) -> None:
                 on_click=show_card, on_star=toggle_queue,
                 quick_draft=(draft if can_draft else None))
         with tabs[1]:
+            suggestions_tab(ctx, key_prefix=mkey, ranks=ranks_active, taken=taken,
+                            my_pids=my_pids, needs=needs, next_pick=next_user_pick,
+                            pick_no=pick_no, on_click=show_card, on_star=toggle_queue,
+                            quick_draft=(draft if can_draft else None), queued=queued)
+        with tabs[2]:
             st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
             st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
             st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
@@ -190,7 +196,12 @@ def render(ctx) -> None:
             st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
                                             ctx["roster_slots"], reg, on_clock_slot=on_slot),
                         unsafe_allow_html=True)
-        with tabs[2]:
+            st.markdown('<div class="dr-h">Opponent Scouting</div>', unsafe_allow_html=True)
+            st.markdown(C.scouting_report_html(ctx.get("profiles", {}), slot_names,
+                                               owner_by_slot, my_slot, on_clock_slot=on_slot,
+                                               round_no=(pick_no - 1) // n + 1),
+                        unsafe_allow_html=True)
+        with tabs[3]:
             queue_manager(ctx, qkey, st.session_state.get(ctx["ranks_key"]) or ranks_active,
                           taken, reg, f"{mkey}_q", on_pick=show_card)
 

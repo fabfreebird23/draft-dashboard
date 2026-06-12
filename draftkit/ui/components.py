@@ -484,6 +484,56 @@ def league_board_html(pids_by_slot, slot_names, my_slot, roster_slots, registry,
     return '<div class="lb">' + "".join(rows) + "</div>"
 
 
+_ARCH_COLOR = {
+    "Early-QB": "#7c3aed", "Premium-TE": "#e08a1e", "Zero-RB": "#1f4e9b",
+    "RB-heavy": "#1c8a4d", "WR-heavy": "#2563c9", "Balanced": "#64748b",
+    "Unknown": "#94a3b8",
+}
+
+
+def scouting_report_html(profiles, slot_names, owner_by_slot, my_slot, *,
+                         on_clock_slot=None, round_no=None) -> str:
+    """Opponent scouting cards built from each manager's real draft history:
+    their archetype, how predictable they are, their signature tendencies, and —
+    when a round is supplied — what they're most likely to target next."""
+    if not profiles:
+        return ('<div class="dr-scout"><div class="sc-empty">No draft history found for '
+                'this league yet — scouting builds once past drafts are available.</div></div>')
+    from .. import draft_history as DH
+    cards = []
+    order = sorted(range(len(slot_names)),
+                   key=lambda s: (s == my_slot, s != on_clock_slot, s))
+    for slot in order:
+        if slot == my_slot:
+            continue
+        oid = str(owner_by_slot.get(slot, ""))
+        prof = profiles.get(oid) or {}
+        nm = slot_names[slot] if slot < len(slot_names) else f"Team {slot+1}"
+        arch = prof.get("archetype", "Unknown")
+        col = _ARCH_COLOR.get(arch, "#94a3b8")
+        clk = " clk" if slot == on_clock_slot else ""
+        pred = prof.get("predictability", 0)
+        if prof.get("thin", True) or not prof.get("tendencies"):
+            body = '<div class="sc-thin">Not enough draft history to profile.</div>'
+        else:
+            bullets = "".join(f'<li>{t}</li>' for t in prof["tendencies"])
+            target = ""
+            if round_no:
+                likely = DH.likely_positions(oid, round_no, profiles, k=2)
+                if likely:
+                    target = (f'<div class="sc-target">Likely next: '
+                              + " / ".join(f'<b>{p}</b>' for p in likely) + "</div>")
+            body = f'<ul class="sc-tend">{bullets}</ul>{target}'
+        cards.append(
+            f'<div class="sc-card{clk}" style="border-left-color:{col}">'
+            f'<div class="sc-head"><span class="sc-nm">{nm[:16]}</span>'
+            f'<span class="sc-arch" style="background:{col}1a;color:{col}">{arch}</span></div>'
+            f'<div class="sc-pred"><span class="sc-pbar"><span style="width:{pred}%;'
+            f'background:{col}"></span></span><span class="sc-plabel">{pred}% predictable</span></div>'
+            f'{body}</div>')
+    return '<div class="dr-scout">' + "".join(cards) + "</div>"
+
+
 def run_alert_html(upcoming_slots, need_map, value, taken, registry) -> str:
     """Flag a likely positional run: when more of the managers picking before your
     next turn need a position than there are startable players left at it."""

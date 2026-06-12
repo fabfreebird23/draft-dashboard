@@ -68,6 +68,16 @@ def get_tendencies(platform: str, league_id: str):
         return {}
 
 
+@st.cache_data(ttl=86400, show_spinner="Scouting opponents from draft history…")
+def get_profiles(platform: str, league_id: str):
+    if platform != "sleeper":
+        return {}
+    try:
+        return draft_history.owner_profiles(league_id)
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_byes(season: int):
     from draftkit import udk
@@ -238,8 +248,15 @@ def build_context(sel: dict) -> dict:
     placements = keepers_mod.build_placements(
         keepers_raw, owner_slot, meta.num_teams, meta.draft_rounds,
         pick_owner_slot=pick_owner_slot)
-    # Historical draft tendencies (how each manager drafts by round).
-    tendencies = get_tendencies(meta.platform, meta.league_id)
+    # Deep draft-history scouting profiles per manager (archetype, reach, fav
+    # teams, predictability) + the round→position model the AI/predictor consumes.
+    # Keepers are excluded from profiles, so derive cleaner tendencies from them;
+    # fall back to the legacy keeper-inclusive model only if profiles are empty.
+    profiles = get_profiles(meta.platform, meta.league_id)
+    tendencies = {o: p["pos_by_round"] for o, p in profiles.items()
+                  if p.get("pos_by_round")}
+    if not tendencies:
+        tendencies = get_tendencies(meta.platform, meta.league_id)
 
     # Value engine: projected points → VORP vs league-specific replacement level.
     from draftkit import value as value_mod
@@ -264,6 +281,7 @@ def build_context(sel: dict) -> dict:
         "adp_df": adp_df, "adp_rank": adp_rank, "adp_pool": adp_pool,
         "pos_rank": pos_rank, "pos_tier": pos_tier, "byes": get_byes(config.current_season()),
         "keepers_raw": keepers_raw, "keepers": placements, "tendencies": tendencies,
+        "profiles": profiles,
         "value": value, "proj": proj, "schedule": schedule, "dvp": dvp,
         "pick_owner_slot": pick_owner_slot, "traded_picks": traded,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",

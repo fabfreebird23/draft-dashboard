@@ -255,6 +255,42 @@ def best_pick(board_avail, model: "ValueModel", registry, needs, taken,
     return best or (None, 0, "")
 
 
+def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
+                    next_pick=None, survival_fn=None, my_pids=None, roster_slots=None,
+                    k=6):
+    """A ranked list of the best picks right now — the engine behind the Suggestions
+    tab. Same roster-aware scoring as ``best_pick`` (value × roster fit + starter
+    need + positional scarcity + 'won't survive to your next pick'), returned as the
+    top ``k`` with the raw signals so the UI can render reasons and a FIT %.
+    Each item: {row, pm, score, raw, mult, sv, left}."""
+    needs = needs or set()
+    taken_s = {str(x) for x in (taken or [])}
+    use_roster = my_pids is not None and roster_slots is not None
+    out = []
+    for r in board_avail:
+        pid = str(r["pid"])
+        pm = registry.meta(pid)
+        mult = (roster_multiplier(pm.position, my_pids, roster_slots, registry)
+                if use_roster else 1.0)
+        raw = model.vorp_of(pid)
+        score = raw * mult
+        if mult >= 0.999:
+            score += 22
+        elif mult >= 0.55:
+            score += 6
+        left = model.startable_left(pm.position, taken_s)
+        sv = survival_fn(pid) if (survival_fn and next_pick) else None
+        if mult >= 0.6:
+            if left <= 3:
+                score += (4 - left) * 8
+            if sv is not None and sv <= 35:
+                score += (35 - sv) * 0.5
+        out.append({"row": r, "pm": pm, "score": round(score, 1), "raw": raw,
+                    "mult": mult, "sv": sv, "left": left})
+    out.sort(key=lambda x: -x["score"])
+    return out[:k]
+
+
 def grab_verdict(survival_pct, startable_left, *, is_need=False, mult=None):
     """Fuse 'how likely to fall to me' (survival) with 'how scarce' (startable left)
     into a call to action. ``mult`` is the roster multiplier — when you've already
