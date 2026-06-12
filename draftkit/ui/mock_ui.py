@@ -168,7 +168,7 @@ def render(ctx) -> None:
                + [pid for ov, pid in kept_by_overall.items() if owner(ov) == my_slot])
     needs = C.open_needs(my_pids, ctx["roster_slots"], reg)
     recent_positions = [reg.meta(board[ov]).position for ov in sorted(board)[-6:]]
-    pids_by_slot = {}
+    pids_by_slot = {s: [] for s in range(n)}   # every team present (even 0-pick teams)
     for ov, pid in board.items():
         pids_by_slot.setdefault(owner(ov), []).append(pid)
     # your next pick AFTER the upcoming opponent run (skip back-to-back snake
