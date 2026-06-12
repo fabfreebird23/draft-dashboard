@@ -270,13 +270,13 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
         pos_f = st.radio("Position", positions, horizontal=True,
                          key=f"{key_prefix}_pos", label_visibility="collapsed")
 
-    # ---- show-drafted · sort · search ----
-    ctrl = st.columns([1.3, 1.4, 2])
-    show_drafted = ctrl[0].toggle("Show drafted", key=f"{key_prefix}_showdrafted")
-    sort = ctrl[1].radio("Sort", ["Rank", "Value"], horizontal=True,
+    # ---- search (own line) · then sort + show-drafted (so nothing crams/wraps) ----
+    search = st.text_input("Search", key=f"{key_prefix}_search",
+                           placeholder="Search…", label_visibility="collapsed")
+    ctrl = st.columns([1.25, 1])
+    sort = ctrl[0].radio("Sort", ["Rank", "Value"], horizontal=True,
                          key=f"{key_prefix}_sort", label_visibility="collapsed")
-    search = ctrl[2].text_input("Search", key=f"{key_prefix}_search",
-                                placeholder="Search…", label_visibility="collapsed")
+    show_drafted = ctrl[1].toggle("Show drafted", key=f"{key_prefix}_showdrafted")
     st.caption("**#** overall rank · **V** value over replacement · ▼ falling past ADP "
                "· tap **☆** to queue")
 

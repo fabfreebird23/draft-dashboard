@@ -551,6 +551,13 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .dr-cell .c-name span{ font-weight:800; font-size:11px; color:#15212e; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis; }
 .dr-cell .c-img{ display:none; }
+/* roomy (≤8-team) boards keep a small headshot */
+.dr-grid.wide .dr-cell{ min-height:58px; }
+.dr-grid.wide .dr-cell .c-img{ display:block; position:absolute; right:5px; bottom:14px;
+  width:26px; height:26px; border-radius:6px; object-fit:cover; object-position:top center;
+  background:rgba(0,0,0,.06); }
+.dr-grid.wide .dr-cell .c-name{ padding-right:30px; }
+.dr-grid.wide .dr-cell.empty,.dr-grid.wide .dr-cell.onclk{ min-height:58px; }
 .dr-cell .c-meta{ position:absolute; left:6px; bottom:3px; font-size:8.5px; font-weight:800;
   letter-spacing:.2px; color:#33465b; text-transform:uppercase; white-space:nowrap; }
 /* position tints — RB blue, WR green, TE pink, QB purple, K/DST grey */

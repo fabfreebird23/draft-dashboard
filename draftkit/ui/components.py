@@ -308,7 +308,9 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
                              f'<span class="oc-pk">{pk}</span></div>')
             else:
                 cells.append(f'<div class="{klass} empty"><span class="pk">{pk}</span></div>')
-    grid = (f'<div class="dr-grid" style="grid-template-columns:30px repeat({n},{cw});">'
+    # roomy leagues (≤8 teams) keep the player headshots; larger boards go text-only
+    grid_cls = "dr-grid wide" if n <= 8 else "dr-grid"
+    grid = (f'<div class="{grid_cls}" style="grid-template-columns:30px repeat({n},{cw});">'
             + "".join(cells) + "</div>")
     return '<div class="neonwrap dr-board-scroll">' + grid + "</div>"
 
