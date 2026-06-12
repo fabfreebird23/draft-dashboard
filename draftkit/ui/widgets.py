@@ -534,9 +534,10 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                 marg=marg, sos=sos, overall=overall),
             unsafe_allow_html=True)
         # 'Beat the room' read: who picks before you & whether they're chasing his pos
-        if upcoming_slots and ctx.get("profiles") and need_map is not None:
+        if vm and upcoming_slots and ctx.get("profiles") and need_map is not None:
             note = V.room_note(pm, upcoming_slots, need_map, ctx["profiles"],
-                               ctx["owner_by_slot"], vm, taken, round_no=round_no)
+                               ctx["owner_by_slot"], vm, taken, round_no=round_no,
+                               survival=(sv if next_pick else None))
             if note:
                 lbl, css, detail = note
                 st.markdown(f'<div class="dr-room {css}"><b>{lbl}</b> · {detail}</div>',

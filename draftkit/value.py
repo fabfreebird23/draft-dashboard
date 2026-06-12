@@ -367,10 +367,11 @@ def position_pressure(position, upcoming_slots, need_map, profiles, owner_by_slo
 
 
 def room_note(pm, upcoming_slots, need_map, profiles, owner_by_slot, model, taken, *,
-              round_no=None):
-    """A 'beat the room' read for one player: weighing who picks before your next
-    turn (their needs + archetypes) against how many startable players remain at his
-    position. Returns (label, css_class, detail)."""
+              round_no=None, survival=None):
+    """A 'beat the room' read for one player. The player's own survival % (his ADP
+    vs your next pick) is the primary driver — it's *his* chance of returning — and
+    the room context (who picks before you + their needs/archetypes vs startable
+    players left) refines it. Returns (label, css_class, detail)."""
     pos = pm.position
     taken_s = {str(x) for x in (taken or [])}
     needy, biased, n = position_pressure(pos, upcoming_slots, need_map, profiles,
@@ -379,11 +380,24 @@ def room_note(pm, upcoming_slots, need_map, profiles, owner_by_slot, model, take
     who = f"{needy} of {n} managers before you need {pos}"
     if biased:
         who += f" ({biased} lean {pos})"
-    if needy >= max(2, left) and (biased or left <= needy):
-        return ("GRAB — room is chasing", "grab", f"{who}; only {left} startable left.")
-    if needy == 0 or left > needy + 2:
-        return ("SAFE TO WAIT", "wait", f"{who}; {left} startable left — he should come back.")
-    return ("LEAN GRAB", "lean", f"{who}; {left} startable left.")
+    sv = f"~{int(survival)}% to return" if survival is not None else None
+    room_chasing = needy >= max(2, left) and (biased or left <= needy)
+
+    # 1) He himself is unlikely to make it back → grab, regardless of the position.
+    if survival is not None and survival <= 45:
+        d = f"only {sv} to your next pick" + (f"; {who}" if room_chasing else "") + "."
+        return ("GRAB — won't make it back", "grab", d)
+    # 2) The room is clearly running his position.
+    if room_chasing:
+        d = f"{who}; only {left} startable left" + (f"; {sv}" if sv else "") + "."
+        return ("GRAB — room is chasing", "grab", d)
+    # 3) High personal survival AND the room isn't chasing the spot → wait.
+    if (survival is None or survival >= 60) and (needy == 0 or left > needy + 1):
+        base = (f"{sv}" if sv else f"{who}; {left} startable left")
+        return ("SAFE TO WAIT", "wait", f"{base} — he should come back.")
+    # 4) Anything in between is a judgement call.
+    d = (f"{sv}; {who}" if sv else f"{who}; {left} startable left") + "."
+    return ("LEAN GRAB", "lean", d)
 
 
 def draft_plan(my_pids, roster_slots, n_picks, board_avail, model: "ValueModel",
