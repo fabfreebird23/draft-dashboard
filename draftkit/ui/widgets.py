@@ -33,8 +33,9 @@ def player_label(ctx, r, pm, *, pick=None) -> str:
     if pick:
         d = (adp - pick) if (adp and pick) else 0
         vt = f"  :red[▼+{int(d)}]" if d >= 8 else (f"  :violet[▲{int(d)}]" if d <= -8 else "")
+    rook = "  :violet[**R**]" if getattr(pm, "years_exp", None) == 0 else ""
     meta = f":gray[{pm.team} · ADP {adps}{bye_s}]"
-    return f'{rk_s}:{pc}[**{pr}**] **{r["name"]}** {meta}{vchip}{vt}'
+    return f'{rk_s}:{pc}[**{pr}**] **{r["name"]}**{rook} {meta}{vchip}{vt}'
 
 
 def _headshot_css(container_key, pid) -> str:
@@ -356,6 +357,8 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
             reason = "  :gray[bench depth]"
         else:
             reason = "  :green[**value**]"
+        if getattr(pm, "years_exp", None) == 0:
+            reason += "  :violet[**rookie**]"
         if s.get("stack"):
             reason += "  :violet[**stack**]"
         if s.get("bye_clash"):

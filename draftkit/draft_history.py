@@ -94,6 +94,13 @@ def pick_for_owner(owner_id: str, rnd: int, available: list, tendencies: dict,
         tend = tendency_score(owner_id, rnd, p["pos"], tendencies)
         # Blend: ADP dominates, tendency tilts among close-by players.
         score = 0.62 * adp_val + 0.38 * tend
+        # Keeper-league rookie lean: managers reach a bit for rookies (cheap future
+        # keepers), so opponents and the predictor favour them among close picks.
+        try:
+            if registry.meta(p["pid"]).years_exp == 0:
+                score += 0.18
+        except Exception:  # noqa: BLE001
+            pass
         if score > best_score:
             best, best_score = p, score
     return best

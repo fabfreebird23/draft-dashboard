@@ -503,22 +503,34 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 
 /* ---- draft board grid ---- */
 .dr-grid{ display:grid; gap:3px; min-width:max-content; }
-.dr-cell{ position:relative; font-size:11px; line-height:1.15; padding:5px 6px 5px 8px;
-  border-radius:6px; background:#fff; min-height:44px; border:1px solid var(--line2);
-  display:flex; flex-direction:column; justify-content:center; }
-.dr-cell .pk{ position:absolute; top:2px; right:4px; font-size:8px; color:var(--mut2); font-weight:700; }
-.dr-cell .nm{ font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
-.dr-cell .meta{ font-size:9px; color:var(--mut2); font-weight:600; }
-.dr-cell.pos-QB{ box-shadow:inset 4px 0 0 var(--qb); } .dr-cell.pos-RB{ box-shadow:inset 4px 0 0 var(--rb); }
-.dr-cell.pos-WR{ box-shadow:inset 4px 0 0 var(--wr); } .dr-cell.pos-TE{ box-shadow:inset 4px 0 0 var(--te); }
-.dr-cell.pos-K{ box-shadow:inset 4px 0 0 var(--k); } .dr-cell.pos-DST,.dr-cell.pos-D{ box-shadow:inset 4px 0 0 var(--dst); }
-.dr-cell.me{ outline:2px solid #bfe3cd; outline-offset:-2px; background:#f6fbf8; }
-.dr-cell.now{ box-shadow:0 0 0 2px var(--blue), 0 3px 10px rgba(31,78,155,.22);
-  background:#eef4fd; z-index:1; }
-.dr-cell.now .pk{ color:var(--blue); }
-.dr-cell.kept .ktag{ position:absolute; top:2px; left:5px; font-weight:800; font-size:8px;
-  color:#fff; background:var(--amber); border-radius:3px; padding:0 3px; }
-.dr-cell.empty{ background:var(--panel2); } .dr-cell.empty .nm{ color:var(--mut2); font-weight:400; font-style:italic; }
+/* big color-coded player cards (FantasyPros-style) */
+.dr-cell{ position:relative; min-height:70px; padding:8px 10px; border-radius:10px;
+  background:#fff; border:1px solid rgba(0,0,0,.05); overflow:hidden; }
+.dr-cell .pk{ position:absolute; top:7px; right:10px; font-size:11px; font-weight:800;
+  color:#27384c; opacity:.72; }
+.dr-cell .c-name{ display:flex; flex-direction:column; line-height:1.04; max-width:72%; }
+.dr-cell .c-name span{ font-weight:800; font-size:14px; color:#15212e; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }
+.dr-cell .c-img{ position:absolute; right:8px; bottom:7px; width:44px; height:44px;
+  border-radius:9px; object-fit:cover; object-position:top center; background:rgba(0,0,0,.06); }
+.dr-cell .c-meta{ position:absolute; left:10px; bottom:8px; font-size:10.5px; font-weight:800;
+  letter-spacing:.4px; color:#33465b; text-transform:uppercase; }
+/* position tints — RB blue, WR green, TE pink, QB purple, K/DST grey */
+.dr-cell.pos-RB{ background:#c6e6f8; } .dr-cell.pos-WR{ background:#c8edcc; }
+.dr-cell.pos-TE{ background:#f8ccd6; } .dr-cell.pos-QB{ background:#ddd2f3; }
+.dr-cell.pos-K{ background:#e2e6ec; } .dr-cell.pos-DST,.dr-cell.pos-D{ background:#e2e6ec; }
+.dr-cell.me{ outline:3px solid var(--blue); outline-offset:-3px; }
+.dr-cell .c-meta .ktag{ font-weight:900; font-size:9px; color:#fff; background:var(--amber);
+  border-radius:3px; padding:0 4px; margin-left:2px; }
+.dr-cell .c-meta .rtag{ font-weight:900; font-size:9px; color:#fff; background:#7c3aed;
+  border-radius:3px; padding:0 4px; margin-left:2px; }
+.dr-cell.empty{ background:var(--panel2); border-color:var(--line2);
+  display:flex; align-items:flex-start; min-height:70px; }
+.dr-cell.empty .pk{ position:static; opacity:.5; font-weight:700; }
+.dr-cell.onclk{ background:var(--blue); display:flex; align-items:center; justify-content:center;
+  gap:7px; border:none; box-shadow:0 3px 12px rgba(31,78,155,.3); }
+.dr-cell.onclk .oc-pk{ font-size:21px; font-weight:900; color:#fff; }
+.dr-cell.onclk .oc-arrow{ font-size:22px; font-weight:900; color:#bcd2f7; }
 .dr-colhead{ font-weight:800; font-size:10px; text-align:center; color:var(--muted);
   text-transform:uppercase; padding:5px 3px; background:var(--line2); border-radius:6px 6px 0 0;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -555,7 +567,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .tk-chip.pos-K{ border-left-color:var(--k);} .tk-chip.pos-DST,.tk-chip.pos-D{ border-left-color:var(--dst);}
 
 /* keep the draft board compact so the rest of the page stays visible */
-.dr-board-scroll{ max-height:430px; overflow:auto; border:1px solid var(--line); border-radius:10px;
+.dr-board-scroll{ max-height:540px; overflow:auto; border:1px solid var(--line); border-radius:10px;
   margin-bottom:18px; }
 
 /* ---- whole-row clickable draft cards ---- */
@@ -675,11 +687,12 @@ DARK = """
   --shadow:0 1px 2px rgba(0,0,0,.45); --shadow-lg:0 8px 22px rgba(0,0,0,.55);
 }
 .stApp,[data-testid="stHeader"]{ background:var(--bg); }
-/* big light surfaces → dark panels */
-.dr-cell,.sc-card,.lb,.rs,.pcard,.dr-status,.dr-avail,.dr-predict,.dr-grid,
+/* big light surfaces → dark panels (board player cards keep their colour tints) */
+.sc-card,.lb,.rs,.pcard,.dr-status,.dr-avail,.dr-predict,.dr-grid,
 .dr-lastpick,.dr-queue,[class*="dr_panel_"],[class*="dr_topbar"],.dr-plan,.dr-grade{
   background:var(--panel) !important; border-color:var(--line) !important; }
-.dr-cell.empty,.dr-cell.now{ background:var(--panel2) !important; }
+.dr-cell.empty{ background:var(--panel2) !important; border-color:var(--line) !important; }
+.dr-cell.onclk{ background:var(--blue) !important; }
 .dr-colhead{ background:var(--panel2) !important; color:var(--muted) !important; }
 .dr-colhead.me{ background:var(--green) !important; color:#fff !important; }
 .dr-colhead.rd,.dr-rdlabel{ background:var(--blue) !important; color:#fff !important; }

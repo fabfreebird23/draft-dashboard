@@ -14,6 +14,20 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 _POSITIONS = ("QB", "RB", "WR", "TE")
+# Keeper-league rookie premium ("strong"): a rookie's value is boosted by this
+# fraction PLUS a flat keeper-value floor (rookies project low in year one but
+# carry real long-term keeper upside, so even near-startable rookies should rise).
+# Tune here to dial the rookie lean up or down across the whole app.
+ROOKIE_PREMIUM = 0.40
+ROOKIE_FLOOR = 8.0
+
+
+def is_rookie(registry, pid) -> bool:
+    """True for a first-year player (rookie) per the registry's years_exp."""
+    try:
+        return registry.meta(pid).years_exp == 0
+    except Exception:  # noqa: BLE001
+        return False
 # How a FLEX (and SUPER_FLEX) slot's demand splits across positions.
 _FLEX_SPLIT = {"RB": 0.40, "WR": 0.45, "TE": 0.15}
 _FLEX_NAMES = {"FLEX", "W/R/T", "WRT", "RB/WR/TE", "REC_FLEX", "WR/RB", "WR/TE"}
@@ -89,6 +103,13 @@ def build_value(proj: Dict[str, float], registry, roster_slots, n_teams) -> Valu
         repl = replacement_pts.get(pos, 0.0)
         for pid, pts in players:
             vorp[pid] = round(pts - repl, 1)
+    # Keeper-league rookie premium: a rookie is worth more than his rookie-year
+    # points because he converts to a cheap long-term keeper. Boost rookies (a %
+    # bump plus a keeper-value floor) so good AND near-startable rookies rise on
+    # the board, recommendations and Suggestions; truly deep rookies still sink.
+    for pid, v in list(vorp.items()):
+        if is_rookie(registry, pid):
+            vorp[pid] = round(v * (1 + ROOKIE_PREMIUM) + ROOKIE_FLOOR, 1)
     # overall draft-value rank: every player ordered by VORP (cross-position)
     overall_rank = {pid: i + 1 for i, (pid, _) in
                     enumerate(sorted(vorp.items(), key=lambda x: x[1], reverse=True))}

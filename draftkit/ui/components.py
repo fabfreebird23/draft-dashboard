@@ -266,22 +266,24 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
     `owner_fn(overall)` -> slot of the pick's real owner (handles traded picks); when
     given, your cells are highlighted by ownership rather than by column."""
     kept_overalls = kept_overalls or set()
-    cw = "minmax(86px,1fr)"
+    cw = "minmax(124px,1fr)"
     head = ['<div class="dr-colhead rd">RD</div>']
     for c, s in enumerate(slot_names):
         me = " me" if c == my_slot else ""
-        head.append(f'<div class="dr-colhead{me}" title="{s}">{s[:9]}</div>')
+        head.append(f'<div class="dr-colhead{me}" title="{s}">{s[:13]}</div>')
     cells = ["".join(head)]
     for r in range(1, rounds + 1):
         cells.append(f'<div class="dr-rdlabel">{r}</div>')
         for c in range(1, n + 1):
             overall = (r - 1) * n + (c if r % 2 == 1 else n - c + 1)
+            pk = f'{r}.{c:02d}'
             pid = pick_pids.get(overall)
             klass = "dr-cell"
             owned = (owner_fn(overall) == my_slot) if owner_fn else ((c - 1) == my_slot)
             if owned:
                 klass += " me"
-            if overall == current_pick:
+            is_now = overall == current_pick
+            if is_now:
                 klass += " now"
             if pid:
                 pm = registry.meta(pid)
@@ -289,15 +291,24 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
                 kept = overall in kept_overalls
                 if kept:
                     klass += " kept"
-                tag = '<span class="ktag">K</span>' if kept else ""
+                first, _, last = pm.name.partition(" ")
+                tag = ' <span class="ktag">K</span>' if kept else ""
+                if getattr(pm, "years_exp", None) == 0:
+                    tag += ' <span class="rtag">R</span>'
+                img = (f'<img class="c-img" loading="lazy" alt="" '
+                       f'src="{theme.headshot_src(pid)}">')
                 cells.append(
-                    f'<div class="{klass}"><span class="pk">{r}.{c:02d}</span>{tag}'
-                    f'<span class="nm">{short_name(pm.name)}</span>'
-                    f'<span class="meta">{pm.position} · {pm.team}</span></div>')
+                    f'<div class="{klass}"><span class="pk">{pk}</span>'
+                    f'<div class="c-name"><span>{first}</span>'
+                    f'<span>{last or "&nbsp;"}</span></div>{img}'
+                    f'<span class="c-meta">{pm.position}-{pm.team}{tag}</span></div>')
+            elif is_now:
+                # on-the-clock card — solid blue with a prominent pick number
+                cells.append(f'<div class="{klass} onclk"><span class="oc-arrow">‹</span>'
+                             f'<span class="oc-pk">{pk}</span></div>')
             else:
-                cells.append(f'<div class="{klass} empty"><span class="pk">{r}.{c:02d}</span>'
-                             f'<span class="nm">—</span></div>')
-    grid = (f'<div class="dr-grid" style="grid-template-columns:34px repeat({n},{cw});">'
+                cells.append(f'<div class="{klass} empty"><span class="pk">{pk}</span></div>')
+    grid = (f'<div class="dr-grid" style="grid-template-columns:42px repeat({n},{cw});">'
             + "".join(cells) + "</div>")
     return '<div class="neonwrap dr-board-scroll">' + grid + "</div>"
 
