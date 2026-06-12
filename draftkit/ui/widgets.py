@@ -231,18 +231,20 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
                 emit_row(r)
 
 
-def _position_tiers(rows, pos_tier_map, *, max_per_tier=6):
-    """Renumber tiers for a single-position view so the list starts at Tier 1 and
-    bumps at real (ADP-gap) tier breaks — instead of inheriting the overall board's
-    tier numbers (which skip around, e.g. Tier 1, Tier 3, Tier 6 for one position).
+def _position_tiers(rows, *, max_per_tier=10):
+    """Renumber the active ranking source's OWN tiers for a single-position view so
+    the list starts at Tier 1 and bumps at the source's real tier breaks — i.e. UDK's
+    published tiers (each row carries `tier` from the parsed board), not a synthetic
+    ADP-gap scheme. Renumbering makes the first player in the position Tier 1 and
+    each subsequent source-tier jump a new tier (UDK's overall Tier 1,3,6 for a
+    position become 1,2,3).
 
-    Also caps each displayed tier at `max_per_tier`: the source tiers are ADP-gap
-    based, so a long gap-free mid-round stretch (e.g. WR21–WR55) collapses into one
-    giant tier that's useless for drafting. When that happens we split the flat run
-    into readable sub-tiers so the position view always shows meaningful bands."""
+    `rows` must already be in rank order. A pathologically long single-tier run (can
+    happen mid-draft once a position is depleted to one UDK tier) is still capped at
+    `max_per_tier` so it splits into readable sub-tiers."""
     out, disp, prev, n_in_tier = [], 0, None, 0
     for r in rows:
-        src = pos_tier_map.get(str(r["pid"]))
+        src = r.get("tier")                      # the source's own (UDK) tier
         cliff = src is not None and prev is not None and src > prev
         if disp == 0:
             disp, n_in_tier = 1, 0
@@ -308,8 +310,9 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
     if by_value:
         avail = sorted(avail, key=lambda r: ctx["value"].vorp_of(r["pid"]), reverse=True)
     elif pos_f != "All":
-        # filtering to one position → show that position's own tiers (T1, T2, …)
-        avail = _position_tiers(avail, ctx.get("pos_tier", {}))
+        # filtering to one position → renumber the source's (UDK) tiers so they
+        # start at Tier 1 for this position (T1, T2, …)
+        avail = _position_tiers(avail)
     strike = taken if show_drafted else None
 
     # the list scrolls inside its own box, so paging through it doesn't move the page
