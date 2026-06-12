@@ -450,6 +450,10 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 [class*="_qdraft_"] .stButton button:hover{ filter:brightness(1.06); transform:translateY(-1px);
   box-shadow:0 3px 9px rgba(27,133,74,.42); }
 [class*="_qdraft_"] .stButton button:active{ transform:translateY(0); }
+/* force white label — Streamlit's inner <p> can carry its own (dark) text colour
+   that wins over the button's `color`, so set it explicitly on the descendants */
+[class*="_qdraft_"] .stButton button,
+[class*="_qdraft_"] .stButton button *{ color:#fff !important; }
 [class*="_qdraft_"] .stButton button *{ justify-content:center !important; }
 
 /* drafted players left in the queue: struck through + dimmed */
@@ -823,6 +827,17 @@ DARK = """
 /* keeper/empty board tints that read on dark */
 .dr-cell.empty .pk{ color:var(--mut2) !important; }
 [data-testid="stToggle"]{ color:var(--ink) !important; }
+/* spotlight inner surfaces: the stat cells + chips used hardcoded light
+   backgrounds (#f7f9fb / #f1f5f9) — invisible under dark text overrides. Re-tint
+   them so GAMES / RUSH YDS / Snap% etc. stay readable in war-room mode. */
+.pc-stat{ background:var(--panel2) !important; border-color:var(--line) !important; }
+.pc-v{ color:var(--ink) !important; } .pc-k{ color:var(--mut2) !important; }
+.pc-ochip{ background:var(--panel2) !important; border-color:var(--line) !important;
+  color:var(--muted) !important; } .pc-ochip b{ color:var(--ink) !important; }
+.pc-marg{ background:#2a2247 !important; color:#c8b3f5 !important; }
+.pc-syn{ background:#241d3a !important; color:#c8b3f5 !important; }
+.pc-fc{ color:var(--muted) !important; } .pc-fc b{ color:var(--ink) !important; }
+.pc-img{ background:var(--panel2) !important; border-color:var(--line) !important; }
 </style>
 """
 

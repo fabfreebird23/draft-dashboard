@@ -333,12 +333,16 @@ def main():
                         f'<span class="tb-name">{meta.name}</span>{pill_html}</div>',
                         unsafe_allow_html=True)
         with head[1], st.container(key="tb_war"):
-            # a plain button is a far bigger / more reliable click target than a toggle
-            if st.button("☀ Light mode" if dark_on else "🌙 War room", key="dark_btn",
-                         use_container_width=True,
-                         help="Toggle the dark 'war-room' theme for live drafting."):
-                st.session_state["dark_mode"] = not dark_on
-                st.rerun()
+            # a plain button is a far bigger / more reliable click target than a toggle.
+            # Toggle via on_click callback (NOT an inline st.rerun): the button sits in
+            # the topbar, above the nav radio, so an inline st.rerun() would abort the
+            # script before the nav renders and Streamlit would drop its state, kicking
+            # you back to 'My Rankings'. The callback flips state pre-rerun instead.
+            def _toggle_dark():
+                st.session_state["dark_mode"] = not st.session_state.get("dark_mode", False)
+            st.button("☀ Light mode" if dark_on else "🌙 War room", key="dark_btn",
+                      use_container_width=True, on_click=_toggle_dark,
+                      help="Toggle the dark 'war-room' theme for live drafting.")
         with head[2]:
             if st.button("Switch league", use_container_width=True):
                 del st.session_state.league
