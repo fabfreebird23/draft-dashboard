@@ -7,6 +7,7 @@ always takes a QB early, or hammers RB) instead of strictly by ADP.
 """
 from __future__ import annotations
 
+import random
 from collections import Counter, defaultdict
 from typing import Dict, List, Optional
 
@@ -80,10 +81,14 @@ def tendency_score(owner_id: str, rnd: int, position: str,
 
 
 def pick_for_owner(owner_id: str, rnd: int, available: list, tendencies: dict,
-                   registry, top_k: int = 12) -> Optional[dict]:
+                   registry, top_k: int = 12, jitter: float = 0.0) -> Optional[dict]:
     """Choose a player for an AI owner: blend ADP value with the owner's
     positional tendency for this round. `available` is ADP-ordered
-    [{pid, name, pos, adp}, ...]. Returns the chosen item (or None)."""
+    [{pid, name, pos, adp}, ...]. Returns the chosen item (or None).
+
+    `jitter` adds per-candidate random noise so the same board doesn't produce
+    the same draft twice — pass a small value (~0.15) for live mock picks to make
+    every mock different, and leave it 0 for the predictor (stable predictions)."""
     if not available:
         return None
     pool = available[:top_k]
@@ -94,13 +99,18 @@ def pick_for_owner(owner_id: str, rnd: int, available: list, tendencies: dict,
         tend = tendency_score(owner_id, rnd, p["pos"], tendencies)
         # Blend: ADP dominates, tendency tilts among close-by players.
         score = 0.62 * adp_val + 0.38 * tend
-        # Keeper-league rookie lean: managers reach a bit for rookies (cheap future
+        # Keeper-league rookie lean: managers reach for rookies (cheap future
         # keepers), so opponents and the predictor favour them among close picks.
         try:
             if registry.meta(p["pid"]).years_exp == 0:
-                score += 0.18
+                score += 0.30
         except Exception:  # noqa: BLE001
             pass
+        # mock-draft variance: noise large enough to swap close-by players (so
+        # every mock differs) but small relative to real ADP cliffs (so elites
+        # still go early). The compounding board state amplifies it round to round.
+        if jitter:
+            score += random.uniform(0.0, jitter)
         if score > best_score:
             best, best_score = p, score
     return best

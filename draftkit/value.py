@@ -18,8 +18,8 @@ _POSITIONS = ("QB", "RB", "WR", "TE")
 # fraction PLUS a flat keeper-value floor (rookies project low in year one but
 # carry real long-term keeper upside, so even near-startable rookies should rise).
 # Tune here to dial the rookie lean up or down across the whole app.
-ROOKIE_PREMIUM = 0.40
-ROOKIE_FLOOR = 8.0
+ROOKIE_PREMIUM = 0.65
+ROOKIE_FLOOR = 16.0
 
 
 def is_rookie(registry, pid) -> bool:

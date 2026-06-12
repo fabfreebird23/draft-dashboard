@@ -14,6 +14,7 @@ from .widgets import (predict_upcoming, predictor_widget, queue_manager,
                       steals_traps_widget, suggestions_tab)
 
 _PICK_DELAY = 0.7  # seconds between AI picks in live-pace mode
+_AI_JITTER = 0.15  # per-pick randomness so every mock draft plays out differently
 
 
 def render(ctx) -> None:
@@ -106,7 +107,8 @@ def render(ctx) -> None:
         rnd = (ov - 1) // n + 1
         tk = taken_pids()
         pool = [p for p in adp_pool if p["pid"] not in tk]
-        choice = draft_history.pick_for_owner(owner_by_slot.get(owner(ov)), rnd, pool, tendencies, reg)
+        choice = draft_history.pick_for_owner(owner_by_slot.get(owner(ov)), rnd, pool,
+                                              tendencies, reg, jitter=_AI_JITTER)
         if choice:
             made[ov] = choice["pid"]
             return True
