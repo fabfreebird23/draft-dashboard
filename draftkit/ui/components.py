@@ -266,7 +266,7 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
     `owner_fn(overall)` -> slot of the pick's real owner (handles traded picks); when
     given, your cells are highlighted by ownership rather than by column."""
     kept_overalls = kept_overalls or set()
-    cw = "minmax(124px,1fr)"
+    cw = "minmax(0,1fr)"          # fill the container so the whole board fits
     head = ['<div class="dr-colhead rd">RD</div>']
     for c, s in enumerate(slot_names):
         me = " me" if c == my_slot else ""
@@ -308,7 +308,7 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
                              f'<span class="oc-pk">{pk}</span></div>')
             else:
                 cells.append(f'<div class="{klass} empty"><span class="pk">{pk}</span></div>')
-    grid = (f'<div class="dr-grid" style="grid-template-columns:42px repeat({n},{cw});">'
+    grid = (f'<div class="dr-grid" style="grid-template-columns:30px repeat({n},{cw});">'
             + "".join(cells) + "</div>")
     return '<div class="neonwrap dr-board-scroll">' + grid + "</div>"
 
@@ -613,10 +613,13 @@ def draft_grade_html(grade_info, my_pids, roster_slots, registry) -> str:
 
 
 def picks_feed_html(board, pick_no, n, rounds, slot_names, my_slot, owner_fn,
-                    need_map, registry, kept_overalls=None, *, lookback=2, lookahead=14) -> str:
+                    need_map, registry, kept_overalls=None, *, predictions=None,
+                    lookback=2, lookahead=14) -> str:
     """A live 'Picks' rail (FantasyPros-style): a vertical window of picks around the
     clock — recent selections with the player, your upcoming pick highlighted, and
-    each opponent's open team needs — plus a 'next turn in N picks' header."""
+    each opponent's open team needs *plus the predicted pick* (``predictions`` maps
+    overall→pid) folded right into the feed — under a 'next turn in N picks' header."""
+    predictions = predictions or {}
     total = n * rounds
     kept_overalls = kept_overalls or set()
     lo, hi = max(1, pick_no - lookback), min(total, pick_no + lookahead)
@@ -659,9 +662,20 @@ def picks_feed_html(board, pick_no, n, rounds, slot_names, my_slot, owner_fn,
             label = "Your Team" if is_me else mgr[:15]
             need_html = (f'<span class="pf-needl">needs</span>{pills}' if pills
                          else '<span class="pf-needl set">set</span>')
+            # the predicted pick, folded right into the feed
+            pred = predictions.get(ov) if not is_me else None
+            pred_html = ""
+            if pred:
+                ppm = registry.meta(pred)
+                pred_html = (
+                    f'<div class="pf-player pf-pred">{theme.img_tag(pred, "pf-img")}'
+                    f'<span class="pf-nm">{short_name(ppm.name)}</span>'
+                    f'<span class="pf-meta"><span class="pf-pos pos-{ppm.position}">'
+                    f'{ppm.position}</span>{ppm.team}</span>'
+                    f'<span class="pf-likely">likely</span></div>')
             rows.append(
                 f'<div class="{cls}"><div class="pf-l"><span class="pf-pk">{pklbl}</span>'
-                f'<span class="pf-mgr">{label}</span></div>'
+                f'<span class="pf-mgr">{label}</span></div>{pred_html}'
                 f'<div class="pf-needs">{need_html}</div></div>')
     return f'<div class="dr-picks"><div class="pf-head">{head}</div>' + "".join(rows) + "</div>"
 

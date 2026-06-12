@@ -292,16 +292,18 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
         avail = _position_tiers(avail, ctx.get("pos_tier", {}))
     strike = taken if show_drafted else None
 
-    if is_my_turn and on_click is not None:
-        clickable_board(ctx, avail, on_click, key_prefix, current_pick=pick_no,
-                        view="List", next_pick=next_pick, show_bands=not by_value,
-                        on_star=on_star, queued=queued, taken=strike,
-                        quick_draft=quick_draft)
-    else:
-        st.markdown(C.avail_html(avail, taken, reg, ctx["adp_rank"],
-                                 pos_rank=ctx["pos_rank"], current_pick=pick_no,
-                                 next_pick=next_pick, strike_taken=bool(strike)),
-                    unsafe_allow_html=True)
+    # the list scrolls inside its own box, so paging through it doesn't move the page
+    with st.container(key=f"{key_prefix}_ranklist"):
+        if is_my_turn and on_click is not None:
+            clickable_board(ctx, avail, on_click, key_prefix, current_pick=pick_no,
+                            view="List", next_pick=next_pick, show_bands=not by_value,
+                            on_star=on_star, queued=queued, taken=strike,
+                            quick_draft=quick_draft)
+        else:
+            st.markdown(C.avail_html(avail, taken, reg, ctx["adp_rank"],
+                                     pos_rank=ctx["pos_rank"], current_pick=pick_no,
+                                     next_pick=next_pick, strike_taken=bool(strike)),
+                        unsafe_allow_html=True)
     return ranks
 
 

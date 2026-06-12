@@ -216,11 +216,14 @@ def render(ctx) -> None:
                         draft_fn=(draft if manual else None),
                         upcoming_slots=upcoming_slots, need_map=need_map, round_no=round_no)
 
-    # ---- RIGHT: live Picks feed + draft intel ----
+    # ---- RIGHT: live Picks feed (with predicted picks folded in) + draft intel ----
+    preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall)
+    pred_map = {ov: pid for ov, _s, pid in preds}
     with right, st.container(key="dr_panel_intel"):
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
         st.markdown(C.picks_feed_html(pick_pids, pick_no, n, rounds, slot_names, my_slot, owner,
-                                      need_map, reg, kept_overalls=kept_at), unsafe_allow_html=True)
+                                      need_map, reg, kept_overalls=kept_at,
+                                      predictions=pred_map), unsafe_allow_html=True)
         st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), drafted, reg,
                                      profiles=ctx.get("profiles"),
                                      owner_by_slot=ctx["owner_by_slot"], round_no=round_no),
@@ -230,8 +233,6 @@ def render(ctx) -> None:
             plan = V.draft_plan(my_pids, ctx["roster_slots"], min(4, len(my_left)),
                                 board_avail, ctx["value"], reg, taken=drafted)
             st.markdown(C.draft_plan_html(plan), unsafe_allow_html=True)
-        preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall)
-        predictor_widget(preds, slot_names, reg, n, f"{akey}_pw", _inspect)
         if ctx.get("value"):
             steals, traps = V.steals_and_traps(board_avail, ctx["value"], reg, ctx["adp_rank"],
                                                pool_size=n * rounds)

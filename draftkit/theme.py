@@ -325,6 +325,10 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .sc-target b{ color:var(--blue); }
 .sc-thin,.sc-empty{ font-size:11px; color:var(--mut2); font-style:italic; }
 
+/* ---- rankings list scrolls inside its own box (page stays put) ---- */
+[class*="_ranklist"]{ max-height:640px; overflow-y:auto; overflow-x:hidden;
+  padding-right:4px; margin-top:2px; }
+
 /* ---- live 'Picks' rail (FantasyPros-style) ---- */
 .dr-picks{ display:flex; flex-direction:column; gap:5px; max-height:660px; overflow:auto;
   padding-right:3px; }
@@ -356,6 +360,8 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .pf-need.pos-QB{ background:var(--qb);} .pf-need.pos-RB{ background:var(--rb);}
 .pf-need.pos-WR{ background:var(--wr);} .pf-need.pos-TE{ background:var(--te);}
 .pf-yours{ font-size:14px; font-weight:900; color:#fff; margin-top:2px; }
+.pf-pred .pf-likely{ font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:.4px;
+  color:var(--mut2); border:1px solid var(--line); border-radius:8px; padding:0 5px; margin-left:auto; }
 
 /* ---- 'beat the room' read in the spotlight ---- */
 .dr-room{ font-size:11.5px; border-radius:7px; padding:6px 10px; margin:8px 0 2px;
@@ -534,35 +540,35 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .q-row .qp{ font-size:10px; color:var(--mut2); }
 
 /* ---- draft board grid ---- */
-.dr-grid{ display:grid; gap:3px; min-width:max-content; }
-/* big color-coded player cards (FantasyPros-style) */
-.dr-cell{ position:relative; min-height:70px; padding:8px 10px; border-radius:10px;
+.dr-grid{ display:grid; gap:2px; min-width:0; width:100%; }
+/* compact color-coded player cards — sized to fit the whole board in the column */
+.dr-cell{ position:relative; min-height:50px; padding:4px 6px 16px; border-radius:7px;
   background:#fff; border:1px solid rgba(0,0,0,.05); overflow:hidden; }
-.dr-cell .pk{ position:absolute; top:7px; right:10px; font-size:11px; font-weight:800;
-  color:#27384c; opacity:.72; }
-.dr-cell .c-name{ display:flex; flex-direction:column; line-height:1.04; max-width:72%; }
-.dr-cell .c-name span{ font-weight:800; font-size:14px; color:#15212e; white-space:nowrap;
+.dr-cell .pk{ position:absolute; top:3px; right:5px; font-size:8.5px; font-weight:800;
+  color:#27384c; opacity:.7; }
+.dr-cell .c-name{ display:flex; flex-direction:column; line-height:1.02; max-width:100%;
+  padding-right:14px; }
+.dr-cell .c-name span{ font-weight:800; font-size:11px; color:#15212e; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis; }
-.dr-cell .c-img{ position:absolute; right:8px; bottom:7px; width:44px; height:44px;
-  border-radius:9px; object-fit:cover; object-position:top center; background:rgba(0,0,0,.06); }
-.dr-cell .c-meta{ position:absolute; left:10px; bottom:8px; font-size:10.5px; font-weight:800;
-  letter-spacing:.4px; color:#33465b; text-transform:uppercase; }
+.dr-cell .c-img{ display:none; }
+.dr-cell .c-meta{ position:absolute; left:6px; bottom:3px; font-size:8.5px; font-weight:800;
+  letter-spacing:.2px; color:#33465b; text-transform:uppercase; white-space:nowrap; }
 /* position tints — RB blue, WR green, TE pink, QB purple, K/DST grey */
 .dr-cell.pos-RB{ background:#c6e6f8; } .dr-cell.pos-WR{ background:#c8edcc; }
 .dr-cell.pos-TE{ background:#f8ccd6; } .dr-cell.pos-QB{ background:#ddd2f3; }
 .dr-cell.pos-K{ background:#e2e6ec; } .dr-cell.pos-DST,.dr-cell.pos-D{ background:#e2e6ec; }
-.dr-cell.me{ outline:3px solid var(--blue); outline-offset:-3px; }
-.dr-cell .c-meta .ktag{ font-weight:900; font-size:9px; color:#fff; background:var(--amber);
-  border-radius:3px; padding:0 4px; margin-left:2px; }
-.dr-cell .c-meta .rtag{ font-weight:900; font-size:9px; color:#fff; background:#7c3aed;
-  border-radius:3px; padding:0 4px; margin-left:2px; }
+.dr-cell.me{ outline:2px solid var(--blue); outline-offset:-2px; }
+.dr-cell .c-meta .ktag{ font-weight:900; font-size:8px; color:#fff; background:var(--amber);
+  border-radius:3px; padding:0 3px; margin-left:2px; }
+.dr-cell .c-meta .rtag{ font-weight:900; font-size:8px; color:#fff; background:#7c3aed;
+  border-radius:3px; padding:0 3px; margin-left:2px; }
 .dr-cell.empty{ background:var(--panel2); border-color:var(--line2);
-  display:flex; align-items:flex-start; min-height:70px; }
+  display:flex; align-items:flex-start; min-height:50px; padding:4px 6px; }
 .dr-cell.empty .pk{ position:static; opacity:.5; font-weight:700; }
 .dr-cell.onclk{ background:var(--blue); display:flex; align-items:center; justify-content:center;
-  gap:7px; border:none; box-shadow:0 3px 12px rgba(31,78,155,.3); }
-.dr-cell.onclk .oc-pk{ font-size:21px; font-weight:900; color:#fff; }
-.dr-cell.onclk .oc-arrow{ font-size:22px; font-weight:900; color:#bcd2f7; }
+  gap:4px; border:none; box-shadow:0 2px 8px rgba(31,78,155,.3); min-height:50px; padding:4px; }
+.dr-cell.onclk .oc-pk{ font-size:14px; font-weight:900; color:#fff; }
+.dr-cell.onclk .oc-arrow{ font-size:14px; font-weight:900; color:#bcd2f7; }
 .dr-colhead{ font-weight:800; font-size:10px; text-align:center; color:var(--muted);
   text-transform:uppercase; padding:5px 3px; background:var(--line2); border-radius:6px 6px 0 0;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
