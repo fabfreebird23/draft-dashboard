@@ -265,6 +265,27 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .pc-fc{ color:var(--muted); font-weight:600; } .pc-fc b{ color:var(--ink); }
 .pc-boom{ font-weight:800; color:#1c7a44; background:#eaf7ef; padding:1px 7px; border-radius:5px; }
 .pc-bust{ font-weight:800; color:#b3261e; background:#fdecec; padding:1px 7px; border-radius:5px; }
+/* ---- compact spotlight: a horizontal banner that sits ABOVE the board/list ---- */
+.pcard.compact{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px;
+  padding:8px 13px; margin:0 0 9px; }
+.pcard.compact .pc-head{ flex:0 0 auto; gap:9px; }
+.pcard.compact .pc-img{ width:42px; height:42px; border-width:1.5px; }
+.pcard.compact .pc-name{ font-size:15px; }
+.pcard.compact .pc-pos{ margin-top:0; }
+.pcard.compact .pc-flag{ margin-top:2px; }
+.pcard.compact .pc-value{ margin-top:0; }
+.pcard.compact .pc-meta{ margin-top:0; font-size:11.5px; }
+.pcard.compact .pc-surv{ margin-top:0; font-size:11.5px; }
+.pcard.compact .pc-syns{ margin-top:0; }
+.pcard.compact .pc-bio{ display:none; }               /* drop verbose bio when compact */
+.pcard.compact .pc-pts{ margin-top:0; flex-basis:100%; }
+.pcard.compact .pc-grid{ flex-basis:100%; grid-template-columns:none;
+  grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); margin-top:5px; }
+.pcard.compact .pc-stat{ padding:4px 3px; }
+.pcard.compact .pc-v{ font-size:13px; }
+.pcard.compact .pc-opp,.pcard.compact .pc-bb{ flex-basis:100%; margin-top:5px; }
+.pcard.compact .pc-nostat{ margin-top:0; }
+.pcard.compact .pc-verdict{ margin-left:0; }
 
 /* ---- steals & traps ---- */
 .st-wrap{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }

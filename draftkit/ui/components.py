@@ -619,7 +619,13 @@ def strategy_html(suggestions, board_avail) -> str:
     synthesised from the top pick's scarcity, survival, tier cliff and roster fit."""
     if not suggestions:
         return ""
-    top = suggestions[0]
+    # Headline the top suggestion that actually fills a starting/flex need — a
+    # high-VORP backup at a position you've already locked (e.g. a 2nd elite TE)
+    # should NOT drive a "grab now" call. mult >= 0.6 ≈ unfilled starter or RB/WR
+    # flex; below that it's bench depth at a filled spot.
+    need_top = next((s for s in suggestions if s.get("mult", 1.0) >= 0.6), None)
+    starters_set = need_top is None
+    top = need_top or suggestions[0]
     pm = top["pm"]
     pos = pm.position
     name = top["row"].get("name", pm.name)
@@ -629,8 +635,12 @@ def strategy_html(suggestions, board_avail) -> str:
         tt = board_avail[0].get("tier")
         if tt is not None:
             cliff = sum(1 for r in board_avail if r.get("tier") == tt)
-    if sv is not None and sv <= 30:
-        msg = f"Grab <b>{name}</b> now — only ~{sv}% chance he's there at your next pick."
+    if starters_set:
+        msg = (f"Your starters are set — <b>{name}</b> ({pos}) is the best value left, but "
+               "it's bench depth. Draft for upside, handcuffs, or a position run.")
+    elif sv is not None and sv <= 30:
+        msg = (f"Grab <b>{name}</b> ({pos}) now — only ~{sv}% chance he lasts until you "
+               "pick again.")
     elif left is not None and left <= 3:
         msg = f"Prioritize <b>{pos}</b> — just {left} startable left at the position."
     elif cliff is not None and cliff <= 2:

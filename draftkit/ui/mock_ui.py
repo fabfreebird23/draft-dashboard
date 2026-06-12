@@ -223,8 +223,19 @@ def render(ctx) -> None:
         if rec_row is None:
             rec_row = board_avail[0]
 
-    # ---- CENTER: Suggestions (focal) · Board, with the Player Spotlight below ----
+    # ---- CENTER: compact Player Spotlight on TOP, then Suggestions (focal) · Board ----
     with center, st.container(key="dr_panel_boardc"):
+        if rec_row:
+            rpm = reg.meta(rec_row["pid"])
+            cue = "click any player to inspect" if can_draft else "your top target"
+            st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({rpm.position} · {rpm.team}) '
+                        f'— <span class="why">{rec_tag}</span> · <i>{cue}</i></div>',
+                        unsafe_allow_html=True)
+        spotlight_panel(ctx, board_avail, reg, f"{mkey}_sp",
+                        default_pid=(rec_row["pid"] if rec_row else None),
+                        next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=taken,
+                        draft_fn=(draft if can_draft else None),
+                        upcoming_slots=upcoming_slots, need_map=need_map, round_no=round_no)
         ctabs = st.tabs(["Suggestions", "Board"])
         with ctabs[0]:
             suggestions_tab(ctx, key_prefix=mkey, ranks=ranks_active, taken=taken,
@@ -242,17 +253,6 @@ def render(ctx) -> None:
             st.markdown(C.grid_html(board, n, slot_names, my_slot, on_clock or 0, rounds, reg,
                                     kept_overalls=set(kept_by_overall), owner_fn=owner),
                         unsafe_allow_html=True)
-        if rec_row:
-            rpm = reg.meta(rec_row["pid"])
-            cue = "click any player to inspect" if can_draft else "your top target"
-            st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({rpm.position} · {rpm.team}) '
-                        f'— <span class="why">{rec_tag}</span> · <i>{cue}</i></div>',
-                        unsafe_allow_html=True)
-        spotlight_panel(ctx, board_avail, reg, f"{mkey}_sp",
-                        default_pid=(rec_row["pid"] if rec_row else None),
-                        next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=taken,
-                        draft_fn=(draft if can_draft else None),
-                        upcoming_slots=upcoming_slots, need_map=need_map, round_no=round_no)
 
     # ---- RIGHT: live Picks feed (with predicted picks folded in) + draft intel ----
     preds = predict_upcoming(ctx, taken, pick_no, my_slot, kept_by_overall)

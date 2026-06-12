@@ -205,16 +205,6 @@ def render(ctx) -> None:
 
     # ---- CENTER: Suggestions (focal) · Board, with the Player Spotlight below ----
     with center, st.container(key="dr_panel_boardc"):
-        ctabs = st.tabs(["Suggestions", "Board"])
-        with ctabs[0]:
-            suggestions_tab(ctx, key_prefix=akey, ranks=ranks_active, taken=drafted,
-                            my_pids=my_pids, needs=needs, next_pick=next_user_pick,
-                            pick_no=pick_no, on_click=_inspect, on_star=toggle_queue,
-                            quick_draft=(draft if manual else None), queued=queued)
-        with ctabs[1]:
-            st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
-            st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
-                                    kept_overalls=kept_at, owner_fn=owner), unsafe_allow_html=True)
         if rec_row:
             tpm = reg.meta(rec_row["pid"])
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({tpm.position} · {tpm.team}) '
@@ -225,6 +215,16 @@ def render(ctx) -> None:
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=drafted,
                         draft_fn=(draft if manual else None),
                         upcoming_slots=upcoming_slots, need_map=need_map, round_no=round_no)
+        ctabs = st.tabs(["Suggestions", "Board"])
+        with ctabs[0]:
+            suggestions_tab(ctx, key_prefix=akey, ranks=ranks_active, taken=drafted,
+                            my_pids=my_pids, needs=needs, next_pick=next_user_pick,
+                            pick_no=pick_no, on_click=_inspect, on_star=toggle_queue,
+                            quick_draft=(draft if manual else None), queued=queued)
+        with ctabs[1]:
+            st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
+            st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
+                                    kept_overalls=kept_at, owner_fn=owner), unsafe_allow_html=True)
 
     # ---- RIGHT: live Picks feed (with predicted picks folded in) + draft intel ----
     preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall)

@@ -219,22 +219,30 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
                 emit_row(r)
 
 
-def _position_tiers(rows, pos_tier_map):
+def _position_tiers(rows, pos_tier_map, *, max_per_tier=6):
     """Renumber tiers for a single-position view so the list starts at Tier 1 and
     bumps at real (ADP-gap) tier breaks — instead of inheriting the overall board's
-    tier numbers (which skip around, e.g. Tier 1, Tier 3, Tier 6 for one position)."""
-    out, disp, prev = [], 0, None
+    tier numbers (which skip around, e.g. Tier 1, Tier 3, Tier 6 for one position).
+
+    Also caps each displayed tier at `max_per_tier`: the source tiers are ADP-gap
+    based, so a long gap-free mid-round stretch (e.g. WR21–WR55) collapses into one
+    giant tier that's useless for drafting. When that happens we split the flat run
+    into readable sub-tiers so the position view always shows meaningful bands."""
+    out, disp, prev, n_in_tier = [], 0, None, 0
     for r in rows:
         src = pos_tier_map.get(str(r["pid"]))
+        cliff = src is not None and prev is not None and src > prev
         if disp == 0:
-            disp = 1
-        elif src is not None and prev is not None and src > prev:
+            disp, n_in_tier = 1, 0
+        elif cliff or n_in_tier >= max_per_tier:
             disp += 1
+            n_in_tier = 0
         if src is not None:
             prev = src
         nr = dict(r)
         nr["tier"] = disp
         out.append(nr)
+        n_in_tier += 1
     return out
 
 
@@ -488,7 +496,7 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
     if st.session_state.get(sb_key) not in options:
         st.session_state[sb_key] = pid_to_label.get(str(want), options[0])
 
-    with st.expander("Player Spotlight", expanded=True):
+    with st.container(key=f"{widget_key}_box"):
         sel = st.selectbox("Inspect a player", options, key=sb_key,
                            label_visibility="collapsed")
         pid = label_to_pid[sel]
@@ -536,7 +544,7 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                 next_pick=next_pick, season=config.current_season() - 1,
                 scoring=ctx["meta"].scoring, prev_label=str(config.current_season() - 1),
                 vorp=vorp, proj=proj, verdict=verdict, synergy=synergy, drop_next=drop_next,
-                marg=marg, sos=sos, overall=overall),
+                marg=marg, sos=sos, overall=overall, compact=True),
             unsafe_allow_html=True)
         # 'Beat the room' read: who picks before you & whether they're chasing his pos
         if vm and upcoming_slots and ctx.get("profiles") and need_map is not None:

@@ -225,7 +225,7 @@ def _scoring_pts(s: dict, scoring: str) -> Optional[float]:
 def spotlight_html(pm, *, pos_rank="", adp=None, tier=None, byes=None, next_pick=None,
                    season: int, scoring: str = "ppr", prev_label: str = "",
                    vorp=None, proj=None, verdict=None, synergy=None, drop_next=None,
-                   marg=None, sos=None, overall=None) -> str:
+                   marg=None, sos=None, overall=None, compact=False) -> str:
     """Rich inspect card: headshot, identity, VORP value, grab/wait verdict, survival
     %, roster synergy, tier drop-off, playoff SoS, prior-season stats + opportunity
     usage + boom/bust profile, injury."""
@@ -340,7 +340,7 @@ def spotlight_html(pm, *, pos_rank="", adp=None, tier=None, byes=None, next_pick
         statblock = f'<div class="pc-nostat">No {prev_label} stats (rookie or DNP).</div>'
 
     return (
-        f'<div class="pcard">'
+        f'<div class="pcard{" compact" if compact else ""}">'
         f'  <div class="pc-head">{theme.img_tag(pm.sleeper_pid, "pc-img")}'
         f'    <div class="pc-id"><div class="pc-name">{pm.name}</div>'
         f'      <div class="pc-pos">{pm.position} · {pm.team or "FA"}</div>'
