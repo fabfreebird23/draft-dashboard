@@ -105,7 +105,15 @@ def pick_for_owner(owner_id: str, rnd: int, available: list, tendencies: dict,
     # drop positions this team has already filled to the cap (QB/TE), keeping the
     # ADP order; fall back to the raw pool only if everything is somehow capped.
     eligible = [p for p in available if rc.get(p["pos"], 0) < POS_CAPS.get(p["pos"], 99)]
-    pool = (eligible or available)[:top_k]
+    pool = list((eligible or available)[:top_k])
+    # Guarantee a required QB/TE is always *considered* once a team has none — a
+    # team that hoards RB/WR can push the last startable QB out of the top-k ADP
+    # pool, so the fill nudge below never sees a QB and the team ends with 0.
+    for need_pos in POS_CAPS:
+        if rc.get(need_pos, 0) == 0:
+            bestp = next((p for p in (eligible or available) if p["pos"] == need_pos), None)
+            if bestp is not None and bestp not in pool:
+                pool.append(bestp)
     best, best_score = None, -1.0
     for i, p in enumerate(pool):
         # ADP value: earlier in the pool = better (1.0 .. ~0)
@@ -115,9 +123,11 @@ def pick_for_owner(owner_id: str, rnd: int, available: list, tendencies: dict,
         score = 0.62 * adp_val + 0.38 * tend
         # Fill the one required QB/TE starter: if the team still has none, nudge
         # that position with urgency that grows through the draft, so every roster
-        # ends with 1-2 (never 0, never 3+) and auto-drafted teams look realistic.
+        # ends with 1-2 (never 0, never 3+). The cap (1.4) exceeds the best a non-
+        # nudged pick can score (~1.0 = ADP 1.0 + full tendency), so by the late
+        # rounds an empty QB/TE is effectively forced rather than merely favoured.
         if p["pos"] in POS_CAPS and rc.get(p["pos"], 0) == 0:
-            score += min(0.55, 0.045 * rnd)
+            score += min(1.4, 0.12 * rnd)
         # Keeper-league rookie lean: managers reach for rookies (cheap future
         # keepers), so opponents and the predictor favour them among close picks.
         try:
