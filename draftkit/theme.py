@@ -44,9 +44,9 @@ html,body{ font-size:13px; }
 [data-testid="stSidebar"]{ background:#fff; border-right:1px solid var(--line); }
 
 /* layout density (desktop) */
-.block-container{ padding:.7rem 1.6rem 2rem; max-width:100%; }
-[data-testid="stVerticalBlock"]{ gap:.45rem; }
-[data-testid="stHorizontalBlock"]{ gap:.8rem; }
+.block-container{ padding:.5rem .9rem 1.5rem; max-width:100%; }
+[data-testid="stVerticalBlock"]{ gap:.4rem; }
+[data-testid="stHorizontalBlock"]{ gap:.55rem; }
 [data-testid="stExpander"]{ border:none; }
 [data-testid="stCaptionContainer"]{ font-size:11px; color:var(--mut2); }
 
@@ -100,8 +100,8 @@ div[data-testid="stRadio"] label{ font-size:12px; }
   flex:none; }
 
 /* ---- panel cards: the three main columns read as distinct modules ---- */
-[class*="dr_panel_"]{ background:var(--panel); border:1px solid var(--line); border-radius:14px;
-  padding:13px 14px 11px; box-shadow:var(--shadow); }
+[class*="dr_panel_"]{ background:var(--panel); border:1px solid var(--line); border-radius:12px;
+  padding:11px 12px 9px; box-shadow:var(--shadow); }
 [class*="dr_panel_"] [data-testid="stExpander"]{ background:var(--panel2); border:1px solid var(--line);
   border-radius:10px; margin-top:8px; }
 [class*="dr_panel_"] [data-testid="stExpander"] summary{ font-size:11px; font-weight:800;
@@ -759,6 +759,21 @@ DARK = """
 [data-testid="stExpander"]{ background:var(--panel) !important; border-color:var(--line) !important; }
 [data-testid="stExpander"] summary{ color:var(--ink) !important; }
 .neon-tag{ color:var(--mut2) !important; }
+/* live Picks feed + intel cards */
+.dr-picks .pf-head{ background:var(--panel) !important; }
+.pf-card{ background:var(--panel) !important; border-color:var(--line) !important; }
+.pf-card.me{ background:#16263f !important; }
+.pf-card.yours{ background:var(--blue) !important; }
+.pf-img{ background:var(--panel2) !important; }
+.pf-pred.pf-warn{ background:#3a1d22 !important; }
+.dr-grade,.dr-plan{ background:var(--panel) !important; border-color:var(--line) !important; }
+.g-pc.g-ok{ background:#173a28 !important; } .g-pc.g-low{ background:#3a1d22 !important; }
+.dr-room.wait{ background:#16302a !important; border-color:#1c5a44 !important; color:#7fdcb4 !important; }
+.dr-room.lean{ background:#33280f !important; border-color:#6a5320 !important; color:#e7c172 !important; }
+.dr-room.grab{ background:#3a1d22 !important; border-color:#7a2e2e !important; color:#f0a3a3 !important; }
+/* keeper/empty board tints that read on dark */
+.dr-cell.empty .pk{ color:var(--mut2) !important; }
+[data-testid="stToggle"]{ color:var(--ink) !important; }
 </style>
 """
 
