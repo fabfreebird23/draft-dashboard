@@ -838,6 +838,27 @@ DARK = """
 .pc-syn{ background:#241d3a !important; color:#c8b3f5 !important; }
 .pc-fc{ color:var(--muted) !important; } .pc-fc b{ color:var(--ink) !important; }
 .pc-img{ background:var(--panel2) !important; border-color:var(--line) !important; }
+/* text-input wrapper (search): the <input> goes dark but its baseweb wrapper
+   stayed white, leaving a white frame around the field. */
+[data-baseweb="base-input"],[data-testid="stTextInputRootElement"]{
+  background:var(--panel) !important; border-color:var(--line) !important; }
+/* draft-recap card was a bare light surface */
+.recap{ background:var(--panel) !important; border-color:var(--line) !important; }
+.recap .rc-row,.recap td,.recap th{ border-color:var(--line2) !important; }
+/* intel alert chips (Tier cliff / position run / needs) */
+.alert{ background:var(--panel2) !important; border-color:var(--line) !important;
+  color:var(--ink) !important; }
+.alert.cliff{ background:#3a1d22 !important; border-color:#7a2e2e !important; color:#f0a3a3 !important; }
+.alert.run{ background:#33280f !important; border-color:#6a5320 !important; color:#e7c172 !important; }
+.alert.need{ background:#16263f !important; border-color:#2f5a8c !important; color:#9cc4f5 !important; }
+/* spotlight semantic chips: re-tint light pastels for dark */
+.pc-flag.ok,.pc-boom{ background:#173a28 !important; color:#7fdcb4 !important; }
+.pc-flag.ques{ background:#33280f !important; color:#e7c172 !important; }
+.pc-flag.out,.pc-bust{ background:#3a1d22 !important; color:#f0a3a3 !important; }
+.pc-verdict.grab{ background:#3a1d22 !important; color:#f0a3a3 !important; }
+.pc-verdict.lean{ background:#33280f !important; color:#e7c172 !important; }
+.pc-verdict.wait{ background:#16263f !important; color:#9cc4f5 !important; }
+.pc-verdict.ok{ background:var(--panel2) !important; color:var(--muted) !important; }
 </style>
 """
 
