@@ -612,6 +612,60 @@ def draft_grade_html(grade_info, my_pids, roster_slots, registry) -> str:
             f'<div class="g-pcs">{"".join(bits)}</div>{best_s}</div></div>')
 
 
+def picks_feed_html(board, pick_no, n, rounds, slot_names, my_slot, owner_fn,
+                    need_map, registry, kept_overalls=None, *, lookback=2, lookahead=14) -> str:
+    """A live 'Picks' rail (FantasyPros-style): a vertical window of picks around the
+    clock — recent selections with the player, your upcoming pick highlighted, and
+    each opponent's open team needs — plus a 'next turn in N picks' header."""
+    total = n * rounds
+    kept_overalls = kept_overalls or set()
+    lo, hi = max(1, pick_no - lookback), min(total, pick_no + lookahead)
+    nxt = next((k for k in range(pick_no, total + 1) if owner_fn(k) == my_slot), None)
+    until = (nxt - pick_no) if nxt is not None else None
+    head = (f'Next turn in <b>{until} pick{"" if until == 1 else "s"}</b>'
+            if until is not None else 'No more picks')
+
+    rows, last_rd = [], None
+    for ov in range(lo, hi + 1):
+        rd, inrd = (ov - 1) // n + 1, (ov - 1) % n + 1
+        if rd != last_rd:
+            rows.append(f'<div class="pf-rd">Rd {rd}</div>')
+            last_rd = rd
+        slot = owner_fn(ov)
+        mgr = slot_names[slot] if slot < len(slot_names) else f"Team {slot+1}"
+        is_me, is_cur = slot == my_slot, ov == pick_no
+        cls = "pf-card" + (" me" if is_me else "") + (" cur" if is_cur else "")
+        pklbl = f'{rd}.{inrd:02d}'
+        pid = board.get(ov)
+        if pid:
+            pm = registry.meta(pid)
+            kept = ' <span class="ktag">K</span>' if ov in kept_overalls else ''
+            rows.append(
+                f'<div class="{cls}"><div class="pf-l"><span class="pf-pk">{pklbl}</span>'
+                f'<span class="pf-mgr">{mgr[:15]}</span></div>'
+                f'<div class="pf-player">{theme.img_tag(pid, "pf-img")}'
+                f'<span class="pf-nm">{short_name(pm.name)}</span>'
+                f'<span class="pf-meta"><span class="pf-pos pos-{pm.position}">{pm.position}</span>'
+                f'{pm.team}{kept}</span></div></div>')
+        elif is_cur and is_me:
+            rows.append(
+                f'<div class="{cls} yours"><div class="pf-l"><span class="pf-pk">{pklbl}</span>'
+                f'<span class="pf-mgr">Your Team</span></div>'
+                f'<div class="pf-yours">⏳ Your Pick!</div></div>')
+        else:
+            needs = need_map.get(slot, set())
+            pills = "".join(f'<span class="pf-need pos-{p}">{p}</span>'
+                            for p in ("QB", "RB", "WR", "TE") if p in needs)
+            label = "Your Team" if is_me else mgr[:15]
+            need_html = (f'<span class="pf-needl">needs</span>{pills}' if pills
+                         else '<span class="pf-needl set">set</span>')
+            rows.append(
+                f'<div class="{cls}"><div class="pf-l"><span class="pf-pk">{pklbl}</span>'
+                f'<span class="pf-mgr">{label}</span></div>'
+                f'<div class="pf-needs">{need_html}</div></div>')
+    return f'<div class="dr-picks"><div class="pf-head">{head}</div>' + "".join(rows) + "</div>"
+
+
 def needs_by_slot(pids_by_slot, slot_names, roster_slots, registry):
     """{slot: set(open positions)} — drives the need-aware pick predictor."""
     demand = {}

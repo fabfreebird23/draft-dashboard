@@ -325,6 +325,38 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .sc-target b{ color:var(--blue); }
 .sc-thin,.sc-empty{ font-size:11px; color:var(--mut2); font-style:italic; }
 
+/* ---- live 'Picks' rail (FantasyPros-style) ---- */
+.dr-picks{ display:flex; flex-direction:column; gap:5px; max-height:660px; overflow:auto;
+  padding-right:3px; }
+.pf-head{ font-size:12px; font-weight:700; color:var(--ink); padding:3px 2px 6px;
+  position:sticky; top:0; background:var(--panel); z-index:2; }
+.pf-head b{ color:var(--blue); }
+.pf-rd{ font-size:9px; font-weight:800; letter-spacing:1px; text-transform:uppercase;
+  color:var(--mut2); text-align:center; margin:7px 0 0; }
+.pf-card{ background:#fff; border:1px solid var(--line); border-radius:9px; padding:6px 10px; }
+.pf-card.me{ border-color:var(--blue); background:#f4f8ff; }
+.pf-card.cur{ box-shadow:0 0 0 2px var(--blue); }
+.pf-card.yours{ background:var(--blue); border:none; box-shadow:0 3px 10px rgba(31,78,155,.3); }
+.pf-l{ display:flex; align-items:center; gap:7px; }
+.pf-pk{ font-size:10px; font-weight:800; color:var(--mut2); min-width:30px; }
+.pf-mgr{ font-size:11px; font-weight:700; color:var(--muted); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }
+.pf-player{ display:flex; align-items:center; gap:7px; margin-top:3px; }
+.pf-img{ width:26px; height:26px; border-radius:6px; object-fit:cover; background:var(--line2); }
+.pf-nm{ font-weight:800; font-size:12.5px; color:var(--ink); flex:1; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }
+.pf-meta{ font-size:10px; font-weight:700; color:var(--mut2); white-space:nowrap; }
+.pf-pos{ color:#fff; font-size:9px; font-weight:800; border-radius:3px; padding:0 4px; margin-right:3px; }
+.pf-pos.pos-QB{ background:var(--qb);} .pf-pos.pos-RB{ background:var(--rb);}
+.pf-pos.pos-WR{ background:var(--wr);} .pf-pos.pos-TE{ background:var(--te);}
+.pf-needs{ margin-top:4px; display:flex; align-items:center; gap:3px; flex-wrap:wrap; }
+.pf-needl{ font-size:10px; color:var(--mut2); margin-right:2px; }
+.pf-needl.set{ color:var(--green); font-weight:700; }
+.pf-need{ color:#fff; font-size:9px; font-weight:800; border-radius:9px; padding:1px 6px; }
+.pf-need.pos-QB{ background:var(--qb);} .pf-need.pos-RB{ background:var(--rb);}
+.pf-need.pos-WR{ background:var(--wr);} .pf-need.pos-TE{ background:var(--te);}
+.pf-yours{ font-size:14px; font-weight:900; color:#fff; margin-top:2px; }
+
 /* ---- 'beat the room' read in the spotlight ---- */
 .dr-room{ font-size:11.5px; border-radius:7px; padding:6px 10px; margin:8px 0 2px;
   border:1px solid var(--line); }

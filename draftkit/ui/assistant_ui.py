@@ -106,14 +106,10 @@ def render(ctx) -> None:
             until = k - pick_no
             break
 
-    # ----- status + board on TOP -----
+    # ----- slim status header (the full board lives in the center 'Board' tab) -----
     st.markdown(C.status_html(pick_no, n, slot_names[on_slot], on_slot == my_slot,
                               picks_until_me=until), unsafe_allow_html=True)
     real_picks = {ov: pid for ov, pid in pick_pids.items() if pid and ov not in kept_at}
-    st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
-    st.markdown('<div class="dr-h">Draft Board</div>', unsafe_allow_html=True)
-    st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
-                            kept_overalls=kept_at, owner_fn=owner), unsafe_allow_html=True)
 
     needs = C.open_needs(my_pids, ctx["roster_slots"], reg)
     recent_positions = [reg.meta(pid).position
@@ -146,20 +142,20 @@ def render(ctx) -> None:
         st.session_state[mankey] = made
         st.rerun()
 
-    left, right = st.columns([1.85, 1.15])
+    round_no = (pick_no - 1) // n + 1
+    need_map = C.needs_by_slot(pids_by_slot, slot_names, ctx["roster_slots"], reg)
+
+    left, center, right = st.columns([1.05, 1.9, 1.05])
+
+    # ---- LEFT: players · rosters · queue ----
     with left, st.container(key="dr_panel_board"):
-        tabs = st.tabs(["Rankings", "Suggestions", "Teams", "Queue"])
-        with tabs[0]:
+        ltabs = st.tabs(["Rankings", "Teams", "Queue"])
+        with ltabs[0]:
             ranks_active = rankings_tab(
                 ctx, key_prefix=akey, taken=drafted, queued=queued, is_my_turn=True,
                 pick_no=pick_no, next_pick=next_user_pick, on_click=_inspect,
                 on_star=toggle_queue, quick_draft=(draft if manual else None))
-        with tabs[1]:
-            suggestions_tab(ctx, key_prefix=akey, ranks=ranks_active, taken=drafted,
-                            my_pids=my_pids, needs=needs, next_pick=next_user_pick,
-                            pick_no=pick_no, on_click=_inspect, on_star=toggle_queue,
-                            quick_draft=(draft if manual else None), queued=queued)
-        with tabs[2]:
+        with ltabs[1]:
             st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
             st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
             st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
@@ -173,57 +169,70 @@ def render(ctx) -> None:
             st.markdown('<div class="dr-h">Opponent Scouting</div>', unsafe_allow_html=True)
             st.markdown(C.scouting_report_html(ctx.get("profiles", {}), slot_names,
                                                ctx["owner_by_slot"], my_slot,
-                                               on_clock_slot=on_slot,
-                                               round_no=(pick_no - 1) // n + 1),
+                                               on_clock_slot=on_slot, round_no=round_no),
                         unsafe_allow_html=True)
-        with tabs[3]:
+        with ltabs[2]:
             queue_manager(ctx, qkey, st.session_state.get(ctx["ranks_key"]) or ranks_active,
                           drafted, reg, f"{akey}_q", on_pick=_inspect)
 
     board_avail = [r for r in ranks_active
                    if r.get("pid") and str(r["pid"]) not in drafted]
-    need_map = C.needs_by_slot(pids_by_slot, slot_names, ctx["roster_slots"], reg)
     upcoming_slots = ([owner(k) for k in range(pick_no + 1, next_user_pick)]
                       if next_user_pick else [])
 
-    round_no = (pick_no - 1) // n + 1
-    with right, st.container(key="dr_panel_intel"):
-        st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
-        st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), drafted, reg,
-                                     profiles=ctx.get("profiles"),
-                                     owner_by_slot=ctx["owner_by_slot"], round_no=round_no),
-                    unsafe_allow_html=True)
-        if ctx.get("value") and board_avail:
-            from .. import value as V
-            my_left = [k for k in range(pick_no, n * rounds + 1) if owner(k) == my_slot]
-            plan = V.draft_plan(my_pids, ctx["roster_slots"], min(4, len(my_left)),
-                                board_avail, ctx["value"], reg, taken=drafted)
-            st.markdown(C.draft_plan_html(plan), unsafe_allow_html=True)
-        queue = [p for p in st.session_state.get(qkey, []) if str(p) not in drafted]
-        rec_row = next((r for r in board_avail if str(r["pid"]) == str(queue[0])), None) if queue else None
-        why = "from your queue"
-        if rec_row is None and board_avail:
-            from .. import value as V
-            rec_row, _, why = V.best_pick(
-                board_avail, ctx["value"], reg, needs, drafted, next_pick=next_user_pick,
-                survival_fn=lambda pid: C.survival_pct(
-                    ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_user_pick),
-                my_pids=my_pids, roster_slots=ctx["roster_slots"])
-            if rec_row is None:
-                rec_row = board_avail[0]
+    from .. import value as V
+    queue = [p for p in st.session_state.get(qkey, []) if str(p) not in drafted]
+    rec_row = next((r for r in board_avail if str(r["pid"]) == str(queue[0])), None) if queue else None
+    why = "from your queue"
+    if rec_row is None and board_avail:
+        rec_row, _, why = V.best_pick(
+            board_avail, ctx["value"], reg, needs, drafted, next_pick=next_user_pick,
+            survival_fn=lambda pid: C.survival_pct(
+                ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_user_pick),
+            my_pids=my_pids, roster_slots=ctx["roster_slots"])
+        if rec_row is None:
+            rec_row = board_avail[0]
+
+    # ---- CENTER: Suggestions (focal) · Board, with the Player Spotlight below ----
+    with center, st.container(key="dr_panel_boardc"):
+        ctabs = st.tabs(["Suggestions", "Board"])
+        with ctabs[0]:
+            suggestions_tab(ctx, key_prefix=akey, ranks=ranks_active, taken=drafted,
+                            my_pids=my_pids, needs=needs, next_pick=next_user_pick,
+                            pick_no=pick_no, on_click=_inspect, on_star=toggle_queue,
+                            quick_draft=(draft if manual else None), queued=queued)
+        with ctabs[1]:
+            st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
+            st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
+                                    kept_overalls=kept_at, owner_fn=owner), unsafe_allow_html=True)
         if rec_row:
             tpm = reg.meta(rec_row["pid"])
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({tpm.position} · {tpm.team}) '
-                        f'— <span class="why">{why}</span></div>', unsafe_allow_html=True)
-        preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall)
-        predictor_widget(preds, slot_names, reg, n, f"{akey}_pw", _inspect)
+                        f'— <span class="why">{why}</span> · <i>click any player to inspect</i></div>',
+                        unsafe_allow_html=True)
         spotlight_panel(ctx, board_avail, reg, f"{akey}_sp",
                         default_pid=(rec_row["pid"] if rec_row else None),
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=drafted,
                         draft_fn=(draft if manual else None),
                         upcoming_slots=upcoming_slots, need_map=need_map, round_no=round_no)
+
+    # ---- RIGHT: live Picks feed + draft intel ----
+    with right, st.container(key="dr_panel_intel"):
+        st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
+        st.markdown(C.picks_feed_html(pick_pids, pick_no, n, rounds, slot_names, my_slot, owner,
+                                      need_map, reg, kept_overalls=kept_at), unsafe_allow_html=True)
+        st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), drafted, reg,
+                                     profiles=ctx.get("profiles"),
+                                     owner_by_slot=ctx["owner_by_slot"], round_no=round_no),
+                    unsafe_allow_html=True)
+        if ctx.get("value") and board_avail:
+            my_left = [k for k in range(pick_no, n * rounds + 1) if owner(k) == my_slot]
+            plan = V.draft_plan(my_pids, ctx["roster_slots"], min(4, len(my_left)),
+                                board_avail, ctx["value"], reg, taken=drafted)
+            st.markdown(C.draft_plan_html(plan), unsafe_allow_html=True)
+        preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall)
+        predictor_widget(preds, slot_names, reg, n, f"{akey}_pw", _inspect)
         if ctx.get("value"):
-            from .. import value as V
             steals, traps = V.steals_and_traps(board_avail, ctx["value"], reg, ctx["adp_rank"],
                                                pool_size=n * rounds)
             with st.expander("Steals & Traps", expanded=False):
