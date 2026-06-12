@@ -534,28 +534,71 @@ def scouting_report_html(profiles, slot_names, owner_by_slot, my_slot, *,
     return '<div class="dr-scout">' + "".join(cards) + "</div>"
 
 
-def run_alert_html(upcoming_slots, need_map, value, taken, registry) -> str:
-    """Flag a likely positional run: when more of the managers picking before your
-    next turn need a position than there are startable players left at it."""
+def run_alert_html(upcoming_slots, need_map, value, taken, registry,
+                   profiles=None, owner_by_slot=None, round_no=None) -> str:
+    """Flag a likely positional run before your next turn — now scouting-aware: a
+    manager who *needs* a position AND whose archetype/history leans that way is a
+    much stronger run signal than need alone."""
     if not upcoming_slots or value is None:
         return ""
-    from collections import Counter
-    # count UNIQUE managers picking before you who still need each position — a
-    # manager who picks twice only takes ~one player at a given position
-    unique_slots = set(upcoming_slots)
-    tally = Counter()
-    for s in unique_slots:
-        for pos in need_map.get(s, ()):
-            tally[pos] += 1
+    from .. import value as V
     taken_s = {str(x) for x in (taken or [])}
-    n_mgrs = len(unique_slots)
     chips = []
-    for pos, dem in sorted(tally.items(), key=lambda x: -x[1]):
+    for pos in ("RB", "WR", "TE", "QB"):
+        if profiles is not None and owner_by_slot is not None:
+            needy, biased, n = V.position_pressure(pos, upcoming_slots, need_map,
+                                                   profiles, owner_by_slot, round_no=round_no)
+        else:
+            uniq = list(dict.fromkeys(upcoming_slots))
+            needy = sum(1 for s in uniq if pos in need_map.get(s, ()))
+            biased, n = 0, len(uniq)
         left = value.startable_left(pos, taken_s)
-        if dem >= 2 and dem >= left:
-            chips.append(f'<span class="alert run">{pos} run likely — {dem} of {n_mgrs} '
-                         f'managers before you need {pos}, {left} startable left</span>')
+        if needy >= 2 and needy >= left:
+            lean = f" ({biased} lean {pos})" if biased else ""
+            chips.append(f'<span class="alert run">{pos} run likely — {needy} of {n} '
+                         f'managers before you need {pos}{lean}, {left} startable left</span>')
     return ('<div class="dr-alerts">' + "".join(chips) + "</div>") if chips else ""
+
+
+def draft_plan_html(plan) -> str:
+    """Render the roster-construction path (next few picks → positions to target)."""
+    if not plan:
+        return ""
+    pos_c = {"QB": "var(--qb)", "RB": "var(--rb)", "WR": "var(--wr)", "TE": "var(--te)"}
+    steps = []
+    for i, step in enumerate(plan, 1):
+        col = pos_c.get(step["pos"], "var(--muted)")
+        arrow = '<span class="pl-arrow">→</span>' if i > 1 else ""
+        steps.append(f'{arrow}<span class="pl-step"><span class="pl-pos" '
+                     f'style="background:{col}1a;color:{col}">{step["pos"]}</span>'
+                     f'<span class="pl-nm">{short_name(step["name"])}</span></span>')
+    return ('<div class="dr-plan"><div class="pl-h">Your draft path</div>'
+            '<div class="pl-row">' + "".join(steps) + "</div></div>")
+
+
+def draft_grade_html(grade_info, my_pids, roster_slots, registry) -> str:
+    """Post-draft grade card: letter grade, starter value, and per-position
+    strengths/weaknesses vs your starting requirements."""
+    g = grade_info.get("grade", "—")
+    gcol = ("#1c8a4d" if g.startswith("A") else "#2f72c4" if g.startswith("B")
+            else "#e08a1e" if g.startswith("C") else "#d23b3b")
+    have = _pos_counts(my_pids, registry)
+    demand = {}
+    for s in (roster_slots or []):
+        if s in ("QB", "RB", "WR", "TE"):
+            demand[s] = demand.get(s, 0) + 1
+    bits = []
+    for p in ("QB", "RB", "WR", "TE"):
+        d = demand.get(p, 0)
+        cls = "g-ok" if have[p] >= d else "g-low"
+        bits.append(f'<span class="g-pc {cls}">{p} {have[p]}/{d}</span>')
+    best = grade_info.get("best_pick")
+    best_s = (f'<div class="g-best">Best value: <b>{registry.meta(best).name}</b></div>'
+              if best else "")
+    return (f'<div class="dr-grade"><div class="g-badge" style="background:{gcol}">{g}</div>'
+            f'<div class="g-body"><div class="g-top">Draft grade · '
+            f'{grade_info.get("starter_vorp", 0)} starter value over replacement</div>'
+            f'<div class="g-pcs">{"".join(bits)}</div>{best_s}</div></div>')
 
 
 def needs_by_slot(pids_by_slot, slot_names, roster_slots, registry):

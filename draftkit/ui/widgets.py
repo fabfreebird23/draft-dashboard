@@ -330,7 +330,7 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
         avail, ctx["value"], reg, needs, taken_s, next_pick=next_pick,
         survival_fn=lambda pid: C.survival_pct(
             ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_pick),
-        my_pids=my_pids, roster_slots=ctx["roster_slots"], k=7)
+        my_pids=my_pids, roster_slots=ctx["roster_slots"], byes=ctx.get("byes"), k=7)
     if not sugg:
         st.caption("— no players available —")
         return
@@ -356,6 +356,10 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
             reason = "  :gray[bench depth]"
         else:
             reason = "  :green[**value**]"
+        if s.get("stack"):
+            reason += "  :violet[**stack**]"
+        if s.get("bye_clash"):
+            reason += "  :red[bye clash]"
         label = player_label(ctx, r, pm) + f"  :blue[**FIT {s['fit']}**]" + reason
 
         rk = f"{key_prefix}_sg_brow_{pm.position}_{pid}"
@@ -448,7 +452,7 @@ def select_player(widget_key, pid):
 
 def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                     next_pick=None, draft_fn=None, my_pids=None, needs=None,
-                    taken=None) -> None:
+                    taken=None, upcoming_slots=None, need_map=None, round_no=None) -> None:
     """Player Spotlight (B): the focal detail card. Clicking a board square stages a
     player here (via `select_player`); a dropdown also lets you browse. Shows the
     headshot, VORP value + grab/wait verdict, roster synergy, survival %, tier
@@ -526,6 +530,14 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                 vorp=vorp, proj=proj, verdict=verdict, synergy=synergy, drop_next=drop_next,
                 marg=marg, sos=sos, overall=overall),
             unsafe_allow_html=True)
+        # 'Beat the room' read: who picks before you & whether they're chasing his pos
+        if upcoming_slots and ctx.get("profiles") and need_map is not None:
+            note = V.room_note(pm, upcoming_slots, need_map, ctx["profiles"],
+                               ctx["owner_by_slot"], vm, taken, round_no=round_no)
+            if note:
+                lbl, css, detail = note
+                st.markdown(f'<div class="dr-room {css}"><b>{lbl}</b> · {detail}</div>',
+                            unsafe_allow_html=True)
         if draft_fn is not None:
             if st.button(f"Draft {pm.name}", key=f"{widget_key}_spdraft", type="primary",
                          use_container_width=True):

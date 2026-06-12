@@ -325,6 +325,36 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .sc-target b{ color:var(--blue); }
 .sc-thin,.sc-empty{ font-size:11px; color:var(--mut2); font-style:italic; }
 
+/* ---- 'beat the room' read in the spotlight ---- */
+.dr-room{ font-size:11.5px; border-radius:7px; padding:6px 10px; margin:8px 0 2px;
+  border:1px solid var(--line); }
+.dr-room.grab{ background:#fdecec; border-color:#f3c4c4; color:#9a2820; }
+.dr-room.lean{ background:#fff6e8; border-color:#f3dcb0; color:#8a5a12; }
+.dr-room.wait{ background:#eef6f0; border-color:#cfe6d6; color:#1c6b3f; }
+
+/* ---- roster-construction path ---- */
+.dr-plan{ background:#fff; border:1px solid var(--line); border-radius:9px; padding:8px 11px;
+  margin-bottom:10px; box-shadow:var(--shadow); }
+.pl-h{ font-size:9.5px; font-weight:800; letter-spacing:.6px; text-transform:uppercase;
+  color:var(--mut2); margin-bottom:5px; }
+.pl-row{ display:flex; align-items:center; flex-wrap:wrap; gap:3px; }
+.pl-step{ display:inline-flex; align-items:center; gap:5px; }
+.pl-pos{ font-size:10px; font-weight:800; padding:2px 7px; border-radius:10px; }
+.pl-nm{ font-size:11px; font-weight:600; color:var(--ink); }
+.pl-arrow{ color:var(--mut2); font-weight:800; margin:0 2px; }
+
+/* ---- post-draft grade ---- */
+.dr-grade{ display:flex; align-items:center; gap:14px; background:#fff; border:1px solid var(--line);
+  border-radius:11px; padding:12px 16px; margin-bottom:12px; box-shadow:var(--shadow-lg); }
+.g-badge{ font-size:30px; font-weight:900; color:#fff; width:58px; height:58px; border-radius:12px;
+  display:flex; align-items:center; justify-content:center; flex:none; }
+.g-top{ font-weight:800; font-size:13px; color:var(--ink); margin-bottom:5px; }
+.g-pcs{ display:flex; gap:5px; flex-wrap:wrap; }
+.g-pc{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:7px; }
+.g-pc.g-ok{ background:#e6f6ec; color:#15663a; }
+.g-pc.g-low{ background:#fdecec; color:#9a2820; }
+.g-best{ font-size:11px; color:var(--muted); margin-top:5px; }
+
 /* ---- quick-draft button beside each best-available row (List view) ---- */
 [class*="_qdraft_"] .stButton{ margin:0; }
 [class*="_qdraft_"] .stButton button{ width:100%; min-height:42px; padding:0 4px;
@@ -637,5 +667,42 @@ def logo_html(size: int = 30, tag: str | None = "Mock + Live Draft") -> str:
     return f'<span class="neon-logo" style="font-size:{size}px;">Draft Room</span>{t}'
 
 
-def inject(st) -> None:
+DARK = """
+<style>
+:root{
+  --bg:#0d1320; --panel:#161e2e; --panel2:#1b2539; --line:#28334d; --line2:#202b42;
+  --ink:#e8edf5; --muted:#9bb4cf; --mut2:#73839c;
+  --shadow:0 1px 2px rgba(0,0,0,.45); --shadow-lg:0 8px 22px rgba(0,0,0,.55);
+}
+.stApp,[data-testid="stHeader"]{ background:var(--bg); }
+/* big light surfaces → dark panels */
+.dr-cell,.sc-card,.lb,.rs,.pcard,.dr-status,.dr-avail,.dr-predict,.dr-grid,
+.dr-lastpick,.dr-queue,[class*="dr_panel_"],[class*="dr_topbar"],.dr-plan,.dr-grade{
+  background:var(--panel) !important; border-color:var(--line) !important; }
+.dr-cell.empty,.dr-cell.now{ background:var(--panel2) !important; }
+.dr-colhead{ background:var(--panel2) !important; color:var(--muted) !important; }
+.dr-colhead.me{ background:var(--green) !important; color:#fff !important; }
+.dr-colhead.rd,.dr-rdlabel{ background:var(--blue) !important; color:#fff !important; }
+.tk-chip,.lb-pc{ background:var(--panel2) !important; }
+[class*="_brow_"] .stButton button,[class*="_qrow_"] .stButton button{
+  background:var(--panel) !important; color:var(--ink) !important; border-color:var(--line) !important; }
+.dr-status .now,.dr-cell.me{ background:#1d2c20 !important; }
+/* streamlit widgets */
+[data-baseweb="select"]>div,[data-testid="stTextInput"] input,
+[data-baseweb="popover"] [role="listbox"],[data-baseweb="menu"]{
+  background:var(--panel) !important; color:var(--ink) !important; border-color:var(--line) !important; }
+[data-testid="stRadio"] [role="radiogroup"]{ background:var(--panel2) !important; }
+[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked){
+  background:var(--panel) !important; color:var(--ink) !important; }
+[data-baseweb="tab"]{ color:var(--muted) !important; }
+[data-testid="stExpander"]{ background:var(--panel) !important; border-color:var(--line) !important; }
+[data-testid="stExpander"] summary{ color:var(--ink) !important; }
+.neon-tag{ color:var(--mut2) !important; }
+</style>
+"""
+
+
+def inject(st, dark: bool = False) -> None:
     st.markdown(CSS, unsafe_allow_html=True)
+    if dark:
+        st.markdown(DARK, unsafe_allow_html=True)

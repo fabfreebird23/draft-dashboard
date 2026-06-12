@@ -17,7 +17,7 @@ from draftkit import draft_history, keepers as keepers_mod, rankings as rankings
 from draftkit.ui import assistant_ui, mock_ui, rankings_ui
 
 st.set_page_config(page_title="Draft Room — Mock + Live Draft", page_icon="🏈", layout="wide")
-theme.inject(st)
+theme.inject(st, dark=st.session_state.get("dark_mode", False))
 
 
 # ----------------------------------------------------------------- cached data
@@ -326,12 +326,15 @@ def main():
         pills.append(f"AI · {len(ctx['tendencies'])} mgrs")
     pill_html = "".join(f'<span class="tb-pill">{p}</span>' for p in pills)
     with st.container(key="dr_topbar"):
-        head = st.columns([6, 1])
+        head = st.columns([6, 1, 1])
         with head[0]:
             st.markdown(f'<div class="tb-row">{theme.logo_html(20, tag=None)}'
                         f'<span class="tb-name">{meta.name}</span>{pill_html}</div>',
                         unsafe_allow_html=True)
         with head[1]:
+            st.toggle("War room", key="dark_mode",
+                      help="Dark 'war-room' theme for live drafting.")
+        with head[2]:
             if st.button("Switch league"):
                 del st.session_state.league
                 st.rerun()

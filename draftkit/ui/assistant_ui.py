@@ -186,10 +186,19 @@ def render(ctx) -> None:
     upcoming_slots = ([owner(k) for k in range(pick_no + 1, next_user_pick)]
                       if next_user_pick else [])
 
+    round_no = (pick_no - 1) // n + 1
     with right, st.container(key="dr_panel_intel"):
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
-        st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), drafted, reg),
+        st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), drafted, reg,
+                                     profiles=ctx.get("profiles"),
+                                     owner_by_slot=ctx["owner_by_slot"], round_no=round_no),
                     unsafe_allow_html=True)
+        if ctx.get("value") and board_avail:
+            from .. import value as V
+            my_left = [k for k in range(pick_no, n * rounds + 1) if owner(k) == my_slot]
+            plan = V.draft_plan(my_pids, ctx["roster_slots"], min(4, len(my_left)),
+                                board_avail, ctx["value"], reg, taken=drafted)
+            st.markdown(C.draft_plan_html(plan), unsafe_allow_html=True)
         queue = [p for p in st.session_state.get(qkey, []) if str(p) not in drafted]
         rec_row = next((r for r in board_avail if str(r["pid"]) == str(queue[0])), None) if queue else None
         why = "from your queue"
@@ -211,7 +220,8 @@ def render(ctx) -> None:
         spotlight_panel(ctx, board_avail, reg, f"{akey}_sp",
                         default_pid=(rec_row["pid"] if rec_row else None),
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=drafted,
-                        draft_fn=(draft if manual else None))
+                        draft_fn=(draft if manual else None),
+                        upcoming_slots=upcoming_slots, need_map=need_map, round_no=round_no)
         if ctx.get("value"):
             from .. import value as V
             steals, traps = V.steals_and_traps(board_avail, ctx["value"], reg, ctx["adp_rank"],

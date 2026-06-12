@@ -255,14 +255,31 @@ def best_pick(board_avail, model: "ValueModel", registry, needs, taken,
     return best or (None, 0, "")
 
 
+def bye_clash(pm, my_pids, registry, byes) -> bool:
+    """True if this player shares a bye week with a starter you already roster at
+    the same position (a lineup hole on that week)."""
+    if not byes or not my_pids:
+        return False
+    b = byes.get(getattr(pm, "team", ""))
+    if not b:
+        return False
+    for p in my_pids:
+        mp = registry.meta(p)
+        if mp.position == pm.position and byes.get(mp.team) == b:
+            return True
+    return False
+
+
 def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
                     next_pick=None, survival_fn=None, my_pids=None, roster_slots=None,
-                    k=6):
+                    byes=None, k=6):
     """A ranked list of the best picks right now — the engine behind the Suggestions
-    tab. Same roster-aware scoring as ``best_pick`` (value × roster fit + starter
-    need + positional scarcity + 'won't survive to your next pick'), returned as the
-    top ``k`` with the raw signals so the UI can render reasons and a FIT %.
-    Each item: {row, pm, score, raw, mult, sv, left}."""
+    tab. Roster-aware scoring like ``best_pick`` (value × roster fit + starter need +
+    positional scarcity + 'won't survive to your next pick'), now also nudged by
+    **stacks** (a pass-catcher with your QB, or vice-versa) and away from **bye-week
+    clashes** with a starter you already own. Returns the top ``k`` with the raw
+    signals so the UI can render reasons and a FIT %. Each item carries
+    {row, pm, score, raw, mult, sv, left, stack, bye_clash}."""
     needs = needs or set()
     taken_s = {str(x) for x in (taken or [])}
     use_roster = my_pids is not None and roster_slots is not None
@@ -285,10 +302,122 @@ def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
                 score += (4 - left) * 8
             if sv is not None and sv <= 35:
                 score += (35 - sv) * 0.5
+        stacks = synergy(pm, my_pids, registry) if my_pids else []
+        is_stack = any(t[0] == "Stack" for t in stacks)
+        if is_stack:
+            score += 7
+        clash = bye_clash(pm, my_pids, registry, byes)
+        if clash and mult < 0.999:        # don't punish a true starter need over a bye
+            score -= 9
         out.append({"row": r, "pm": pm, "score": round(score, 1), "raw": raw,
-                    "mult": mult, "sv": sv, "left": left})
+                    "mult": mult, "sv": sv, "left": left,
+                    "stack": is_stack, "bye_clash": clash})
     out.sort(key=lambda x: -x["score"])
     return out[:k]
+
+
+# ----------------------------------------------------------- room / opponent read
+_ARCH_BIAS = {
+    "Early-QB": {"QB"}, "Premium-TE": {"TE"}, "Zero-RB": {"WR"},
+    "RB-heavy": {"RB"}, "WR-heavy": {"WR"}, "Balanced": set(), "Unknown": set(),
+}
+
+
+def position_pressure(position, upcoming_slots, need_map, profiles, owner_by_slot,
+                      *, round_no=None):
+    """How many managers picking before your next turn are likely to grab
+    ``position`` — a manager counts if he *needs* it, and is flagged 'biased' if his
+    archetype or this-round history leans that way. Returns (needy, biased, n_unique)."""
+    from . import draft_history as DH
+    unique = list(dict.fromkeys(upcoming_slots))
+    needy = biased = 0
+    for s in unique:
+        oid = str(owner_by_slot.get(s, ""))
+        if position not in need_map.get(s, ()):
+            continue
+        needy += 1
+        arch = (profiles.get(oid) or {}).get("archetype", "")
+        lean = position in _ARCH_BIAS.get(arch, set())
+        if not lean and round_no:
+            lean = position in DH.likely_positions(oid, round_no, profiles)
+        if lean:
+            biased += 1
+    return needy, biased, len(unique)
+
+
+def room_note(pm, upcoming_slots, need_map, profiles, owner_by_slot, model, taken, *,
+              round_no=None):
+    """A 'beat the room' read for one player: weighing who picks before your next
+    turn (their needs + archetypes) against how many startable players remain at his
+    position. Returns (label, css_class, detail)."""
+    pos = pm.position
+    taken_s = {str(x) for x in (taken or [])}
+    needy, biased, n = position_pressure(pos, upcoming_slots, need_map, profiles,
+                                         owner_by_slot, round_no=round_no)
+    left = model.startable_left(pos, taken_s)
+    who = f"{needy} of {n} managers before you need {pos}"
+    if biased:
+        who += f" ({biased} lean {pos})"
+    if needy >= max(2, left) and (biased or left <= needy):
+        return ("GRAB — room is chasing", "grab", f"{who}; only {left} startable left.")
+    if needy == 0 or left > needy + 2:
+        return ("SAFE TO WAIT", "wait", f"{who}; {left} startable left — he should come back.")
+    return ("LEAN GRAB", "lean", f"{who}; {left} startable left.")
+
+
+def draft_plan(my_pids, roster_slots, n_picks, board_avail, model: "ValueModel",
+               registry, *, taken=None) -> list:
+    """Greedy roster-construction path for your next ``n_picks``: at each step take
+    the position whose best-available player gives the most roster-adjusted value
+    (so it fills starters first, then flex/depth, and avoids over-loading a spot).
+    Returns [{pos, name, mult}, ...]."""
+    sim_pids = list(my_pids or [])
+    sim_taken = {str(x) for x in (taken or [])}
+    plan = []
+    for _ in range(max(0, n_picks)):
+        best = None
+        for pos in ("RB", "WR", "TE", "QB"):
+            mult = roster_multiplier(pos, sim_pids, roster_slots, registry)
+            cand = next((r for r in board_avail
+                         if str(r["pid"]) not in sim_taken
+                         and registry.meta(r["pid"]).position == pos), None)
+            if not cand:
+                continue
+            score = model.vorp_of(cand["pid"]) * mult
+            if best is None or score > best[0]:
+                best = (score, pos, cand, mult)
+        if not best:
+            break
+        _, pos, cand, mult = best
+        plan.append({"pos": pos, "name": cand["name"], "mult": round(mult, 2)})
+        sim_pids.append(str(cand["pid"]))
+        sim_taken.add(str(cand["pid"]))
+    return plan
+
+
+def grade_team(my_pids, model: "ValueModel", registry, roster_slots, n_teams) -> dict:
+    """Letter-grade a finished roster by its starters' value vs a league-average
+    team, and surface the best-value pick and biggest reach. Returns a dict for the
+    recap UI."""
+    starters = team_demand(roster_slots)
+    by_pos = {}
+    for p in (my_pids or []):
+        by_pos.setdefault(registry.meta(p).position, []).append(p)
+    # starter VORP total: best N at each position by starter demand (+ one flex)
+    total = 0.0
+    for pos, dem in starters.items():
+        vals = sorted((model.vorp_of(p) for p in by_pos.get(pos, [])), reverse=True)
+        total += sum(vals[:max(1, round(dem))])
+    # crude league baseline: an average team gets ~ the median starter value
+    avg = sum(model.replacement_pts.values()) * 0.0  # baseline 0 (VORP already vs repl)
+    # grade by total VORP per starting slot
+    n_start = max(1, round(sum(starters.values())))
+    per = total / n_start
+    grade = ("A+" if per >= 55 else "A" if per >= 42 else "B+" if per >= 32 else
+             "B" if per >= 22 else "C+" if per >= 14 else "C" if per >= 7 else "D")
+    ranked = sorted(((model.rank_of(p) or 999, p) for p in (my_pids or [])))
+    best = ranked[0][1] if ranked else None
+    return {"grade": grade, "starter_vorp": round(total), "best_pick": best}
 
 
 def grab_verdict(survival_pct, startable_left, *, is_need=False, mult=None):
