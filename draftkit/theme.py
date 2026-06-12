@@ -742,7 +742,7 @@ DARK = """
 <style>
 :root{
   --bg:#0d1320; --panel:#161e2e; --panel2:#1b2539; --line:#28334d; --line2:#202b42;
-  --ink:#e8edf5; --muted:#9bb4cf; --mut2:#73839c;
+  --ink:#e8edf5; --muted:#a9c0d8; --mut2:#8c9cb4;
   --shadow:0 1px 2px rgba(0,0,0,.45); --shadow-lg:0 8px 22px rgba(0,0,0,.55);
 }
 .stApp,[data-testid="stHeader"]{ background:var(--bg); }
