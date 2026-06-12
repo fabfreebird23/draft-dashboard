@@ -40,7 +40,18 @@ html,body{ font-size:13px; }
 /* tabular figures so every ADP / V / % column lines up cleanly */
 .dr-status,.dr-avail,.rs,.lb,.pcard,.dr-grid,.dr-predict,[class*="_brow_"],[class*="_pp_"],
 [class*="_steals"],[class*="_traps"]{ font-feature-settings:'tnum' 1,'ss01' 1; }
-[data-testid="stHeader"]{ background:transparent; }
+/* The Streamlit header + its full-width toolbar wrapper sit on top of our sticky
+   topbar (z-index 999990) and would otherwise eat clicks on the War-room / Switch
+   controls. Make the empty header + toolbar container click-through, and re-enable
+   only the actual action controls (app menu, deploy, status) on the right. */
+[data-testid="stHeader"]{ background:transparent; pointer-events:none !important; }
+[data-testid="stToolbar"],
+[data-testid="stToolbar"] *{ pointer-events:none !important; }
+[data-testid="stToolbar"] button,
+[data-testid="stToolbar"] a,
+[data-testid="stMainMenu"] button,
+[data-testid="stToolbarActions"] button,
+[data-testid="stStatusWidget"]{ pointer-events:auto !important; }
 [data-testid="stSidebar"]{ background:#fff; border-right:1px solid var(--line); }
 
 /* layout density (desktop) */
