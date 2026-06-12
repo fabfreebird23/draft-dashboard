@@ -227,7 +227,8 @@ def render(ctx) -> None:
                                     kept_overalls=kept_at, owner_fn=owner), unsafe_allow_html=True)
 
     # ---- RIGHT: live Picks feed (with predicted picks folded in) + draft intel ----
-    preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall)
+    preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall,
+                             pids_by_slot=pids_by_slot)
     pred_map = {ov: pid for ov, _s, pid in preds}
     with right, st.container(key="dr_panel_intel"):
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)

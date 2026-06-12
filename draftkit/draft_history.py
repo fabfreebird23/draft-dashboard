@@ -80,18 +80,32 @@ def tendency_score(owner_id: str, rnd: int, position: str,
     return 0.25
 
 
+# Roster caps for AI drafting: no sane team rosters more than two of these, so the
+# AI (and the predictor) never reach for a 3rd QB/TE — keeps auto-drafted rosters
+# realistic. Positions not listed are effectively uncapped.
+POS_CAPS = {"QB": 2, "TE": 2}
+
+
 def pick_for_owner(owner_id: str, rnd: int, available: list, tendencies: dict,
-                   registry, top_k: int = 12, jitter: float = 0.0) -> Optional[dict]:
+                   registry, top_k: int = 12, jitter: float = 0.0,
+                   roster_counts: Optional[dict] = None) -> Optional[dict]:
     """Choose a player for an AI owner: blend ADP value with the owner's
     positional tendency for this round. `available` is ADP-ordered
     [{pid, name, pos, adp}, ...]. Returns the chosen item (or None).
 
     `jitter` adds per-candidate random noise so the same board doesn't produce
     the same draft twice — pass a small value (~0.15) for live mock picks to make
-    every mock different, and leave it 0 for the predictor (stable predictions)."""
+    every mock different, and leave it 0 for the predictor (stable predictions).
+
+    `roster_counts` is this owner's current position→count; positions already at
+    their POS_CAPS limit (QB/TE ≤ 2) are dropped from consideration."""
     if not available:
         return None
-    pool = available[:top_k]
+    rc = roster_counts or {}
+    # drop positions this team has already filled to the cap (QB/TE), keeping the
+    # ADP order; fall back to the raw pool only if everything is somehow capped.
+    eligible = [p for p in available if rc.get(p["pos"], 0) < POS_CAPS.get(p["pos"], 99)]
+    pool = (eligible or available)[:top_k]
     best, best_score = None, -1.0
     for i, p in enumerate(pool):
         # ADP value: earlier in the pool = better (1.0 .. ~0)
@@ -99,6 +113,11 @@ def pick_for_owner(owner_id: str, rnd: int, available: list, tendencies: dict,
         tend = tendency_score(owner_id, rnd, p["pos"], tendencies)
         # Blend: ADP dominates, tendency tilts among close-by players.
         score = 0.62 * adp_val + 0.38 * tend
+        # Fill the one required QB/TE starter: if the team still has none, nudge
+        # that position with urgency that grows through the draft, so every roster
+        # ends with 1-2 (never 0, never 3+) and auto-drafted teams look realistic.
+        if p["pos"] in POS_CAPS and rc.get(p["pos"], 0) == 0:
+            score += min(0.55, 0.045 * rnd)
         # Keeper-league rookie lean: managers reach for rookies (cheap future
         # keepers), so opponents and the predictor favour them among close picks.
         try:

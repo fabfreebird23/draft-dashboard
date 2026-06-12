@@ -45,17 +45,26 @@ def _headshot_css(container_key, pid) -> str:
 
 
 def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall, *,
-                     limit=9):
+                     limit=9, pids_by_slot=None):
     """Simulate the most-likely OPPONENT picks coming up. Your own picks are
     simulated (assumed best-available) so the predictor keeps showing opponents
     even at the snake turn where you pick back-to-back. Returns
-    [(overall, slot, pid), ...]."""
+    [(overall, slot, pid), ...]. Respects the QB/TE roster caps so it never
+    predicts a 3rd QB/TE for a team."""
     reg, adp_pool, tend = ctx["registry"], ctx["adp_pool"], ctx["tendencies"]
     owner_by_slot = ctx["owner_by_slot"]
     owner = ctx["pick_owner_slot"]            # traded-pick-aware ownership
     n = len(ctx["slot_names"])
     total = n * ctx["meta"].draft_rounds
     sim = {str(p) for p in taken_pids}
+    # per-slot position counts (seed from current rosters; updated as we predict)
+    counts = {}
+    for slot, pids in (pids_by_slot or {}).items():
+        c = {}
+        for pid in pids:
+            pos = reg.meta(pid).position
+            c[pos] = c.get(pos, 0) + 1
+        counts[slot] = c
     out, ov = [], current_overall
     while ov <= total and len(out) < limit:
         slot = owner(ov)
@@ -71,10 +80,13 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
                 sim.add(pool[0]["pid"])
             ov += 1
             continue
-        ch = draft_history.pick_for_owner(owner_by_slot.get(slot), rnd, pool, tend, reg)
+        ch = draft_history.pick_for_owner(owner_by_slot.get(slot), rnd, pool, tend, reg,
+                                          roster_counts=counts.get(slot, {}))
         if not ch:
             break
         sim.add(ch["pid"])
+        pos = reg.meta(ch["pid"]).position
+        counts.setdefault(slot, {})[pos] = counts.setdefault(slot, {}).get(pos, 0) + 1
         out.append((ov, slot, ch["pid"]))
         ov += 1
     return out

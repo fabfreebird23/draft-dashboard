@@ -103,12 +103,27 @@ def render(ctx) -> None:
             ov += 1
         return ov if ov <= total else None
 
+    def _slot_pos_counts(slot):
+        """This owner's current roster as position→count (made picks + keepers),
+        so the AI respects QB/TE caps."""
+        rc = {}
+        for o, pid in made.items():
+            if owner(o) == slot:
+                p = reg.meta(pid).position
+                rc[p] = rc.get(p, 0) + 1
+        for o, pid in kept_by_overall.items():
+            if owner(o) == slot:
+                p = reg.meta(pid).position
+                rc[p] = rc.get(p, 0) + 1
+        return rc
+
     def ai_pick(ov):
         rnd = (ov - 1) // n + 1
         tk = taken_pids()
         pool = [p for p in adp_pool if p["pid"] not in tk]
         choice = draft_history.pick_for_owner(owner_by_slot.get(owner(ov)), rnd, pool,
-                                              tendencies, reg, jitter=_AI_JITTER)
+                                              tendencies, reg, jitter=_AI_JITTER,
+                                              roster_counts=_slot_pos_counts(owner(ov)))
         if choice:
             made[ov] = choice["pid"]
             return True
@@ -280,7 +295,8 @@ def render(ctx) -> None:
                         unsafe_allow_html=True)
 
     # ---- RIGHT: live Picks feed (with predicted picks folded in) + draft intel ----
-    preds = predict_upcoming(ctx, taken, pick_no, my_slot, kept_by_overall)
+    preds = predict_upcoming(ctx, taken, pick_no, my_slot, kept_by_overall,
+                             pids_by_slot=pids_by_slot)
     pred_map = {ov: pid for ov, _s, pid in preds}
     with right, st.container(key="dr_panel_intel"):
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
