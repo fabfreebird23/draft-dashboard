@@ -54,13 +54,24 @@ def render(ctx) -> None:
                                  "real draft without syncing to Sleeper/ESPN).")
         live_pace = top[2].checkbox("Live pace", value=True, key=f"{mkey}_pace",
                                     disabled=(mode == "Manual / live"),
-                                    help="Opponents pick one at a time with a short delay.")
+                                    help="ON: opponents pick one at a time with a short delay. "
+                                         "OFF: opponents resolve instantly up to your pick. "
+                                         "Either way it always stops and waits for YOU — use "
+                                         "'Pick for me' / 'Sim to end' to auto-draft your picks.")
     manual = mode == "Manual / live"
-    act = st.columns([7, 1.3, 1, 1])
+    act = st.columns([3.8, 1.3, 1.5, 1.4, 1, 1])
     act[1].toggle("Focus", key="draft_focus",
                   help="Hide the setup row & league pills to fit more of the board on screen.")
-    reset = act[2].button("Reset", key=f"{mkey}_reset", use_container_width=True)
-    undo = act[3].button("Undo", key=f"{mkey}_undo", use_container_width=True)
+    autopick = act[2].button("🤖 Pick for me", key=f"{mkey}_autome", use_container_width=True,
+                             disabled=manual,
+                             help="Let the AI make YOUR current pick (from your own draft "
+                                  "tendencies) — handy to skip a pick you don't care about.")
+    sim_end = act[3].button("⏩ Sim to end", key=f"{mkey}_simend", use_container_width=True,
+                            disabled=manual,
+                            help="Auto-draft every remaining pick — yours AND all opponents — "
+                                 "straight to the final grade & recap.")
+    reset = act[4].button("Reset", key=f"{mkey}_reset", use_container_width=True)
+    undo = act[5].button("Undo", key=f"{mkey}_undo", use_container_width=True)
     pos_f = "All"
 
     my_slot = slot_names.index(me)
@@ -113,6 +124,18 @@ def render(ctx) -> None:
     pick_no = on_clock or total
     on_slot = owner(pick_no)
     is_my_turn = (not done) and on_slot == my_slot
+    # ---- Auto-draft controls (AI fills picks for you) ----
+    if sim_end and not manual:                 # auto-draft EVERYONE to the end
+        ov, guard = first_unresolved(), 0
+        while ov and guard <= total + 2:
+            if not ai_pick(ov):
+                break
+            ov = first_unresolved()
+            guard += 1
+        st.rerun()
+    if autopick and is_my_turn and not manual:  # AI makes just your current pick
+        ai_pick(on_clock)
+        st.rerun()
     # Manual/live: YOU enter every pick, so the board is draftable on every pick
     # (whoever is on the clock); no AI ever fires.
     can_draft = (not done) and (is_my_turn or manual)

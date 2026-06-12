@@ -316,6 +316,12 @@ def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
             score += 22
         elif mult >= 0.55:
             score += 6
+        # moderate need-nudge: a player at a position with an OPEN starting need
+        # gets an extra bump so a real need (e.g. your first WR) surfaces in the
+        # top few over a high-VORP backup that only fills the flex — without
+        # burying a genuinely elite value at a filled spot.
+        if pm.position in needs:
+            score += 10
         left = model.startable_left(pm.position, taken_s)
         sv = survival_fn(pid) if (survival_fn and next_pick) else None
         if mult >= 0.6:
