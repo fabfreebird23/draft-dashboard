@@ -29,26 +29,36 @@ def render(ctx) -> None:
     total = n * rounds
     mankey = f"livemade_{ctx['league_key']}"
 
-    top = st.columns([1.5, 1.6, 1.1])
-    me = top[0].selectbox("Your team", slot_names, key=f"{akey}_me")
-    mode = top[1].radio("Draft source", ["Live sync", "Manual entry"], horizontal=True,
-                        key=f"{akey}_mode",
-                        help="Live sync = pull picks automatically from Sleeper/ESPN. "
-                             "Manual entry = tap the player each team takes (no sync "
-                             "needed — works for any draft room).")
-    manual = mode == "Manual entry"
+    # 'Focus' mode hides the setup row + the top-bar pills so more of the board fits
+    focus = st.session_state.get("draft_focus", False)
+    if focus:
+        st.markdown(
+            f'<style>.st-key-{akey}_setup{{display:none !important}}'
+            '.tb-pill{display:none !important}'
+            '[class*="dr_topbar"]{padding-top:2px !important;padding-bottom:2px !important}'
+            '</style>', unsafe_allow_html=True)
+    auto = reset = undo = False
+    with st.container(key=f"{akey}_setup"):
+        top = st.columns([1.5, 1.6, 1.1])
+        me = top[0].selectbox("Your team", slot_names, key=f"{akey}_me")
+        mode = top[1].radio("Draft source", ["Live sync", "Manual entry"], horizontal=True,
+                            key=f"{akey}_mode",
+                            help="Live sync = pull picks automatically from Sleeper/ESPN. "
+                                 "Manual entry = tap the player each team takes (no sync "
+                                 "needed — works for any draft room).")
+        manual = mode == "Manual entry"
+        if not manual:
+            with top[2]:
+                st.write("")
+                auto = st.checkbox("Auto-refresh", key=f"{akey}_auto")
+                st.button("Refresh", key=f"{akey}_refresh")
     my_slot = slot_names.index(me)
-    auto = False
-    with top[2]:
-        st.write("")
-        if manual:
-            cc = st.columns(2)
-            reset = cc[0].button("Reset", key=f"{akey}_mreset", use_container_width=True)
-            undo = cc[1].button("Undo", key=f"{akey}_mundo", use_container_width=True)
-        else:
-            auto = st.checkbox("Auto-refresh", key=f"{akey}_auto")
-            st.button("Refresh", key=f"{akey}_refresh")
-            reset = undo = False
+    act = st.columns([7, 1.3, 1, 1])
+    act[1].toggle("Focus", key="draft_focus",
+                  help="Hide the setup row & league pills to fit more of the board on screen.")
+    if manual:
+        reset = act[2].button("Reset", key=f"{akey}_mreset", use_container_width=True)
+        undo = act[3].button("Undo", key=f"{akey}_mundo", use_container_width=True)
 
     # ----- gather picks from the chosen source into a common {overall: pid} map -----
     if manual:
@@ -223,7 +233,8 @@ def render(ctx) -> None:
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
         st.markdown(C.picks_feed_html(pick_pids, pick_no, n, rounds, slot_names, my_slot, owner,
                                       need_map, reg, kept_overalls=kept_at,
-                                      predictions=pred_map), unsafe_allow_html=True)
+                                      predictions=pred_map, queued=queued),
+                    unsafe_allow_html=True)
         st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), drafted, reg,
                                      profiles=ctx.get("profiles"),
                                      owner_by_slot=ctx["owner_by_slot"], round_no=round_no),

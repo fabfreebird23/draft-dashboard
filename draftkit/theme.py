@@ -362,6 +362,9 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .pf-yours{ font-size:14px; font-weight:900; color:#fff; margin-top:2px; }
 .pf-pred .pf-likely{ font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:.4px;
   color:var(--mut2); border:1px solid var(--line); border-radius:8px; padding:0 5px; margin-left:auto; }
+.pf-pred .pf-snipe{ font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:.3px;
+  color:#fff; background:var(--red); border-radius:8px; padding:1px 6px; margin-left:auto; }
+.pf-card .pf-pred.pf-warn{ background:#fdecec; border-radius:6px; padding:3px 5px; margin-top:3px; }
 
 /* ---- 'beat the room' read in the spotlight ---- */
 .dr-room{ font-size:11.5px; border-radius:7px; padding:6px 10px; margin:8px 0 2px;

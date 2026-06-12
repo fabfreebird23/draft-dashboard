@@ -36,24 +36,31 @@ def render(ctx) -> None:
     owner = ctx["pick_owner_slot"]   # who owns each overall pick (handles traded picks)
     total = n * rounds
 
-    top = st.columns([1.7, 1.5, 1, 1])
-    me = top[0].selectbox("Your draft slot", slot_names, key=f"{mkey}_slot")
-    mode = top[1].radio("Opponents", ["AI mock", "Manual / live"], horizontal=True,
-                        key=f"{mkey}_mode",
-                        help="AI mock = opponents auto-draft from their tendencies. "
-                             "Manual / live = you enter every pick yourself (track a "
-                             "real draft without syncing to Sleeper/ESPN).")
+    # 'Focus' mode hides the setup row + the top-bar pills so more of the board fits
+    focus = st.session_state.get("draft_focus", False)
+    if focus:
+        st.markdown(
+            f'<style>.st-key-{mkey}_setup{{display:none !important}}'
+            '.tb-pill{display:none !important}'
+            '[class*="dr_topbar"]{padding-top:2px !important;padding-bottom:2px !important}'
+            '</style>', unsafe_allow_html=True)
+    with st.container(key=f"{mkey}_setup"):
+        top = st.columns([2, 1.6, 1])
+        me = top[0].selectbox("Your draft slot", slot_names, key=f"{mkey}_slot")
+        mode = top[1].radio("Opponents", ["AI mock", "Manual / live"], horizontal=True,
+                            key=f"{mkey}_mode",
+                            help="AI mock = opponents auto-draft from their tendencies. "
+                                 "Manual / live = you enter every pick yourself (track a "
+                                 "real draft without syncing to Sleeper/ESPN).")
+        live_pace = top[2].checkbox("Live pace", value=True, key=f"{mkey}_pace",
+                                    disabled=(mode == "Manual / live"),
+                                    help="Opponents pick one at a time with a short delay.")
     manual = mode == "Manual / live"
-    live_pace = top[2].checkbox("Live pace", value=True, key=f"{mkey}_pace",
-                                disabled=manual,
-                                help="Opponents pick one at a time with a short delay.")
-    with top[3]:
-        st.write("")
-        cc = st.columns(2)
-        reset = cc[0].button("Reset", key=f"{mkey}_reset", use_container_width=True)
-        undo = cc[1].button("Undo", key=f"{mkey}_undo", use_container_width=True)
-    # Position filtering lives in the Best Available panel ("By position" view), so
-    # the top-level dropdown was redundant — the List view now shows all positions.
+    act = st.columns([7, 1.3, 1, 1])
+    act[1].toggle("Focus", key="draft_focus",
+                  help="Hide the setup row & league pills to fit more of the board on screen.")
+    reset = act[2].button("Reset", key=f"{mkey}_reset", use_container_width=True)
+    undo = act[3].button("Undo", key=f"{mkey}_undo", use_container_width=True)
     pos_f = "All"
 
     my_slot = slot_names.index(me)
@@ -254,7 +261,8 @@ def render(ctx) -> None:
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
         st.markdown(C.picks_feed_html(board, pick_no, n, rounds, slot_names, my_slot, owner,
                                       need_map, reg, kept_overalls=set(kept_by_overall),
-                                      predictions=pred_map), unsafe_allow_html=True)
+                                      predictions=pred_map, queued=queued),
+                    unsafe_allow_html=True)
         st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), taken, reg,
                                      profiles=ctx.get("profiles"), owner_by_slot=owner_by_slot,
                                      round_no=round_no), unsafe_allow_html=True)

@@ -616,12 +616,13 @@ def draft_grade_html(grade_info, my_pids, roster_slots, registry) -> str:
 
 def picks_feed_html(board, pick_no, n, rounds, slot_names, my_slot, owner_fn,
                     need_map, registry, kept_overalls=None, *, predictions=None,
-                    lookback=2, lookahead=14) -> str:
+                    queued=None, lookback=2, lookahead=14) -> str:
     """A live 'Picks' rail (FantasyPros-style): a vertical window of picks around the
     clock — recent selections with the player, your upcoming pick highlighted, and
     each opponent's open team needs *plus the predicted pick* (``predictions`` maps
     overall→pid) folded right into the feed — under a 'next turn in N picks' header."""
     predictions = predictions or {}
+    queued = {str(x) for x in (queued or set())}
     total = n * rounds
     kept_overalls = kept_overalls or set()
     lo, hi = max(1, pick_no - lookback), min(total, pick_no + lookahead)
@@ -669,12 +670,16 @@ def picks_feed_html(board, pick_no, n, rounds, slot_names, my_slot, owner_fn,
             pred_html = ""
             if pred:
                 ppm = registry.meta(pred)
+                # if YOU have him queued, this opponent may snipe him — flag it
+                yours = str(pred) in queued
+                tag = ('<span class="pf-snipe">★ your queue</span>' if yours
+                       else '<span class="pf-likely">likely</span>')
                 pred_html = (
-                    f'<div class="pf-player pf-pred">{theme.img_tag(pred, "pf-img")}'
+                    f'<div class="pf-player pf-pred{" pf-warn" if yours else ""}">'
+                    f'{theme.img_tag(pred, "pf-img")}'
                     f'<span class="pf-nm">{short_name(ppm.name)}</span>'
                     f'<span class="pf-meta"><span class="pf-pos pos-{ppm.position}">'
-                    f'{ppm.position}</span>{ppm.team}</span>'
-                    f'<span class="pf-likely">likely</span></div>')
+                    f'{ppm.position}</span>{ppm.team}</span>{tag}</div>')
             rows.append(
                 f'<div class="{cls}"><div class="pf-l"><span class="pf-pk">{pklbl}</span>'
                 f'<span class="pf-mgr">{label}</span></div>{pred_html}'
