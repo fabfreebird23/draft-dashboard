@@ -81,7 +81,10 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 /* ---- sticky top app bar ---- */
 [class*="dr_topbar"]{ position:sticky; top:0; z-index:999;
   background:rgba(242,244,248,.9); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-  border-bottom:1px solid var(--line); margin:-.7rem -1.6rem 12px; padding:9px 1.6rem 9px; }
+  border-bottom:1px solid var(--line); margin:-.5rem -.9rem 10px; padding:8px .9rem 8px; }
+/* War-room button — compact pill, highlighted when dark mode is on */
+[class*="tb_war"] .stButton button{ float:none !important; width:100%; min-height:34px;
+  border-radius:18px; font-size:12px; font-weight:700; padding:4px 10px; }
 [class*="dr_topbar"] .stColumn [data-testid="stVerticalBlock"]{ gap:0; justify-content:center; }
 .tb-row{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; min-height:32px; }
 .tb-name{ font-weight:800; font-size:16px; color:var(--ink); margin-right:3px; }
@@ -365,6 +368,14 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .pf-pred .pf-snipe{ font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:.3px;
   color:#fff; background:var(--red); border-radius:8px; padding:1px 6px; margin-left:auto; }
 .pf-card .pf-pred.pf-warn{ background:#fdecec; border-radius:6px; padding:3px 5px; margin-top:3px; }
+
+/* ---- one-line draft-strategy bar atop Suggestions ---- */
+.dr-strategy{ display:flex; align-items:center; gap:8px; background:#fff8e6;
+  border:1px solid #f3d98a; border-radius:9px; padding:7px 11px; margin:2px 0 9px;
+  font-size:12.5px; color:#7a5b14; }
+.dr-strategy b{ color:#5a430d; }
+.ds-tag{ font-size:9px; font-weight:900; letter-spacing:.5px; text-transform:uppercase;
+  color:#fff; background:#e0a106; border-radius:6px; padding:2px 7px; flex:none; }
 
 /* ---- 'beat the room' read in the spotlight ---- */
 .dr-room{ font-size:11.5px; border-radius:7px; padding:6px 10px; margin:8px 0 2px;
@@ -759,6 +770,10 @@ DARK = """
 [data-testid="stExpander"]{ background:var(--panel) !important; border-color:var(--line) !important; }
 [data-testid="stExpander"] summary{ color:var(--ink) !important; }
 .neon-tag{ color:var(--mut2) !important; }
+[class*="dr_topbar"] .stButton button{ background:var(--panel2) !important;
+  color:var(--ink) !important; border-color:var(--line) !important; }
+[class*="tb_war"] .stButton button{ background:var(--blue) !important; color:#fff !important;
+  border-color:var(--blue) !important; }
 /* live Picks feed + intel cards */
 .dr-picks .pf-head{ background:var(--panel) !important; }
 .pf-card{ background:var(--panel) !important; border-color:var(--line) !important; }
@@ -767,6 +782,8 @@ DARK = """
 .pf-img{ background:var(--panel2) !important; }
 .pf-pred.pf-warn{ background:#3a1d22 !important; }
 .dr-grade,.dr-plan{ background:var(--panel) !important; border-color:var(--line) !important; }
+.dr-strategy{ background:#332a12 !important; border-color:#6a5320 !important; color:#e7c172 !important; }
+.dr-strategy b{ color:#f3d98a !important; }
 .g-pc.g-ok{ background:#173a28 !important; } .g-pc.g-low{ background:#3a1d22 !important; }
 .dr-room.wait{ background:#16302a !important; border-color:#1c5a44 !important; color:#7fdcb4 !important; }
 .dr-room.lean{ background:#33280f !important; border-color:#6a5320 !important; color:#e7c172 !important; }

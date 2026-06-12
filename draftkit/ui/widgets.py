@@ -344,6 +344,9 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
     for s, w in zip(sugg, shifted):
         s["fit"] = max(1, round(100 * w / tot))
 
+    # one-line strategic call (what to prioritize right now)
+    st.markdown(C.strategy_html(sugg, avail), unsafe_allow_html=True)
+
     for s in sugg:
         r, pm = s["row"], s["pm"]
         pid = str(r["pid"])

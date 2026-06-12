@@ -614,6 +614,36 @@ def draft_grade_html(grade_info, my_pids, roster_slots, registry) -> str:
             f'<div class="g-pcs">{"".join(bits)}</div>{best_s}</div></div>')
 
 
+def strategy_html(suggestions, board_avail) -> str:
+    """A one-line strategic call atop Suggestions — what to prioritize right now,
+    synthesised from the top pick's scarcity, survival, tier cliff and roster fit."""
+    if not suggestions:
+        return ""
+    top = suggestions[0]
+    pm = top["pm"]
+    pos = pm.position
+    name = top["row"].get("name", pm.name)
+    left, sv, mult = top.get("left"), top.get("sv"), top.get("mult", 1.0)
+    cliff = None
+    if board_avail:
+        tt = board_avail[0].get("tier")
+        if tt is not None:
+            cliff = sum(1 for r in board_avail if r.get("tier") == tt)
+    if sv is not None and sv <= 30:
+        msg = f"Grab <b>{name}</b> now — only ~{sv}% chance he's there at your next pick."
+    elif left is not None and left <= 3:
+        msg = f"Prioritize <b>{pos}</b> — just {left} startable left at the position."
+    elif cliff is not None and cliff <= 2:
+        msg = (f"Tier cliff — only {cliff} left in this tier; take the best (<b>{name}</b>) "
+               "before the drop-off.")
+    elif mult >= 0.999:
+        msg = f"<b>{name}</b> ({pos}) is your best value and fills a starting need — safe pick."
+    else:
+        msg = (f"<b>{name}</b> ({pos}) is the top value; you can also wait and fill another "
+               "need if you prefer.")
+    return f'<div class="dr-strategy"><span class="ds-tag">Strategy</span>{msg}</div>'
+
+
 def picks_feed_html(board, pick_no, n, rounds, slot_names, my_slot, owner_fn,
                     need_map, registry, kept_overalls=None, *, predictions=None,
                     queued=None, lookback=2, lookahead=14) -> str:

@@ -325,17 +325,22 @@ def main():
     if ctx["tendencies"]:
         pills.append(f"AI · {len(ctx['tendencies'])} mgrs")
     pill_html = "".join(f'<span class="tb-pill">{p}</span>' for p in pills)
+    dark_on = st.session_state.get("dark_mode", False)
     with st.container(key="dr_topbar"):
-        head = st.columns([6, 1, 1])
+        head = st.columns([5.4, 1.3, 1.3])
         with head[0]:
             st.markdown(f'<div class="tb-row">{theme.logo_html(20, tag=None)}'
                         f'<span class="tb-name">{meta.name}</span>{pill_html}</div>',
                         unsafe_allow_html=True)
-        with head[1]:
-            st.toggle("War room", key="dark_mode",
-                      help="Dark 'war-room' theme for live drafting.")
+        with head[1], st.container(key="tb_war"):
+            # a plain button is a far bigger / more reliable click target than a toggle
+            if st.button("☀ Light mode" if dark_on else "🌙 War room", key="dark_btn",
+                         use_container_width=True,
+                         help="Toggle the dark 'war-room' theme for live drafting."):
+                st.session_state["dark_mode"] = not dark_on
+                st.rerun()
         with head[2]:
-            if st.button("Switch league"):
+            if st.button("Switch league", use_container_width=True):
                 del st.session_state.league
                 st.rerun()
 
