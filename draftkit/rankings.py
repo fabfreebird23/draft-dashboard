@@ -83,9 +83,76 @@ def parse_csv(text: str, registry) -> list:
     return out
 
 
+def _adp_key(s) -> float:
+    """UDK ADP is 'round.pick' (e.g. '4.04'); blanks sink to the bottom."""
+    try:
+        return float(str(s).strip())
+    except (TypeError, ValueError):
+        return 9999.0
+
+
+def parse_position_csv(text: str, registry) -> list:
+    """Parse the UDK **position-rankings** export (columns: Name, Position, …, ADP,
+    Tier, …). Its Tier column is POSITIONAL (QB Tier 1, RB Tier 1, …), so we keep it
+    per-player in ``pos_tier`` and order the overall board by ADP. A coarse overall
+    ``tier`` (by ADP round) drives the All view. Returns rows with rank/name/tier/
+    pos_tier/pid, or [] if the CSV isn't this format."""
+    reader = [r for r in csv.reader(io.StringIO(text)) if any(c.strip() for c in r)]
+    if len(reader) < 2:
+        return []
+    header = [h.lower().strip() for h in reader[0]]
+
+    def col(*names):
+        for i, h in enumerate(header):
+            if any(h == n or n in h for n in names):
+                return i
+        return None
+
+    name_c, pos_c, tier_c, adp_c, rank_c = (
+        col("name", "player"), col("position", "pos"), col("tier"), col("adp"),
+        col("rank"))
+    if name_c is None or pos_c is None or tier_c is None:
+        return []                                  # not a position-rankings export
+    idx = _name_index(registry)
+    items = []
+    for i, r in enumerate(reader[1:]):
+        if len(r) <= max(name_c, pos_c, tier_c):
+            continue
+        nm = re.sub(r"\([^)]*\)", "", r[name_c]).strip()
+        if not nm:
+            continue
+        tm = re.search(r"\d+", r[tier_c] if len(r) > tier_c else "")
+        adp = _adp_key(r[adp_c]) if (adp_c is not None and len(r) > adp_c) else 9999.0
+        # UDK's POSITIONAL rank (their expert order within the position) — tiers
+        # follow it, not ADP. Fall back to file order if no Rank column.
+        prm = re.search(r"\d+", r[rank_c]) if (rank_c is not None and len(r) > rank_c) else None
+        items.append({"name": nm, "pos": (r[pos_c].strip().upper() if len(r) > pos_c else ""),
+                      "pos_tier": int(tm.group()) if tm else 1,
+                      "pos_rank": int(prm.group()) if prm else (i + 1),
+                      "adp": adp, "pid": idx.get(normalize_name(nm))})
+    if not items:
+        return []
+    items.sort(key=lambda x: x["adp"])             # overall board = ADP order
+    out, prev_round, otier, rank = [], None, 0, 0
+    for it in items:
+        rank += 1
+        rnd = int(it["adp"]) if it["adp"] < 9999 else (prev_round or 0) + 1
+        if rnd != prev_round:                      # coarse overall tier = ADP round
+            otier += 1
+            prev_round = rnd
+        out.append({"rank": rank, "name": it["name"], "tier": otier,
+                    "pos_tier": it["pos_tier"], "pos_rank": it["pos_rank"],
+                    "pid": it["pid"]})
+    return out
+
+
 def smart_parse(text: str, registry) -> list:
-    """Parse from a CSV export or a plain ranked list. Prefer the CSV parse for
-    comma/tab data unless the plain-list parse clearly matches more players."""
+    """Parse from a CSV export or a plain ranked list. Prefer the UDK position-tier
+    CSV (real positional tiers), then a generic CSV, else a plain ranked list."""
+    if "," in text or "\t" in text:
+        postiers = parse_position_csv(text, registry)
+        if postiers and sum(1 for r in postiers if r.get("pid")) >= 5:
+            return postiers
     line = parse_rankings(text, registry)
     if "," in text or "\t" in text:
         csvp = parse_csv(text, registry)

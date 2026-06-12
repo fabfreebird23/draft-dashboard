@@ -244,7 +244,9 @@ def _position_tiers(rows, *, max_per_tier=10):
     `max_per_tier` so it splits into readable sub-tiers."""
     out, disp, prev, n_in_tier = [], 0, None, 0
     for r in rows:
-        src = r.get("tier")                      # the source's own (UDK) tier
+        # prefer UDK's real POSITIONAL tier (from a position-rankings import) over
+        # the overall board tier
+        src = r.get("pos_tier") or r.get("tier")
         cliff = src is not None and prev is not None and src > prev
         if disp == 0:
             disp, n_in_tier = 1, 0
@@ -310,8 +312,10 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
     if by_value:
         avail = sorted(avail, key=lambda r: ctx["value"].vorp_of(r["pid"]), reverse=True)
     elif pos_f != "All":
-        # filtering to one position → renumber the source's (UDK) tiers so they
-        # start at Tier 1 for this position (T1, T2, …)
+        # filtering to one position → order by UDK's positional rank (its tiers
+        # follow that, not overall ADP) then renumber the tiers to start at Tier 1
+        if any(r.get("pos_rank") for r in avail):
+            avail = sorted(avail, key=lambda r: (r.get("pos_rank") or r.get("rank") or 9999))
         avail = _position_tiers(avail)
     strike = taken if show_drafted else None
 

@@ -37,7 +37,8 @@ _SUFFIX_RE = re.compile(r"\s+[A-Z]{2,4}\s*\(\d+\)\s*$")
 
 # One-click UDK grabber bookmarklet (no credentials needed — runs in the user's
 # already-logged-in browser). Cycles QB/RB/WR/TE, sorts by ADP, downloads
-# udk_rankings.csv (Player,Tier) to upload in the app.
+# udk_rankings.csv (Name,Position,ADP,Tier — the Tier is each position's own tier)
+# to upload in the app.
 BOOKMARKLET = (
     "javascript:(async()=>{const w=m=>new Promise(r=>setTimeout(r,m));"
     "const P=['QB','RB','WR','TE'],A=[];for(const p of P){const b=[...document."
@@ -45,9 +46,10 @@ BOOKMARKLET = (
     "await w(2600);for(const tr of document.querySelectorAll('table tr')){const c="
     "[...tr.querySelectorAll('td')].map(x=>x.innerText.replace(/\\s+/g,' ').trim());"
     "if(c.length<7||!/^\\d+$/.test(c[1]))continue;A.push({n:c[0].replace("
-    "/\\s+[A-Z]{2,4}\\s*\\(\\d+\\)\\s*$/,'').trim(),a:parseFloat(c[5]),t:c[6]});}}"
-    "A.sort((x,y)=>x.a-y.a);const csv='Player,Tier\\n'+A.map(r=>'\"'+r.n+'\",'+r.t)"
-    ".join('\\n');const u=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));"
+    "/\\s+[A-Z]{2,4}\\s*\\(\\d+\\)\\s*$/,'').trim(),p:p,a:parseFloat(c[5]),t:c[6]});}}"
+    "A.sort((x,y)=>x.a-y.a);const csv='Name,Position,ADP,Tier\\n'+A.map(r=>'\"'+r.n"
+    "+'\",'+r.p+','+r.a+','+r.t).join('\\n');"
+    "const u=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));"
     "const e=document.createElement('a');e.href=u;e.download='udk_rankings.csv';"
     "document.body.appendChild(e);e.click();e.remove();alert('UDK exported: '+"
     "A.length+' players. Now upload udk_rankings.csv in your Draft Kit.');})();"

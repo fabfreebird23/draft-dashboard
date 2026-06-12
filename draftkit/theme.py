@@ -859,6 +859,10 @@ DARK = """
 .pc-verdict.lean{ background:#33280f !important; color:#e7c172 !important; }
 .pc-verdict.wait{ background:#16263f !important; color:#9cc4f5 !important; }
 .pc-verdict.ok{ background:var(--panel2) !important; color:var(--muted) !important; }
+/* Streamlit ':gray[…]' text (ADP · team · bye · #rank in the ranking rows) is
+   hardcoded to a dark slate (rgba(49,51,63,…)) meant for light mode — unreadable
+   on dark. Lighten just that gray (other colored chips keep their colour). */
+.stMarkdownColoredText[style*="49, 51, 63"]{ color:var(--muted) !important; }
 </style>
 """
 
