@@ -164,7 +164,8 @@ def render(ctx) -> None:
             ranks_active = rankings_tab(
                 ctx, key_prefix=akey, taken=drafted, queued=queued, is_my_turn=True,
                 pick_no=pick_no, next_pick=next_user_pick, on_click=_inspect,
-                on_star=toggle_queue, quick_draft=(draft if manual else None))
+                on_star=toggle_queue, quick_draft=(draft if manual else None),
+                my_pids=my_pids)
         with ltabs[1]:
             st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
             st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
@@ -206,6 +207,8 @@ def render(ctx) -> None:
 
     # ---- CENTER: Suggestions (focal) · Board, with the Player Spotlight below ----
     with center, st.container(key="dr_panel_boardc"):
+        st.markdown(C.needs_strip_html(my_pids, ctx["roster_slots"], reg),
+                    unsafe_allow_html=True)
         st.markdown(C.run_banner_html(board_avail, recent_positions, next_user_pick,
                                       ctx["adp_rank"], reg, needs=needs),
                     unsafe_allow_html=True)
@@ -219,7 +222,7 @@ def render(ctx) -> None:
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=drafted,
                         draft_fn=(draft if manual else None),
                         upcoming_slots=upcoming_slots, need_map=need_map, round_no=round_no)
-        ctabs = st.tabs(["Suggestions", "Cheat Sheet", "Board"])
+        ctabs = st.tabs(["Suggestions", "Cheat Sheet"])
         with ctabs[0]:
             st.markdown(C.act_now_html(board_avail, next_user_pick, ctx["adp_rank"], reg,
                                        ctx.get("value")), unsafe_allow_html=True)
@@ -235,21 +238,16 @@ def render(ctx) -> None:
                 survival_fn=lambda pid: C.survival_pct(
                     ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
                     next_user_pick)), unsafe_allow_html=True)
-        with ctabs[2]:
-            st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
-            st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
-                                    kept_overalls=kept_at, owner_fn=owner), unsafe_allow_html=True)
+        # Always-visible draft board (was a 3rd tab — no tab-flip to see the grid).
+        st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
+                                kept_overalls=kept_at, owner_fn=owner), unsafe_allow_html=True)
 
-    # ---- RIGHT: live Picks feed (with predicted picks folded in) + draft intel ----
+    # ---- RIGHT: draft intel — alerts, the Pick Predictor, run/plan ----
     preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall,
                              pids_by_slot=pids_by_slot)
-    pred_map = {ov: pid for ov, _s, pid in preds}
     with right, st.container(key="dr_panel_intel"):
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
-        st.markdown(C.picks_feed_html(pick_pids, pick_no, n, rounds, slot_names, my_slot, owner,
-                                      need_map, reg, kept_overalls=kept_at,
-                                      predictions=pred_map, queued=queued),
-                    unsafe_allow_html=True)
+        st.markdown(C.predictor_html(preds, slot_names, reg, n), unsafe_allow_html=True)
         st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), drafted, reg,
                                      profiles=ctx.get("profiles"),
                                      owner_by_slot=ctx["owner_by_slot"], round_no=round_no),

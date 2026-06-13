@@ -505,6 +505,23 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .rh-row.pos-WR{ box-shadow:inset 3px 0 0 -1px #4a7fd6; padding-left:6px; }
 .rh-row.pos-TE{ box-shadow:inset 3px 0 0 -1px #d98a2b; padding-left:6px; }
 
+/* ---- always-visible roster-needs tray ---- */
+.dr-needs{ display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin:0 0 8px;
+  padding:5px 8px; background:#f6f8fb; border:1px solid var(--line); border-radius:8px; }
+.ns-h{ font-size:11px; font-weight:700; color:#5a6470; text-transform:uppercase;
+  letter-spacing:.02em; margin-right:3px; }
+.ns-chip{ font-size:11px; font-weight:600; border-radius:5px; padding:2px 7px;
+  border:1px solid transparent; }
+.ns-fill{ background:#eef1f4; color:#9aa3ad; border-color:#e2e6ea; }
+.ns-open{ background:#fff4e6; color:#b5631a; border-color:#f1cfa1; }
+.ns-open.ns-QB{ background:#fdeef0; color:#b1364a; border-color:#f3c4cc; }
+.ns-open.ns-RB{ background:#eaf6ef; color:#1f7d4d; border-color:#c2e4ce; }
+.ns-open.ns-WR{ background:#eaf1fb; color:#2d5fa8; border-color:#c2d6f0; }
+.ns-open.ns-TE{ background:#fbf2e6; color:#9a6312; border-color:#eed7b0; }
+
+/* ---- inline stack / handcuff badge on board + suggestion rows ---- */
+.stk-badge{ font-size:11px; }
+
 /* ---- roster-construction path ---- */
 .dr-plan{ background:#fff; border:1px solid var(--line); border-radius:9px; padding:8px 11px;
   margin-bottom:10px; box-shadow:var(--shadow); }
@@ -935,6 +952,14 @@ DARK = """
 .rh-slot{ color:#c0a3e6 !important; }
 .rh-up{ background:#33265a !important; color:#cbb0f0 !important; }
 .rh-foot{ color:#9a8cb8 !important; }
+.dr-needs{ background:#161b22 !important; border-color:#2a313c !important; }
+.ns-h{ color:#9aa4b0 !important; }
+.ns-fill{ background:#21272f !important; color:#717b86 !important; border-color:#2a313c !important; }
+.ns-open{ background:#33280f !important; color:#e7c172 !important; border-color:#6a5320 !important; }
+.ns-open.ns-QB{ background:#3a1d22 !important; color:#f0a3a3 !important; border-color:#7a2e2e !important; }
+.ns-open.ns-RB{ background:#16302a !important; color:#7fdcb4 !important; border-color:#1c5a44 !important; }
+.ns-open.ns-WR{ background:#1a2330 !important; color:#9fc0e0 !important; border-color:#2c3f55 !important; }
+.ns-open.ns-TE{ background:#33280f !important; color:#e7c172 !important; border-color:#6a5320 !important; }
 /* keeper/empty board tints that read on dark */
 .dr-cell.empty .pk{ color:var(--mut2) !important; }
 [data-testid="stToggle"]{ color:var(--ink) !important; }

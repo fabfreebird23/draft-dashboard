@@ -10,10 +10,25 @@ from . import playercard as PC
 _POSCOL = {"QB": "red", "RB": "green", "WR": "blue", "TE": "orange"}
 
 
-def player_label(ctx, r, pm, *, pick=None) -> str:
+def stack_badge(pm, my_pids, registry) -> str:
+    """A 🔗 (stack: QB↔pass-catcher) / 🪢 (handcuff: same-team RB) emoji when this
+    player correlates with someone already on your roster, else ''. For board rows."""
+    if not my_pids:
+        return ""
+    from .. import value as V
+    tags = V.synergy(pm, my_pids, registry)
+    if any(t[0] == "Stack" for t in tags):
+        return "🔗 "
+    if any(t[0] == "Handcuff" for t in tags):
+        return "🪢 "
+    return ""
+
+
+def player_label(ctx, r, pm, *, pick=None, my_pids=None) -> str:
     """The rich markdown row label shared by the board and the queue: overall rank,
     color-coded positional rank, name, team · ADP · bye, and the VORP value chip
-    (plus a ▼/▲ ADP-delta chip when a current pick is supplied)."""
+    (plus a ▼/▲ ADP-delta chip when a current pick is supplied). When `my_pids` is
+    given, a 🔗/🪢 badge marks stacks/handcuffs with your roster."""
     pos_rank, adp_rank, byes = ctx["pos_rank"], ctx["adp_rank"], ctx.get("byes", {})
     vm = ctx.get("value")
     pid = str(r["pid"])
@@ -34,8 +49,9 @@ def player_label(ctx, r, pm, *, pick=None) -> str:
         d = (adp - pick) if (adp and pick) else 0
         vt = f"  :red[▼+{int(d)}]" if d >= 8 else (f"  :violet[▲{int(d)}]" if d <= -8 else "")
     rook = "  :violet[**R**]" if getattr(pm, "years_exp", None) == 0 else ""
+    stk = stack_badge(pm, my_pids, ctx["registry"])
     meta = f":gray[{pm.team} · ADP {adps}{bye_s}]"
-    return f'{rk_s}:{pc}[**{pr}**] **{r["name"]}**{rook} {meta}{vchip}{vt}'
+    return f'{rk_s}:{pc}[**{pr}**] {stk}**{r["name"]}**{rook} {meta}{vchip}{vt}'
 
 
 def _headshot_css(container_key, pid) -> str:
@@ -96,7 +112,7 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
 def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *,
                     view="List", per_pos=16, limit=70, next_pick=None,
                     show_bands=True, on_star=None, queued=None, taken=None,
-                    quick_draft=None) -> None:
+                    quick_draft=None, my_pids=None) -> None:
     """Best-available board. Clicking a player row opens their Spotlight card
     (`draft_fn` here is really the inspect handler); when `quick_draft` is given,
     each List-view row also gets a small **Draft** button to draft without opening
@@ -114,7 +130,7 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
     poscol = _POSCOL
 
     def label(r, pm):
-        return player_label(ctx, r, pm, pick=pick)
+        return player_label(ctx, r, pm, pick=pick, my_pids=my_pids)
 
     def compact_label(r, pm):
         """Short label for the narrow by-position columns: rank, short name, value."""
@@ -124,7 +140,8 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         vchip = ""
         if v is not None:
             vchip = f"  :{'green' if v >= 0 else 'red'}[V {'+' if v >= 0 else ''}{v:.0f}]"
-        return f':{pc}[**{pr}**] **{C.short_name(r["name"])}**{vchip}'
+        stk = stack_badge(pm, my_pids, reg)
+        return f':{pc}[**{pr}**] {stk}**{C.short_name(r["name"])}**{vchip}'
 
     taken_s = {str(x) for x in (taken or set())}
 
@@ -265,7 +282,7 @@ def _position_tiers(rows, *, max_per_tier=10):
 
 def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
                  pick_no=None, next_pick=None, on_click=None, on_star=None,
-                 quick_draft=None):
+                 quick_draft=None, my_pids=None):
     """The Rankings tab: a source dropdown (UDK / FantasyPros ECR / ESPN), position
     pills (All/QB/RB/WR/TE/K/DST), Show-drafted, a Rank/Value sort, search, and the
     tiered list. Returns the active source's board rows so the caller can drive the
@@ -326,7 +343,7 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
             clickable_board(ctx, avail, on_click, key_prefix, current_pick=pick_no,
                             view="List", next_pick=next_pick, show_bands=not by_value,
                             on_star=on_star, queued=queued, taken=strike,
-                            quick_draft=quick_draft)
+                            quick_draft=quick_draft, my_pids=my_pids)
         else:
             st.markdown(C.avail_html(avail, taken, reg, ctx["adp_rank"],
                                      pos_rank=ctx["pos_rank"], current_pick=pick_no,
@@ -401,7 +418,8 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
             reason += "  :violet[**stack**]"
         if s.get("bye_clash"):
             reason += "  :red[bye clash]"
-        label = player_label(ctx, r, pm) + f"  :blue[**FIT {s['fit']}**]" + reason
+        label = (player_label(ctx, r, pm, my_pids=my_pids)
+                 + f"  :blue[**FIT {s['fit']}**]" + reason)
 
         rk = f"{key_prefix}_sg_brow_{pm.position}_{pid}"
         css = _headshot_css(rk, pid)

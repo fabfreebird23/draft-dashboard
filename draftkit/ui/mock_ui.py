@@ -162,7 +162,6 @@ def render(ctx) -> None:
 
     # ----- slim status header (the full board lives in the center 'Board' tab) -----
     st.markdown(C.status_html(pick_no, n, slot_names[on_slot], is_my_turn), unsafe_allow_html=True)
-    non_keeper = {ov: pid for ov, pid in board.items() if ov not in kept_by_overall}
 
     my_pids = ([pid for ov, pid in made.items() if owner(ov) == my_slot]
                + [pid for ov, pid in kept_by_overall.items() if owner(ov) == my_slot])
@@ -228,7 +227,7 @@ def render(ctx) -> None:
                 ctx, key_prefix=mkey, taken=taken, queued=queued,
                 is_my_turn=can_draft, pick_no=pick_no, next_pick=next_user_pick,
                 on_click=show_card, on_star=toggle_queue,
-                quick_draft=(draft if can_draft else None))
+                quick_draft=(draft if can_draft else None), my_pids=my_pids)
         with ltabs[1]:
             st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
             st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
@@ -270,6 +269,8 @@ def render(ctx) -> None:
 
     # ---- CENTER: compact Player Spotlight on TOP, then Suggestions (focal) · Board ----
     with center, st.container(key="dr_panel_boardc"):
+        st.markdown(C.needs_strip_html(my_pids, ctx["roster_slots"], reg),
+                    unsafe_allow_html=True)
         st.markdown(C.run_banner_html(board_avail, recent_positions, next_user_pick,
                                       ctx["adp_rank"], reg, needs=needs),
                     unsafe_allow_html=True)
@@ -284,7 +285,7 @@ def render(ctx) -> None:
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=taken,
                         draft_fn=(draft if can_draft else None),
                         upcoming_slots=upcoming_slots, need_map=need_map, round_no=round_no)
-        ctabs = st.tabs(["Suggestions", "Cheat Sheet", "Board"])
+        ctabs = st.tabs(["Suggestions", "Cheat Sheet"])
         with ctabs[0]:
             st.markdown(C.act_now_html(board_avail, next_user_pick, ctx["adp_rank"], reg,
                                        ctx.get("value")), unsafe_allow_html=True)
@@ -300,28 +301,19 @@ def render(ctx) -> None:
                 survival_fn=lambda pid: C.survival_pct(
                     ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
                     next_user_pick)), unsafe_allow_html=True)
-        with ctabs[2]:
-            if made:
-                lo = max(made)
-                st.markdown(C.last_pick_html(lo, n, slot_names[owner(lo)], made[lo], reg),
-                            unsafe_allow_html=True)
-            if ai_on_clock:
-                st.markdown(C.on_clock_html(slot_names[on_slot]), unsafe_allow_html=True)
-            st.markdown(C.recent_ticker_html(non_keeper, reg), unsafe_allow_html=True)
-            st.markdown(C.grid_html(board, n, slot_names, my_slot, on_clock or 0, rounds, reg,
-                                    kept_overalls=set(kept_by_overall), owner_fn=owner),
-                        unsafe_allow_html=True)
+        # Always-visible draft board (was a 3rd tab — no tab-flip to see the grid).
+        if ai_on_clock:
+            st.markdown(C.on_clock_html(slot_names[on_slot]), unsafe_allow_html=True)
+        st.markdown(C.grid_html(board, n, slot_names, my_slot, on_clock or 0, rounds, reg,
+                                kept_overalls=set(kept_by_overall), owner_fn=owner),
+                    unsafe_allow_html=True)
 
-    # ---- RIGHT: live Picks feed (with predicted picks folded in) + draft intel ----
+    # ---- RIGHT: draft intel — alerts, the Pick Predictor, run/plan ----
     preds = predict_upcoming(ctx, taken, pick_no, my_slot, kept_by_overall,
                              pids_by_slot=pids_by_slot)
-    pred_map = {ov: pid for ov, _s, pid in preds}
     with right, st.container(key="dr_panel_intel"):
         st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
-        st.markdown(C.picks_feed_html(board, pick_no, n, rounds, slot_names, my_slot, owner,
-                                      need_map, reg, kept_overalls=set(kept_by_overall),
-                                      predictions=pred_map, queued=queued),
-                    unsafe_allow_html=True)
+        st.markdown(C.predictor_html(preds, slot_names, reg, n), unsafe_allow_html=True)
         st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), taken, reg,
                                      profiles=ctx.get("profiles"), owner_by_slot=owner_by_slot,
                                      round_no=round_no), unsafe_allow_html=True)

@@ -400,8 +400,8 @@ def open_needs(my_pids, roster_slots, registry) -> set:
 
 
 def insights_html(board_avail, recent_positions, needs_open) -> str:
-    """War-room alert chips: tier cliff, positional run, and need cues."""
-    from collections import Counter
+    """War-room alert chips: tier cliff + need cues (the positional run lives in the
+    prominent run_banner now)."""
     chips = []
     if board_avail:
         top_tier = board_avail[0]["tier"]
@@ -409,12 +409,7 @@ def insights_html(board_avail, recent_positions, needs_open) -> str:
         if left <= 4:
             chips.append(f'<span class="alert cliff">Tier {top_tier} cliff — '
                          f'{left} left</span>')
-    recent = [p for p in recent_positions[-6:] if p]
-    if recent:
-        pos, ct = Counter(recent).most_common(1)[0]
-        if ct >= 4:
-            chips.append(f'<span class="alert run">{pos} run — {ct} of last '
-                         f'{len(recent)}</span>')
+    # (positional-run is shown prominently by run_banner_html now — not duplicated here)
     if needs_open:
         order = [p for p in ("QB", "RB", "WR", "TE") if p in needs_open]
         if order:
@@ -543,6 +538,41 @@ def buzz_list_html(board_avail, registry, buzz, *, limit=6) -> str:
             f'<span class="bz-ct">🔥 {ct:,}</span></div>')
     return ('<div class="dr-buzzlist"><div class="bz-h">📈 Waiver Buzz · most-added (24h)</div>'
             + "".join(items) + "</div>")
+
+
+def needs_strip_html(my_pids, roster_slots, registry) -> str:
+    """A slim, always-visible 'roster tray': one chip per starter slot, filled (✓pos)
+    or open (highlighted), so you read your needs without leaving the board. FLEX
+    slots fill from leftover RB/WR/TE. (Underdog-style.)"""
+    order = ["QB", "RB", "WR", "TE", "FLEX"]
+    need = {}
+    for s in roster_slots:
+        if s in _STARTABLE or s == "FLEX":
+            need[s] = need.get(s, 0) + 1
+    if not need:
+        return ""
+    have, flex_pool = {}, 0
+    for pid in my_pids or []:
+        pos = registry.meta(pid).position
+        if pos in need and have.get(pos, 0) < need[pos]:
+            have[pos] = have.get(pos, 0) + 1
+        elif pos in _FLEX_OK:
+            flex_pool += 1
+    chips = []
+    for s in order:
+        total = need.get(s, 0)
+        if not total:
+            continue
+        got = min(flex_pool, total) if s == "FLEX" else have.get(s, 0)
+        for i in range(total):
+            filled = i < got
+            cls = "ns-fill" if filled else "ns-open"
+            chips.append(f'<span class="ns-chip {cls} ns-{s}">{"✓ " if filled else ""}{s}</span>')
+    open_n = sum(1 for s in order for i in range(need.get(s, 0))
+                 if not (i < (min(flex_pool, need.get(s, 0)) if s == "FLEX" else have.get(s, 0))))
+    head = "Starters set ✓" if open_n == 0 else f"Need {open_n}"
+    return (f'<div class="dr-needs"><span class="ns-h">{head}</span>'
+            + "".join(chips) + "</div>")
 
 
 def rookie_history_html(rookie_curve, registry, adp_pool, *, limit=6) -> str:
