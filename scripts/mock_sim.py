@@ -5,7 +5,7 @@ Streamlit UI, so we can audit roster construction + where rookies actually land.
 Run: python3 scripts/mock_sim.py [n_mocks]
 """
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 
 from draftkit import players, config, rankings as R, draft_history as DH
 from draftkit.adp import consensus
@@ -13,8 +13,9 @@ from draftkit.ui import components as C
 
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 10
 LID = sys.argv[2] if len(sys.argv) > 2 else "1310907162930733056"  # Kreeper
+# team count matters for snake order + round math (Kreeper=8, Babies&Boomer=10)
+TEAMS = next((int(a.split("=")[1]) for a in sys.argv if a.startswith("teams=")), 8)
 BOOST = "--noboost" not in sys.argv
-TEAMS = 8
 STARTERS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "FLEX", "FLEX"]
 ROUNDS = 14                      # 9 starters + 5 bench
 JITTER = 0.15
@@ -62,9 +63,13 @@ def run_one():
 
 flags = Counter()
 watch_picks = {w: [] for w in WATCH}
-rb_dist, wr_dist, qb_dist, te_dist = Counter(), Counter(), Counter(), Counter()
+qb_dist, rb_dist, wr_dist, te_dist = Counter(), Counter(), Counter(), Counter()
 rookie_round_hist = Counter()
-all_rookie_first = []   # first rookie overall pick each mock
+all_rookie_first = []
+board_pos = defaultdict(list)                # overall pick -> [name,...] across mocks
+adp_lk = {p["pid"]: p["adp"] for p in adp_pool}   # boosted adp
+ELITE = [p["name"] for p in adp_pool[:8]]    # top-8 vets/players by board
+elite_picks = defaultdict(list)
 
 for i in range(N):
     rosters, counts, drafted_at, rookie_picks = run_one()
@@ -79,13 +84,18 @@ for i in range(N):
         if r < 3: flags["<3 RB"] += 1
         if w < 3: flags["<3 WR"] += 1
         if r + w < 8: flags["thin RB+WR (<8)"] += 1
+    for nm, ov in drafted_at.items():
+        if ov <= 15:
+            board_pos[ov].append(nm)
+        if nm in ELITE:
+            elite_picks[nm].append(ov)
     for w in WATCH:
         if w in drafted_at:
             watch_picks[w].append(drafted_at[w])
-    for ov, nm, pos in rookie_picks:
-        rookie_round_hist[(ov - 1) // TEAMS + 1] += 1
     if rookie_picks:
         all_rookie_first.append(min(p[0] for p in rookie_picks))
+    for ov, nm, pos in rookie_picks:
+        rookie_round_hist[(ov - 1) // TEAMS + 1] += 1
 
 def fmt(d):
     return ", ".join(f"{k}:{v}" for k, v in sorted(d.items()))
@@ -94,18 +104,34 @@ print(f"\n=== {N} mocks · {TEAMS} teams · {ROUNDS} rds · jitter={JITTER} · n
 print(f"\nRoster-construction flags (out of {N*TEAMS} teams):")
 print("  ", fmt(flags) or "none 🎉")
 print(f"\nPosition-count distributions (count: #teams):")
-print("   QB:", fmt(qb_dist))
-print("   RB:", fmt(rb_dist))
-print("   WR:", fmt(wr_dist))
-print("   TE:", fmt(te_dist))
+print("   QB:", fmt(qb_dist)); print("   RB:", fmt(rb_dist))
+print("   WR:", fmt(wr_dist)); print("   TE:", fmt(te_dist))
+print(f"\nMost common pick at each of the first 15 slots (name : times / {N}):")
+for ov in range(1, 16):
+    names = Counter(board_pos.get(ov, []))
+    if names:
+        top = names.most_common(1)[0]
+        m = reg.by_norm  # noqa
+        pid = next((p["pid"] for p in adp_pool if p["name"] == top[0]), None)
+        adp = adp_lk.get(pid, "?")
+        rk = " (R)" if pid and reg.meta(pid).years_exp == 0 else ""
+        print(f"   #{ov:>2}: {top[0]}{rk}  ({top[1]}/{N}, boosted ADP {adp})")
 print(f"\nRookie aggression:")
-print("   first rookie off the board (overall pick), per mock:", all_rookie_first)
+print("   first rookie off the board, per mock:", all_rookie_first or "(n/a)")
 print("   rookies drafted by round:", fmt(rookie_round_hist))
-print(f"\nWatched rookies (overall pick across {N} mocks; ADP: Love~22, Price~62):")
+print(f"\nWatched rookies (overall pick across {N} mocks):")
 for w in WATCH:
     ps = watch_picks[w]
     if ps:
-        print(f"   {w}: picks {sorted(ps)} | avg {sum(ps)/len(ps):.1f} | "
-              f"earliest {min(ps)} | latest {max(ps)}")
+        print(f"   {w}: avg {sum(ps)/len(ps):.1f} | range {min(ps)}-{max(ps)} | {sorted(ps)}")
     else:
-        print(f"   {w}: never drafted in {N} mocks")
+        print(f"   {w}: never drafted")
+print(f"\nElite-vet landing (did the rookie boost push real studs too far?):")
+for nm in ELITE:
+    ps = elite_picks.get(nm, [])
+    pid = next((p["pid"] for p in adp_pool if p["name"] == nm), None)
+    base = adp_lk.get(pid, "?")
+    if ps:
+        print(f"   {nm} (ADP {base}): avg pick {sum(ps)/len(ps):.1f} | range {min(ps)}-{max(ps)}")
+    else:
+        print(f"   {nm} (ADP {base}): NEVER DRAFTED ⚠️")

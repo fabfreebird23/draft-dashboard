@@ -87,7 +87,7 @@ POS_CAPS = {"QB": 2, "TE": 2}
 
 
 def pick_for_owner(owner_id: str, rnd: int, available: list, tendencies: dict,
-                   registry, top_k: int = 12, jitter: float = 0.0,
+                   registry, top_k: int = 12, jitter: float = 0.0, rookie_lean: float = 0.12,
                    roster_counts: Optional[dict] = None) -> Optional[dict]:
     """Choose a player for an AI owner: blend ADP value with the owner's
     positional tendency for this round. `available` is ADP-ordered
@@ -136,11 +136,14 @@ def pick_for_owner(owner_id: str, rnd: int, available: list, tendencies: dict,
             over = rc.get(p["pos"], 0) - 5
             if over > 0:
                 score -= 0.11 * over
-        # Keeper-league rookie lean: managers reach for rookies (cheap future
-        # keepers), so opponents and the predictor favour them among close picks.
+        # Rookie lean: a small tiebreak so a rookie edges an equal-ADP vet (keeps the
+        # top rookie at #1 when his curve-ADP ties the consensus #1). Kept small on
+        # purpose — when a league's rookie curve is applied, the pool ADP already
+        # encodes the league's rookie aggression, so a large lean would double-count
+        # and overshoot (e.g. shove the #2 rookie past clearly better vets).
         try:
-            if registry.meta(p["pid"]).years_exp == 0:
-                score += 0.30
+            if rookie_lean and registry.meta(p["pid"]).years_exp == 0:
+                score += rookie_lean
         except Exception:  # noqa: BLE001
             pass
         # mock-draft variance: noise large enough to swap close-by players (so
