@@ -490,6 +490,53 @@ def select_player(widget_key, pid):
     st.session_state[f"{widget_key}_pending"] = str(pid)
 
 
+def _ai_section(pm, pid, facts, widget_key) -> None:
+    """Coach-AI block in the spotlight: an on-demand outlook paragraph + a Q&A box,
+    powered by the Claude API. Renders nothing unless an Anthropic key is set."""
+    from .. import ai as AI
+
+    if not AI.available():
+        return
+    ok = f"{widget_key}_ai_outlook_{pid}"          # cached outlook text per player
+    qhist = f"{widget_key}_ai_chat_{pid}"          # [{role, content}] for follow-ups
+    with st.expander("🤖 Coach AI — outlook & ask"):
+        if ok not in st.session_state:
+            if st.button("Generate outlook", key=f"{widget_key}_ai_go_{pid}",
+                         use_container_width=True):
+                with st.spinner("Reading the room…"):
+                    try:
+                        st.session_state[ok] = AI.outlook(pm, facts)
+                    except Exception as e:
+                        st.session_state[ok] = f"⚠️ AI unavailable: {e}"
+                st.rerun()
+        else:
+            st.markdown(f'<div class="dr-ai">{st.session_state[ok]}</div>',
+                        unsafe_allow_html=True)
+
+        # Prior Q&A turns for this player.
+        for turn in st.session_state.get(qhist, []):
+            who = "You" if turn["role"] == "user" else "Coach AI"
+            css = "dr-ai-q" if turn["role"] == "user" else "dr-ai-a"
+            st.markdown(f'<div class="{css}"><b>{who}:</b> {turn["content"]}</div>',
+                        unsafe_allow_html=True)
+
+        q = st.text_input(f"Ask about {C.short_name(pm.name)}",
+                          key=f"{widget_key}_ai_q_{pid}",
+                          placeholder="e.g. What's his ceiling if the offense clicks?")
+        if st.button("Ask", key=f"{widget_key}_ai_ask_{pid}",
+                     use_container_width=True) and q.strip():
+            hist = st.session_state.get(qhist, [])
+            with st.spinner("Thinking…"):
+                try:
+                    ans = AI.ask(pm, facts, q.strip(), history=hist or None)
+                except Exception as e:
+                    ans = f"⚠️ AI unavailable: {e}"
+            hist = hist + [{"role": "user", "content": q.strip()},
+                           {"role": "assistant", "content": ans}]
+            st.session_state[qhist] = hist
+            st.rerun()
+
+
 def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                     next_pick=None, draft_fn=None, my_pids=None, needs=None,
                     taken=None, upcoming_slots=None, need_map=None, round_no=None) -> None:
@@ -583,6 +630,24 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                 lbl, css, detail = note
                 st.markdown(f'<div class="dr-room {css}"><b>{lbl}</b> · {detail}</div>',
                             unsafe_allow_html=True)
+        # Coach AI: on-demand outlook + Q&A grounded in the live draft facts.
+        ai_facts = {
+            "season": config.current_season(),
+            "scoring": ctx["meta"].scoring,
+            "adp": int(adp) if adp else None,
+            "overall": overall,
+            "pos_rank": ctx["pos_rank"].get(pid, pm.position),
+            "tier": tier,
+            "value_rank": vrank,
+            "proj": round(proj, 1) if proj else None,
+            "verdict": verdict[0] if isinstance(verdict, (tuple, list)) and verdict else None,
+            "age": pm.age,
+            "years_exp": pm.years_exp,
+            "injury": pm.injury_status,
+            "bye": ctx.get("byes", {}).get(pm.team),
+        }
+        _ai_section(pm, pid, ai_facts, widget_key)
+
         if draft_fn is not None:
             if st.button(f"Draft {pm.name}", key=f"{widget_key}_spdraft", type="primary",
                          use_container_width=True):

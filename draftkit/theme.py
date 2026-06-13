@@ -448,6 +448,14 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .dr-room.lean{ background:#fff6e8; border-color:#f3dcb0; color:#8a5a12; }
 .dr-room.wait{ background:#eef6f0; border-color:#cfe6d6; color:#1c6b3f; }
 
+/* ---- Coach AI (outlook + Q&A) ---- */
+.dr-ai{ font-size:12.5px; line-height:1.5; color:#27303b; background:#f3f7fc;
+  border:1px solid #d9e4f0; border-left:3px solid #6c8fd6; border-radius:7px;
+  padding:8px 11px; margin:2px 0 8px; }
+.dr-ai-q{ font-size:12px; color:#3a4150; margin:5px 0 1px; }
+.dr-ai-a{ font-size:12.5px; line-height:1.5; color:#27303b; background:#f6f8fa;
+  border:1px solid #e2e8ef; border-radius:7px; padding:7px 10px; margin:1px 0 6px; }
+
 /* ---- roster-construction path ---- */
 .dr-plan{ background:#fff; border:1px solid var(--line); border-radius:9px; padding:8px 11px;
   margin-bottom:10px; box-shadow:var(--shadow); }
@@ -856,6 +864,9 @@ DARK = """
 .dr-room.wait{ background:#16302a !important; border-color:#1c5a44 !important; color:#7fdcb4 !important; }
 .dr-room.lean{ background:#33280f !important; border-color:#6a5320 !important; color:#e7c172 !important; }
 .dr-room.grab{ background:#3a1d22 !important; border-color:#7a2e2e !important; color:#f0a3a3 !important; }
+.dr-ai{ background:#1a2230 !important; border-color:#2c3b52 !important; border-left-color:#5f82c9 !important; color:#dbe4f0 !important; }
+.dr-ai-q{ color:#9fb0c5 !important; }
+.dr-ai-a{ background:#171c24 !important; border-color:#2a313c !important; color:#dbe4f0 !important; }
 /* keeper/empty board tints that read on dark */
 .dr-cell.empty .pk{ color:var(--mut2) !important; }
 [data-testid="stToggle"]{ color:var(--ink) !important; }
