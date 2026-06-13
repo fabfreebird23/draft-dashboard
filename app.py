@@ -17,7 +17,7 @@ from draftkit import draft_history, keepers as keepers_mod, rankings as rankings
 from draftkit.ui import assistant_ui, mock_ui, rankings_ui
 
 st.set_page_config(page_title="Draft Room — Mock + Live Draft", page_icon="🏈", layout="wide")
-theme.inject(st, dark=st.session_state.get("dark_mode", False))
+theme.inject(st, dark=st.session_state.get("dark_mode", True))   # Night Draft = dark hero
 
 
 # ----------------------------------------------------------------- cached data
@@ -365,7 +365,7 @@ def main():
     if ctx["tendencies"]:
         pills.append(f"AI · {len(ctx['tendencies'])} mgrs")
     pill_html = "".join(f'<span class="tb-pill">{p}</span>' for p in pills)
-    dark_on = st.session_state.get("dark_mode", False)
+    dark_on = st.session_state.get("dark_mode", True)
     with st.container(key="dr_topbar"):
         head = st.columns([5.4, 1.3, 1.3])
         with head[0]:
@@ -379,7 +379,7 @@ def main():
             # script before the nav renders and Streamlit would drop its state, kicking
             # you back to 'My Rankings'. The callback flips state pre-rerun instead.
             def _toggle_dark():
-                st.session_state["dark_mode"] = not st.session_state.get("dark_mode", False)
+                st.session_state["dark_mode"] = not st.session_state.get("dark_mode", True)
             st.button("☀ Light mode" if dark_on else "🌙 War room", key="dark_btn",
                       use_container_width=True, on_click=_toggle_dark,
                       help="Toggle the dark 'war-room' theme for live drafting.")

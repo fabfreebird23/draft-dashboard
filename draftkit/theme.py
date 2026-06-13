@@ -24,15 +24,20 @@ NAVY = "#16263f"
 
 CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Sora:wght@600;700;800;900&display=swap');
+/* ===== Night Draft — light variant (teal accent) ===== */
 :root{
-  --bg:#f2f4f8; --panel:#ffffff; --panel2:#fafbfc; --line:#e5e9f0; --line2:#eef1f6;
-  --ink:#16212e; --muted:#697585; --mut2:#9aa4b1;
-  --blue:#1f4e9b; --green:#1c8a4d; --red:#d23b3b; --amber:#e08a1e;
-  --qb:#d23b3b; --rb:#2e9e5b; --wr:#2f72c4; --te:#e08a1e; --k:#7a7f87; --dst:#6f5bd0;
+  --bg:#eef1f6; --panel:#ffffff; --panel2:#f5f7fa; --line:#e3e8ef; --line2:#eef1f6;
+  --ink:#101b2c; --muted:#5d6b7e; --mut2:#93a1b2;
+  --blue:#0d9488; --green:#1c8a4d; --red:#d23b3b; --amber:#e08a1e; --violet:#6248c8;
+  --accent:#0d9488; --accent-soft:#e6f6f3; --accent-line:#bfe6df;
+  --qb:#d23b3b; --rb:#2e9e5b; --wr:#2f72c4; --te:#e08a1e; --k:#7a7f87; --dst:#6248c8;
   --shadow:0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.05);
   --shadow-lg:0 4px 14px rgba(16,24,40,.08);
 }
+/* Sora as the display face for brand, section heads, and player names */
+h1,h2,h3,.neon-logo,.dr-h,.dr-status .rd,.tb-name,.pc-name,.pf-nm,.an-nm,.bz-nm,
+.rh-nm,.dr-rec b,.dr-runban b{ font-family:'Sora',-apple-system,'Segoe UI',sans-serif; }
 .stApp{ background:var(--bg); }
 html,body,[class*="css"],button,input,textarea,select,[data-testid="stMarkdownContainer"]{
   font-family:'Inter',-apple-system,'Segoe UI',Roboto,Arial,sans-serif; color:var(--ink); }
@@ -883,10 +888,14 @@ def logo_html(size: int = 30, tag: str | None = "Mock + Live Draft") -> str:
 
 DARK = """
 <style>
+/* ===== Night Draft — dark hero (teal accent) ===== */
 :root{
-  --bg:#0d1320; --panel:#161e2e; --panel2:#1b2539; --line:#28334d; --line2:#202b42;
-  --ink:#e8edf5; --muted:#a9c0d8; --mut2:#8c9cb4;
-  --shadow:0 1px 2px rgba(0,0,0,.45); --shadow-lg:0 8px 22px rgba(0,0,0,.55);
+  --bg:#0e1424; --panel:#18213a; --panel2:#1f2b48; --line:#2c3a5c; --line2:#222f4a;
+  --ink:#eaf0f9; --muted:#9fb2cc; --mut2:#6f82a0;
+  --blue:#22d3aa; --green:#34d399; --amber:#fbbf24; --red:#f87171; --violet:#a78bfa;
+  --accent:#22d3aa; --accent-soft:#13283a; --accent-line:#1f4a52;
+  --qb:#f87171; --rb:#34d399; --wr:#60a5fa; --te:#fbbf24; --dst:#a78bfa;
+  --shadow:0 2px 8px rgba(0,0,0,.4); --shadow-lg:0 8px 22px rgba(0,0,0,.55);
 }
 .stApp,[data-testid="stHeader"]{ background:var(--bg); }
 /* big light surfaces → dark panels (board player cards keep their colour tints) */

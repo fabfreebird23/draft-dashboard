@@ -1,0 +1,138 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Draft Room — theme directions</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Archivo:wght@600;700;800;900&family=Sora:wght@600;700;800&display=swap');
+  body{ margin:0; background:#33373f; font-family:'Inter',sans-serif; padding:22px; }
+  .row{ display:flex; gap:20px; align-items:flex-start; }
+  .col{ flex:1; }
+  .label{ color:#fff; font-weight:800; font-size:13px; letter-spacing:.3px; margin:0 0 9px 2px; }
+  .sub{ color:#aab; font-weight:600; font-size:11px; margin-left:8px; }
+
+  /* ---- the mini-UI (uses CSS vars set per theme) ---- */
+  .app{ background:var(--bg); border-radius:14px; padding:13px; --shadow:0 1px 3px rgba(0,0,0,.12); }
+  .topbar{ display:flex; align-items:center; gap:8px; margin-bottom:11px; }
+  .logo{ font-family:var(--display); font-weight:900; font-size:18px; color:var(--ink); letter-spacing:-.4px; }
+  .logo b{ color:var(--accent); }
+  .pill{ font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--muted);
+    background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:2px 8px; }
+  .tabs{ display:flex; gap:3px; border-bottom:2px solid var(--line); margin-bottom:11px; }
+  .tab{ font-size:11.5px; font-weight:700; color:var(--muted); padding:5px 9px; cursor:pointer; }
+  .tab.on{ color:var(--accent); border-bottom:2px solid var(--accent); margin-bottom:-2px; }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 12px;
+    box-shadow:var(--shadow); margin-bottom:10px; }
+  .head{ display:flex; align-items:center; gap:10px; }
+  .pic{ width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--panel2)); }
+  .nm{ font-family:var(--display); font-weight:800; font-size:16px; color:var(--ink); line-height:1.05; }
+  .pos{ font-size:11px; font-weight:700; color:var(--muted); }
+  .vrow{ display:flex; gap:6px; align-items:center; margin-top:9px; flex-wrap:wrap; }
+  .vorp{ font-weight:800; font-size:12px; color:#fff; background:var(--green); border-radius:6px; padding:2px 8px; }
+  .verdict{ font-size:10px; font-weight:800; color:#fff; background:var(--accent); border-radius:20px; padding:2px 9px; }
+  .surv{ font-size:11px; font-weight:700; color:var(--muted); }
+
+  .chips{ display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px; }
+  .chip{ font-size:10px; font-weight:800; color:#fff; border-radius:5px; padding:2px 8px; }
+  .qb{ background:var(--qb);} .rb{ background:var(--rb);} .wr{ background:var(--wr);} .te{ background:var(--te);}
+
+  .alerts{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  .run{ font-size:11px; font-weight:600; border-radius:8px; padding:6px 10px;
+    background:var(--warnbg); color:var(--warnfg); border:1px solid var(--warnln); }
+  .buzz{ display:inline-block; font-size:10.5px; font-weight:700; border-radius:6px; padding:2px 8px;
+    background:var(--warnbg); color:var(--warnfg); border:1px solid var(--warnln); }
+  .ai{ font-size:11.5px; line-height:1.45; color:var(--ink); background:var(--accent-soft);
+    border:1px solid var(--accent-ln); border-left:3px solid var(--accent); border-radius:7px; padding:7px 10px; }
+
+  .btns{ display:flex; gap:7px; }
+  .btn{ flex:1; text-align:center; font-size:12px; font-weight:700; border-radius:8px; padding:8px 0; }
+  .btn.primary{ background:var(--accent); color:var(--btn-on-accent); }
+  .btn.secondary{ background:var(--panel); color:var(--ink); border:1.5px solid var(--line); }
+
+  .srow{ display:flex; align-items:center; gap:7px; background:var(--panel); border:1px solid var(--line);
+    border-left:3px solid var(--rb); border-radius:8px; padding:6px 9px; margin-top:8px; box-shadow:var(--shadow); }
+  .srk{ font-weight:800; font-size:11px; color:var(--rb); }
+  .snm{ font-weight:700; font-size:12.5px; color:var(--ink); }
+  .smeta{ font-size:10px; color:var(--muted); margin-left:auto; }
+</style></head>
+<body>
+<div class="row">
+
+  <!-- THEME 1: NIGHT DRAFT (dark, teal) -->
+  <div class="col">
+    <div class="label">1 · Night Draft <span class="sub">dark-first · teal accent</span></div>
+    <div class="app" style="
+      --bg:#0e1424; --panel:#18213a; --panel2:#1f2b48; --line:#2c3a5c;
+      --ink:#eaf0f9; --muted:#9fb2cc; --accent:#22d3aa; --accent-soft:#13283a; --accent-ln:#1f4a52;
+      --green:#34d399; --qb:#f87171; --rb:#34d399; --wr:#60a5fa; --te:#fbbf24;
+      --warnbg:#33231a; --warnfg:#f0b48a; --warnln:#6a4127; --btn-on-accent:#06251c;
+      --display:'Sora',sans-serif; --shadow:0 2px 8px rgba(0,0,0,.4);">
+      <div class="topbar"><div class="logo"><b>D</b>raft Room</div><div class="pill">Kreeper · 8</div><div class="pill">Dark</div></div>
+      <div class="tabs"><div class="tab on">Rankings</div><div class="tab">Queue</div><div class="tab">Trends</div><div class="tab">League</div></div>
+      <div class="alerts">
+        <div class="run">🔥 <b>RB run</b> · 4 of last 5 · 3 quality left</div>
+        <span class="buzz">🔥 Rising · 9,100 adds/24h</span>
+      </div>
+      <div class="card">
+        <div class="head"><div class="pic"></div><div><div class="nm">Jeremiyah Love</div><div class="pos">RB · NO</div></div></div>
+        <div class="vrow"><span class="vorp">V +48</span><span class="verdict">GRAB</span><span class="surv">12% to your pick</span></div>
+      </div>
+      <div class="ai">🤖 Workhorse upside in a thin backfield — elite athletic profile, the case is volume from day one; risk is a committee early.</div>
+      <div class="chips"><span class="chip qb">QB</span><span class="chip rb">RB</span><span class="chip wr">WR</span><span class="chip te">TE</span></div>
+      <div class="btns"><div class="btn primary">Draft Love</div><div class="btn secondary">★ Queue</div></div>
+      <div class="srow"><span class="srk">RB4</span><span class="snm">Jadarian Price</span><span class="smeta">RB·NO · V +31</span></div>
+    </div>
+  </div>
+
+  <!-- THEME 2: GRIDIRON (light, orange) -->
+  <div class="col">
+    <div class="label">2 · Gridiron <span class="sub">light · bold · orange accent</span></div>
+    <div class="app" style="
+      --bg:#f3f4f1; --panel:#ffffff; --panel2:#f7f8f5; --line:#e3e6df;
+      --ink:#16241c; --muted:#5d6a60; --accent:#ff6a13; --accent-soft:#fff1e7; --accent-ln:#f6cba6;
+      --green:#0b7a3f; --qb:#d62828; --rb:#1f9e57; --wr:#2f6fc7; --te:#e0851a;
+      --warnbg:#fff0e6; --warnfg:#c2410c; --warnln:#f3cda3; --btn-on-accent:#ffffff;
+      --display:'Archivo',sans-serif; --shadow:0 1px 3px rgba(20,30,20,.08);">
+      <div class="topbar"><div class="logo"><b>D</b>RAFT ROOM</div><div class="pill">Kreeper · 8</div><div class="pill">PPR</div></div>
+      <div class="tabs"><div class="tab on">Rankings</div><div class="tab">Queue</div><div class="tab">Trends</div><div class="tab">League</div></div>
+      <div class="alerts">
+        <div class="run">🔥 <b>RB run</b> · 4 of last 5 · 3 quality left</div>
+        <span class="buzz">🔥 Rising · 9,100 adds/24h</span>
+      </div>
+      <div class="card">
+        <div class="head"><div class="pic"></div><div><div class="nm">Jeremiyah Love</div><div class="pos">RB · NO</div></div></div>
+        <div class="vrow"><span class="vorp">V +48</span><span class="verdict">GRAB</span><span class="surv">12% to your pick</span></div>
+      </div>
+      <div class="ai">🤖 Workhorse upside in a thin backfield — elite athletic profile, the case is volume from day one; risk is a committee early.</div>
+      <div class="chips"><span class="chip qb">QB</span><span class="chip rb">RB</span><span class="chip wr">WR</span><span class="chip te">TE</span></div>
+      <div class="btns"><div class="btn primary">Draft Love</div><div class="btn secondary">★ Queue</div></div>
+      <div class="srow"><span class="srk">RB4</span><span class="snm">Jadarian Price</span><span class="smeta">RB·NO · V +31</span></div>
+    </div>
+  </div>
+
+  <!-- THEME 3: STUDIO (light, indigo) -->
+  <div class="col">
+    <div class="label">3 · Studio <span class="sub">light · premium · indigo accent</span></div>
+    <div class="app" style="
+      --bg:#f7f8fb; --panel:#ffffff; --panel2:#f6f7fb; --line:#e8eaf2;
+      --ink:#1b2233; --muted:#6b7280; --accent:#5147e5; --accent-soft:#eef0fe; --accent-ln:#d4d8fb;
+      --green:#0e9f6e; --qb:#e5484d; --rb:#30a46c; --wr:#3a6ff7; --te:#d9890f;
+      --warnbg:#fef0e7; --warnfg:#bb4d00; --warnln:#f5d3b3; --btn-on-accent:#ffffff;
+      --display:'Sora',sans-serif; --shadow:0 1px 2px rgba(20,24,40,.04),0 4px 12px rgba(20,24,40,.06);">
+      <div class="topbar"><div class="logo"><b>D</b>raft Room</div><div class="pill">Kreeper · 8</div><div class="pill">PPR</div></div>
+      <div class="tabs"><div class="tab on">Rankings</div><div class="tab">Queue</div><div class="tab">Trends</div><div class="tab">League</div></div>
+      <div class="alerts">
+        <div class="run">🔥 <b>RB run</b> · 4 of last 5 · 3 quality left</div>
+        <span class="buzz">🔥 Rising · 9,100 adds/24h</span>
+      </div>
+      <div class="card">
+        <div class="head"><div class="pic"></div><div><div class="nm">Jeremiyah Love</div><div class="pos">RB · NO</div></div></div>
+        <div class="vrow"><span class="vorp">V +48</span><span class="verdict">GRAB</span><span class="surv">12% to your pick</span></div>
+      </div>
+      <div class="ai">🤖 Workhorse upside in a thin backfield — elite athletic profile, the case is volume from day one; risk is a committee early.</div>
+      <div class="chips"><span class="chip qb">QB</span><span class="chip rb">RB</span><span class="chip wr">WR</span><span class="chip te">TE</span></div>
+      <div class="btns"><div class="btn primary">Draft Love</div><div class="btn secondary">★ Queue</div></div>
+      <div class="srow"><span class="srk">RB4</span><span class="snm">Jadarian Price</span><span class="smeta">RB·NO · V +31</span></div>
+    </div>
+  </div>
+
+</div>
+</body></html>
