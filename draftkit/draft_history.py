@@ -128,6 +128,14 @@ def pick_for_owner(owner_id: str, rnd: int, available: list, tendencies: dict,
         # rounds an empty QB/TE is effectively forced rather than merely favoured.
         if p["pos"] in POS_CAPS and rc.get(p["pos"], 0) == 0:
             score += min(1.4, 0.12 * rnd)
+        # Soft flex balance: RB/WR have no cap, so jitter can cascade a team into
+        # 2-RB/9-WR. Gently discourage piling 6+ deep at one flex spot — a growing
+        # penalty (never a hard cap), so a clearly better player is still taken but
+        # a roster trends toward a realistic ~5-6 of each.
+        if p["pos"] in ("RB", "WR"):
+            over = rc.get(p["pos"], 0) - 5
+            if over > 0:
+                score -= 0.11 * over
         # Keeper-league rookie lean: managers reach for rookies (cheap future
         # keepers), so opponents and the predictor favour them among close picks.
         try:
