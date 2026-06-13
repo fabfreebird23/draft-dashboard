@@ -74,14 +74,15 @@ h1{ color:var(--blue); } h2{ color:var(--ink); font-size:1.35rem; } h3{ font-siz
 .neon-tag{ font-weight:700; font-size:10px; letter-spacing:2px; color:var(--mut2);
   text-transform:uppercase; }
 
-/* buttons: flat, compact; green primary */
+/* buttons: flat, compact; teal primary (Night Draft accent) */
 .stButton>button{ font-weight:700; font-size:12.5px; border-radius:7px; padding:5px 14px;
   transition:.12s; }
 .stButton>button[kind="secondary"]{ background:#fff; color:var(--ink); border:1.5px solid var(--line); }
 .stButton>button[kind="secondary"]:hover{ border-color:var(--blue); color:var(--blue); }
 .stButton>button[kind="primary"],.stButton>button[kind="primaryFormSubmit"]{
-  background:var(--green); color:#fff; border:none; }
-.stButton>button[kind="primary"]:hover{ background:#15703d; }
+  background:var(--blue); color:#fff; border:none; }
+.stButton>button[kind="primary"]:hover,.stButton>button[kind="primaryFormSubmit"]:hover{
+  filter:brightness(1.06); }
 div[data-testid="stRadio"] label{ font-size:12px; }
 
 /* nav styled as underline tabs (persisted radio) */
@@ -928,6 +929,14 @@ DARK = """
   color:var(--ink) !important; border-color:var(--line) !important; }
 .stButton>button[kind="secondary"]:hover{ border-color:var(--blue) !important;
   color:var(--blue) !important; }
+/* primary CTA: dark ink on the bright teal for legible contrast */
+.stButton>button[kind="primary"],.stButton>button[kind="primaryFormSubmit"]{
+  color:#06251c !important; }
+/* text areas + their placeholders were near-invisible on dark */
+[data-testid="stTextArea"] textarea,[data-baseweb="textarea"] textarea{
+  background:var(--panel) !important; color:var(--ink) !important; border-color:var(--line) !important; }
+[data-testid="stTextArea"] textarea::placeholder,
+[data-testid="stTextInput"] input::placeholder{ color:var(--mut2) !important; opacity:1; }
 [class*="dr_topbar"] .stButton button{ background:var(--panel2) !important;
   color:var(--ink) !important; border-color:var(--line) !important; }
 [class*="tb_war"] .stButton button{ background:var(--blue) !important; color:#fff !important;
