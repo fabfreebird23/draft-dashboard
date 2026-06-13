@@ -67,10 +67,11 @@ html,body{ font-size:13px; }
 [data-testid="stCaptionContainer"]{ font-size:11px; color:var(--mut2); }
 
 h1,h2,h3{ font-weight:800; letter-spacing:-.2px; }
-h1{ color:var(--blue); } h2{ color:var(--ink); font-size:1.35rem; } h3{ font-size:1.05rem; }
+h1{ color:var(--blue); line-height:1.3; overflow:visible; padding-top:2px; }
+h2{ color:var(--ink); font-size:1.35rem; } h3{ font-size:1.05rem; }
 .neon-logo{ font-weight:900; font-size:inherit; color:var(--blue); letter-spacing:-.5px;
-  display:inline-block; }
-.neon-logo::first-letter{ color:var(--green); }
+  display:inline-block; line-height:1.3; padding-top:.12em; overflow:visible; }
+.neon-logo::first-letter{ color:var(--blue); }
 .neon-tag{ font-weight:700; font-size:10px; letter-spacing:2px; color:var(--mut2);
   text-transform:uppercase; }
 
@@ -166,7 +167,7 @@ div[data-testid="stRadio"] label{ font-size:12px; }
   background:linear-gradient(180deg,#ffffff,#f7f9fc);
   border:1px solid var(--line); border-radius:13px; padding:12px 20px; margin-bottom:14px;
   box-shadow:var(--shadow); }
-.dr-status .rd{ font-weight:900; font-size:26px; color:var(--blue); line-height:.95;
+.dr-status .rd{ font-weight:900; font-size:26px; color:var(--blue); line-height:1.1;
   letter-spacing:-.5px; }
 .dr-status .rd small{ display:block; font-size:8.5px; letter-spacing:1.6px; color:var(--mut2);
   font-weight:800; margin-top:2px; }
