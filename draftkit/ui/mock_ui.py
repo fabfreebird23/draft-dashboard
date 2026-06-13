@@ -223,7 +223,7 @@ def render(ctx) -> None:
     # ---- LEFT: rankings · queue · trends (buzz / steals / rookie reach) ----
     from .. import value as V
     with left, st.container(key="dr_panel_board"):
-        ltabs = st.tabs(["Rankings", "Queue", "Trends"])
+        ltabs = st.tabs(["Rankings", "Queue", "Trends", "League", "Scouting"])
         with ltabs[0]:
             ranks_active = rankings_tab(
                 ctx, key_prefix=mkey, taken=taken, queued=queued,
@@ -249,16 +249,18 @@ def render(ctx) -> None:
                 st.markdown('<div class="dr-h">📜 Rookie reach</div>', unsafe_allow_html=True)
                 st.caption("Your league drafts rookies earlier than ADP — the mock reflects it.")
                 st.markdown(rh, unsafe_allow_html=True)
-            with st.expander("Roster Strength & League Board", expanded=False):
-                st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg,
-                                                   ctx["adp_rank"]), unsafe_allow_html=True)
-                st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
-                                                ctx["roster_slots"], reg, on_clock_slot=on_slot),
-                            unsafe_allow_html=True)
-            with st.expander("Opponent Scouting", expanded=False):
-                st.markdown(C.scouting_report_html(ctx.get("profiles", {}), slot_names,
-                                                   owner_by_slot, my_slot, on_clock_slot=on_slot,
-                                                   round_no=round_no), unsafe_allow_html=True)
+        with ltabs[3]:
+            st.markdown('<div class="dr-h dr-title">Roster Strength</div>', unsafe_allow_html=True)
+            st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg,
+                                               ctx["adp_rank"]), unsafe_allow_html=True)
+            st.markdown('<div class="dr-h">League Board</div>', unsafe_allow_html=True)
+            st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
+                                            ctx["roster_slots"], reg, on_clock_slot=on_slot),
+                        unsafe_allow_html=True)
+        with ltabs[4]:
+            st.markdown(C.scouting_report_html(ctx.get("profiles", {}), slot_names,
+                                               owner_by_slot, my_slot, on_clock_slot=on_slot,
+                                               round_no=round_no), unsafe_allow_html=True)
 
     upcoming_slots = ([owner(k) for k in range(pick_no + 1, next_user_pick)]
                       if next_user_pick else [])
