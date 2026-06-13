@@ -310,13 +310,14 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .pcard.compact .pc-surv{ margin-top:0; font-size:11.5px; }
 .pcard.compact .pc-syns{ margin-top:0; }
 .pcard.compact .pc-bio{ display:none; }               /* drop verbose bio when compact */
-.pcard.compact .pc-pts{ margin-top:0; flex-basis:100%; }
-.pcard.compact .pc-grid{ flex-basis:100%; grid-template-columns:none;
-  grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); margin-top:5px; }
-.pcard.compact .pc-stat{ padding:4px 3px; }
-.pcard.compact .pc-v{ font-size:13px; }
-.pcard.compact .pc-opp,.pcard.compact .pc-bb{ flex-basis:100%; margin-top:5px; }
-.pcard.compact .pc-nostat{ margin-top:0; }
+/* Keep the compact card a true banner: drop the bulky last-season blocks (deep
+   stat grid, opportunity chips, boom/bust) — the season points stay as a one-liner.
+   Full stats live in the player's spotlight elsewhere; this is the on-the-clock card. */
+.pcard.compact .pc-grid,
+.pcard.compact .pc-opp,
+.pcard.compact .pc-bb,
+.pcard.compact .pc-nostat{ display:none; }
+.pcard.compact .pc-pts{ margin-top:0; font-size:11.5px; }
 .pcard.compact .pc-verdict{ margin-left:0; }
 
 /* ---- steals & traps ---- */
