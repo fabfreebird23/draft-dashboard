@@ -899,7 +899,10 @@ DARK = """
   --qb:#f87171; --rb:#34d399; --wr:#60a5fa; --te:#fbbf24; --dst:#a78bfa;
   --shadow:0 2px 8px rgba(0,0,0,.4); --shadow-lg:0 8px 22px rgba(0,0,0,.55);
 }
-.stApp,[data-testid="stHeader"]{ background:var(--bg); }
+.stApp{ background:var(--bg); }
+/* keep the Streamlit header transparent in dark too — painting it solid made it
+   overlap & clip the topbar logo that sits pulled-up beneath it. */
+[data-testid="stHeader"]{ background:transparent !important; }
 /* big light surfaces → dark panels (board player cards keep their colour tints) */
 .sc-card,.lb,.rs,.pcard,.dr-status,.dr-avail,.dr-predict,.dr-grid,
 .dr-lastpick,.dr-queue,[class*="dr_panel_"],[class*="dr_topbar"],.dr-plan,.dr-grade{
