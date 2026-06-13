@@ -922,6 +922,12 @@ DARK = """
 [data-testid="stExpander"]{ background:var(--panel) !important; border-color:var(--line) !important; }
 [data-testid="stExpander"] summary{ color:var(--ink) !important; }
 .neon-tag{ color:var(--mut2) !important; }
+/* secondary buttons hardcode a white bg in light mode → unreadable in dark
+   (e.g. the saved-league buttons on the picker). Repaint them for dark. */
+.stButton>button[kind="secondary"]{ background:var(--panel) !important;
+  color:var(--ink) !important; border-color:var(--line) !important; }
+.stButton>button[kind="secondary"]:hover{ border-color:var(--blue) !important;
+  color:var(--blue) !important; }
 [class*="dr_topbar"] .stButton button{ background:var(--panel2) !important;
   color:var(--ink) !important; border-color:var(--line) !important; }
 [class*="tb_war"] .stButton button{ background:var(--blue) !important; color:#fff !important;
