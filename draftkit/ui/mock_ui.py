@@ -249,6 +249,16 @@ def render(ctx) -> None:
                 st.markdown('<div class="dr-h">📜 Rookie reach</div>', unsafe_allow_html=True)
                 st.caption("Your league drafts rookies earlier than ADP — the mock reflects it.")
                 st.markdown(rh, unsafe_allow_html=True)
+            with st.expander("Roster Strength & League Board", expanded=False):
+                st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg,
+                                                   ctx["adp_rank"]), unsafe_allow_html=True)
+                st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
+                                                ctx["roster_slots"], reg, on_clock_slot=on_slot),
+                            unsafe_allow_html=True)
+            with st.expander("Opponent Scouting", expanded=False):
+                st.markdown(C.scouting_report_html(ctx.get("profiles", {}), slot_names,
+                                                   owner_by_slot, my_slot, on_clock_slot=on_slot,
+                                                   round_no=round_no), unsafe_allow_html=True)
 
     upcoming_slots = ([owner(k) for k in range(pick_no + 1, next_user_pick)]
                       if next_user_pick else [])
@@ -331,16 +341,6 @@ def render(ctx) -> None:
         st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), taken, reg,
                                      profiles=ctx.get("profiles"), owner_by_slot=owner_by_slot,
                                      round_no=round_no), unsafe_allow_html=True)
-        with st.expander("Roster Strength & League Board", expanded=False):
-            st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg,
-                                               ctx["adp_rank"]), unsafe_allow_html=True)
-            st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
-                                            ctx["roster_slots"], reg, on_clock_slot=on_slot),
-                        unsafe_allow_html=True)
-        with st.expander("Opponent Scouting", expanded=False):
-            st.markdown(C.scouting_report_html(ctx.get("profiles", {}), slot_names,
-                                               owner_by_slot, my_slot, on_clock_slot=on_slot,
-                                               round_no=round_no), unsafe_allow_html=True)
 
     kept_note = (f" · {len(kept_pids)} keepers locked" if kept_pids else "")
     if manual:
