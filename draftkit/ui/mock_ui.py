@@ -182,6 +182,10 @@ def render(ctx) -> None:
 
     if done:
         st.success("Mock complete — your team is on the left. Reset to run another.")
+        csv_str = C.draft_csv(board, n, rounds, slot_names, owner, reg,
+                              ctx["adp_rank"], set(kept_by_overall), ctx.get("value"))
+        st.download_button("⬇ Export full draft (CSV)", csv_str,
+                           file_name="mock_draft.csv", mime="text/csv")
         if ctx.get("value"):
             from .. import value as V
             grade = V.grade_team(my_pids, ctx["value"], reg, ctx["roster_slots"], n)
@@ -228,6 +232,7 @@ def render(ctx) -> None:
         with ltabs[1]:
             st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
             st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+            st.markdown(C.roster_balance_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
             st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
             st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
             st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg, ctx["adp_rank"]),

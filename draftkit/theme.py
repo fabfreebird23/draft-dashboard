@@ -188,6 +188,11 @@ div[data-testid="stRadio"] label{ font-size:12px; }
   border:1.5px solid var(--line); background:#fff; }
 .dr-needs .need.open{ border-color:var(--red); color:var(--red); }
 .dr-needs .need.full{ color:var(--mut2); border-color:var(--line); }
+.dr-balance{ display:flex; align-items:center; gap:8px; margin:0 0 9px; flex-wrap:wrap; }
+.bal-chip{ font-weight:800; font-size:11px; padding:3px 10px; border-radius:14px; }
+.bal-chip.bal-ok{ background:#eaf7ef; color:#1c7a44; }
+.bal-chip.bal-warn{ background:#fff4e5; color:#b3650a; }
+.bal-detail{ font-size:11px; font-weight:600; color:var(--mut2); }
 .dr-alerts{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 9px; }
 .dr-alerts .alert{ font-weight:700; font-size:12px; padding:4px 11px; border-radius:8px; }
 .alert.cliff{ background:#fdecec; color:var(--red); border:1px solid #f5c2c2; }
@@ -863,6 +868,8 @@ DARK = """
    hardcoded to a dark slate (rgba(49,51,63,…)) meant for light mode — unreadable
    on dark. Lighten just that gray (other colored chips keep their colour). */
 .stMarkdownColoredText[style*="49, 51, 63"]{ color:var(--muted) !important; }
+.bal-chip.bal-ok{ background:#173a28 !important; color:#7fdcb4 !important; }
+.bal-chip.bal-warn{ background:#33280f !important; color:#e7c172 !important; }
 </style>
 """
 

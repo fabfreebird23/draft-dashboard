@@ -173,6 +173,38 @@ def roster_needs_html(my_pids: list, roster_slots: List[str], registry) -> str:
     return '<div class="dr-needs">' + "".join(chips) + "</div>"
 
 
+def roster_balance_html(my_pids: list, roster_slots: List[str], registry) -> str:
+    """A one-glance read on YOUR roster construction — balanced vs lopsided, plus
+    the position counts — like Draft Sharks' balance indicator."""
+    if not my_pids:
+        return ""
+    from collections import Counter
+    have = Counter(registry.meta(p).position for p in my_pids)
+    rb, wr, qb, te = (have.get("RB", 0), have.get("WR", 0),
+                      have.get("QB", 0), have.get("TE", 0))
+    needs = open_needs(my_pids, roster_slots, registry)
+    n = len(my_pids)
+    diff = rb - wr
+    label, cls = "Balanced build", "bal-ok"
+    if "QB" in needs and qb == 0 and n >= 4:
+        label, cls = "Still no QB", "bal-warn"
+    elif "TE" in needs and te == 0 and n >= 5:
+        label, cls = "Still no TE", "bal-warn"
+    elif diff >= 3:
+        label, cls = "RB-heavy", "bal-warn"
+    elif diff <= -3:
+        label, cls = "WR-heavy", "bal-warn"
+    elif rb <= 1 and n >= 6:
+        label, cls = "Thin at RB", "bal-warn"
+    elif wr <= 1 and n >= 6:
+        label, cls = "Thin at WR", "bal-warn"
+    icon = "✓" if cls == "bal-ok" else "⚠"
+    detail = " · ".join(f"{p} {have.get(p, 0)}" for p in ("QB", "RB", "WR", "TE")
+                        if have.get(p, 0) or p in ("RB", "WR"))
+    return (f'<div class="dr-balance"><span class="bal-chip {cls}">{icon} {label}</span>'
+            f'<span class="bal-detail">{detail}</span></div>')
+
+
 def status_html(pick_no: int, n: int, on_clock_name: str, is_yours: bool,
                 picks_until_me: int | None = None) -> str:
     rd = (pick_no - 1) // n + 1
@@ -738,6 +770,33 @@ def needs_by_slot(pids_by_slot, slot_names, roster_slots, registry):
         cnt = _pos_counts(pids_by_slot.get(slot, []), registry)
         out[slot] = {p for p in ("QB", "RB", "WR", "TE") if cnt[p] < demand.get(p, 0)}
     return out
+
+
+def draft_csv(board, n, rounds, slot_names, owner_fn, registry, adp_rank,
+              kept_overalls=None, value=None) -> str:
+    """The full draft as CSV (Overall, Pick, Team, Player, Pos, NFLTeam, ADP, Proj,
+    Keeper) — for exporting/sharing a completed mock."""
+    import csv as _csv
+    import io as _io
+    kept = kept_overalls or set()
+    buf = _io.StringIO()
+    w = _csv.writer(buf)
+    w.writerow(["Overall", "Pick", "Team", "Player", "Pos", "NFLTeam", "ADP",
+                "Proj", "Keeper"])
+    for ov in range(1, n * rounds + 1):
+        pid = board.get(ov)
+        if not pid:
+            continue
+        pm = registry.meta(pid)
+        slot = owner_fn(ov)
+        team = slot_names[slot] if slot < len(slot_names) else f"Team {slot + 1}"
+        rd, inrd = (ov - 1) // n + 1, (ov - 1) % n + 1
+        adp = adp_rank(pm.name, pm.position) if adp_rank else None
+        proj = value.proj_of(pid) if value else None
+        w.writerow([ov, f"{rd}.{inrd:02d}", team, pm.name, pm.position,
+                    pm.team or "", f"{adp:.0f}" if adp else "",
+                    f"{proj:.0f}" if proj else "", "Y" if ov in kept else ""])
+    return buf.getvalue()
 
 
 def draft_recap_html(pids_by_slot, my_slot, slot_names, roster_slots, registry,

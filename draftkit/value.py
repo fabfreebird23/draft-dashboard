@@ -291,9 +291,34 @@ def bye_clash(pm, my_pids, registry, byes) -> bool:
     return False
 
 
+def upside_score(model: "ValueModel", registry, pid) -> float:
+    """An 'upside' re-weighting of VORP for Upside Mode: favour rookies and young,
+    ascending players (high ceiling) and fade aging vets (capped floor). Falls back
+    to raw VORP when age/experience is unknown."""
+    base = model.vorp_of(pid) or 0.0
+    pm = registry.meta(pid)
+    age = getattr(pm, "age", None)
+    yexp = getattr(pm, "years_exp", None)
+    bonus = 0.0
+    if yexp == 0:
+        bonus += 16                         # rookie — pure ceiling
+    elif yexp is not None and yexp <= 2:
+        bonus += 9                          # ascending second/third year
+    if age is not None:
+        if age <= 23:
+            bonus += 9
+        elif age <= 25:
+            bonus += 4
+        elif age >= 30:
+            bonus -= 9
+        elif age >= 28:
+            bonus -= 4
+    return base + bonus
+
+
 def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
                     next_pick=None, survival_fn=None, my_pids=None, roster_slots=None,
-                    byes=None, k=6):
+                    byes=None, k=6, upside=False):
     """A ranked list of the best picks right now — the engine behind the Suggestions
     tab. Roster-aware scoring like ``best_pick`` (value × roster fit + starter need +
     positional scarcity + 'won't survive to your next pick'), now also nudged by
@@ -311,7 +336,8 @@ def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
         mult = (roster_multiplier(pm.position, my_pids, roster_slots, registry)
                 if use_roster else 1.0)
         raw = model.vorp_of(pid)
-        score = raw * mult
+        base = upside_score(model, registry, pid) if upside else raw
+        score = base * mult
         if mult >= 0.999:
             score += 22
         elif mult >= 0.55:

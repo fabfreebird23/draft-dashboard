@@ -350,9 +350,13 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
     with st.container(key=f"{key_prefix}_sg_posf"):
         pos_f = st.radio("Position", positions, horizontal=True,
                          key=f"{key_prefix}_spos", label_visibility="collapsed")
-    st.caption("Top picks by value, roster fit, scarcity & survival to your next pick. "
-               "**FIT** = the model's share of preference · the **%** box = chance he lasts "
-               "to your next pick.")
+    trow = st.columns([3.1, 1.1])
+    trow[0].caption("Top picks by value, roster fit, scarcity & survival to your next "
+                    "pick. **FIT** = the model's share of preference · the **%** box = "
+                    "chance he lasts to your next pick.")
+    upside = trow[1].toggle("⚡ Upside", key=f"{key_prefix}_upside",
+                            help="Upside Mode — re-rank toward high-ceiling, younger and "
+                                 "rookie players instead of safe floor/value.")
 
     avail = [r for r in ranks if r.get("pid") and str(r["pid"]) not in taken_s
              and (pos_f == "All" or reg.meta(r["pid"]).position == pos_f)]
@@ -360,7 +364,8 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
         avail, ctx["value"], reg, needs, taken_s, next_pick=next_pick,
         survival_fn=lambda pid: C.survival_pct(
             ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_pick),
-        my_pids=my_pids, roster_slots=ctx["roster_slots"], byes=ctx.get("byes"), k=7)
+        my_pids=my_pids, roster_slots=ctx["roster_slots"], byes=ctx.get("byes"), k=7,
+        upside=upside)
     if not sugg:
         st.caption("— no players available —")
         return
