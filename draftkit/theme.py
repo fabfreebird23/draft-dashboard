@@ -399,7 +399,7 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 
 /* ---- live 'Picks' rail (FantasyPros-style) ---- */
 .dr-picks{ display:flex; flex-direction:column; gap:5px; max-height:660px; overflow:auto;
-  padding-right:3px; }
+  padding-right:3px; margin-bottom:8px; }
 .pf-head{ font-size:12px; font-weight:700; color:var(--ink); padding:3px 2px 6px;
   position:sticky; top:0; background:var(--panel); z-index:2; }
 .pf-head b{ color:var(--blue); }

@@ -257,8 +257,9 @@ def render(ctx) -> None:
                                       need_map, reg, kept_overalls=kept_at,
                                       predictions=pred_map, queued=queued),
                     unsafe_allow_html=True)
-        # My Team — always open, directly under the Pick Predictor.
-        st.markdown('<div class="dr-h dr-title">My Team</div>', unsafe_allow_html=True)
+        # My Team — always open, directly under the Pick Predictor (base dr-h adds a
+        # divider + top margin so it clears the scrolling picks feed above).
+        st.markdown('<div class="dr-h">My Team</div>', unsafe_allow_html=True)
         st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
         st.markdown(C.roster_balance_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
         st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
