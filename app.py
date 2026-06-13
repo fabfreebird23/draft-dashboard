@@ -85,6 +85,24 @@ def get_byes(season: int):
     return udk.ensure_byes(cookie, season)
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def get_buzz():
+    """League-wide add/drop velocity → {sleeper_pid: {'add': n, 'drop': m}}. A free
+    breaking-news proxy (injuries/role changes spike adds). Never fatal."""
+    from draftkit import sleeper_client
+    try:
+        adds = sleeper_client.get_trending("add", 24, 200)
+        drops = sleeper_client.get_trending("drop", 24, 200)
+    except Exception:  # noqa: BLE001
+        return {}
+    out = {}
+    for pid, n in adds.items():
+        out.setdefault(pid, {})["add"] = n
+    for pid, n in drops.items():
+        out.setdefault(pid, {})["drop"] = n
+    return out
+
+
 @st.cache_data(ttl=86400, show_spinner="Loading projections…")
 def get_projections(season: int, scoring: str):
     from draftkit import projections
@@ -280,6 +298,7 @@ def build_context(sel: dict) -> dict:
         "owner_by_slot": owner_by_slot, "owner_slot": owner_slot,
         "adp_df": adp_df, "adp_rank": adp_rank, "adp_pool": adp_pool,
         "pos_rank": pos_rank, "pos_tier": pos_tier, "byes": get_byes(config.current_season()),
+        "buzz": get_buzz(),
         "keepers_raw": keepers_raw, "keepers": placements, "tendencies": tendencies,
         "profiles": profiles,
         "value": value, "proj": proj, "schedule": schedule, "dvp": dvp,

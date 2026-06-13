@@ -424,6 +424,127 @@ def insights_html(board_avail, recent_positions, needs_open) -> str:
     return '<div class="dr-alerts">' + "".join(chips) + "</div>"
 
 
+def run_banner_html(board_avail, recent_positions, next_pick, adp_rank, registry,
+                    *, needs=None, window=8) -> str:
+    """Prominent 'on the clock' run alert: when a positional run is underway, say
+    how many quality players are left at that position and how many will likely be
+    gone before your next pick. Empty string when no run is detected."""
+    from collections import Counter
+    recent = [p for p in (recent_positions or [])[-window:] if p in ("QB", "RB", "WR", "TE")]
+    if len(recent) < 3:
+        return ""
+    pos, ct = Counter(recent).most_common(1)[0]
+    # A run = ≥4 of the last `window`, or a hot streak of ≥3 of the last 4.
+    last4 = [p for p in recent[-4:] if p == pos]
+    if not (ct >= 4 or len(last4) >= 3):
+        return ""
+    at_pos = [r for r in board_avail if registry.meta(r["pid"]).position == pos]
+    # "Quality left" = players in the top 2 remaining tiers at this position.
+    tiers = sorted({r.get("tier") for r in at_pos if r.get("tier") is not None})
+    top2 = set(tiers[:2])
+    quality = [r for r in at_pos if r.get("tier") in top2] if top2 else at_pos[:8]
+    gone = 0
+    if next_pick:
+        for r in quality:
+            pm = registry.meta(r["pid"])
+            sv = survival_pct(adp_rank(pm.name, pm.position), next_pick)
+            if sv is not None and sv < 50:
+                gone += 1
+    is_need = needs and pos in needs
+    css = "grab" if is_need else "run"
+    tail = f"{len(quality)} quality left"
+    if next_pick and gone:
+        tail += f" · ~{gone} likely gone by your pick"
+    urge = " — you need one" if is_need else ""
+    return (f'<div class="dr-runban {css}">🔥 <b>{pos} run</b> · {ct} of last '
+            f'{len(recent)} picks · {tail}{urge}</div>')
+
+
+def act_now_html(board_avail, next_pick, adp_rank, registry, value=None,
+                 *, limit=5, threshold=50) -> str:
+    """'Gone by your next pick' — the best available players unlikely to survive to
+    your next turn. Promotes per-card survival math into one act-now list."""
+    if not next_pick or not board_avail:
+        return ""
+    rows = []
+    for r in board_avail:
+        pm = registry.meta(r["pid"])
+        sv = survival_pct(adp_rank(pm.name, pm.position), next_pick)
+        if sv is not None and sv < threshold:
+            rows.append((sv, r, pm))
+    if not rows:
+        return ""
+    # Order by board rank (best players first), not by survival.
+    rows.sort(key=lambda x: (x[1].get("rank") or 9999))
+    rows = rows[:limit]
+    items = []
+    for sv, r, pm in rows:
+        pr = r.get("rank")
+        rk = f'<span class="an-rk">#{int(pr)}</span>' if pr else ""
+        items.append(
+            f'<div class="an-row pos-{pm.position}">{theme.img_tag(r["pid"], "an-img")}'
+            f'{rk}<span class="an-nm">{short_name(pm.name)}</span>'
+            f'<span class="an-tm">{pm.position}·{pm.team}</span>'
+            f'<span class="an-sv">{sv}%</span></div>')
+    return ('<div class="dr-actnow"><div class="an-h">⏳ Likely gone by your next pick</div>'
+            + "".join(items) + "</div>")
+
+
+def _buzz_for(pid, registry, buzz):
+    """(kind, count) for a player from the trending map, or None. kind ∈ up/down."""
+    if not buzz:
+        return None
+    pm = registry.meta(pid)
+    key = str(pm.sleeper_pid or pid)
+    rec = buzz.get(key)
+    if not rec:
+        return None
+    add, drop = rec.get("add", 0), rec.get("drop", 0)
+    if add >= max(1, drop):
+        return ("up", add)
+    if drop:
+        return ("down", drop)
+    return None
+
+
+def buzz_chip_html(pid, registry, buzz) -> str:
+    """A 🔥 rising / ❄️ falling chip for the spotlight, from Sleeper add/drop velocity."""
+    b = _buzz_for(pid, registry, buzz)
+    if not b:
+        return ""
+    kind, ct = b
+    if kind == "up":
+        return (f'<span class="dr-buzz up" title="Added in {ct:,} Sleeper leagues in 24h">'
+                f'🔥 Rising · {ct:,} adds/24h</span>')
+    return (f'<span class="dr-buzz down" title="Dropped in {ct:,} Sleeper leagues in 24h">'
+            f'❄️ Cooling · {ct:,} drops/24h</span>')
+
+
+def buzz_list_html(board_avail, registry, buzz, *, limit=6) -> str:
+    """A small 'Waiver Buzz' list: the most-added available players (breaking-news
+    proxy). Helps catch a beat-the-room handcuff/injury bump mid-draft."""
+    if not buzz or not board_avail:
+        return ""
+    rows = []
+    for r in board_avail:
+        b = _buzz_for(r["pid"], registry, buzz)
+        if b and b[0] == "up":
+            rows.append((b[1], r, registry.meta(r["pid"])))
+    if not rows:
+        return ""
+    rows.sort(key=lambda x: -x[0])
+    rows = rows[:limit]
+    items = []
+    for ct, r, pm in rows:
+        items.append(
+            f'<div class="bz-row pos-{pm.position}">{theme.img_tag(r["pid"], "bz-img")}'
+            f'<span class="bz-nm">{short_name(pm.name)}</span>'
+            f'<span class="bz-tm">{pm.position}·{pm.team}</span>'
+            f'<span class="bz-ct">🔥 {ct:,}</span></div>')
+    return ('<div class="dr-buzzlist"><div class="bz-h">📈 Waiver Buzz · most-added (24h)</div>'
+            + "".join(items) + "</div>")
+
+
 def bye_conflict_html(my_pids, byes, registry) -> str:
     """Warn when ≥3 of your players share a bye week (a lineup hole that week)."""
     if not byes:

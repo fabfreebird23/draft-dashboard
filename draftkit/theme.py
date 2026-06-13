@@ -456,6 +456,32 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .dr-ai-a{ font-size:12.5px; line-height:1.5; color:#27303b; background:#f6f8fa;
   border:1px solid #e2e8ef; border-radius:7px; padding:7px 10px; margin:1px 0 6px; }
 
+/* ---- on-the-clock run banner + act-now list + waiver buzz ---- */
+.dr-runban{ font-size:12.5px; font-weight:500; border-radius:8px; padding:7px 11px;
+  margin:2px 0 9px; border:1px solid #f3c4b0; background:#fdeee6; color:#8a3d1c; }
+.dr-runban.grab{ background:#fdecec; border-color:#f0b3b3; color:#9a2820; }
+.dr-actnow,.dr-buzzlist{ border:1px solid var(--line); border-radius:9px;
+  padding:7px 9px; margin:6px 0; background:#fff; }
+.an-h,.bz-h{ font-size:11px; font-weight:700; letter-spacing:.02em; color:#5a6470;
+  text-transform:uppercase; margin:0 0 5px; }
+.an-row,.bz-row{ display:flex; align-items:center; gap:6px; padding:3px 2px;
+  border-top:1px solid #f0f2f5; font-size:12px; }
+.an-row:first-of-type,.bz-row:first-of-type{ border-top:none; }
+.an-img,.bz-img{ width:22px; height:16px; border-radius:3px; object-fit:cover; }
+.an-rk{ font-weight:700; color:#6a7480; font-size:11px; min-width:26px; }
+.an-nm,.bz-nm{ font-weight:600; color:#222; }
+.an-tm,.bz-tm{ color:#8a929c; font-size:11px; }
+.an-sv{ margin-left:auto; font-weight:700; color:#b14a2a; font-size:11.5px; }
+.bz-ct{ margin-left:auto; font-weight:700; color:#c2410c; font-size:11.5px; }
+.an-row.pos-QB,.bz-row.pos-QB{ box-shadow:inset 3px 0 0 -1px #e0556a; padding-left:6px; }
+.an-row.pos-RB,.bz-row.pos-RB{ box-shadow:inset 3px 0 0 -1px #36a26b; padding-left:6px; }
+.an-row.pos-WR,.bz-row.pos-WR{ box-shadow:inset 3px 0 0 -1px #4a7fd6; padding-left:6px; }
+.an-row.pos-TE,.bz-row.pos-TE{ box-shadow:inset 3px 0 0 -1px #d98a2b; padding-left:6px; }
+.dr-buzz{ display:inline-block; font-size:11px; font-weight:600; border-radius:6px;
+  padding:2px 7px; margin:6px 0 2px; border:1px solid #f3d2b0; }
+.dr-buzz.up{ background:#fff2e6; color:#c2410c; border-color:#f3cda3; }
+.dr-buzz.down{ background:#eef3f8; color:#436389; border-color:#cdd9e6; }
+
 /* ---- roster-construction path ---- */
 .dr-plan{ background:#fff; border:1px solid var(--line); border-radius:9px; padding:8px 11px;
   margin-bottom:10px; box-shadow:var(--shadow); }
@@ -867,6 +893,17 @@ DARK = """
 .dr-ai{ background:#1a2230 !important; border-color:#2c3b52 !important; border-left-color:#5f82c9 !important; color:#dbe4f0 !important; }
 .dr-ai-q{ color:#9fb0c5 !important; }
 .dr-ai-a{ background:#171c24 !important; border-color:#2a313c !important; color:#dbe4f0 !important; }
+.dr-runban{ background:#33231a !important; border-color:#6a4127 !important; color:#f0b48a !important; }
+.dr-runban.grab{ background:#3a1d22 !important; border-color:#7a2e2e !important; color:#f0a3a3 !important; }
+.dr-actnow,.dr-buzzlist{ background:#161b22 !important; border-color:#2a313c !important; }
+.an-h,.bz-h{ color:#9aa4b0 !important; }
+.an-row,.bz-row{ border-top-color:#222831 !important; }
+.an-nm,.bz-nm{ color:#e6ebf2 !important; }
+.an-tm,.bz-tm{ color:#8a929c !important; }
+.an-sv{ color:#f0a585 !important; }
+.bz-ct{ color:#f0a585 !important; }
+.dr-buzz.up{ background:#33231a !important; color:#f0b48a !important; border-color:#6a4127 !important; }
+.dr-buzz.down{ background:#1a2330 !important; color:#9fc0e0 !important; border-color:#2c3f55 !important; }
 /* keeper/empty board tints that read on dark */
 .dr-cell.empty .pk{ color:var(--mut2) !important; }
 [data-testid="stToggle"]{ color:var(--ink) !important; }

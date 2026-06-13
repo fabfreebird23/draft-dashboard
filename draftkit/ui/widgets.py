@@ -621,6 +621,10 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
         vrank = vm.rank_of(pid) if vm and hasattr(vm, "rank_of") else None
         st.markdown(C.adp_market_html(ctx.get("adp_df"), pm.name, pm.position, vrank),
                     unsafe_allow_html=True)
+        # Waiver buzz: 🔥 rising / ❄️ cooling from Sleeper add-drop velocity (news proxy)
+        buzz_chip = C.buzz_chip_html(pid, registry, ctx.get("buzz"))
+        if buzz_chip:
+            st.markdown(buzz_chip, unsafe_allow_html=True)
         # 'Beat the room' read: who picks before you & whether they're chasing his pos
         if vm and upcoming_slots and ctx.get("profiles") and need_map is not None:
             note = V.room_note(pm, upcoming_slots, need_map, ctx["profiles"],

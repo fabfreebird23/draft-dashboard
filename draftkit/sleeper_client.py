@@ -73,6 +73,19 @@ def get_draft_picks_fresh(draft_id: str) -> List[Dict[str, Any]]:
     return _get(f"draft/{draft_id}/picks") or []
 
 
+def get_trending(kind: str = "add", hours: int = 24, limit: int = 200) -> Dict[str, int]:
+    """League-wide add/drop velocity from Sleeper — a free 'breaking news' proxy.
+    A spike in adds usually means an injury to a starter ahead of them, a role
+    change, or a hot waiver. Returns {sleeper_player_id: count}. Cached ~1h."""
+    kind = "add" if kind not in ("add", "drop") else kind
+
+    def _fetch():
+        rows = _get(f"players/nfl/trending/{kind}?lookback_hours={hours}&limit={limit}")
+        return {str(r["player_id"]): int(r.get("count", 0)) for r in (rows or [])}
+
+    return _disk(f"trending_{kind}_{hours}_{limit}", 3600, _fetch)
+
+
 def get_traded_picks(draft_id: str) -> List[Dict[str, Any]]:
     """Picks swapped between rosters — [{round, roster_id, owner_id, previous_owner_id}]
     (ids are roster_ids). Lets us reflect real, traded draft capital."""

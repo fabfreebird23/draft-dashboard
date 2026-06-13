@@ -270,6 +270,9 @@ def render(ctx) -> None:
 
     # ---- CENTER: compact Player Spotlight on TOP, then Suggestions (focal) · Board ----
     with center, st.container(key="dr_panel_boardc"):
+        st.markdown(C.run_banner_html(board_avail, recent_positions, next_user_pick,
+                                      ctx["adp_rank"], reg, needs=needs),
+                    unsafe_allow_html=True)
         if rec_row:
             rpm = reg.meta(rec_row["pid"])
             cue = "click a player in the list to inspect" if can_draft else "your top target"
@@ -283,10 +286,14 @@ def render(ctx) -> None:
                         upcoming_slots=upcoming_slots, need_map=need_map, round_no=round_no)
         ctabs = st.tabs(["Suggestions", "Cheat Sheet", "Board"])
         with ctabs[0]:
+            st.markdown(C.act_now_html(board_avail, next_user_pick, ctx["adp_rank"], reg,
+                                       ctx.get("value")), unsafe_allow_html=True)
             suggestions_tab(ctx, key_prefix=mkey, ranks=ranks_active, taken=taken,
                             my_pids=my_pids, needs=needs, next_pick=next_user_pick,
                             pick_no=pick_no, on_click=show_card, on_star=toggle_queue,
                             quick_draft=(draft if can_draft else None), queued=queued)
+            st.markdown(C.buzz_list_html(board_avail, reg, ctx.get("buzz")),
+                        unsafe_allow_html=True)
         with ctabs[1]:
             st.markdown(C.cheat_sheet_html(
                 board_avail, reg,
