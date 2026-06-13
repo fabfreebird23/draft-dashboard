@@ -265,6 +265,12 @@ def render(ctx) -> None:
             with st.expander("Steals & Traps", expanded=False):
                 st.caption("Market value vs. ADP — click any player to open their card.")
                 steals_traps_widget(steals, traps, reg, f"{akey}_st", _inspect)
+        rh = C.rookie_history_html(ctx.get("rookie_curve"), reg, ctx["adp_pool"])
+        if rh:
+            with st.expander("📜 Rookie reach (league history)", expanded=False):
+                st.caption("Your league drafts rookies earlier than ADP — predictions "
+                           "reflect this. Shown: consensus ADP → your league's historical slot.")
+                st.markdown(rh, unsafe_allow_html=True)
 
     kept_note = (f" {len(kept_pids)} keepers are pre-marked." if kept_pids else "")
     if manual:

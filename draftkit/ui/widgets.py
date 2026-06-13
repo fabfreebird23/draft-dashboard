@@ -51,7 +51,8 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
     even at the snake turn where you pick back-to-back. Returns
     [(overall, slot, pid), ...]. Respects the QB/TE roster caps so it never
     predicts a 3rd QB/TE for a team."""
-    reg, adp_pool, tend = ctx["registry"], ctx["adp_pool"], ctx["tendencies"]
+    reg, tend = ctx["registry"], ctx["tendencies"]
+    adp_pool = ctx.get("ai_pool") or ctx["adp_pool"]   # rookie-boosted pool
     owner_by_slot = ctx["owner_by_slot"]
     owner = ctx["pick_owner_slot"]            # traded-pick-aware ownership
     n = len(ctx["slot_names"])

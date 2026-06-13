@@ -190,3 +190,35 @@ def adp_pool(registry, adp_df: pd.DataFrame) -> list:
             out.append({"pid": str(pid), "name": ar["name"], "pos": pos, "adp": int(rank)})
     out.sort(key=lambda x: x["adp"])
     return out
+
+
+def apply_rookie_curve(pool: list, registry, curve: dict) -> list:
+    """Return a copy of the AI draft pool with rookies pulled up to where THIS
+    league historically drafts them (from draft_history.rookie_curve). The k-th
+    rookie by ADP gets effective_adp = min(his_adp, curve[k]) — a pull-only boost,
+    never a demotion — then the pool is re-sorted. With an empty curve (no rookie
+    history) this is a no-op, so non-rookie-aggressive leagues are unaffected."""
+    if not curve:
+        return pool
+    rookies = [p for p in pool if _is_rookie(registry, p["pid"])]
+    rookies.sort(key=lambda p: p["adp"])
+    boost = {}
+    for rank, p in enumerate(rookies, 1):
+        tgt = curve.get(rank)
+        if tgt is not None and tgt < p["adp"]:
+            boost[p["pid"]] = float(tgt)
+    if not boost:
+        return pool
+    out = [dict(p) for p in pool]
+    for p in out:
+        if p["pid"] in boost:
+            p["adp"] = boost[p["pid"]]
+    out.sort(key=lambda x: x["adp"])
+    return out
+
+
+def _is_rookie(registry, pid) -> bool:
+    try:
+        return registry.meta(pid).years_exp == 0
+    except Exception:  # noqa: BLE001
+        return False

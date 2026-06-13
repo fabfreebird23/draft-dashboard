@@ -482,6 +482,29 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .dr-buzz.up{ background:#fff2e6; color:#c2410c; border-color:#f3cda3; }
 .dr-buzz.down{ background:#eef3f8; color:#436389; border-color:#cdd9e6; }
 
+/* ---- rookie reach (league-history boost readout) ---- */
+.dr-rookhist{ border:1px solid var(--line); border-radius:9px; padding:7px 9px;
+  margin:6px 0; background:#fbf7ff; }
+.rh-h{ font-size:11px; font-weight:700; letter-spacing:.02em; color:#6b4a8a;
+  text-transform:uppercase; margin:0 0 5px; }
+.rh-row{ display:flex; align-items:center; gap:6px; padding:3px 2px;
+  border-top:1px solid #efe7f6; font-size:12px; }
+.rh-row:first-of-type{ border-top:none; }
+.rh-img{ width:22px; height:16px; border-radius:3px; object-fit:cover; }
+.rh-nm{ font-weight:600; color:#222; }
+.rh-tm{ color:#8a929c; font-size:11px; }
+.rh-adp{ margin-left:auto; color:#8a929c; font-size:11px; }
+.rh-arrow{ color:#b9a0d6; }
+.rh-slot{ font-weight:700; color:#6b4a8a; font-size:11.5px; }
+.rh-up{ background:#efe2fb; color:#6b3fa0; border-radius:5px; padding:1px 5px;
+  font-size:10.5px; font-weight:700; }
+.rh-flat{ color:#9aa4b0; font-size:11px; }
+.rh-foot{ font-size:10.5px; color:#8a7da0; margin-top:5px; }
+.rh-row.pos-QB{ box-shadow:inset 3px 0 0 -1px #e0556a; padding-left:6px; }
+.rh-row.pos-RB{ box-shadow:inset 3px 0 0 -1px #36a26b; padding-left:6px; }
+.rh-row.pos-WR{ box-shadow:inset 3px 0 0 -1px #4a7fd6; padding-left:6px; }
+.rh-row.pos-TE{ box-shadow:inset 3px 0 0 -1px #d98a2b; padding-left:6px; }
+
 /* ---- roster-construction path ---- */
 .dr-plan{ background:#fff; border:1px solid var(--line); border-radius:9px; padding:8px 11px;
   margin-bottom:10px; box-shadow:var(--shadow); }
@@ -904,6 +927,14 @@ DARK = """
 .bz-ct{ color:#f0a585 !important; }
 .dr-buzz.up{ background:#33231a !important; color:#f0b48a !important; border-color:#6a4127 !important; }
 .dr-buzz.down{ background:#1a2330 !important; color:#9fc0e0 !important; border-color:#2c3f55 !important; }
+.dr-rookhist{ background:#1e1830 !important; border-color:#3a2c52 !important; }
+.rh-h{ color:#c0a3e6 !important; }
+.rh-row{ border-top-color:#2a2140 !important; }
+.rh-nm{ color:#e6ebf2 !important; }
+.rh-tm,.rh-adp{ color:#9aa4b0 !important; }
+.rh-slot{ color:#c0a3e6 !important; }
+.rh-up{ background:#33265a !important; color:#cbb0f0 !important; }
+.rh-foot{ color:#9a8cb8 !important; }
 /* keeper/empty board tints that read on dark */
 .dr-cell.empty .pk{ color:var(--mut2) !important; }
 [data-testid="stToggle"]{ color:var(--ink) !important; }

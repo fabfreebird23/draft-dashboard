@@ -545,6 +545,57 @@ def buzz_list_html(board_avail, registry, buzz, *, limit=6) -> str:
             + "".join(items) + "</div>")
 
 
+def rookie_history_html(rookie_curve, registry, adp_pool, *, limit=6) -> str:
+    """The 'clearer picture' on rookies: how early THIS league has historically
+    taken the Nth rookie, and where this year's rookies map vs their consensus ADP.
+    Empty when the league has no rookie-aggressive history (so the boost is off)."""
+    curve = (rookie_curve or {}).get("curve") or {}
+    if not curve:
+        return ""
+    n_seasons = rookie_curve.get("n_seasons", 0)
+    rookies = sorted(
+        [p for p in adp_pool if _row_is_rookie(registry, p["pid"])],
+        key=lambda p: p["adp"])[:limit]
+    rows = []
+    for k, p in enumerate(rookies, 1):
+        slot = curve.get(k)
+        if slot is None:
+            continue
+        adp = p["adp"]
+        delta = adp - slot                      # positive = league drafts him earlier
+        pm = registry.meta(p["pid"])
+        chip = (f'<span class="rh-up">▲{int(round(delta))}</span>' if delta >= 2
+                else f'<span class="rh-flat">≈</span>')
+        rows.append(
+            f'<div class="rh-row pos-{pm.position}">{theme.img_tag(p["pid"], "rh-img")}'
+            f'<span class="rh-nm">{short_name(pm.name)}</span>'
+            f'<span class="rh-tm">{pm.position}</span>'
+            f'<span class="rh-adp">ADP {int(adp)}</span>'
+            f'<span class="rh-arrow">→</span>'
+            f'<span class="rh-slot">~pick {int(round(slot))}</span>{chip}</div>')
+    if not rows:
+        return ""
+    # one-line evidence: the most recent season's first three rookies
+    samples = sorted(rookie_curve.get("samples", []),
+                     key=lambda s: (-s["season"], s["rank"]))
+    ev = [s for s in samples if s["rank"] <= 3][:3]
+    foot = ""
+    if ev:
+        yr = ev[0]["season"]
+        foot = ('<div class="rh-foot">e.g. ' + str(yr) + ': '
+                + ", ".join(f'{short_name(s["name"])} #{s["pick"]}' for s in ev)
+                + "</div>")
+    return ('<div class="dr-rookhist"><div class="rh-h">📜 Rookie reach · your last '
+            + f'{n_seasons} drafts</div>' + "".join(rows) + foot + "</div>")
+
+
+def _row_is_rookie(registry, pid) -> bool:
+    try:
+        return registry.meta(pid).years_exp == 0
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def bye_conflict_html(my_pids, byes, registry) -> str:
     """Warn when ≥3 of your players share a bye week (a lineup hole that week)."""
     if not byes:

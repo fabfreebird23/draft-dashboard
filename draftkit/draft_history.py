@@ -169,6 +169,52 @@ def _gather_drafts(league_id: str, max_seasons: int) -> List[List[dict]]:
     return out
 
 
+def rookie_curve(league_id: str, registry, current_season: int,
+                 max_seasons: int = 4) -> dict:
+    """Learn how aggressively THIS league drafts rookies, from its own draft history.
+
+    For each past draft we find the players who were rookies *that* season (via the
+    registry's years_exp) and record the overall pick where the 1st, 2nd, 3rd … rookie
+    came off the board. Averaged across seasons this gives a 'rookie slot curve':
+    {rookie_rank: avg_overall_pick}. A keeper/dynasty league that hammers rookies
+    yields a curve well ahead of ADP (top rookie ~pick 1); a redraft league yields a
+    curve ≈ ADP (so applying it is a no-op). That makes the rookie boost automatically
+    league-specific — it only fires for leagues whose history shows rookie aggression.
+
+    Returns {"curve": {rank: avg_pick}, "samples": [...], "n_seasons": int,
+    "draft_size": int} (empty curve when there's no usable history)."""
+    by_rank: Dict[int, List[int]] = defaultdict(list)
+    samples: List[dict] = []
+    sizes, n_seasons = [], 0
+    for entry in sleeper.league_chain(str(league_id)):
+        sea, did = entry.get("season"), entry.get("draft_id")
+        if not did or sea is None or int(sea) >= current_season:
+            continue
+        picks = sleeper.get_draft_picks(did)
+        if not picks:
+            continue
+        sizes.append(len(picks))
+        rookies = []
+        for pk in picks:
+            m = registry.by_sleeper.get(str(pk.get("player_id") or ""))
+            if m is None or m.years_exp is None:
+                continue
+            if (current_season - m.years_exp) == int(sea):
+                rookies.append((int(pk.get("pick_no") or 0), m.name, m.position))
+        if not rookies:
+            continue
+        n_seasons += 1
+        rookies.sort(key=lambda x: x[0] or 9999)
+        for rank, (pno, nm, pos) in enumerate(rookies, 1):
+            by_rank[rank].append(pno)
+            if rank <= 8:
+                samples.append({"season": int(sea), "rank": rank, "pick": pno,
+                                "name": nm, "pos": pos})
+    curve = {k: round(sum(v) / len(v), 1) for k, v in by_rank.items() if v}
+    return {"curve": curve, "samples": samples, "n_seasons": n_seasons,
+            "draft_size": round(sum(sizes) / len(sizes)) if sizes else 0}
+
+
 def _rec(p: dict, draft_idx: int) -> Optional[dict]:
     md = p.get("metadata") or {}
     pos = md.get("position")

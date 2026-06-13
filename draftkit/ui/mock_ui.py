@@ -33,7 +33,7 @@ def render(ctx) -> None:
     kept_pids = ctx["keepers"]["kept_pids"]
     tendencies = ctx["tendencies"]
     owner_by_slot = ctx["owner_by_slot"]
-    adp_pool = ctx["adp_pool"]
+    adp_pool = ctx.get("ai_pool") or ctx["adp_pool"]   # rookie-boosted for the AI
     owner = ctx["pick_owner_slot"]   # who owns each overall pick (handles traded picks)
     total = n * rounds
 
@@ -336,6 +336,12 @@ def render(ctx) -> None:
             with st.expander("Steals & Traps", expanded=False):
                 st.caption("Market value vs. ADP — click any player to open their card.")
                 steals_traps_widget(steals, traps, reg, f"{mkey}_st", show_card)
+        rh = C.rookie_history_html(ctx.get("rookie_curve"), reg, ctx["adp_pool"])
+        if rh:
+            with st.expander("📜 Rookie reach (league history)", expanded=False):
+                st.caption("Your league drafts rookies earlier than ADP — the AI mock "
+                           "reflects this. Shown: consensus ADP → your league's historical slot.")
+                st.markdown(rh, unsafe_allow_html=True)
 
     kept_note = (f" · {len(kept_pids)} keepers locked" if kept_pids else "")
     if manual:

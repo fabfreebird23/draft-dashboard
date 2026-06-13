@@ -78,6 +78,18 @@ def get_profiles(platform: str, league_id: str):
         return {}
 
 
+@st.cache_data(ttl=86400, show_spinner="Learning rookie draft tendencies…")
+def get_rookie_curve(platform: str, league_id: str, season: int, _registry):
+    """This league's empirical rookie slot curve — drives the league-specific
+    rookie boost. Sleeper-only (needs draft history); empty curve = no boost."""
+    if platform != "sleeper":
+        return {}
+    try:
+        return draft_history.rookie_curve(league_id, _registry, season)
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_byes(season: int):
     from draftkit import udk
@@ -244,6 +256,14 @@ def build_context(sel: dict) -> dict:
         return adp_lk.get(normalize_name(name))
 
     adp_pool = rankings_mod.adp_pool(registry, adp_df)
+    # League-specific rookie boost: pull rookies up to where THIS league's history
+    # actually drafts them (keeper leagues hammer rookies; redraft leagues don't, so
+    # the curve is empty and ai_pool == adp_pool). The AI opponents + predictor draft
+    # from ai_pool so mocks/survival/run-alerts reflect the league's rookie aggression.
+    rookie_curve = get_rookie_curve(meta.platform, meta.league_id,
+                                    config.current_season(), registry)
+    ai_pool = rankings_mod.apply_rookie_curve(adp_pool, registry,
+                                              rookie_curve.get("curve", {}))
     # Positional rank (RB5, WR7…) + per-position tiers (talent cliffs by ADP gap).
     pos_rank, counts = {}, {}
     pos_tier, by_pos = {}, {}
@@ -297,6 +317,7 @@ def build_context(sel: dict) -> dict:
         "slot_names": slot_names, "roster_slots": roster_slots,
         "owner_by_slot": owner_by_slot, "owner_slot": owner_slot,
         "adp_df": adp_df, "adp_rank": adp_rank, "adp_pool": adp_pool,
+        "ai_pool": ai_pool, "rookie_curve": rookie_curve,
         "pos_rank": pos_rank, "pos_tier": pos_tier, "byes": get_byes(config.current_season()),
         "buzz": get_buzz(),
         "keepers_raw": keepers_raw, "keepers": placements, "tendencies": tendencies,
