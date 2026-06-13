@@ -772,6 +772,53 @@ def needs_by_slot(pids_by_slot, slot_names, roster_slots, registry):
     return out
 
 
+def cheat_sheet_html(board_avail, registry, survival_fn=None, *, per_pos=14,
+                     positions=("QB", "RB", "WR", "TE")) -> str:
+    """All-positions cheat sheet: QB/RB/WR/TE side-by-side as tiered columns, each
+    available player tagged with the % chance he's still there at your next pick
+    (a pick-predictor). Like FantasyPros' Cheat Sheets tab — see every position's
+    run/scarcity at a glance instead of one position at a time."""
+    cols = []
+    for pos in positions:
+        rows = [r for r in board_avail
+                if r.get("pid") and registry.meta(r["pid"]).position == pos][:per_pos]
+        if not rows:
+            continue
+        # renumber the source (UDK) tiers so each column starts at Tier 1
+        disp, prev, tiered = 0, None, []
+        for r in rows:
+            src = r.get("pos_tier") or r.get("tier")
+            if disp == 0:
+                disp = 1
+            elif src is not None and prev is not None and src > prev:
+                disp += 1
+            if src is not None:
+                prev = src
+            tiered.append((r, disp))
+        cells, last = [], None
+        for r, t in tiered:
+            if t != last:
+                cells.append(f'<div class="cs-tier">Tier {t}</div>')
+                last = t
+            pm = registry.meta(r["pid"])
+            sv = survival_fn(r["pid"]) if survival_fn else None
+            chip = ""
+            if sv is not None:
+                c = survival_colors(sv)
+                chip = (f'<span class="cs-sv" style="background:{c[0]};color:{c[1]}">'
+                        f'{sv}%</span>')
+            pr = r.get("pos_rank") or ""
+            cells.append(
+                f'<div class="cs-row"><span class="cs-nm">{r["name"]}</span>'
+                f'<span class="cs-tm">{pm.team or "FA"}</span>{chip}</div>')
+        cols.append(f'<div class="cs-col"><div class="cs-head pos-{pos}">{pos}</div>'
+                    + "".join(cells) + "</div>")
+    if not cols:
+        return '<div class="cs-empty">No players available.</div>'
+    return ('<div class="cheat-sheet"><div class="cs-cap">% = chance he lasts to your '
+            'next pick</div><div class="cs-cols">' + "".join(cols) + "</div></div>")
+
+
 def draft_csv(board, n, rounds, slot_names, owner_fn, registry, adp_rank,
               kept_overalls=None, value=None) -> str:
     """The full draft as CSV (Overall, Pick, Team, Player, Pos, NFLTeam, ADP, Proj,

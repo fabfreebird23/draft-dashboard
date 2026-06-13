@@ -193,6 +193,23 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .bal-chip.bal-ok{ background:#eaf7ef; color:#1c7a44; }
 .bal-chip.bal-warn{ background:#fff4e5; color:#b3650a; }
 .bal-detail{ font-size:11px; font-weight:600; color:var(--mut2); }
+/* all-positions cheat sheet (QB/RB/WR/TE columns + pick-predictor %) */
+.cheat-sheet{ font-size:11.5px; }
+.cs-cap{ font-size:10.5px; color:var(--mut2); margin:2px 0 7px; }
+.cs-cols{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.cs-col{ min-width:0; }
+.cs-head{ font-weight:900; font-size:12px; text-align:center; padding:4px; border-radius:6px;
+  color:#fff; margin-bottom:4px; }
+.cs-head.pos-QB{ background:var(--qb); } .cs-head.pos-RB{ background:var(--rb); }
+.cs-head.pos-WR{ background:var(--wr); } .cs-head.pos-TE{ background:var(--te); }
+.cs-tier{ font-size:9.5px; font-weight:800; color:var(--mut2); text-transform:uppercase;
+  letter-spacing:.4px; margin:5px 0 2px; border-top:1px solid var(--line2); padding-top:3px; }
+.cs-row{ display:flex; align-items:center; gap:4px; padding:2px; border-radius:4px; }
+.cs-row:hover{ background:var(--panel2); }
+.cs-nm{ font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;
+  color:var(--ink); }
+.cs-tm{ font-size:9.5px; color:var(--mut2); font-weight:600; }
+.cs-sv{ font-size:9.5px; font-weight:800; border-radius:8px; padding:0 5px; }
 .dr-alerts{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 9px; }
 .dr-alerts .alert{ font-weight:700; font-size:12px; padding:4px 11px; border-radius:8px; }
 .alert.cliff{ background:#fdecec; color:var(--red); border:1px solid #f5c2c2; }
