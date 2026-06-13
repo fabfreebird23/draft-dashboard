@@ -570,6 +570,10 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                 vorp=vorp, proj=proj, verdict=verdict, synergy=synergy, drop_next=drop_next,
                 marg=marg, sos=sos, overall=overall, compact=True),
             unsafe_allow_html=True)
+        # ADP market read: cross-source spread + buy/'going early' vs value
+        vrank = vm.rank_of(pid) if vm and hasattr(vm, "rank_of") else None
+        st.markdown(C.adp_market_html(ctx.get("adp_df"), pm.name, pm.position, vrank),
+                    unsafe_allow_html=True)
         # 'Beat the room' read: who picks before you & whether they're chasing his pos
         if vm and upcoming_slots and ctx.get("profiles") and need_map is not None:
             note = V.room_note(pm, upcoming_slots, need_map, ctx["profiles"],

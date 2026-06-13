@@ -772,6 +772,52 @@ def needs_by_slot(pids_by_slot, slot_names, roster_slots, registry):
     return out
 
 
+_ADP_META_COLS = {"key", "name_key", "name", "position", "consensus_adp",
+                  "n_sources", "consensus_rank"}
+
+
+def adp_market_html(adp_df, name, position, value_rank=None) -> str:
+    """A market read for a player: his ADP across the individual sources (the
+    spread = where the market disagrees) plus a buy/'going early' tag vs his
+    value. Like Draft Sharks' ADP Market Index, from our multi-source consensus."""
+    if adp_df is None or getattr(adp_df, "empty", True):
+        return ""
+    import pandas as pd
+    from ..names import normalize_name
+    nk = normalize_name(name)
+    rows = adp_df[adp_df["name_key"] == nk]
+    if rows.empty:
+        return ""
+    row = rows.iloc[0]
+    srcs = {c: row[c] for c in adp_df.columns
+            if c not in _ADP_META_COLS and pd.notna(row.get(c))}
+    srcs = {s: v for s, v in srcs.items() if isinstance(v, (int, float))}
+    if len(srcs) < 2:
+        return ""
+    vals = sorted(srcs.values())
+    spread = vals[-1] - vals[0]
+    cons = row.get("consensus_adp")
+    n = len(srcs)
+    lo = min(srcs.items(), key=lambda x: x[1])
+    hi = max(srcs.items(), key=lambda x: x[1])
+    if cons and spread >= max(4, 0.25 * cons):
+        tag, cls = f"Split market · ±{int(spread)}", "mk-split"
+        chips = (f'<span class="mk-src">earliest {lo[0][:4].upper()} {int(lo[1])}</span>'
+                 f'<span class="mk-src">latest {hi[0][:4].upper()} {int(hi[1])}</span>')
+    else:
+        tag, cls = "Market agrees", "mk-ok"
+        chips = f'<span class="mk-src">{n} sources · ADP {int(vals[0])}–{int(vals[-1])}</span>'
+    buy = ""
+    if value_rank and cons:
+        gap = int(cons - value_rank)            # ADP later than value → undervalued
+        if gap >= 8:
+            buy = f'<span class="mk-buy">📈 Market sleeping (value #{int(value_rank)})</span>'
+        elif gap <= -8:
+            buy = f'<span class="mk-sell">📉 Going early (value #{int(value_rank)})</span>'
+    return (f'<div class="dr-market"><span class="mk-tag {cls}">{tag}</span>{buy}'
+            f'<span class="mk-srcs">{chips}</span></div>')
+
+
 def cheat_sheet_html(board_avail, registry, survival_fn=None, *, per_pos=14,
                      positions=("QB", "RB", "WR", "TE")) -> str:
     """All-positions cheat sheet: QB/RB/WR/TE side-by-side as tiered columns, each

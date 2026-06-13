@@ -210,6 +210,16 @@ div[data-testid="stRadio"] label{ font-size:12px; }
   color:var(--ink); }
 .cs-tm{ font-size:9.5px; color:var(--mut2); font-weight:600; }
 .cs-sv{ font-size:9.5px; font-weight:800; border-radius:8px; padding:0 5px; }
+/* ADP market read (cross-source spread + buy/sell vs value) */
+.dr-market{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:7px 0 0; font-size:11px; }
+.mk-tag{ font-weight:800; padding:2px 8px; border-radius:10px; }
+.mk-tag.mk-ok{ background:#eef1f4; color:#55606b; }
+.mk-tag.mk-split{ background:#fff4e5; color:#b3650a; }
+.mk-buy{ font-weight:700; color:#1c7a44; }
+.mk-sell{ font-weight:700; color:#b3261e; }
+.mk-srcs{ display:flex; gap:4px; flex-wrap:wrap; }
+.mk-src{ font-size:10px; font-weight:700; color:var(--mut2); background:#f7f9fb;
+  border:1px solid var(--line); border-radius:5px; padding:1px 6px; }
 .dr-alerts{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 9px; }
 .dr-alerts .alert{ font-weight:700; font-size:12px; padding:4px 11px; border-radius:8px; }
 .alert.cliff{ background:#fdecec; color:var(--red); border:1px solid #f5c2c2; }
@@ -887,6 +897,10 @@ DARK = """
 .stMarkdownColoredText[style*="49, 51, 63"]{ color:var(--muted) !important; }
 .bal-chip.bal-ok{ background:#173a28 !important; color:#7fdcb4 !important; }
 .bal-chip.bal-warn{ background:#33280f !important; color:#e7c172 !important; }
+.mk-tag.mk-ok{ background:var(--panel2) !important; color:var(--muted) !important; }
+.mk-tag.mk-split{ background:#33280f !important; color:#e7c172 !important; }
+.mk-src{ background:var(--panel2) !important; border-color:var(--line) !important; }
+.cs-head{ color:#fff !important; }
 </style>
 """
 
