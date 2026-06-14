@@ -1021,6 +1021,15 @@ DARK = """
 .mk-src,.pc-stat{ background:var(--panel2) !important; color:var(--muted) !important; }
 .st-row.steal{ background:#16302a !important; } .st-row.trap{ background:#3a1d22 !important; }
 .dr-needs .need{ color:var(--ink) !important; }
+/* draft grid: light pastel cells + dark text → dark position-tinted cells + light text */
+.dr-cell.pos-QB{ background:#2a2138 !important; }
+.dr-cell.pos-RB{ background:#16302a !important; }
+.dr-cell.pos-WR{ background:#16263f !important; }
+.dr-cell.pos-TE{ background:#33271a !important; }
+.dr-cell.pos-K,.dr-cell.pos-DST,.dr-cell.pos-D{ background:var(--panel2) !important; }
+.dr-cell.me{ background:#16302a !important; }
+.dr-cell .c-name span{ color:var(--ink) !important; }
+.dr-cell .c-meta{ color:var(--muted) !important; }
 /* intel alert chips (Tier cliff / position run / needs) */
 .alert{ background:var(--panel2) !important; border-color:var(--line) !important;
   color:var(--ink) !important; }
