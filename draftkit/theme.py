@@ -1010,6 +1010,17 @@ DARK = """
 /* draft-recap card was a bare light surface */
 .recap{ background:var(--panel) !important; border-color:var(--line) !important; }
 .recap .rc-row,.recap td,.recap th{ border-color:var(--line2) !important; }
+/* ---- dark sweep: granular surfaces that hardcoded white in light mode ---- */
+.dr-lineup .slot,.neonwrap,.cs-col,.cheat-col,.cheat-row,.dr-needs .need,
+.dr-onclock .tk-chip{ background:var(--panel) !important; border-color:var(--line) !important; }
+.dr-lineup .slot .nm{ color:var(--ink) !important; }
+.dr-lineup .slot.empty .nm,.empty-pill,.cs-tm,.cheat-tm{ color:var(--mut2) !important; }
+.cs-head,.cheat-head{ color:#fff !important; }
+.cs-row,.cheat-row{ border-top-color:var(--line2) !important; }
+.cs-nm,.cheat-nm{ color:var(--ink) !important; }
+.mk-src,.pc-stat{ background:var(--panel2) !important; color:var(--muted) !important; }
+.st-row.steal{ background:#16302a !important; } .st-row.trap{ background:#3a1d22 !important; }
+.dr-needs .need{ color:var(--ink) !important; }
 /* intel alert chips (Tier cliff / position run / needs) */
 .alert{ background:var(--panel2) !important; border-color:var(--line) !important;
   color:var(--ink) !important; }
