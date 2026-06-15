@@ -123,6 +123,10 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 /* ---- panel cards: the three main columns read as distinct modules ---- */
 [class*="dr_panel_"]{ background:var(--panel); border:1px solid var(--line); border-radius:12px;
   padding:11px 12px 9px; box-shadow:var(--shadow); }
+/* the three draft columns are pinned to one screen height so their bottoms align
+   and the page itself never scrolls — each scrolls its own content internally */
+[class*="dr_panel_board"],[class*="dr_panel_intel"]{
+  height:calc(100vh - 112px); overflow-y:auto; overflow-x:hidden; }
 [class*="dr_panel_"] [data-testid="stExpander"]{ background:var(--panel2); border:1px solid var(--line);
   border-radius:10px; margin-top:8px; }
 [class*="dr_panel_"] [data-testid="stExpander"] summary{ font-size:11px; font-weight:800;
@@ -776,8 +780,8 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .tk-chip.pos-K{ border-left-color:var(--k);} .tk-chip.pos-DST,.tk-chip.pos-D{ border-left-color:var(--dst);}
 
 /* keep the draft board compact so the rest of the page stays visible */
-.dr-board-scroll{ max-height:calc(100vh - 260px); overflow:auto; border:1px solid var(--line);
-  border-radius:10px; margin-bottom:18px; }
+.dr-board-scroll{ max-height:calc(100vh - 360px); overflow:auto; border:1px solid var(--line);
+  border-radius:10px; margin-bottom:8px; }
 
 /* ---- whole-row clickable draft cards ---- */
 [class*="_board_"] [data-testid="stVerticalBlock"]{ gap:3px; }
