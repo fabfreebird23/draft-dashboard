@@ -225,6 +225,21 @@ def adp_pool(registry, adp_df: pd.DataFrame, source: str = None) -> list:
     return out + tail
 
 
+def apply_external_adp(pool: list, ext_map: dict) -> list:
+    """Re-order a base draft pool by an external ADP map {normalized_name: rank}
+    (e.g. Sleeper ADP scraped from Draft Sharks). Players the source doesn't rank
+    keep their consensus slot, tailing after the ranked ones."""
+    if not ext_map or not pool:
+        return pool
+    out = [dict(p) for p in pool]
+    n = len(out)
+    for i, p in enumerate(out):
+        r = ext_map.get(normalize_name(p["name"]))
+        p["adp"] = float(r) if r is not None else (n + i)   # unranked → consensus-order tail
+    out.sort(key=lambda x: x["adp"])
+    return out
+
+
 def apply_tweaks(board: list, tweaks: dict) -> list:
     """Re-apply the user's saved per-player rank/tier tweaks on top of a board, so
     their hand edits survive a fresh UDK pull. ``tweaks`` is {pid: {rank, tier}}.

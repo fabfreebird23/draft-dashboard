@@ -90,20 +90,36 @@ def get_rookie_curve(platform: str, league_id: str, season: int, _registry):
         return {}
 
 
-# AI-opponent ranking sources you can assign per team (Scouting tab). Each is a
-# per-source ADP column in the consensus board; "Consensus" is the blended default.
-# Sleeper doesn't publish ADP, so Underdog (best-ball) stands in for it.
-AI_SOURCES = ["Consensus", "ESPN", "FantasyPros", "Underdog"]
+# AI-opponent ranking sources you can assign per team (Scouting tab). ESPN /
+# FantasyPros / Underdog are per-source ADP columns in the consensus board;
+# Sleeper ADP is a scraped data file; "Consensus" is the blended default.
+AI_SOURCES = ["Consensus", "ESPN", "FantasyPros", "Underdog", "Sleeper"]
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_sleeper_adp(season: int):
+    """{normalized_name: Sleeper ADP rank} from the committed Draft Sharks scrape."""
+    import json
+    p = config.ROOT / "data_seed" / f"sleeper_adp_{season}.json"
+    try:
+        return json.loads(p.read_text()).get("adp", {})
+    except Exception:  # noqa: BLE001
+        return {}
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_source_pools(season: int, curve_key, _registry, _adp_df, _curve):
+def get_source_pools(season: int, curve_key, _registry, _adp_df, _curve, _sleeper):
     """{source: rookie-boosted draft pool ordered by that source's ADP} so an AI
-    team set to 'ESPN' drafts off the ESPN board, etc. Cached by (season, curve)."""
+    team set to 'ESPN' / 'Sleeper' drafts off that board. Cached by (season, curve)."""
+    base = rankings_mod.adp_pool(_registry, _adp_df)
     pools = {}
     for src in AI_SOURCES:
-        col = None if src == "Consensus" else src
-        pool = rankings_mod.adp_pool(_registry, _adp_df, source=col)
+        if src == "Consensus":
+            pool = base
+        elif src == "Sleeper":
+            pool = rankings_mod.apply_external_adp(base, _sleeper)
+        else:
+            pool = rankings_mod.adp_pool(_registry, _adp_df, source=src)
         pools[src] = rankings_mod.apply_rookie_curve(pool, _registry, _curve)
     return pools
 
@@ -286,7 +302,8 @@ def build_context(sel: dict) -> dict:
     # assignments; "Consensus" maps to ai_pool. Curve key makes the cache curve-aware.
     curve = rookie_curve.get("curve", {})
     source_pools = get_source_pools(config.current_season(),
-                                    tuple(sorted(curve.items())), registry, adp_df, curve)
+                                    tuple(sorted(curve.items())), registry, adp_df, curve,
+                                    get_sleeper_adp(config.current_season()))
     source_pools["Consensus"] = ai_pool
     # Positional rank (RB5, WR7…) + per-position tiers (talent cliffs by ADP gap).
     pos_rank, counts = {}, {}
