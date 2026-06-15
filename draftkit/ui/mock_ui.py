@@ -117,10 +117,16 @@ def render(ctx) -> None:
                 rc[p] = rc.get(p, 0) + 1
         return rc
 
+    def _slot_pool(slot):
+        """The draft board this AI manager uses — their assigned ranking source
+        (Scouting tab) or the consensus default."""
+        src = st.session_state.get(f"aisrc_{ctx['league_key']}_{slot}", "Consensus")
+        return ctx.get("source_pools", {}).get(src) or adp_pool
+
     def ai_pick(ov):
         rnd = (ov - 1) // n + 1
         tk = taken_pids()
-        pool = [p for p in adp_pool if p["pid"] not in tk]
+        pool = [p for p in _slot_pool(owner(ov)) if p["pid"] not in tk]
         choice = draft_history.pick_for_owner(owner_by_slot.get(owner(ov)), rnd, pool,
                                               tendencies, reg, jitter=_AI_JITTER,
                                               roster_counts=_slot_pos_counts(owner(ov)))
@@ -258,6 +264,15 @@ def render(ctx) -> None:
                                             ctx["roster_slots"], reg, on_clock_slot=on_slot),
                         unsafe_allow_html=True)
         with ltabs[4]:
+            with st.expander("🎯 AI draft boards — set each manager's ranking source"):
+                st.caption("Pick which board each AI manager drafts from. "
+                           "Sleeper doesn't publish ADP, so Underdog (best-ball) stands in.")
+                for s in range(n):
+                    if s == my_slot:
+                        continue
+                    st.selectbox(slot_names[s], ctx["ai_sources"],
+                                 key=f"aisrc_{ctx['league_key']}_{s}",
+                                 help="The board this manager drafts off in the mock.")
             st.markdown(C.scouting_report_html(ctx.get("profiles", {}), slot_names,
                                                owner_by_slot, my_slot, on_clock_slot=on_slot,
                                                round_no=round_no), unsafe_allow_html=True)

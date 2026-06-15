@@ -175,21 +175,33 @@ def fetch_url(url: str) -> str:
     return r.text
 
 
-def adp_pool(registry, adp_df: pd.DataFrame) -> list:
-    """ADP-ordered draftable players (pid, name, pos, adp) for the mock AI."""
+def adp_pool(registry, adp_df: pd.DataFrame, source: str = None) -> list:
+    """ADP-ordered draftable players (pid, name, pos, adp) for the mock AI. With
+    `source` (a per-source column name like 'ESPN' / 'FantasyPros' / 'Underdog'),
+    order by that source's ADP instead of the consensus — so an AI team can be set
+    to draft like an ESPN-board manager. Players the source doesn't rank fall to the
+    back (after the ranked ones), kept in consensus order, so the pool stays full."""
     idx = _name_index(registry)
-    out = []
+    out, tail = [], []
     if adp_df is None or adp_df.empty:
         return out
+    col = source if (source and source in adp_df.columns) else "consensus_rank"
     for _, ar in adp_df.iterrows():
-        pos, rank = ar.get("position"), ar.get("consensus_rank")
-        if pos not in ("QB", "RB", "WR", "TE") or pd.isna(rank):
+        pos = ar.get("position")
+        if pos not in ("QB", "RB", "WR", "TE"):
             continue
         pid = idx.get(normalize_name(ar["name"]))
-        if pid:
-            out.append({"pid": str(pid), "name": ar["name"], "pos": pos, "adp": int(rank)})
+        if not pid:
+            continue
+        val, cons = ar.get(col), ar.get("consensus_rank")
+        row = {"pid": str(pid), "name": ar["name"], "pos": pos}
+        if pd.notna(val):
+            out.append({**row, "adp": float(val)})
+        elif pd.notna(cons):                       # source didn't rank him → tail
+            tail.append({**row, "adp": float(cons) + 1000})
     out.sort(key=lambda x: x["adp"])
-    return out
+    tail.sort(key=lambda x: x["adp"])
+    return out + tail
 
 
 def apply_rookie_curve(pool: list, registry, curve: dict) -> list:

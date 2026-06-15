@@ -90,6 +90,24 @@ def get_rookie_curve(platform: str, league_id: str, season: int, _registry):
         return {}
 
 
+# AI-opponent ranking sources you can assign per team (Scouting tab). Each is a
+# per-source ADP column in the consensus board; "Consensus" is the blended default.
+# Sleeper doesn't publish ADP, so Underdog (best-ball) stands in for it.
+AI_SOURCES = ["Consensus", "ESPN", "FantasyPros", "Underdog"]
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_source_pools(season: int, curve_key, _registry, _adp_df, _curve):
+    """{source: rookie-boosted draft pool ordered by that source's ADP} so an AI
+    team set to 'ESPN' drafts off the ESPN board, etc. Cached by (season, curve)."""
+    pools = {}
+    for src in AI_SOURCES:
+        col = None if src == "Consensus" else src
+        pool = rankings_mod.adp_pool(_registry, _adp_df, source=col)
+        pools[src] = rankings_mod.apply_rookie_curve(pool, _registry, _curve)
+    return pools
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_byes(season: int):
     from draftkit import udk
@@ -264,6 +282,12 @@ def build_context(sel: dict) -> dict:
                                     config.current_season(), registry)
     ai_pool = rankings_mod.apply_rookie_curve(adp_pool, registry,
                                               rookie_curve.get("curve", {}))
+    # Per-source AI pools (ESPN / FantasyPros / Underdog) for per-team scouting
+    # assignments; "Consensus" maps to ai_pool. Curve key makes the cache curve-aware.
+    curve = rookie_curve.get("curve", {})
+    source_pools = get_source_pools(config.current_season(),
+                                    tuple(sorted(curve.items())), registry, adp_df, curve)
+    source_pools["Consensus"] = ai_pool
     # Positional rank (RB5, WR7…) + per-position tiers (talent cliffs by ADP gap).
     pos_rank, counts = {}, {}
     pos_tier, by_pos = {}, {}
@@ -318,6 +342,7 @@ def build_context(sel: dict) -> dict:
         "owner_by_slot": owner_by_slot, "owner_slot": owner_slot,
         "adp_df": adp_df, "adp_rank": adp_rank, "adp_pool": adp_pool,
         "ai_pool": ai_pool, "rookie_curve": rookie_curve,
+        "source_pools": source_pools, "ai_sources": AI_SOURCES,
         "pos_rank": pos_rank, "pos_tier": pos_tier, "byes": get_byes(config.current_season()),
         "buzz": get_buzz(),
         "keepers_raw": keepers_raw, "keepers": placements, "tendencies": tendencies,

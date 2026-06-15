@@ -69,6 +69,12 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
     predicts a 3rd QB/TE for a team."""
     reg, tend = ctx["registry"], ctx["tendencies"]
     adp_pool = ctx.get("ai_pool") or ctx["adp_pool"]   # rookie-boosted pool
+    src_pools = ctx.get("source_pools", {})
+    lk = ctx.get("league_key", "")
+
+    def slot_board(slot):                              # per-manager ranking source
+        src = st.session_state.get(f"aisrc_{lk}_{slot}", "Consensus")
+        return src_pools.get(src) or adp_pool
     owner_by_slot = ctx["owner_by_slot"]
     owner = ctx["pick_owner_slot"]            # traded-pick-aware ownership
     n = len(ctx["slot_names"])
@@ -90,7 +96,7 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
             ov += 1
             continue
         rnd = (ov - 1) // n + 1
-        pool = [p for p in adp_pool if p["pid"] not in sim]
+        pool = [p for p in slot_board(slot) if p["pid"] not in sim]
         if slot == my_slot:
             # assume you take the best available, so the sim keeps moving
             if pool:
