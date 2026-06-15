@@ -401,12 +401,12 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .sc-thin,.sc-empty{ font-size:11px; color:var(--mut2); font-style:italic; }
 
 /* ---- rankings list scrolls inside its own box (page stays put) ---- */
-[class*="_ranklist"]{ max-height:640px; overflow-y:auto; overflow-x:hidden;
+[class*="_ranklist"]{ max-height:calc(100vh - 250px); overflow-y:auto; overflow-x:hidden;
   padding-right:4px; margin-top:2px; }
 
 /* ---- live 'Picks' rail (FantasyPros-style) ---- */
-.dr-picks{ display:flex; flex-direction:column; gap:5px; max-height:660px; overflow:auto;
-  padding-right:3px; margin-bottom:8px; }
+.dr-picks{ display:flex; flex-direction:column; gap:5px; max-height:calc(100vh - 250px);
+  overflow:auto; padding-right:3px; margin-bottom:8px; }
 .pf-head{ font-size:12px; font-weight:700; color:var(--ink); padding:3px 2px 6px;
   position:sticky; top:0; background:var(--panel); z-index:2; }
 .pf-head b{ color:var(--blue); }
@@ -776,8 +776,8 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .tk-chip.pos-K{ border-left-color:var(--k);} .tk-chip.pos-DST,.tk-chip.pos-D{ border-left-color:var(--dst);}
 
 /* keep the draft board compact so the rest of the page stays visible */
-.dr-board-scroll{ max-height:540px; overflow:auto; border:1px solid var(--line); border-radius:10px;
-  margin-bottom:18px; }
+.dr-board-scroll{ max-height:calc(100vh - 260px); overflow:auto; border:1px solid var(--line);
+  border-radius:10px; margin-bottom:18px; }
 
 /* ---- whole-row clickable draft cards ---- */
 [class*="_board_"] [data-testid="stVerticalBlock"]{ gap:3px; }

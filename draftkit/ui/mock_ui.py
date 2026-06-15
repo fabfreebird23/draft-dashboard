@@ -324,26 +324,26 @@ def render(ctx) -> None:
                              pids_by_slot=pids_by_slot)
     pred_map = {ov: pid for ov, _s, pid in preds}
     with right, st.container(key="dr_panel_intel"):
-        st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
-        st.markdown(C.picks_feed_html(board, pick_no, n, rounds, slot_names, my_slot, owner,
-                                      need_map, reg, kept_overalls=set(kept_by_overall),
-                                      predictions=pred_map, queued=queued),
-                    unsafe_allow_html=True)
-        # My Team — always open, directly under the Pick Predictor (base dr-h adds a
-        # divider + top margin so it clears the scrolling picks feed above).
-        st.markdown('<div class="dr-h">My Team</div>', unsafe_allow_html=True)
-        st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
-        st.markdown(C.roster_balance_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
-        st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
-        st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
-        if ctx.get("value") and board_avail:
-            my_left = [k for k in range(pick_no, total + 1) if owner(k) == my_slot]
-            plan = V.draft_plan(my_pids, ctx["roster_slots"], min(4, len(my_left)),
-                                board_avail, ctx["value"], reg, taken=taken)
-            st.markdown(C.draft_plan_html(plan), unsafe_allow_html=True)
-        st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), taken, reg,
-                                     profiles=ctx.get("profiles"), owner_by_slot=owner_by_slot,
-                                     round_no=round_no), unsafe_allow_html=True)
+        rtabs = st.tabs(["Pick Predictor", "My Team"])
+        with rtabs[0]:
+            st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
+            st.markdown(C.picks_feed_html(board, pick_no, n, rounds, slot_names, my_slot, owner,
+                                          need_map, reg, kept_overalls=set(kept_by_overall),
+                                          predictions=pred_map, queued=queued),
+                        unsafe_allow_html=True)
+        with rtabs[1]:
+            st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+            st.markdown(C.roster_balance_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+            st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
+            st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+            if ctx.get("value") and board_avail:
+                my_left = [k for k in range(pick_no, total + 1) if owner(k) == my_slot]
+                plan = V.draft_plan(my_pids, ctx["roster_slots"], min(4, len(my_left)),
+                                    board_avail, ctx["value"], reg, taken=taken)
+                st.markdown(C.draft_plan_html(plan), unsafe_allow_html=True)
+            st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), taken, reg,
+                                         profiles=ctx.get("profiles"), owner_by_slot=owner_by_slot,
+                                         round_no=round_no), unsafe_allow_html=True)
 
     kept_note = (f" · {len(kept_pids)} keepers locked" if kept_pids else "")
     if manual:
