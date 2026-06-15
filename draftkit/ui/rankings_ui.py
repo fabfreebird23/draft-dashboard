@@ -10,6 +10,35 @@ from .. import rankings, storage, udk
 
 
 def _set(ctx, ranks):
+    # re-apply the user's saved hand-tweaks on top of any fresh import/pull
+    ranks = rankings.apply_tweaks(ranks, storage.load_tweaks(ctx["league_key"]))
+    st.session_state[ctx["ranks_key"]] = ranks
+    storage.save_rankings(ctx["league_key"], ranks)
+
+
+def _nudge(ctx, ranks, ia, ib):
+    """Swap two adjacent players, renumber, and remember both as tweaks."""
+    ranks[ia], ranks[ib] = ranks[ib], ranks[ia]
+    for i, r in enumerate(ranks, 1):
+        r["rank"] = i
+    tw = storage.load_tweaks(ctx["league_key"])
+    for r in (ranks[ia], ranks[ib]):
+        pid = str(r.get("pid"))
+        if pid:
+            tw.setdefault(pid, {})["rank"] = r["rank"]
+    storage.save_tweaks(ctx["league_key"], tw)
+    st.session_state[ctx["ranks_key"]] = ranks
+    storage.save_rankings(ctx["league_key"], ranks)
+    st.rerun()
+
+
+def _set_tier(ctx, ranks, pid, tier):
+    tw = storage.load_tweaks(ctx["league_key"])
+    tw.setdefault(str(pid), {})["tier"] = int(tier)
+    storage.save_tweaks(ctx["league_key"], tw)
+    for r in ranks:
+        if str(r.get("pid")) == str(pid):
+            r["tier"] = r["pos_tier"] = int(tier)
     st.session_state[ctx["ranks_key"]] = ranks
     storage.save_rankings(ctx["league_key"], ranks)
 
@@ -101,6 +130,52 @@ def render(ctx) -> None:
             st.write(", ".join(unmatched))
     st.download_button("Save my rankings (.json)", json.dumps(ranks),
                        file_name="my_rankings.json", mime="application/json")
-    st.dataframe(pd.DataFrame([{"Rk": r["rank"], "Tier": r["tier"], "Player": r["name"],
-                                "Matched": "✓" if r.get("pid") else "—"} for r in ranks]),
-                 hide_index=True, use_container_width=True, height=320)
+
+    # ---- edit mode: hand-tweak the board; tweaks persist + re-apply on every pull ----
+    tw = storage.load_tweaks(ctx["league_key"])
+    tcol1, tcol2 = st.columns([3, 1])
+    edit = tcol1.toggle("✏️ Edit my board (nudge players ↑/↓, set tiers)",
+                        key=f"{rkey}_edit")
+    if tw:
+        if tcol2.button(f"Reset {len(tw)} tweaks", use_container_width=True):
+            storage.save_tweaks(ctx["league_key"], {})
+            with st.spinner("Reverting to the UDK board…"):
+                _set(ctx, storage.load_rankings(ctx["league_key"]))  # tweaks now empty
+            st.rerun()
+    if not edit:
+        st.caption(f"{len(tw)} active tweak(s) — they re-apply automatically when you "
+                   "refresh from UDK." if tw else "No tweaks yet — turn on Edit to nudge "
+                   "players up/down or change tiers; your changes survive UDK refreshes.")
+        st.dataframe(pd.DataFrame([{"Rk": r["rank"], "Tier": r.get("pos_tier") or r["tier"],
+                                    "Player": r["name"], "✎": "•" if str(r.get("pid")) in tw else ""}
+                                   for r in ranks]),
+                     hide_index=True, use_container_width=True, height=320)
+        return
+
+    pos_f = st.radio("Position", ["All", "QB", "RB", "WR", "TE"], horizontal=True,
+                     key=f"{rkey}_editpos")
+    view = [r for r in ranks if r.get("pid") and
+            (pos_f == "All" or reg.meta(r["pid"]).position == pos_f)]
+    cap = 80
+    st.caption(f"Showing the top {min(cap, len(view))} — use the ▲▼ to nudge, the box to set tier. "
+               "Edits save instantly and stick through UDK refreshes.")
+    for vi, r in enumerate(view[:cap]):
+        pid = str(r["pid"])
+        pm = reg.meta(pid)
+        c = st.columns([0.5, 0.5, 5.2, 1.2], gap="small")
+        # ▲ swaps with the player above in this view; ▼ with the one below
+        idx = ranks.index(r)
+        if vi > 0 and c[0].button("▲", key=f"{rkey}_up_{pid}", use_container_width=True):
+            _nudge(ctx, ranks, idx, ranks.index(view[vi - 1]))
+        if vi < min(cap, len(view)) - 1 and c[1].button("▼", key=f"{rkey}_dn_{pid}",
+                                                        use_container_width=True):
+            _nudge(ctx, ranks, idx, ranks.index(view[vi + 1]))
+        tweaked = "✎ " if pid in tw else ""
+        c[2].markdown(f"**{r['rank']}.** {tweaked}{pm.position}{r.get('pos_rank') or ''} · "
+                      f"{r['name']} · {pm.team}")
+        cur_tier = int(r.get("pos_tier") or r.get("tier") or 1)
+        nt = c[3].number_input("tier", min_value=1, max_value=20, value=cur_tier,
+                               key=f"{rkey}_tier_{pid}", label_visibility="collapsed")
+        if int(nt) != cur_tier:
+            _set_tier(ctx, ranks, pid, nt)
+            st.rerun()

@@ -147,3 +147,42 @@ def load_rankings(key: str) -> List[dict]:
         except Exception:  # noqa: BLE001
             pass
     return []
+
+
+# --- per-league rank/tier tweaks (overrides re-applied on every UDK refresh) ---
+def _tweaks_local(key: str) -> Path:
+    base = Path(os.environ.get("DRAFTKIT_DATA", config.DATA_DIR))
+    base.mkdir(parents=True, exist_ok=True)
+    return base / f"tweaks_{_safe_key(key)}.json"
+
+
+def save_tweaks(key: str, tweaks: dict) -> None:
+    if _gh_config() is not None:
+        try:
+            _gh_write(f"data/tweaks_{_safe_key(key)}.json", tweaks, f"tweaks ({key})")
+            return
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        with _LOCK:
+            _tweaks_local(key).write_text(json.dumps(tweaks, indent=2))
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def load_tweaks(key: str) -> dict:
+    if _gh_config() is not None:
+        try:
+            data, _ = _gh_read(f"data/tweaks_{_safe_key(key)}.json")
+            if isinstance(data, dict):
+                return data
+        except Exception:  # noqa: BLE001
+            pass
+    p = _tweaks_local(key)
+    if p.exists():
+        try:
+            with _LOCK:
+                return json.loads(p.read_text())
+        except Exception:  # noqa: BLE001
+            pass
+    return {}

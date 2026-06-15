@@ -225,6 +225,30 @@ def adp_pool(registry, adp_df: pd.DataFrame, source: str = None) -> list:
     return out + tail
 
 
+def apply_tweaks(board: list, tweaks: dict) -> list:
+    """Re-apply the user's saved per-player rank/tier tweaks on top of a board, so
+    their hand edits survive a fresh UDK pull. ``tweaks`` is {pid: {rank, tier}}.
+    A tweaked player is pinned to their saved rank; tiers are overridden; the board
+    is renumbered. Untweaked players keep the board's order."""
+    if not tweaks or not board:
+        return board
+    out = [dict(r) for r in board]
+    for i, r in enumerate(out):
+        r["_ord"] = i
+        t = tweaks.get(str(r.get("pid")))
+        if t and t.get("tier") is not None:
+            r["tier"] = r["pos_tier"] = int(t["tier"])
+    pins = {str(p): float(v["rank"]) for p, v in tweaks.items()
+            if isinstance(v, dict) and v.get("rank") is not None}
+    # pinned players sort to their pinned rank; others keep their slot (+.5 so a
+    # pin at rank N lands just ahead of the player currently at slot N).
+    out.sort(key=lambda r: (pins.get(str(r.get("pid")), r["_ord"] + 0.5), r["_ord"]))
+    for i, r in enumerate(out, 1):
+        r["rank"] = i
+        r.pop("_ord", None)
+    return out
+
+
 def apply_rookie_curve(pool: list, registry, curve: dict) -> list:
     """Return a copy of the AI draft pool with rookies pulled up to where THIS
     league historically drafts them (from draft_history.rookie_curve). The k-th
