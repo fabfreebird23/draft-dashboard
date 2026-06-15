@@ -132,15 +132,36 @@ def parse_position_csv(text: str, registry) -> list:
                       "adp": adp, "pid": idx.get(normalize_name(nm))})
     if not items:
         return []
-    items.sort(key=lambda x: x["adp"])             # overall board = ADP order
-    out, prev_round, otier, rank = [], None, 0, 0
+    # Overall order: interleave the per-position lists (each in UDK's EXPERT pos_rank
+    # order) by ADP. This keeps the overall board consistent with the per-position
+    # tier view — within a position the expert order is preserved (RB1 before RB2),
+    # so a positional #1 always outranks a positional #2 overall — instead of a raw
+    # ADP sort where a lower-ADP RB2 could jump its own RB1.
+    from collections import defaultdict
+    bypos = defaultdict(list)
     for it in items:
+        bypos[it["pos"]].append(it)
+    for lst in bypos.values():
+        lst.sort(key=lambda x: x["pos_rank"])
+    ptr = {p: 0 for p in bypos}
+    merged = []
+    while True:
+        fronts = [(bypos[p][ptr[p]]["adp"], bypos[p][ptr[p]]["pos_rank"], p)
+                  for p in bypos if ptr[p] < len(bypos[p])]
+        if not fronts:
+            break
+        fronts.sort()
+        p = fronts[0][2]
+        merged.append(bypos[p][ptr[p]])
+        ptr[p] += 1
+    out, prev_round, otier, rank = [], None, 0, 0
+    for it in merged:
         rank += 1
         rnd = int(it["adp"]) if it["adp"] < 9999 else (prev_round or 0) + 1
         if rnd != prev_round:                      # coarse overall tier = ADP round
             otier += 1
             prev_round = rnd
-        out.append({"rank": rank, "name": it["name"], "tier": otier,
+        out.append({"rank": rank, "name": it["name"], "tier": otier, "adp": it["adp"],
                     "pos_tier": it["pos_tier"], "pos_rank": it["pos_rank"],
                     "pid": it["pid"]})
     return out
