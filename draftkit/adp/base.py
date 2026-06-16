@@ -5,7 +5,6 @@ fails (site down, layout changed) should raise; the consensus builder catches it
 and carries on with whatever other sources succeeded — a daily cron must never
 die because one site hiccuped.
 """
-from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import List, Optional

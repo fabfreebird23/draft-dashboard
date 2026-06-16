@@ -5,7 +5,6 @@ Rankings, ADP, Sleeper picks and ESPN picks all live in different id spaces.
 index it by normalized name, Sleeper id, and ESPN id. This replaces the keeper
 app's `H.player_meta`, `get_name_index`, and `get_espn_headshots`.
 """
-from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Dict, Optional

@@ -4,7 +4,6 @@ A Provider turns one imported league (Sleeper or ESPN) into a uniform API the
 mock/live UIs consume. The key normalized type is `Pick` — both platforms emit
 the same shape, so the FantasyPros-style render code never branches on platform.
 """
-from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass

@@ -7,7 +7,6 @@ and a 12-team flex-heavy league get different baselines. On top of VORP we expos
 positional scarcity (how many startable players remain) and a grab-vs-wait verdict
 that fuses scarcity with the survival probability.
 """
-from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
