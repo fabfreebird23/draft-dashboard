@@ -15,6 +15,7 @@ from draftkit.names import normalize_name
 from draftkit.providers import get_provider, EspnAuthError
 from draftkit import draft_history, keepers as keepers_mod, rankings as rankings_mod
 from draftkit.ui import assistant_ui, mock_ui, rankings_ui
+from draftkit.ui.components import board_pos_rank
 
 st.set_page_config(page_title="Draft Room — Mock + Live Draft", page_icon="🏈", layout="wide")
 theme.inject(st, dark=st.session_state.get("dark_mode", True))   # Night Draft = dark hero
@@ -403,7 +404,6 @@ def main():
     # drives #rank) and consensus-ADP order (which drove RB##) disagree and a
     # higher-ranked player shows a WORSE positional rank than a lower one. Recompute
     # pos_rank from the active board's own overall order so RB## always rises with #.
-    from draftkit.ui.components import board_pos_rank
     _bpr = board_pos_rank(st.session_state.get(ctx["ranks_key"]) or [], ctx["registry"])
     if _bpr:
         ctx["pos_rank"] = _bpr
