@@ -107,6 +107,49 @@ def load_keepers(league_id: str, season: int) -> Dict[str, List[dict]]:
     return {}
 
 
+def predict_keepers(league_id: str, value, current_season: int,
+                    have_owners: set) -> Dict[str, List[dict]]:
+    """Predict keepers for owners who haven't entered any on the keeper dashboard.
+
+    Uses last season's draft: each owner's drafted players become keeper candidates
+    at their draft-round cost, and we keep their top `max_keepers` by VORP. Returns
+    {owner_id: [{player_id, cost_round, predicted}]} for owners NOT in `have_owners`.
+    """
+    from collections import defaultdict
+    from . import sleeper_client as sleeper
+    try:
+        league = sleeper.get_league(str(league_id))
+        max_keepers = int((league.get("settings") or {}).get("max_keepers") or 0)
+    except Exception:  # noqa: BLE001
+        max_keepers = 0
+    if max_keepers <= 0:
+        return {}
+    out: Dict[str, List[dict]] = {}
+    for entry in sleeper.league_chain(str(league_id)):
+        if int(entry.get("season") or 0) >= int(current_season):
+            continue                                   # find the most recent PRIOR draft
+        picks = sleeper.get_draft_picks(entry.get("draft_id")) or []
+        by_owner: Dict[str, list] = defaultdict(list)
+        for pk in picks:
+            owner = str(pk.get("picked_by") or "")
+            pid = str(pk.get("player_id") or "")
+            rnd = int(pk.get("round") or 0)
+            if owner and pid and rnd:
+                by_owner[owner].append((pid, rnd))
+        if not by_owner:
+            continue
+        for owner, plist in by_owner.items():
+            if str(owner) in have_owners:
+                continue                               # they already set keepers
+            ranked = sorted(plist, key=lambda x: -(value.vorp_of(x[0]) if value else 0.0))
+            kept = [{"player_id": pid, "cost_round": rnd, "predicted": True}
+                    for pid, rnd in ranked[:max_keepers]]
+            if kept:
+                out[owner] = kept
+        return out                                     # only the most recent prior season
+    return out
+
+
 def build_placements(keepers: Dict[str, List[dict]], owner_slot: Dict[str, int],
                      n_teams: int, rounds: int, pick_owner_slot=None) -> dict:
     """Map each keeper onto the draft board.

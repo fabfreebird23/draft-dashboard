@@ -29,8 +29,21 @@ def render(ctx) -> None:
     rounds = ctx["meta"].draft_rounds
     mkey = f"mock_{ctx['league_key']}"
     qkey = f"queue_{ctx['league_key']}"
-    kept_by_overall = ctx["keepers"]["by_overall"]
-    kept_pids = ctx["keepers"]["kept_pids"]
+    # Keepers: the dashboard placements, or — when the toggle is on — those PLUS
+    # predicted keepers for teams that haven't entered any on the keeper dashboard.
+    if st.session_state.get(f"{mkey}_predictkp", False):
+        from .. import keepers as _K, config as _cfg
+        keepers_raw = ctx.get("keepers_raw") or {}
+        have_kp = {str(o) for o, kl in keepers_raw.items() if kl}
+        predicted = _K.predict_keepers(ctx["meta"].league_id, ctx.get("value"),
+                                       _cfg.current_season(), have_kp)
+        _pl = _K.build_placements({**keepers_raw, **predicted}, ctx["owner_slot"],
+                                  n, rounds, pick_owner_slot=ctx["pick_owner_slot"])
+        kept_by_overall, kept_pids = _pl["by_overall"], _pl["kept_pids"]
+        st.session_state[f"{mkey}_npred"] = sum(len(v) for v in predicted.values())
+    else:
+        kept_by_overall = ctx["keepers"]["by_overall"]
+        kept_pids = ctx["keepers"]["kept_pids"]
     tendencies = ctx["tendencies"]
     owner_by_slot = ctx["owner_by_slot"]
     adp_pool = ctx.get("ai_pool") or ctx["adp_pool"]   # rookie-boosted for the AI
@@ -46,7 +59,7 @@ def render(ctx) -> None:
             '[class*="dr_topbar"]{padding-top:2px !important;padding-bottom:2px !important}'
             '</style>', unsafe_allow_html=True)
     with st.container(key=f"{mkey}_setup"):
-        top = st.columns([2, 1.6, 1])
+        top = st.columns([1.8, 1.5, 0.9, 1.8])
         me = top[0].selectbox("Your draft slot", slot_names, key=f"{mkey}_slot")
         mode = top[1].radio("Opponents", ["AI mock", "Manual / live"], horizontal=True,
                             key=f"{mkey}_mode",
@@ -59,6 +72,15 @@ def render(ctx) -> None:
                                          "OFF: opponents resolve instantly up to your pick. "
                                          "Either way it always stops and waits for YOU — use "
                                          "'Pick for me' / 'Sim to end' to auto-draft your picks.")
+        npred = st.session_state.get(f"{mkey}_npred", 0)
+        top[3].toggle(
+            "🔒 Predict missing keepers", key=f"{mkey}_predictkp",
+            help="For teams that haven't entered keepers on the dashboard yet, predict "
+                 "their likely keepers — each team's top players from last season's draft, "
+                 "kept at their draft-round cost — so the board reflects a realistic keeper "
+                 "draft. Dashboard keepers always take priority.")
+        if st.session_state.get(f"{mkey}_predictkp", False) and npred:
+            top[3].caption(f"+{npred} predicted keepers")
     manual = mode == "Manual / live"
     act = st.columns([3.8, 1.3, 1.5, 1.4, 1, 1])
     act[1].toggle("Focus", key="draft_focus",
