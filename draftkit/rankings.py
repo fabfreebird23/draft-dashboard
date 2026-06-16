@@ -108,6 +108,7 @@ def parse_position_csv(text: str, registry) -> list:
                 return i
         return None
 
+    overall_c = col("overall")                     # UDK Top-200 overall rank (if present)
     name_c, pos_c, tier_c, adp_c, rank_c = (
         col("name", "player"), col("position", "pos"), col("tier"), col("adp"),
         col("rank"))
@@ -126,12 +127,27 @@ def parse_position_csv(text: str, registry) -> list:
         # UDK's POSITIONAL rank (their expert order within the position) — tiers
         # follow it, not ADP. Fall back to file order if no Rank column.
         prm = re.search(r"\d+", r[rank_c]) if (rank_c is not None and len(r) > rank_c) else None
+        ovm = re.search(r"\d+", r[overall_c]) if (overall_c is not None and len(r) > overall_c) else None
         items.append({"name": nm, "pos": (r[pos_c].strip().upper() if len(r) > pos_c else ""),
                       "pos_tier": int(tm.group()) if tm else 1,
                       "pos_rank": int(prm.group()) if prm else (i + 1),
+                      "overall": int(ovm.group()) if ovm else None,
                       "adp": adp, "pid": idx.get(normalize_name(nm))})
     if not items:
         return []
+    # If the export carries UDK's authoritative overall rank (Top-200 list), order
+    # the board by it — that's the real overall ranking. Players it doesn't cover
+    # tail after, in ADP order.
+    if any(it["overall"] is not None for it in items):
+        ranked = sorted([it for it in items if it["overall"] is not None],
+                        key=lambda x: x["overall"])
+        tail = sorted([it for it in items if it["overall"] is None], key=lambda x: x["adp"])
+        out = []
+        for rank, it in enumerate(ranked + tail, 1):
+            out.append({"rank": rank, "name": it["name"], "tier": it["pos_tier"],
+                        "adp": it["adp"], "pos_tier": it["pos_tier"],
+                        "pos_rank": it["pos_rank"], "pid": it["pid"]})
+        return out
     # Overall order: interleave the per-position lists (each in UDK's EXPERT pos_rank
     # order) by ADP. This keeps the overall board consistent with the per-position
     # tier view — within a position the expert order is preserved (RB1 before RB2),

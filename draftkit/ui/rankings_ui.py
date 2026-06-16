@@ -86,7 +86,8 @@ def render(ctx) -> None:
             "1. Bookmark this page, edit the bookmark, name it *Grab UDK*, and replace "
             "its **URL** with the code below.\n"
             "2. Open your **UDK → Position Rankings** page.\n"
-            "3. Click **Grab UDK** — it cycles QB/RB/WR/TE and downloads "
+            "3. Click **Grab UDK** — it cycles QB/RB/WR/TE for tiers + your order AND "
+            "reads the Top-200 page for the overall ranking, then downloads "
             "`udk_rankings.csv`.\n"
             "4. Back here, choose **Upload file** and pick that CSV.")
         st.code(udk.BOOKMARKLET, language="text")

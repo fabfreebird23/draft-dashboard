@@ -36,23 +36,35 @@ _ADP_FIELD = {"ppr": "adp_ppr", "half": "adp_half_ppr", "std": "adp", "2qb": "ad
 _SUFFIX_RE = re.compile(r"\s+[A-Z]{2,4}\s*\(\d+\)\s*$")
 
 # One-click UDK grabber bookmarklet (no credentials needed — runs in the user's
-# already-logged-in browser). Cycles QB/RB/WR/TE, sorts by ADP, downloads
-# udk_rankings.csv (Name,Position,ADP,Tier — the Tier is each position's own tier)
-# to upload in the app.
+# already-logged-in browser, on the UDK Position-Rankings page). Cycles QB/RB/WR/TE
+# to grab each position's own Tier + your custom order, AND fetches the Top-200 page
+# for UDK's authoritative OVERALL rank, then downloads udk_rankings.csv
+# (Overall,Name,Position,ADP,Tier,PosRank) to upload in the app.
 BOOKMARKLET = (
     "javascript:(async()=>{const w=m=>new Promise(r=>setTimeout(r,m));"
     "const P=['QB','RB','WR','TE'],A=[];for(const p of P){const b=[...document."
     "querySelectorAll('button')].find(x=>x.textContent.trim()===p);if(b)b.click();"
     "await w(2600);for(const tr of document.querySelectorAll('table tr')){const c="
     "[...tr.querySelectorAll('td')].map(x=>x.innerText.replace(/\\s+/g,' ').trim());"
-    "if(c.length<7||!/^\\d+$/.test(c[1]))continue;A.push({k:parseInt(c[1]),n:c[0].replace("
-    "/\\s+[A-Z]{2,4}\\s*\\(\\d+\\)\\s*$/,'').trim(),p:p,a:parseFloat(c[5]),t:c[6]});}}"
-    "A.sort((x,y)=>x.a-y.a);const csv='Rank,Name,Position,ADP,Tier\\n'+A.map(r=>r.k+',\"'"
-    "+r.n+'\",'+r.p+','+r.a+','+r.t).join('\\n');"
-    "const u=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));"
-    "const e=document.createElement('a');e.href=u;e.download='udk_rankings.csv';"
+    "if(c.length<7||!/^\\d+$/.test(c[1]))continue;A.push({n:c[0].replace("
+    "/\\s+[A-Z]{2,4}\\s*\\(\\d+\\)\\s*$/,'').trim(),p:p,a:parseFloat(c[5]),t:c[6],r:c[1]});}}"
+    "let O={};try{const u=location.pathname.replace('udk-position-rankings',"
+    "'udk-top-200-list');const f=document.createElement('iframe');f.style.cssText="
+    "'position:fixed;left:-9999px;width:1200px;height:800px';f.src=u;document.body."
+    "appendChild(f);for(let i=0;i<20;i++){await w(800);try{const M={};for(const tr of "
+    "f.contentDocument.querySelectorAll('table tr')){const c=[...tr.querySelectorAll("
+    "'td')].map(x=>x.innerText.replace(/\\s+/g,' ').trim());if(c.length<3||!/^\\d+$/."
+    "test(c[0]))continue;M[c[1].replace(/\\s+[A-Z]{2,4}\\s*\\(\\d+\\)\\s*$/,'').trim()."
+    "toLowerCase()]=c[0];}if(Object.keys(M).length>50){O=M;break;}}catch(e){}}f.remove();"
+    "}catch(e){}"
+    "A.forEach(x=>{x.o=O[x.n.toLowerCase()]||'';});A.sort((x,y)=>(parseInt(x.o)||9999)"
+    "-(parseInt(y.o)||9999));const csv='Overall,Name,Position,ADP,Tier,PosRank\\n'+"
+    "A.map(x=>x.o+',\"'+x.n+'\",'+x.p+','+x.a+','+x.t+','+x.r).join('\\n');"
+    "const b=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));"
+    "const e=document.createElement('a');e.href=b;e.download='udk_rankings.csv';"
     "document.body.appendChild(e);e.click();e.remove();alert('UDK exported: '+"
-    "A.length+' players. Now upload udk_rankings.csv in your Draft Kit.');})();"
+    "A.length+' players ('+Object.keys(O).length+' overall-ranked). Now upload "
+    "udk_rankings.csv in your Draft Kit.');})();"
 )
 
 
