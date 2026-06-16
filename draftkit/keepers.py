@@ -108,12 +108,15 @@ def load_keepers(league_id: str, season: int) -> Dict[str, List[dict]]:
 
 
 def predict_keepers(league_id: str, value, current_season: int,
-                    have_owners: set) -> Dict[str, List[dict]]:
+                    have_owners: set, registry=None, rounds: int = 0) -> Dict[str, List[dict]]:
     """Predict keepers for owners who haven't entered any on the keeper dashboard.
 
-    Uses last season's draft: each owner's drafted players become keeper candidates
-    at their draft-round cost, and we keep their top `max_keepers` by VORP. Returns
-    {owner_id: [{player_id, cost_round, predicted}]} for owners NOT in `have_owners`.
+    Uses last season's draft: each owner's drafted players become keeper candidates,
+    and we keep their top `max_keepers` by VORP. Cost round: a player drafted *as a
+    rookie* (his rookie season was the draft season) is a ROOKIE keeper, kept at the
+    last round (the cheap, career-long way keeper leagues hold rookies) — otherwise
+    he costs the round he was drafted. Returns {owner_id: [{player_id, cost_round,
+    is_rookie_keeper, predicted}]} for owners NOT in `have_owners`.
     """
     from collections import defaultdict
     from . import sleeper_client as sleeper
@@ -124,9 +127,19 @@ def predict_keepers(league_id: str, value, current_season: int,
         max_keepers = 0
     if max_keepers <= 0:
         return {}
+
+    def _years_exp(pid: str):
+        if registry is None:
+            return None
+        try:
+            return getattr(registry.meta(pid), "years_exp", None)
+        except Exception:  # noqa: BLE001
+            return None
+
     out: Dict[str, List[dict]] = {}
     for entry in sleeper.league_chain(str(league_id)):
-        if int(entry.get("season") or 0) >= int(current_season):
+        draft_season = int(entry.get("season") or 0)
+        if draft_season >= int(current_season):
             continue                                   # find the most recent PRIOR draft
         picks = sleeper.get_draft_picks(entry.get("draft_id")) or []
         by_owner: Dict[str, list] = defaultdict(list)
@@ -138,12 +151,20 @@ def predict_keepers(league_id: str, value, current_season: int,
                 by_owner[owner].append((pid, rnd))
         if not by_owner:
             continue
+        # A player is a rookie keeper if his rookie season was the draft season —
+        # i.e. current years_exp == seasons since that draft (he entered that year).
+        rookie_gap = int(current_season) - draft_season
         for owner, plist in by_owner.items():
             if str(owner) in have_owners:
                 continue                               # they already set keepers
             ranked = sorted(plist, key=lambda x: -(value.vorp_of(x[0]) if value else 0.0))
-            kept = [{"player_id": pid, "cost_round": rnd, "predicted": True}
-                    for pid, rnd in ranked[:max_keepers]]
+            kept = []
+            for pid, rnd in ranked[:max_keepers]:
+                ye = _years_exp(pid)
+                is_rookie = ye is not None and ye == rookie_gap
+                cost = rounds if (is_rookie and rounds) else rnd
+                kept.append({"player_id": pid, "cost_round": cost,
+                             "is_rookie_keeper": is_rookie, "predicted": True})
             if kept:
                 out[owner] = kept
         return out                                     # only the most recent prior season

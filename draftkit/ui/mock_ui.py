@@ -36,7 +36,8 @@ def render(ctx) -> None:
         keepers_raw = ctx.get("keepers_raw") or {}
         have_kp = {str(o) for o, kl in keepers_raw.items() if kl}
         predicted = _K.predict_keepers(ctx["meta"].league_id, ctx.get("value"),
-                                       _cfg.current_season(), have_kp)
+                                       _cfg.current_season(), have_kp,
+                                       registry=ctx["registry"], rounds=rounds)
         _pl = _K.build_placements({**keepers_raw, **predicted}, ctx["owner_slot"],
                                   n, rounds, pick_owner_slot=ctx["pick_owner_slot"])
         kept_by_overall, kept_pids = _pl["by_overall"], _pl["kept_pids"]
