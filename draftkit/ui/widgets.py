@@ -311,6 +311,12 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
                        "pulls) — showing your UDK board.")
             ranks = st.session_state.get(ctx["ranks_key"]) or []
 
+    # Positional rank labels follow THIS source's overall order (so RB## never
+    # contradicts the #overall when a non-UDK source is active).
+    _bpr = C.board_pos_rank(ranks, reg)
+    if _bpr:
+        ctx = {**ctx, "pos_rank": _bpr}
+
     # ---- position pills ----
     present = {reg.meta(r["pid"]).position for r in ranks if r.get("pid")}
     positions = ["All"] + [p for p in ("QB", "RB", "WR", "TE", "K", "DST") if p in present]

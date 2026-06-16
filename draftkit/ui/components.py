@@ -12,6 +12,25 @@ from typing import Callable, List
 from .. import theme
 
 
+def board_pos_rank(board, registry) -> dict:
+    """{pid: 'RB18'} computed from a board's OWN overall order, so a player's
+    positional rank always rises with its overall rank. Without this, the displayed
+    RB## (consensus-ADP order) can contradict the #overall (UDK-Top-200 order) and a
+    higher-ranked player shows a worse positional rank than a lower one."""
+    counts, out = {}, {}
+    for r in sorted([x for x in (board or []) if x.get("pid")],
+                    key=lambda x: x.get("rank") or 9999):
+        try:
+            pos = registry.meta(r["pid"]).position
+        except Exception:  # noqa: BLE001
+            continue
+        if pos not in ("QB", "RB", "WR", "TE"):
+            continue
+        counts[pos] = counts.get(pos, 0) + 1
+        out[str(r["pid"])] = f"{pos}{counts[pos]}"
+    return out
+
+
 def _phi(z):
     return 0.5 * (1 + math.erf(z / math.sqrt(2)))
 

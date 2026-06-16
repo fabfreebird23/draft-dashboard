@@ -398,6 +398,16 @@ def main():
     if ctx["ranks_key"] not in st.session_state:
         st.session_state[ctx["ranks_key"]] = storage.load_rankings(ctx["league_key"])
 
+    # Positional rank (RB18, WR7…) shown next to each player must follow the SAME
+    # board the overall rank (#30) comes from — otherwise UDK's Top-200 order (which
+    # drives #rank) and consensus-ADP order (which drove RB##) disagree and a
+    # higher-ranked player shows a WORSE positional rank than a lower one. Recompute
+    # pos_rank from the active board's own overall order so RB## always rises with #.
+    from draftkit.ui.components import board_pos_rank
+    _bpr = board_pos_rank(st.session_state.get(ctx["ranks_key"]) or [], ctx["registry"])
+    if _bpr:
+        ctx["pos_rank"] = _bpr
+
     meta = ctx["meta"]
     n_keep = len(ctx["keepers"]["kept_pids"])
     pills = [meta.platform.upper(), f"{meta.num_teams} teams", f"{meta.draft_rounds} rds",
