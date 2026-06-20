@@ -14,7 +14,7 @@ from draftkit.adp import consensus
 from draftkit.names import normalize_name
 from draftkit.providers import get_provider, EspnAuthError
 from draftkit import draft_history, keepers as keepers_mod, rankings as rankings_mod
-from draftkit.ui import assistant_ui, mock_ui, rankings_ui
+from draftkit.ui import assistant_ui, mock_ui, rankings_ui, report_card_ui
 from draftkit.ui.components import board_pos_rank
 
 st.set_page_config(page_title="Draft Room — Mock + Live Draft", page_icon="🏈", layout="wide")
@@ -442,7 +442,7 @@ def main():
 
     # Persisted nav (st.tabs resets to the first tab on every rerun — drafting
     # triggers reruns, so we use a keyed radio styled as tabs instead).
-    nav = ["My Rankings", "Live Draft Assistant", "Mock Draft"]
+    nav = ["My Rankings", "Live Draft Assistant", "Mock Draft", "Report Card"]
     with st.container(key="navbar"):
         section = st.radio("nav", nav, horizontal=True, key="nav_section",
                            label_visibility="collapsed")
@@ -450,8 +450,10 @@ def main():
         rankings_ui.render(ctx)
     elif section == nav[1]:
         assistant_ui.render(ctx)
-    else:
+    elif section == nav[2]:
         mock_ui.render(ctx)
+    else:
+        report_card_ui.render(ctx)
 
 
 main()
