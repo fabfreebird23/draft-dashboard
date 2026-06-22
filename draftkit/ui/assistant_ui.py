@@ -230,21 +230,24 @@ def render(ctx) -> None:
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=drafted,
                         draft_fn=(draft if manual else None),
                         upcoming_slots=upcoming_slots, need_map=need_map, round_no=round_no)
-        ctabs = st.tabs(["Board", "Suggestions", "Cheat Sheet"])
-        with ctabs[1]:
+        # Persistent view selector (keyed radio, not st.tabs which resets to the
+        # first tab on every rerun) — defaults to Board but remembers your choice.
+        cview = st.radio("board view", ["Board", "Suggestions", "Cheat Sheet"],
+                         horizontal=True, key=f"{akey}_cview", label_visibility="collapsed")
+        if cview == "Suggestions":
             st.markdown(C.act_now_html(board_avail, next_user_pick, ctx["adp_rank"], reg,
                                        ctx.get("value")), unsafe_allow_html=True)
             suggestions_tab(ctx, key_prefix=akey, ranks=ranks_active, taken=drafted,
                             my_pids=my_pids, needs=needs, next_pick=next_user_pick,
                             pick_no=pick_no, on_click=_inspect, on_star=toggle_queue,
                             quick_draft=(draft if manual else None), queued=queued)
-        with ctabs[2]:
+        elif cview == "Cheat Sheet":
             st.markdown(C.cheat_sheet_html(
                 board_avail, reg,
                 survival_fn=lambda pid: C.survival_pct(
                     ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
                     next_user_pick)), unsafe_allow_html=True)
-        with ctabs[0]:
+        else:  # Board (default)
             st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
             st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
                                     kept_overalls=kept_at, owner_fn=owner), unsafe_allow_html=True)
