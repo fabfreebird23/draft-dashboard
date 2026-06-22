@@ -332,21 +332,21 @@ def render(ctx) -> None:
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=taken,
                         draft_fn=(draft if can_draft else None),
                         upcoming_slots=upcoming_slots, need_map=need_map, round_no=round_no)
-        ctabs = st.tabs(["Suggestions", "Cheat Sheet", "Board"])
-        with ctabs[0]:
+        ctabs = st.tabs(["Board", "Suggestions", "Cheat Sheet"])
+        with ctabs[1]:
             st.markdown(C.act_now_html(board_avail, next_user_pick, ctx["adp_rank"], reg,
                                        ctx.get("value")), unsafe_allow_html=True)
             suggestions_tab(ctx, key_prefix=mkey, ranks=ranks_active, taken=taken,
                             my_pids=my_pids, needs=needs, next_pick=next_user_pick,
                             pick_no=pick_no, on_click=show_card, on_star=toggle_queue,
                             quick_draft=(draft if can_draft else None), queued=queued)
-        with ctabs[1]:
+        with ctabs[2]:
             st.markdown(C.cheat_sheet_html(
                 board_avail, reg,
                 survival_fn=lambda pid: C.survival_pct(
                     ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
                     next_user_pick)), unsafe_allow_html=True)
-        with ctabs[2]:
+        with ctabs[0]:
             if made:
                 lo = max(made)
                 st.markdown(C.last_pick_html(lo, n, slot_names[owner(lo)], made[lo], reg),

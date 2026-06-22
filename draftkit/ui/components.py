@@ -324,7 +324,10 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
         head.append(f'<div class="dr-colhead{me}" title="{s}">{s[:13]}</div>')
     cells = ["".join(head)]
     for r in range(1, rounds + 1):
-        cells.append(f'<div class="dr-rdlabel">{r}</div>')
+        # snake direction: odd rounds run left→right, even rounds right→left.
+        arrow = "→" if r % 2 == 1 else "←"
+        cells.append(f'<div class="dr-rdlabel">{r}'
+                     f'<span class="dr-snk">{arrow}</span></div>')
         for c in range(1, n + 1):
             overall = (r - 1) * n + (c if r % 2 == 1 else n - c + 1)
             # label by the pick's real position in the round (snake order), not the

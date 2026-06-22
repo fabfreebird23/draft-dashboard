@@ -750,8 +750,9 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   position:sticky; top:0; z-index:6; box-shadow:0 2px 4px rgba(0,0,0,.06); }
 .dr-colhead.me{ background:var(--green); color:#fff; }
 .dr-colhead.rd{ background:var(--blue); color:#fff; z-index:7; }
-.dr-rdlabel{ display:flex; align-items:center; justify-content:center; font-weight:800;
-  font-size:12px; color:#fff; background:var(--blue); border-radius:6px; }
+.dr-rdlabel{ display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:1px; font-weight:800; font-size:12px; color:#fff; background:var(--blue); border-radius:6px; }
+.dr-rdlabel .dr-snk{ font-size:13px; line-height:1; font-weight:700; opacity:.7; }
 
 /* ---- last-pick / on-the-clock banners ---- */
 .dr-lastpick{ display:flex; align-items:center; gap:9px; background:#fff; border:1px solid var(--line);
