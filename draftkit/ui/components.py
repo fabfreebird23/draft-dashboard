@@ -327,7 +327,10 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
         cells.append(f'<div class="dr-rdlabel">{r}</div>')
         for c in range(1, n + 1):
             overall = (r - 1) * n + (c if r % 2 == 1 else n - c + 1)
-            pk = f'{r}.{c:02d}'
+            # label by the pick's real position in the round (snake order), not the
+            # physical column — in even rounds the order reverses, so column 10 of a
+            # 10-team round 2 is pick 2.01, not 2.10.
+            pk = f'{r}.{(overall - 1) % n + 1:02d}'
             pid = pick_pids.get(overall)
             klass = "dr-cell"
             owned = (owner_fn(overall) == my_slot) if owner_fn else ((c - 1) == my_slot)
