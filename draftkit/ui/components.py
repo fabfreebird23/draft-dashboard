@@ -336,9 +336,18 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
             pk = f'{r}.{(overall - 1) % n + 1:02d}'
             pid = pick_pids.get(overall)
             klass = "dr-cell"
-            owned = (owner_fn(overall) == my_slot) if owner_fn else ((c - 1) == my_slot)
+            actual = owner_fn(overall) if owner_fn else (c - 1)
+            owned = actual == my_slot
             if owned:
                 klass += " me"
+            # traded pick: this cell sits in its ORIGINAL owner's column (c-1) but is
+            # now owned by a different team — flag it and name the new owner.
+            trade_badge = ""
+            if owner_fn is not None and actual != (c - 1):
+                klass += " traded"
+                onm = slot_names[actual] if actual < len(slot_names) else f"T{actual + 1}"
+                short = (onm.split()[0] if onm.split() else onm)[:8]
+                trade_badge = f'<span class="dr-trade" title="Traded to {onm}">⇄{short}</span>'
             is_now = overall == current_pick
             if is_now:
                 klass += " now"
@@ -358,13 +367,14 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
                     f'<div class="{klass}"><span class="pk">{pk}</span>'
                     f'<div class="c-name"><span>{first}</span>'
                     f'<span>{last or "&nbsp;"}</span></div>{img}'
-                    f'<span class="c-meta">{pm.position}-{pm.team}{tag}</span></div>')
+                    f'<span class="c-meta">{pm.position}-{pm.team}{tag}</span>{trade_badge}</div>')
             elif is_now:
                 # on-the-clock card — solid blue with a prominent pick number
                 cells.append(f'<div class="{klass} onclk"><span class="oc-arrow">‹</span>'
-                             f'<span class="oc-pk">{pk}</span></div>')
+                             f'<span class="oc-pk">{pk}</span>{trade_badge}</div>')
             else:
-                cells.append(f'<div class="{klass} empty"><span class="pk">{pk}</span></div>')
+                cells.append(f'<div class="{klass} empty"><span class="pk">{pk}</span>'
+                             f'{trade_badge}</div>')
     # roomy leagues (≤8 teams) keep the player headshots; larger boards go text-only
     grid_cls = "dr-grid wide" if n <= 8 else "dr-grid"
     grid = (f'<div class="{grid_cls}" style="grid-template-columns:30px repeat({n},{cw});">'

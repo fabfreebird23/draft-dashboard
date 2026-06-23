@@ -733,6 +733,15 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .dr-cell.pos-TE{ background:#f8ccd6; } .dr-cell.pos-QB{ background:#ddd2f3; }
 .dr-cell.pos-K{ background:#e2e6ec; } .dr-cell.pos-DST,.dr-cell.pos-D{ background:#e2e6ec; }
 .dr-cell.me{ outline:2px solid var(--blue); outline-offset:-2px; }
+/* traded pick: accent left bar + a small "⇄ new owner" chip (bottom-right) */
+.dr-cell.traded{ box-shadow:inset 3px 0 0 var(--amber); }
+.dr-trade{ position:absolute; right:5px; bottom:3px; max-width:calc(100% - 12px);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:8px;
+  font-weight:900; letter-spacing:.2px; color:#fff; background:var(--amber);
+  border-radius:4px; padding:0 3px; }
+.dr-cell.empty .dr-trade{ bottom:auto; top:50%; right:50%; transform:translate(50%,-50%);
+  background:transparent; color:var(--amber); font-size:9px; }
+.dr-cell.onclk .dr-trade{ color:#fff; background:rgba(0,0,0,.28); }
 .dr-cell .c-meta .ktag{ font-weight:900; font-size:8px; color:#fff; background:var(--amber);
   border-radius:3px; padding:0 3px; margin-left:2px; }
 .dr-cell .c-meta .rtag{ font-weight:900; font-size:8px; color:#fff; background:#7c3aed;
