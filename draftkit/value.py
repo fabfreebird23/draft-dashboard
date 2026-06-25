@@ -232,8 +232,77 @@ def synergy(pm, my_pids, registry) -> List[tuple]:
     return tags
 
 
+# ---- draft strategies: bias the recommendation engine by position × round ----
+STRATEGIES = ["Balanced", "Hero RB", "Zero RB", "Robust RB", "Elite TE",
+              "Late-Round QB", "Value (BPA)"]
+STRATEGY_HELP = {
+    "Balanced": "No positional bias — value, roster fit, scarcity & survival.",
+    "Hero RB": "Lock one elite RB early, then load WR/TE and wait on RB2.",
+    "Zero RB": "Fade RB early for elite WR/TE, then hammer RB value in the mid rounds.",
+    "Robust RB": "Pound RB early — aim for ~3 of your first 4–5 picks at RB.",
+    "Elite TE": "Land a top-tier TE early for a weekly positional edge.",
+    "Late-Round QB": "Wait on QB; spend early picks on RB/WR, grab your QB late.",
+    "Value (BPA)": "Best player available — rank purely by value, ignore roster needs.",
+}
+_SUPERFLEX_SLOTS = {"SUPER_FLEX", "SUPERFLEX", "SFLEX", "OP", "Q/W/R/T"}
+
+
+def _is_superflex(roster_slots) -> bool:
+    return any(str(s).upper() in _SUPERFLEX_SLOTS for s in (roster_slots or []))
+
+
+def strategy_weight(strategy, pos, round_no, my_pids, registry, roster_slots) -> float:
+    """Multiplier on a candidate's score implementing a draft strategy's positional
+    lean, given the round and your current roster. >1 leans toward the position, <1
+    away; 1.0 is neutral. Multiplicative (not additive) so it scales with value and
+    actually reorders elite players. 'Balanced'/'Value (BPA)' are neutral here (BPA is
+    handled by the caller as pure value)."""
+    if not strategy or strategy in ("Balanced", "Value (BPA)"):
+        return 1.0
+    cnt = {}
+    for p in (my_pids or []):
+        try:
+            pp = registry.meta(p).position
+        except Exception:  # noqa: BLE001
+            continue
+        cnt[pp] = cnt.get(pp, 0) + 1
+    rb, te, qb = cnt.get("RB", 0), cnt.get("TE", 0), cnt.get("QB", 0)
+    rd = round_no or 1
+    if strategy == "Hero RB":
+        if pos == "RB":
+            return 1.15 if (rb == 0 and rd <= 2) else (0.55 if (rb >= 1 and rd <= 6) else 1.0)
+        if pos in ("WR", "TE") and rd <= 5:
+            return 1.12
+    elif strategy == "Zero RB":
+        if pos == "RB":
+            return 0.45 if rd <= 4 else (1.10 if rd <= 7 else 1.25)
+        if pos == "WR" and rd <= 6:
+            return 1.18
+        if pos == "TE" and rd <= 6:
+            return 1.10
+        if pos == "QB" and rd <= 6:
+            return 1.05
+    elif strategy == "Robust RB":
+        if pos == "RB" and rd <= 5 and rb < 3:
+            return 1.25
+        if pos in ("WR", "TE", "QB") and rd <= 3 and rb < 2:
+            return 0.82                     # steer the early picks toward RB
+    elif strategy == "Elite TE":
+        if pos == "TE" and te == 0 and rd <= 4:
+            return 1.85
+        if pos == "RB" and rd <= 2 and te == 0:
+            return 0.85                     # make room for the elite TE in the first picks
+    elif strategy == "Late-Round QB":
+        if _is_superflex(roster_slots):
+            return 1.0                      # QB is premium in superflex — don't fade
+        if pos == "QB":
+            return 0.40 if (qb == 0 and rd < 8) else (1.15 if rd >= 9 else 1.0)
+    return 1.0
+
+
 def best_pick(board_avail, model: "ValueModel", registry, needs, taken,
-              next_pick=None, survival_fn=None, my_pids=None, roster_slots=None):
+              next_pick=None, survival_fn=None, my_pids=None, roster_slots=None,
+              strategy=None, round_no=None):
     """Roster-aware recommendation: rank available players by VORP (marginal —
     adjusted for the roster you've already built), boosted for positions you still
     need and for scarcity. Returns (row, score, reason) or (None, 0, '')."""
@@ -270,6 +339,14 @@ def best_pick(board_avail, model: "ValueModel", registry, needs, taken,
                 if sv is not None and sv <= 35:
                     score += (35 - sv) * 0.5
                     reasons.append("unlikely to return")
+        if strategy == "Value (BPA)":
+            score = raw                      # pure value, ignore roster construction
+        elif strategy and strategy != "Balanced":
+            w = strategy_weight(strategy, pm.position, round_no, my_pids, registry, roster_slots)
+            if w != 1.0:
+                score *= w
+                if w > 1.0:
+                    reasons.insert(0, strategy)
         if best is None or score > best[1]:
             best = (r, score, " · ".join(reasons[:3]))
     return best or (None, 0, "")
@@ -317,7 +394,7 @@ def upside_score(model: "ValueModel", registry, pid) -> float:
 
 def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
                     next_pick=None, survival_fn=None, my_pids=None, roster_slots=None,
-                    byes=None, k=6, upside=False):
+                    byes=None, k=6, upside=False, strategy=None, round_no=None):
     """A ranked list of the best picks right now — the engine behind the Suggestions
     tab. Roster-aware scoring like ``best_pick`` (value × roster fit + starter need +
     positional scarcity + 'won't survive to your next pick'), now also nudged by
@@ -361,6 +438,11 @@ def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
         clash = bye_clash(pm, my_pids, registry, byes)
         if clash and mult < 0.999:        # don't punish a true starter need over a bye
             score -= 9
+        if strategy == "Value (BPA)":
+            score = base                  # pure value, ignore roster construction nudges
+        elif strategy and strategy != "Balanced":
+            score *= strategy_weight(strategy, pm.position, round_no, my_pids,
+                                     registry, roster_slots)
         out.append({"row": r, "pm": pm, "score": round(score, 1), "raw": raw,
                     "mult": mult, "sv": sv, "left": left,
                     "stack": is_stack, "bye_clash": clash})

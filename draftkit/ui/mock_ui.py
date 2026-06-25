@@ -84,6 +84,11 @@ def render(ctx) -> None:
             top[3].caption(f"+{npred} predicted keepers")
     manual = mode == "Manual / live"
     act = st.columns([3.8, 1.3, 1.5, 1.4, 1, 1])
+    from .. import value as V
+    strategy = act[0].selectbox(
+        "Strategy", V.STRATEGIES, key=f"{mkey}_strategy", label_visibility="collapsed",
+        help="Draft strategy — biases the ★ recommendation and the Suggestions list "
+             "toward a plan (Hero/Zero/Robust RB, Elite TE, Late-Round QB, or pure value).")
     act[1].toggle("Focus", key="draft_focus",
                   help="Hide the setup row & league pills to fit more of the board on screen.")
     autopick = act[2].button("🤖 Pick for me", key=f"{mkey}_autome", use_container_width=True,
@@ -312,7 +317,8 @@ def render(ctx) -> None:
             board_avail, ctx["value"], reg, needs, taken, next_pick=next_user_pick,
             survival_fn=lambda pid: C.survival_pct(
                 ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_user_pick),
-            my_pids=my_pids, roster_slots=ctx["roster_slots"])
+            my_pids=my_pids, roster_slots=ctx["roster_slots"],
+            strategy=strategy, round_no=round_no)
         if rec_row is None:
             rec_row = board_avail[0]
 
@@ -342,7 +348,8 @@ def render(ctx) -> None:
             suggestions_tab(ctx, key_prefix=mkey, ranks=ranks_active, taken=taken,
                             my_pids=my_pids, needs=needs, next_pick=next_user_pick,
                             pick_no=pick_no, on_click=show_card, on_star=toggle_queue,
-                            quick_draft=(draft if can_draft else None), queued=queued)
+                            quick_draft=(draft if can_draft else None), queued=queued,
+                            strategy=strategy, round_no=round_no)
         elif cview == "Cheat Sheet":
             st.markdown(C.cheat_sheet_html(
                 board_avail, reg,

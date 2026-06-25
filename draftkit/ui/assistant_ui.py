@@ -53,12 +53,17 @@ def render(ctx) -> None:
                 auto = st.checkbox("Auto-refresh", key=f"{akey}_auto")
                 st.button("Refresh", key=f"{akey}_refresh")
     my_slot = slot_names.index(me)
-    act = st.columns([7, 1.3, 1, 1])
-    act[1].toggle("Focus", key="draft_focus",
+    act = st.columns([3.2, 3.8, 1.3, 1, 1])
+    from .. import value as V
+    strategy = act[0].selectbox(
+        "Strategy", V.STRATEGIES, key=f"{akey}_strategy", label_visibility="collapsed",
+        help="Draft strategy — biases the ★ recommendation and the Suggestions list "
+             "toward a plan (Hero/Zero/Robust RB, Elite TE, Late-Round QB, or pure value).")
+    act[2].toggle("Focus", key="draft_focus",
                   help="Hide the setup row & league pills to fit more of the board on screen.")
     if manual:
-        reset = act[2].button("Reset", key=f"{akey}_mreset", use_container_width=True)
-        undo = act[3].button("Undo", key=f"{akey}_mundo", use_container_width=True)
+        reset = act[3].button("Reset", key=f"{akey}_mreset", use_container_width=True)
+        undo = act[4].button("Undo", key=f"{akey}_mundo", use_container_width=True)
 
     # ----- gather picks from the chosen source into a common {overall: pid} map -----
     if manual:
@@ -211,7 +216,8 @@ def render(ctx) -> None:
             board_avail, ctx["value"], reg, needs, drafted, next_pick=next_user_pick,
             survival_fn=lambda pid: C.survival_pct(
                 ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_user_pick),
-            my_pids=my_pids, roster_slots=ctx["roster_slots"])
+            my_pids=my_pids, roster_slots=ctx["roster_slots"],
+            strategy=strategy, round_no=round_no)
         if rec_row is None:
             rec_row = board_avail[0]
 
@@ -240,7 +246,8 @@ def render(ctx) -> None:
             suggestions_tab(ctx, key_prefix=akey, ranks=ranks_active, taken=drafted,
                             my_pids=my_pids, needs=needs, next_pick=next_user_pick,
                             pick_no=pick_no, on_click=_inspect, on_star=toggle_queue,
-                            quick_draft=(draft if manual else None), queued=queued)
+                            quick_draft=(draft if manual else None), queued=queued,
+                            strategy=strategy, round_no=round_no)
         elif cview == "Cheat Sheet":
             st.markdown(C.cheat_sheet_html(
                 board_avail, reg,
