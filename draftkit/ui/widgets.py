@@ -317,9 +317,12 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
     if _bpr:
         ctx = {**ctx, "pos_rank": _bpr}
 
-    # ---- position pills ----
+    # ---- position pills (+ a Rookies pill when the board has any) ----
     present = {reg.meta(r["pid"]).position for r in ranks if r.get("pid")}
     positions = ["All"] + [p for p in ("QB", "RB", "WR", "TE", "K", "DST") if p in present]
+    if any(getattr(reg.meta(r["pid"]), "years_exp", None) == 0
+           for r in ranks if r.get("pid")):
+        positions.append(C.ROOKIE_FILTER)
     with st.container(key=f"{key_prefix}_posf"):
         pos_f = st.radio("Position", positions, horizontal=True,
                          key=f"{key_prefix}_pos", label_visibility="collapsed")
@@ -341,7 +344,7 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
     by_value = sort == "Value" and ctx.get("value")
     if by_value:
         avail = sorted(avail, key=lambda r: ctx["value"].vorp_of(r["pid"]), reverse=True)
-    elif pos_f != "All":
+    elif pos_f not in ("All", C.ROOKIE_FILTER):
         # filtering to one position → order by UDK's positional rank (its tiers
         # follow that, not overall ADP) then renumber the tiers to start at Tier 1
         if any(r.get("pos_rank") for r in avail):

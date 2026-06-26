@@ -1248,9 +1248,15 @@ def rec_reason(top_row, registry, adp_rank, current_pick, needs_open) -> str:
     return " · ".join(bits)
 
 
+ROOKIE_FILTER = "🆕 Rook"
+
+
 def filter_pos(rows, pos_f, registry):
     if pos_f == "All":
         return rows
+    if pos_f in (ROOKIE_FILTER, "Rookies"):
+        return [r for r in rows if r.get("pid")
+                and getattr(registry.meta(r["pid"]), "years_exp", None) == 0]
     tgt = {"RB", "WR", "TE"} if pos_f == "FLEX" else {pos_f}
     return [r for r in rows if r.get("pid") and registry.meta(r["pid"]).position in tgt]
 
