@@ -215,20 +215,29 @@ def render(ctx) -> None:
     next_user_pick = nxt if nxt <= total else None
 
     if done:
-        st.success("Mock complete — your team is on the left. Reset to run another.")
+        st.success("Mock complete — review the full board or your recap below. "
+                   "Reset to run another.")
         csv_str = C.draft_csv(board, n, rounds, slot_names, owner, reg,
                               ctx["adp_rank"], set(kept_by_overall), ctx.get("value"))
         st.download_button("⬇ Export full draft (CSV)", csv_str,
                            file_name="mock_draft.csv", mime="text/csv")
-        if ctx.get("value"):
-            from .. import value as V
-            grade = V.grade_team(my_pids, ctx["value"], reg, ctx["roster_slots"], n)
-            st.markdown(C.draft_grade_html(grade, my_pids, ctx["roster_slots"], reg),
+        # let the user flip back to the full draft board after the draft finishes
+        fview = st.radio("Final view", ["Draft board", "Recap & grade"], horizontal=True,
+                         key=f"{mkey}_finalview", label_visibility="collapsed")
+        if fview == "Draft board":
+            st.markdown(C.grid_html(board, n, slot_names, my_slot, 0, rounds, reg,
+                                    kept_overalls=set(kept_by_overall), owner_fn=owner),
                         unsafe_allow_html=True)
-        st.markdown('<div class="dr-h">Draft Recap</div>', unsafe_allow_html=True)
-        st.markdown(C.draft_recap_html(pids_by_slot, my_slot, slot_names, ctx["roster_slots"],
-                                       reg, ctx.get("value"), ctx["adp_rank"]),
-                    unsafe_allow_html=True)
+        else:
+            if ctx.get("value"):
+                from .. import value as V
+                grade = V.grade_team(my_pids, ctx["value"], reg, ctx["roster_slots"], n)
+                st.markdown(C.draft_grade_html(grade, my_pids, ctx["roster_slots"], reg),
+                            unsafe_allow_html=True)
+            st.markdown('<div class="dr-h">Draft Recap</div>', unsafe_allow_html=True)
+            st.markdown(C.draft_recap_html(pids_by_slot, my_slot, slot_names,
+                                           ctx["roster_slots"], reg, ctx.get("value"),
+                                           ctx["adp_rank"]), unsafe_allow_html=True)
         return
 
     def draft(pid):
