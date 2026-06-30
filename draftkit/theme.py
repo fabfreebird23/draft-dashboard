@@ -759,6 +759,11 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   position:sticky; top:0; z-index:6; box-shadow:0 2px 4px rgba(0,0,0,.06); }
 .dr-colhead.me{ background:var(--green); color:#fff; }
 .dr-colhead.rd{ background:var(--blue); color:#fff; z-index:7; }
+.dr-strat{ background:rgba(34,211,170,.10); border:1px solid rgba(34,211,170,.40);
+  border-radius:8px; padding:6px 11px; margin:2px 0 6px; font-size:.84rem;
+  color:var(--ink); line-height:1.35; }
+.dr-strat .st-tgt{ display:block; color:var(--muted); margin-top:1px; }
+.dr-strat .st-tgt b{ color:var(--blue); }
 .dr-rdlabel{ display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:1px; font-weight:800; font-size:12px; color:#fff; background:var(--blue); border-radius:6px; }
 .dr-rdlabel .dr-snk{ font-size:13px; line-height:1; font-weight:700; opacity:.7; }

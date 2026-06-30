@@ -231,6 +231,14 @@ def render(ctx) -> None:
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({tpm.position} · {tpm.team}) '
                         f'— <span class="why">{why}</span> · <i>click a player in the list to inspect</i></div>',
                         unsafe_allow_html=True)
+        if strategy and strategy != "Balanced":
+            _sg = V.top_suggestions(board_avail, ctx["value"], reg, needs, drafted,
+                                    my_pids=my_pids, roster_slots=ctx["roster_slots"], k=3,
+                                    strategy=strategy, round_no=round_no,
+                                    next_pick=next_user_pick)
+            _names = ", ".join(reg.meta(t["row"]["pid"]).name for t in _sg) or "—"
+            st.markdown(C.strategy_banner_html(strategy, V.STRATEGY_HELP.get(strategy, ""),
+                                               _names), unsafe_allow_html=True)
         spotlight_panel(ctx, board_avail, reg, f"{akey}_sp",
                         default_pid=(rec_row["pid"] if rec_row else None),
                         next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=drafted,

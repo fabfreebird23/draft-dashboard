@@ -1248,6 +1248,14 @@ def rec_reason(top_row, registry, adp_rank, current_pick, needs_open) -> str:
     return " · ".join(bits)
 
 
+def strategy_banner_html(strategy, help_text, targets) -> str:
+    """A small always-visible banner showing the active draft strategy, its plan, and
+    the players it's steering you toward right now — so switching strategies visibly
+    changes the screen on any tab."""
+    return (f'<div class="dr-strat">🎯 <b>{strategy}</b> — {help_text}'
+            f'<span class="st-tgt">Targets now: <b>{targets}</b></span></div>')
+
+
 ROOKIE_FILTER = "🆕 Rook"
 
 
