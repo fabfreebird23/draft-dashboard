@@ -90,7 +90,9 @@ def _parse_draft_order(text: str) -> List[str]:
 
 
 def load_keepers(league_id: str, season: int) -> Dict[str, List[dict]]:
-    """{owner_id: [keeper dicts]} for the league/season, or {} if none/unknown."""
+    """{owner_id: [keeper dicts]} for the league/season, or {} if none/unknown.
+    Filtered to players each manager still rosters, so a player traded after a
+    keeper was submitted can't be kept by two teams."""
     cfg = KEEPER_REPOS.get(str(league_id))
     if not cfg:
         return {}
@@ -101,10 +103,34 @@ def load_keepers(league_id: str, season: int) -> Dict[str, List[dict]]:
             if r.status_code == 200 and r.text.strip():
                 data = json.loads(r.text)
                 if any(data.values()):
-                    return data
+                    return _filter_to_rosters(data, league_id)
         except Exception:  # noqa: BLE001
             continue
     return {}
+
+
+def _filter_to_rosters(data: Dict[str, List[dict]], league_id: str) -> Dict[str, List[dict]]:
+    """Drop keepers a manager no longer rosters (e.g. traded away after submitting),
+    using the live Sleeper rosters as the source of truth — otherwise a traded
+    player shows up kept by both his old and new team. Keepers without a player_id,
+    or if rosters can't be fetched, pass through unchanged."""
+    from . import sleeper_client as sleeper
+    try:
+        rosters = sleeper.get_rosters(str(league_id)) or []
+    except Exception:  # noqa: BLE001
+        return data
+    owned = {str(r.get("owner_id")): {str(p) for p in (r.get("players") or [])}
+             for r in rosters if r.get("owner_id")}
+    if not owned:
+        return data
+    out: Dict[str, List[dict]] = {}
+    for oid, picks in data.items():
+        roster = owned.get(str(oid), set())
+        kept = [s for s in picks
+                if not s.get("player_id") or str(s["player_id"]) in roster]
+        if kept:
+            out[oid] = kept
+    return out
 
 
 def predict_keepers(league_id: str, value, current_season: int,
