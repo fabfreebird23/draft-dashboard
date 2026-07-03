@@ -369,7 +369,7 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
 
 def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
                     pick_no, on_click=None, on_star=None, quick_draft=None, queued=None,
-                    strategy=None, round_no=None):
+                    strategy=None, round_no=None, k=7):
     """The Suggestions tab (FantasyPros-style): the model's top picks right now,
     ranked by value × roster fit + starter need + positional scarcity + whether
     he survives to your next pick (ADP vs your pick). Each row shows the headshot,
@@ -398,7 +398,7 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
         avail, ctx["value"], reg, needs, taken_s, next_pick=next_pick,
         survival_fn=lambda pid: C.survival_pct(
             ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_pick),
-        my_pids=my_pids, roster_slots=ctx["roster_slots"], byes=ctx.get("byes"), k=7,
+        my_pids=my_pids, roster_slots=ctx["roster_slots"], byes=ctx.get("byes"), k=k,
         upside=upside, strategy=strategy, round_no=round_no)
     if strategy and strategy != "Balanced":
         st.caption(f"🎯 **{strategy}** — {V.STRATEGY_HELP.get(strategy, '')}")

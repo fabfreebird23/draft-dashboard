@@ -245,9 +245,9 @@ def render(ctx) -> None:
         st.rerun()
 
     def show_card(pid):
-        # clicking a board square no longer drafts — it opens the player card,
-        # and the Draft button inside that card is what actually drafts.
-        select_player(f"{mkey}_sp", pid)
+        # deep player card removed — the compact rows already carry ADP/bye/value,
+        # so a player-name click is a no-op; the Draft/★ buttons carry the actions.
+        return
         st.rerun()
 
     def toggle_queue(pid):
@@ -350,24 +350,20 @@ def render(ctx) -> None:
             _names = ", ".join(reg.meta(t["row"]["pid"]).name for t in _sg) or "—"
             st.markdown(C.strategy_banner_html(strategy, V.STRATEGY_HELP.get(strategy, ""),
                                                _names), unsafe_allow_html=True)
-        spotlight_panel(ctx, board_avail, reg, f"{mkey}_sp",
-                        default_pid=(rec_row["pid"] if rec_row else None),
-                        next_pick=next_user_pick, my_pids=my_pids, needs=needs, taken=taken,
-                        draft_fn=(draft if can_draft else None),
-                        upcoming_slots=upcoming_slots, need_map=need_map, round_no=round_no)
-        # Persistent view selector (keyed radio, not st.tabs which resets to the
-        # first tab on every rerun) — defaults to Board but remembers your choice.
-        cview = st.radio("board view", ["Board", "Suggestions", "Cheat Sheet"],
+        # Always-visible top-4 suggestions (replaces the deep player spotlight — the
+        # rows already carry ADP/bye/value, so no in-depth card is needed).
+        st.markdown(C.act_now_html(board_avail, next_user_pick, ctx["adp_rank"], reg,
+                                   ctx.get("value")), unsafe_allow_html=True)
+        suggestions_tab(ctx, key_prefix=mkey, ranks=ranks_active, taken=taken,
+                        my_pids=my_pids, needs=needs, next_pick=next_user_pick,
+                        pick_no=pick_no, on_click=None, on_star=toggle_queue,
+                        quick_draft=(draft if can_draft else None), queued=queued,
+                        strategy=strategy, round_no=round_no, k=4)
+        # Persistent view selector for the board / cheat sheet below (Suggestions is
+        # now always shown above). Keyed radio (st.tabs resets on every rerun).
+        cview = st.radio("board view", ["Board", "Cheat Sheet"],
                          horizontal=True, key=f"{mkey}_cview", label_visibility="collapsed")
-        if cview == "Suggestions":
-            st.markdown(C.act_now_html(board_avail, next_user_pick, ctx["adp_rank"], reg,
-                                       ctx.get("value")), unsafe_allow_html=True)
-            suggestions_tab(ctx, key_prefix=mkey, ranks=ranks_active, taken=taken,
-                            my_pids=my_pids, needs=needs, next_pick=next_user_pick,
-                            pick_no=pick_no, on_click=show_card, on_star=toggle_queue,
-                            quick_draft=(draft if can_draft else None), queued=queued,
-                            strategy=strategy, round_no=round_no)
-        elif cview == "Cheat Sheet":
+        if cview == "Cheat Sheet":
             st.markdown(C.cheat_sheet_html(
                 board_avail, reg,
                 survival_fn=lambda pid: C.survival_pct(
