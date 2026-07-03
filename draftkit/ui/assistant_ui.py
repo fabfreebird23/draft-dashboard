@@ -241,8 +241,6 @@ def render(ctx) -> None:
                                                _names), unsafe_allow_html=True)
         # Always-visible top-4 suggestions (replaces the deep player spotlight — the
         # rows already carry ADP/bye/value, so no in-depth card is needed).
-        st.markdown(C.act_now_html(board_avail, next_user_pick, ctx["adp_rank"], reg,
-                                   ctx.get("value")), unsafe_allow_html=True)
         suggestions_tab(ctx, key_prefix=akey, ranks=ranks_active, taken=drafted,
                         my_pids=my_pids, needs=needs, next_pick=next_user_pick,
                         pick_no=pick_no, on_click=None, on_star=toggle_queue,
