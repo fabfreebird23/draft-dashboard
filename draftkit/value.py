@@ -149,15 +149,21 @@ def roster_multiplier(pos: str, my_pids, roster_slots, registry) -> float:
     if h < dedicated:
         return 1.0                                   # unfilled starter — full value
     surplus = h - dedicated                          # extras already rostered
-    flex_elig = pos in ("RB", "WR", "TE") or (pos == "QB" and superflex)
-    flex_used = sum(max(0, have.get(p, 0) - c.get(p, 0)) for p in ("RB", "WR", "TE"))
+    # A 2nd TE only counts as flex depth in a league with NO dedicated TE slot; when
+    # you already start a TE you'd play an RB/WR in the flex, so a redundant TE (like
+    # a 2nd QB) is a low-value backup, not flex depth.
+    te_flexes = pos == "TE" and c.get("TE", 0) == 0
+    flex_elig = pos in ("RB", "WR") or te_flexes or (pos == "QB" and superflex)
+    # Only RB/WR (and a flex-only TE) actually occupy flex slots — a bench 2nd TE
+    # doesn't eat a flex slot away from your RBs/WRs.
+    flex_fillers = ("RB", "WR", "TE") if c.get("TE", 0) == 0 else ("RB", "WR")
+    flex_used = sum(max(0, have.get(p, 0) - c.get(p, 0)) for p in flex_fillers)
     flex_open = max(0, flex_slots - flex_used)
     if flex_elig and flex_open > 0:
-        # can slot into a FLEX — useful, but a 2nd TE rarely actually flexes
-        base = 0.9 if pos in ("RB", "WR") else 0.55
+        base = 0.9 if pos in ("RB", "WR") else 0.6
         return round(max(0.4, base * (0.85 ** surplus)), 2)
     if pos in ("QB", "TE", "K", "DST"):
-        return round(max(0.1, 0.28 ** (surplus + 1)), 2)   # backup 1-slot spot: low
+        return round(max(0.08, 0.22 ** (surplus + 1)), 2)  # backup 1-slot spot: low
     return round(max(0.3, 0.55 ** (surplus + 1)), 2)       # RB/WR bench depth
 
 
