@@ -123,10 +123,15 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 /* ---- panel cards: the three main columns read as distinct modules ---- */
 [class*="dr_panel_"]{ background:var(--panel); border:1px solid var(--line); border-radius:12px;
   padding:11px 12px 9px; box-shadow:var(--shadow); }
-/* the three draft columns are pinned to one screen height so their bottoms align
-   and the page itself never scrolls — each scrolls its own content internally */
+/* draft board is pinned on top at a capped height (scrolls internally) so it never
+   dominates the screen */
+[class*="dr_board_top"]{ height:34vh; min-height:220px; overflow-y:auto; overflow-x:auto;
+  margin-bottom:8px; }
+[class*="dr_board_top"] .dr-grid{ min-width:0; }
+/* the three draft columns fill the rest of one screen so their bottoms align and the
+   page itself never scrolls — each scrolls its own content internally */
 [class*="dr_panel_board"],[class*="dr_panel_intel"]{
-  height:calc(100vh - 112px); overflow-y:auto; overflow-x:hidden; }
+  height:calc(66vh - 150px); min-height:300px; overflow-y:auto; overflow-x:hidden; }
 [class*="dr_panel_"] [data-testid="stExpander"]{ background:var(--panel2); border:1px solid var(--line);
   border-radius:10px; margin-top:8px; }
 [class*="dr_panel_"] [data-testid="stExpander"] summary{ font-size:11px; font-weight:800;
@@ -405,11 +410,11 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .sc-thin,.sc-empty{ font-size:11px; color:var(--mut2); font-style:italic; }
 
 /* ---- rankings list scrolls inside its own box (page stays put) ---- */
-[class*="_ranklist"]{ max-height:calc(100vh - 250px); overflow-y:auto; overflow-x:hidden;
+[class*="_ranklist"]{ max-height:calc(66vh - 250px); overflow-y:auto; overflow-x:hidden;
   padding-right:4px; margin-top:2px; }
 
 /* ---- live 'Picks' rail (FantasyPros-style) ---- */
-.dr-picks{ display:flex; flex-direction:column; gap:5px; max-height:calc(100vh - 250px);
+.dr-picks{ display:flex; flex-direction:column; gap:5px; max-height:calc(66vh - 250px);
   overflow:auto; padding-right:3px; margin-bottom:8px; }
 .pf-head{ font-size:12px; font-weight:700; color:var(--ink); padding:3px 2px 6px;
   position:sticky; top:0; background:var(--panel); z-index:2; }

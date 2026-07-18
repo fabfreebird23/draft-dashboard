@@ -52,55 +52,38 @@ def render(ctx) -> None:
     total = n * rounds
 
     # 'Focus' mode hides the setup row + the top-bar pills so more of the board fits
-    focus = st.session_state.get("draft_focus", False)
-    if focus:
-        st.markdown(
-            f'<style>.st-key-{mkey}_setup{{display:none !important}}'
-            '.tb-pill{display:none !important}'
-            '[class*="dr_topbar"]{padding-top:2px !important;padding-bottom:2px !important}'
-            '</style>', unsafe_allow_html=True)
-    with st.container(key=f"{mkey}_setup"):
-        top = st.columns([1.8, 1.5, 0.9, 1.8])
-        me = top[0].selectbox("Your draft slot", slot_names, key=f"{mkey}_slot")
-        mode = top[1].radio("Opponents", ["AI mock", "Manual / live"], horizontal=True,
-                            key=f"{mkey}_mode",
-                            help="AI mock = opponents auto-draft from their tendencies. "
-                                 "Manual / live = you enter every pick yourself (track a "
-                                 "real draft without syncing to Sleeper/ESPN).")
-        live_pace = top[2].checkbox("Live pace", value=True, key=f"{mkey}_pace",
-                                    disabled=(mode == "Manual / live"),
-                                    help="ON: opponents pick one at a time with a short delay. "
-                                         "OFF: opponents resolve instantly up to your pick. "
-                                         "Either way it always stops and waits for YOU — use "
-                                         "'Pick for me' / 'Sim to end' to auto-draft your picks.")
-        npred = st.session_state.get(f"{mkey}_npred", 0)
-        top[3].toggle(
-            "🔒 Predict missing keepers", key=f"{mkey}_predictkp",
-            help="For teams that haven't entered keepers on the dashboard yet, predict "
-                 "their likely keepers — each team's top players from last season's draft, "
-                 "kept at their draft-round cost — so the board reflects a realistic keeper "
-                 "draft. Dashboard keepers always take priority.")
-        if st.session_state.get(f"{mkey}_predictkp", False) and npred:
-            top[3].caption(f"+{npred} predicted keepers")
-    manual = mode == "Manual / live"
-    act = st.columns([3.8, 1.3, 1.5, 1.4, 1, 1])
     from .. import value as V
-    strategy = act[0].selectbox(
-        "Strategy", V.STRATEGIES, key=f"{mkey}_strategy", label_visibility="collapsed",
-        help="Draft strategy — biases the ★ recommendation and the Suggestions list "
-             "toward a plan (Hero/Zero/Robust RB, Elite TE, Late-Round QB, or pure value).")
-    act[1].toggle("Focus", key="draft_focus",
-                  help="Hide the setup row & league pills to fit more of the board on screen.")
-    autopick = act[2].button("🤖 Pick for me", key=f"{mkey}_autome", use_container_width=True,
+    # ---- setup/config tucked into a gear dropdown; only actions stay on top ----
+    ctrl = st.columns([0.5, 1.6, 1.5, 1.4, 1, 1])
+    with ctrl[0].popover("⚙", use_container_width=True):
+        me = st.selectbox("Your draft slot", slot_names, key=f"{mkey}_slot")
+        mode = st.radio("Opponents", ["AI mock", "Manual / live"], horizontal=True,
+                        key=f"{mkey}_mode",
+                        help="AI mock = opponents auto-draft from their tendencies. "
+                             "Manual / live = you enter every pick yourself.")
+        live_pace = st.checkbox("Live pace", value=True, key=f"{mkey}_pace",
+                                disabled=(mode == "Manual / live"),
+                                help="ON: opponents pick one at a time with a short delay. "
+                                     "OFF: opponents resolve instantly up to your pick.")
+        st.toggle("🔒 Predict missing keepers", key=f"{mkey}_predictkp",
+                  help="For teams without dashboard keepers, predict their likely keepers "
+                       "so the board reflects a realistic keeper draft.")
+        npred = st.session_state.get(f"{mkey}_npred", 0)
+        if st.session_state.get(f"{mkey}_predictkp", False) and npred:
+            st.caption(f"+{npred} predicted keepers")
+        strategy = st.selectbox(
+            "Strategy", V.STRATEGIES, key=f"{mkey}_strategy",
+            help="Biases the ★ recommendation and Suggestions toward a plan "
+                 "(Hero/Zero/Robust RB, Elite TE, Late-Round QB, or pure value).")
+    manual = mode == "Manual / live"
+    autopick = ctrl[2].button("🤖 Pick for me", key=f"{mkey}_autome", use_container_width=True,
+                              disabled=manual,
+                              help="Let the AI make YOUR current pick from your draft tendencies.")
+    sim_end = ctrl[3].button("⏩ Sim to end", key=f"{mkey}_simend", use_container_width=True,
                              disabled=manual,
-                             help="Let the AI make YOUR current pick (from your own draft "
-                                  "tendencies) — handy to skip a pick you don't care about.")
-    sim_end = act[3].button("⏩ Sim to end", key=f"{mkey}_simend", use_container_width=True,
-                            disabled=manual,
-                            help="Auto-draft every remaining pick — yours AND all opponents — "
-                                 "straight to the final grade & recap.")
-    reset = act[4].button("Reset", key=f"{mkey}_reset", use_container_width=True)
-    undo = act[5].button("Undo", key=f"{mkey}_undo", use_container_width=True)
+                             help="Auto-draft every remaining pick straight to the recap.")
+    reset = ctrl[4].button("Reset", key=f"{mkey}_reset", use_container_width=True)
+    undo = ctrl[5].button("Undo", key=f"{mkey}_undo", use_container_width=True)
     pos_f = "All"
 
     my_slot = slot_names.index(me)
@@ -389,15 +372,23 @@ def render(ctx) -> None:
                                           predictions=pred_map, queued=queued),
                         unsafe_allow_html=True)
         with rtabs[1]:
-            st.markdown(C.roster_needs_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
-            st.markdown(C.roster_balance_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
-            st.markdown(C.bye_conflict_html(my_pids, ctx["byes"], reg), unsafe_allow_html=True)
-            st.markdown(C.lineup_html(my_pids, ctx["roster_slots"], reg), unsafe_allow_html=True)
-            if ctx.get("value") and board_avail:
-                my_left = [k for k in range(pick_no, total + 1) if owner(k) == my_slot]
-                plan = V.draft_plan(my_pids, ctx["roster_slots"], min(4, len(my_left)),
-                                    board_avail, ctx["value"], reg, taken=taken)
-                st.markdown(C.draft_plan_html(plan), unsafe_allow_html=True)
+            # switch between your team and any leaguemate's roster
+            _labels = [f"{slot_names[s]} (you)" if s == my_slot else slot_names[s]
+                       for s in range(n)]
+            _pick = st.selectbox("View team", _labels, index=my_slot,
+                                 key=f"{mkey}_teamview", label_visibility="collapsed")
+            _vslot = _labels.index(_pick)
+            _vpids = pids_by_slot.get(_vslot, [])
+            st.markdown(C.lineup_html(_vpids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+            st.markdown(C.roster_balance_html(_vpids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+            st.markdown(C.roster_needs_html(_vpids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+            if _vslot == my_slot:
+                st.markdown(C.bye_conflict_html(_vpids, ctx["byes"], reg), unsafe_allow_html=True)
+                if ctx.get("value") and board_avail:
+                    my_left = [k for k in range(pick_no, total + 1) if owner(k) == my_slot]
+                    plan = V.draft_plan(_vpids, ctx["roster_slots"], min(4, len(my_left)),
+                                        board_avail, ctx["value"], reg, taken=taken)
+                    st.markdown(C.draft_plan_html(plan), unsafe_allow_html=True)
             st.markdown(C.run_alert_html(upcoming_slots, need_map, ctx.get("value"), taken, reg,
                                          profiles=ctx.get("profiles"), owner_by_slot=owner_by_slot,
                                          round_no=round_no), unsafe_allow_html=True)
