@@ -126,25 +126,25 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 /* draft board is pinned on top, windowed to a few rounds around the current pick
    (see grid_html window_rounds) so it stays short and moves forward with the
    draft instead of showing every round at once */
-[class*="dr_board_top"]{ max-height:288px; overflow-y:auto; overflow-x:auto; margin-bottom:8px; }
+[class*="dr_board_top"]{ max-height:400px; overflow-y:auto; overflow-x:auto; margin-bottom:8px; }
 [class*="dr_board_top"] .dr-grid{ min-width:0; }
-/* compact cells in the pinned board (headshots dropped) so 6 rounds still fits in
-   a short strip, leaving the three columns below room to breathe */
+/* compact-ish cells in the pinned board (headshots dropped) — still 6 rounds, but
+   with real row height so it doesn't feel cramped */
 [class*="dr_board_top"] .dr-cell,
-[class*="dr_board_top"] .dr-grid.wide .dr-cell{ min-height:40px; padding:3px 5px 12px; }
+[class*="dr_board_top"] .dr-grid.wide .dr-cell{ min-height:56px; padding:4px 6px 14px; }
 [class*="dr_board_top"] .dr-grid.wide .dr-cell .c-img{ display:none; }
 [class*="dr_board_top"] .dr-grid.wide .dr-cell .c-name{ padding-right:14px; }
 [class*="dr_board_top"] .dr-cell.empty,
 [class*="dr_board_top"] .dr-grid.wide .dr-cell.empty,
 [class*="dr_board_top"] .dr-cell.onclk,
-[class*="dr_board_top"] .dr-grid.wide .dr-cell.onclk{ min-height:40px; }
-[class*="dr_board_top"] .dr-colhead{ padding:3px 3px; font-size:9px; }
-[class*="dr_board_top"] .dr-rdlabel{ font-size:10px; }
-[class*="dr_board_top"] .dr-rdlabel .dr-snk{ font-size:11px; }
+[class*="dr_board_top"] .dr-grid.wide .dr-cell.onclk{ min-height:56px; }
+[class*="dr_board_top"] .dr-colhead{ padding:4px 3px; font-size:9.5px; }
+[class*="dr_board_top"] .dr-rdlabel{ font-size:11px; }
+[class*="dr_board_top"] .dr-rdlabel .dr-snk{ font-size:12px; }
 /* the three draft columns fill the rest of one screen so their bottoms align and the
    page itself never scrolls — each scrolls its own content internally */
 [class*="dr_panel_board"],[class*="dr_panel_intel"]{
-  height:calc(100vh - 680px); min-height:260px; overflow-y:auto; overflow-x:hidden; }
+  height:calc(100vh - 920px); min-height:260px; overflow-y:auto; overflow-x:hidden; }
 [class*="dr_panel_"] [data-testid="stExpander"]{ background:var(--panel2); border:1px solid var(--line);
   border-radius:10px; margin-top:8px; }
 [class*="dr_panel_"] [data-testid="stExpander"] summary{ font-size:11px; font-weight:800;
@@ -423,11 +423,11 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .sc-thin,.sc-empty{ font-size:11px; color:var(--mut2); font-style:italic; }
 
 /* ---- rankings list scrolls inside its own box (page stays put) ---- */
-[class*="_ranklist"]{ max-height:calc(100vh - 800px); min-height:140px; overflow-y:auto;
+[class*="_ranklist"]{ max-height:calc(100vh - 920px); min-height:140px; overflow-y:auto;
   overflow-x:hidden; padding-right:4px; margin-top:2px; }
 
 /* ---- live 'Picks' rail (FantasyPros-style) ---- */
-.dr-picks{ display:flex; flex-direction:column; gap:5px; max-height:calc(100vh - 800px);
+.dr-picks{ display:flex; flex-direction:column; gap:5px; max-height:calc(100vh - 920px);
   min-height:140px; overflow:auto; padding-right:3px; margin-bottom:8px; }
 .pf-head{ font-size:12px; font-weight:700; color:var(--ink); padding:3px 2px 6px;
   position:sticky; top:0; background:var(--panel); z-index:2; }

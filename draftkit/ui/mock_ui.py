@@ -357,7 +357,7 @@ def render(ctx) -> None:
                         my_pids=my_pids, needs=needs, next_pick=next_user_pick,
                         pick_no=pick_no, on_click=None, on_star=toggle_queue,
                         quick_draft=(draft if can_draft else None), queued=queued,
-                        strategy=strategy, round_no=round_no, k=4)
+                        strategy=strategy, round_no=round_no, k=12)
 
     # ---- RIGHT: live Picks feed (with predicted picks folded in) + draft intel ----
     preds = predict_upcoming(ctx, taken, pick_no, my_slot, kept_by_overall,
