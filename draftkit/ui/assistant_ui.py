@@ -151,7 +151,7 @@ def render(ctx) -> None:
     with st.container(key="dr_board_top"):
         st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
         st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
-                                kept_overalls=kept_at, owner_fn=owner, window_rounds=4),
+                                kept_overalls=kept_at, owner_fn=owner, window_rounds=6),
                     unsafe_allow_html=True)
 
     left, center, right = st.columns([1.05, 1.9, 1.05])

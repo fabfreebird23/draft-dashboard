@@ -51,7 +51,6 @@ def render(ctx) -> None:
     owner = ctx["pick_owner_slot"]   # who owns each overall pick (handles traded picks)
     total = n * rounds
 
-    # 'Focus' mode hides the setup row + the top-bar pills so more of the board fits
     from .. import value as V
     # ---- setup/config tucked into a gear dropdown; only actions stay on top ----
     ctrl = st.columns([0.5, 1.6, 1.5, 1.4, 1, 1])
@@ -254,7 +253,7 @@ def render(ctx) -> None:
             st.markdown(C.on_clock_html(slot_names[on_slot]), unsafe_allow_html=True)
         st.markdown(C.grid_html(board, n, slot_names, my_slot, on_clock or 0, rounds, reg,
                                 kept_overalls=set(kept_by_overall), owner_fn=owner,
-                                window_rounds=4),
+                                window_rounds=6),
                     unsafe_allow_html=True)
 
     left, center, right = st.columns([1.05, 1.9, 1.05])
