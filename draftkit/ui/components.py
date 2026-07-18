@@ -309,21 +309,32 @@ def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
 
 
 def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
-              kept_overalls=None, owner_fn=None) -> str:
+              kept_overalls=None, owner_fn=None, window_rounds=None) -> str:
     """Readable color-coded draft board: rounds × teams, snake order, names shown.
 
     `pick_pids` maps overall pick number -> sleeper pid (or None).
     `kept_overalls` is a set of overall picks that are keepers (badged 'K').
     `owner_fn(overall)` -> slot of the pick's real owner (handles traded picks); when
-    given, your cells are highlighted by ownership rather than by column."""
+    given, your cells are highlighted by ownership rather than by column.
+    `window_rounds`, if given, renders only that many rounds centered on the
+    current pick's round (clamped to the board), so the board stays short and
+    scrolls forward with the draft instead of showing every round at once."""
     kept_overalls = kept_overalls or set()
     cw = "minmax(0,1fr)"          # fill the container so the whole board fits
+    cur_round = max(1, min(rounds, (current_pick - 1) // n + 1)) if current_pick else 1
+    if window_rounds and window_rounds < rounds:
+        half = window_rounds // 2
+        r_lo = max(1, cur_round - half)
+        r_hi = min(rounds, r_lo + window_rounds - 1)
+        r_lo = max(1, r_hi - window_rounds + 1)      # re-clamp near the end
+    else:
+        r_lo, r_hi = 1, rounds
     head = ['<div class="dr-colhead rd">RD</div>']
     for c, s in enumerate(slot_names):
         me = " me" if c == my_slot else ""
         head.append(f'<div class="dr-colhead{me}" title="{s}">{s[:13]}</div>')
     cells = ["".join(head)]
-    for r in range(1, rounds + 1):
+    for r in range(r_lo, r_hi + 1):
         # snake direction: odd rounds run left→right, even rounds right→left.
         arrow = "→" if r % 2 == 1 else "←"
         cells.append(f'<div class="dr-rdlabel">{r}'

@@ -415,54 +415,73 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
     # one-line strategic call (what to prioritize right now)
     st.markdown(C.strategy_html(sugg, avail), unsafe_allow_html=True)
 
+    _POSVAR = {"QB": "var(--qb)", "RB": "var(--rb)", "WR": "var(--wr)", "TE": "var(--te)",
+              "K": "var(--k)", "DST": "var(--dst)"}
+    vm = ctx.get("value")
+    pos_rank = ctx["pos_rank"]
+
+    st.markdown('<div class="sg-colhead"><span></span><span class="r">ADP</span>'
+                '<span class="r">Rank</span><span class="r">Value</span>'
+                '<span class="r">Survival</span></div>', unsafe_allow_html=True)
+
     for s in sugg:
         r, pm = s["row"], s["pm"]
         pid = str(r["pid"])
         adp = ctx["adp_rank"](pm.name, pm.position)
+        adp_s = f"{int(adp)}" if adp else "—"
         d = (adp - pick_no) if (adp and pick_no) else 0
-        if s["mult"] >= 0.999:
-            reason = f"  :green[**fills {pm.position}**]"
-        elif d >= 8:
-            reason = "  :red[**▼ falling**]"
-        elif s["left"] <= 2:
-            reason = f"  :orange[**{s['left']} {pm.position} left**]"
-        elif s["mult"] < 0.5:
-            reason = "  :gray[bench depth]"
-        else:
-            reason = "  :green[**value**]"
+        pr = pos_rank.get(pid, pm.position)
+        pc = _POSVAR.get(pm.position, "var(--mut2)")
+        byes = ctx.get("byes", {})
+        bye = byes.get(pm.team, "")
+        sub = f"{pm.position} · {pm.team}" + (f" · Bye {bye}" if bye else "")
+
+        tags = ""
         if getattr(pm, "years_exp", None) == 0:
-            reason += "  :violet[**rookie**]"
+            tags += '<span class="sg-tag rook">R</span>'
+        if d >= 8:
+            tags += '<span class="sg-tag fall">▼</span>'
         if s.get("stack"):
-            reason += "  :violet[**stack**]"
+            tags += '<span class="sg-tag stack">🔗</span>'
         if s.get("bye_clash"):
-            reason += "  :red[bye clash]"
-        label = (player_label(ctx, r, pm, my_pids=my_pids)
-                 + f"  :blue[**FIT {s['fit']}**]" + reason)
+            tags += '<span class="sg-tag bye">bye</span>'
 
-        rk = f"{key_prefix}_sg_brow_{pm.position}_{pid}"
-        css = _headshot_css(rk, pid)
-        if next_pick:
-            sc = C.survival_colors(s["sv"]) if s["sv"] is not None else None
-            if sc:
-                css += (f'.st-key-{rk} .stButton button::after{{content:"{s["sv"]}%";'
-                        f'background:{sc[0]};color:{sc[1]}}}')
+        v = vm.vorp_of(pid) if vm else None
+        val_html = "—"
+        val_cls = " lo"
+        if v is not None:
+            val_html = f"{'+' if v >= 0 else ''}{v:.0f}"
+            val_cls = "" if v >= 45 else " lo"
 
-        layout = [0.5, 7.0, 1.1] if quick_draft else [0.5, 8.0]
-        cols = st.columns(layout, gap="small")
-        with cols[0], st.container(key=f"{key_prefix}_sg_qstar_{pid}"):
+        sv = s.get("sv")
+        if sv is not None:
+            svcolor = "var(--green)" if sv >= 60 else ("var(--amber)" if sv >= 30 else "var(--red)")
+            surv_html = (f'<div class="sg-surv"><div class="lab" style="color:{svcolor}">{sv}%</div>'
+                        f'<div class="sg-track"><i style="width:{sv}%;background:{svcolor}"></i></div></div>')
+        else:
+            surv_html = '<div class="sg-surv"><div class="lab" style="color:var(--mut2)">—</div></div>'
+
+        row_html = (
+            '<div class="sg-row">'
+            f'<div class="sg-who">{theme.img_tag(pid, "sg-av")}'
+            f'<div class="sg-nm-wrap"><div class="sg-nm">{r["name"]}{tags}</div>'
+            f'<div class="sg-sub"><span class="dot" style="background:{pc}"></span>{sub}</div></div></div>'
+            f'<div class="sg-num">{adp_s}</div>'
+            f'<div class="sg-rank" style="color:{pc}">{pr}</div>'
+            f'<div class="sg-val{val_cls}">{val_html}</div>'
+            f'{surv_html}'
+            '</div>')
+
+        cols = st.columns([0.42, 7.6, 0.9], gap="small")
+        with cols[0], st.container(key=f"{key_prefix}_sgstar2_{pid}"):
             starred = pid in (queued or set())
-            if st.button("★" if starred else "☆", key=f"{key_prefix}_sgstar_{pid}",
-                         use_container_width=True) and on_star:
+            if st.button("★" if starred else "☆", key=f"{key_prefix}_sgstar_{pid}") and on_star:
                 on_star(pid)
-        with cols[1], st.container(key=rk):
-            st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
-            if st.button(label, key=f"{key_prefix}_sgp_{pid}",
-                         use_container_width=True) and on_click:
-                on_click(pid)
+        with cols[1]:
+            st.markdown(row_html, unsafe_allow_html=True)
         if quick_draft:
-            with cols[2], st.container(key=f"{key_prefix}_sg_qdraft_{pid}"):
-                if st.button("Draft", key=f"{key_prefix}_sgqd_{pid}",
-                             use_container_width=True):
+            with cols[2], st.container(key=f"{key_prefix}_sgdraft2_{pid}"):
+                if st.button("Draft", key=f"{key_prefix}_sgqd_{pid}", use_container_width=True):
                     quick_draft(pid)
 
 

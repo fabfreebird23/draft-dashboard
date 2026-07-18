@@ -123,15 +123,15 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 /* ---- panel cards: the three main columns read as distinct modules ---- */
 [class*="dr_panel_"]{ background:var(--panel); border:1px solid var(--line); border-radius:12px;
   padding:11px 12px 9px; box-shadow:var(--shadow); }
-/* draft board is pinned on top at a capped height (scrolls internally) so it never
-   dominates the screen */
-[class*="dr_board_top"]{ height:34vh; min-height:220px; overflow-y:auto; overflow-x:auto;
-  margin-bottom:8px; }
+/* draft board is pinned on top, windowed to a few rounds around the current pick
+   (see grid_html window_rounds) so it stays short and moves forward with the
+   draft instead of showing every round at once */
+[class*="dr_board_top"]{ max-height:248px; overflow-y:auto; overflow-x:auto; margin-bottom:8px; }
 [class*="dr_board_top"] .dr-grid{ min-width:0; }
 /* the three draft columns fill the rest of one screen so their bottoms align and the
    page itself never scrolls — each scrolls its own content internally */
 [class*="dr_panel_board"],[class*="dr_panel_intel"]{
-  height:calc(66vh - 150px); min-height:300px; overflow-y:auto; overflow-x:hidden; }
+  height:calc(100vh - 400px); min-height:340px; overflow-y:auto; overflow-x:hidden; }
 [class*="dr_panel_"] [data-testid="stExpander"]{ background:var(--panel2); border:1px solid var(--line);
   border-radius:10px; margin-top:8px; }
 [class*="dr_panel_"] [data-testid="stExpander"] summary{ font-size:11px; font-weight:800;
@@ -410,11 +410,11 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .sc-thin,.sc-empty{ font-size:11px; color:var(--mut2); font-style:italic; }
 
 /* ---- rankings list scrolls inside its own box (page stays put) ---- */
-[class*="_ranklist"]{ max-height:calc(66vh - 250px); overflow-y:auto; overflow-x:hidden;
+[class*="_ranklist"]{ max-height:calc(100vh - 520px); overflow-y:auto; overflow-x:hidden;
   padding-right:4px; margin-top:2px; }
 
 /* ---- live 'Picks' rail (FantasyPros-style) ---- */
-.dr-picks{ display:flex; flex-direction:column; gap:5px; max-height:calc(66vh - 250px);
+.dr-picks{ display:flex; flex-direction:column; gap:5px; max-height:calc(100vh - 520px);
   overflow:auto; padding-right:3px; margin-bottom:8px; }
 .pf-head{ font-size:12px; font-weight:700; color:var(--ink); padding:3px 2px 6px;
   position:sticky; top:0; background:var(--panel); z-index:2; }
@@ -802,6 +802,47 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 /* keep the draft board compact so the rest of the page stays visible */
 .dr-board-scroll{ max-height:calc(100vh - 360px); overflow:auto; border:1px solid var(--line);
   border-radius:10px; margin-bottom:8px; }
+
+/* ---- Suggestions rows: clean columnar layout (avatar/name + ADP/RANK/VALUE/SURVIVAL) ---- */
+.sg-colhead{ display:grid; grid-template-columns:var(--sg-cols); align-items:center; gap:8px;
+  padding:4px 6px 6px; color:var(--mut2); font-size:9.5px; font-weight:800; letter-spacing:.06em;
+  text-transform:uppercase; border-bottom:1px solid var(--line2); margin-bottom:2px; }
+.sg-colhead .r{ text-align:center; }
+:root{ --sg-cols:minmax(0,1fr) 42px 48px 56px 78px; }
+.sg-row{ display:grid; grid-template-columns:var(--sg-cols); align-items:center; gap:8px;
+  padding:5px 6px; border-radius:8px; }
+.sg-row:hover{ background:var(--panel2); }
+.sg-who{ display:flex; align-items:center; gap:9px; min-width:0; }
+.sg-av{ width:30px; height:30px; border-radius:50%; object-fit:cover; flex:none;
+  background:var(--panel2); border:1px solid var(--line); }
+.sg-nm-wrap{ min-width:0; }
+.sg-nm{ font-weight:800; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sg-tag{ font-size:8px; font-weight:900; color:#fff; padding:1px 4px; border-radius:4px;
+  margin-left:4px; vertical-align:middle; white-space:nowrap; }
+.sg-tag.rook{ background:var(--te); } .sg-tag.fall{ background:var(--red); }
+.sg-tag.stack{ background:var(--violet); } .sg-tag.bye{ background:var(--red); }
+.sg-sub{ font-size:10.5px; color:var(--muted); font-weight:600; margin-top:1px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sg-sub .dot{ display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:4px;
+  vertical-align:middle; }
+.sg-num{ text-align:center; font-weight:700; font-variant-numeric:tabular-nums; font-size:12px;
+  color:var(--muted); }
+.sg-rank{ text-align:center; font-weight:800; font-size:11.5px; }
+.sg-val{ justify-self:center; font-weight:800; font-size:11.5px; font-variant-numeric:tabular-nums;
+  padding:2px 8px; border-radius:7px; background:var(--accent-soft); color:var(--blue); }
+.sg-val.lo{ background:var(--line2); color:var(--mut2); }
+.sg-surv{ display:flex; flex-direction:column; gap:3px; }
+.sg-surv .lab{ font-size:10.5px; font-weight:800; font-variant-numeric:tabular-nums; text-align:right; }
+.sg-track{ height:5px; border-radius:3px; background:var(--line2); overflow:hidden; }
+.sg-track>i{ display:block; height:100%; border-radius:3px; }
+/* the star + Draft buttons flank the html row inside their own thin columns */
+[class*="_sgstar2_"] .stButton button{ background:transparent !important; border:none !important;
+  color:var(--mut2) !important; font-size:16px !important; padding:0 !important; min-height:0 !important;
+  box-shadow:none !important; }
+[class*="_sgstar2_"] .stButton button:hover{ color:var(--blue) !important; }
+[class*="_sgdraft2_"] .stButton button{ background:var(--accent) !important; color:#fff !important;
+  border:none !important; font-weight:800 !important; border-radius:8px !important; }
+[class*="_sgdraft2_"] .stButton button:hover{ filter:brightness(1.08); }
 
 /* ---- whole-row clickable draft cards ---- */
 [class*="_board_"] [data-testid="stVerticalBlock"]{ gap:3px; }
