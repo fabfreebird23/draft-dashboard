@@ -11,16 +11,16 @@ _POSCOL = {"QB": "red", "RB": "green", "WR": "blue", "TE": "orange"}
 
 
 def stack_badge(pm, my_pids, registry) -> str:
-    """A 🔗 (stack: QB↔pass-catcher) / 🪢 (handcuff: same-team RB) emoji when this
-    player correlates with someone already on your roster, else ''. For board rows."""
+    """A 'STK' (stack: QB↔pass-catcher) / 'CUF' (handcuff: same-team RB) badge when
+    this player correlates with someone already on your roster, else ''. For board rows."""
     if not my_pids:
         return ""
     from .. import value as V
     tags = V.synergy(pm, my_pids, registry)
     if any(t[0] == "Stack" for t in tags):
-        return "🔗 "
+        return ":violet[**STK**] "
     if any(t[0] == "Handcuff" for t in tags):
-        return "🪢 "
+        return ":violet[**CUF**] "
     return ""
 
 
@@ -28,7 +28,7 @@ def player_label(ctx, r, pm, *, pick=None, my_pids=None) -> str:
     """The rich markdown row label shared by the board and the queue: overall rank,
     color-coded positional rank, name, team · ADP · bye, and the VORP value chip
     (plus a ▼/▲ ADP-delta chip when a current pick is supplied). When `my_pids` is
-    given, a 🔗/🪢 badge marks stacks/handcuffs with your roster."""
+    given, a STK/CUF badge marks stacks/handcuffs with your roster."""
     pos_rank, adp_rank, byes = ctx["pos_rank"], ctx["adp_rank"], ctx.get("byes", {})
     vm = ctx.get("value")
     pid = str(r["pid"])
@@ -388,7 +388,7 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
     trow[0].caption("Top picks by value, roster fit, scarcity & survival to your next "
                     "pick. **FIT** = the model's share of preference · the **%** box = "
                     "chance he lasts to your next pick.")
-    upside = trow[1].toggle("⚡ Upside", key=f"{key_prefix}_upside",
+    upside = trow[1].toggle("Upside", key=f"{key_prefix}_upside",
                             help="Upside Mode — re-rank toward high-ceiling, younger and "
                                  "rookie players instead of safe floor/value.")
 
@@ -401,7 +401,7 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
         my_pids=my_pids, roster_slots=ctx["roster_slots"], byes=ctx.get("byes"), k=k,
         upside=upside, strategy=strategy, round_no=round_no)
     if strategy and strategy != "Balanced":
-        st.caption(f"🎯 **{strategy}** — {V.STRATEGY_HELP.get(strategy, '')}")
+        st.caption(f"**{strategy}** — {V.STRATEGY_HELP.get(strategy, '')}")
     if not sugg:
         st.caption("— no players available —")
         return
@@ -442,7 +442,7 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
         if d >= 8:
             tags += '<span class="sg-tag fall">▼</span>'
         if s.get("stack"):
-            tags += '<span class="sg-tag stack">🔗</span>'
+            tags += '<span class="sg-tag stack">STK</span>'
         if s.get("bye_clash"):
             tags += '<span class="sg-tag bye">bye</span>'
 
@@ -472,17 +472,19 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
             f'{surv_html}'
             '</div>')
 
-        cols = st.columns([0.42, 7.6, 0.9], gap="small")
-        with cols[0], st.container(key=f"{key_prefix}_sgstar2_{pid}"):
+        # Draft sits leftmost (before the headshot), the info row in the middle,
+        # and the ☆ queue-star on the far right.
+        cols = st.columns([0.9, 7.6, 0.42], gap="small")
+        if quick_draft:
+            with cols[0], st.container(key=f"{key_prefix}_sgdraft2_{pid}"):
+                if st.button("Draft", key=f"{key_prefix}_sgqd_{pid}", use_container_width=True):
+                    quick_draft(pid)
+        with cols[1]:
+            st.markdown(row_html, unsafe_allow_html=True)
+        with cols[2], st.container(key=f"{key_prefix}_sgstar2_{pid}"):
             starred = pid in (queued or set())
             if st.button("★" if starred else "☆", key=f"{key_prefix}_sgstar_{pid}") and on_star:
                 on_star(pid)
-        with cols[1]:
-            st.markdown(row_html, unsafe_allow_html=True)
-        if quick_draft:
-            with cols[2], st.container(key=f"{key_prefix}_sgdraft2_{pid}"):
-                if st.button("Draft", key=f"{key_prefix}_sgqd_{pid}", use_container_width=True):
-                    quick_draft(pid)
 
 
 def predictor_widget(predictions, slot_names, registry, n, key_prefix, on_click) -> None:
@@ -555,7 +557,7 @@ def _ai_section(pm, pid, facts, widget_key) -> None:
         return
     ok = f"{widget_key}_ai_outlook_{pid}"          # cached outlook text per player
     qhist = f"{widget_key}_ai_chat_{pid}"          # [{role, content}] for follow-ups
-    with st.expander("🤖 Coach AI — outlook & ask"):
+    with st.expander("Coach AI — outlook & ask"):
         if ok not in st.session_state:
             if st.button("Generate outlook", key=f"{widget_key}_ai_go_{pid}",
                          use_container_width=True):
@@ -563,7 +565,7 @@ def _ai_section(pm, pid, facts, widget_key) -> None:
                     try:
                         st.session_state[ok] = AI.outlook(pm, facts)
                     except Exception as e:
-                        st.session_state[ok] = f"⚠️ AI unavailable: {e}"
+                        st.session_state[ok] = f"AI unavailable: {e}"
                 st.rerun()
         else:
             st.markdown(f'<div class="dr-ai">{st.session_state[ok]}</div>',
@@ -586,7 +588,7 @@ def _ai_section(pm, pid, facts, widget_key) -> None:
                 try:
                     ans = AI.ask(pm, facts, q.strip(), history=hist or None)
                 except Exception as e:
-                    ans = f"⚠️ AI unavailable: {e}"
+                    ans = f"AI unavailable: {e}"
             hist = hist + [{"role": "user", "content": q.strip()},
                            {"role": "assistant", "content": ans}]
             st.session_state[qhist] = hist
@@ -677,7 +679,7 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
         vrank = vm.rank_of(pid) if vm and hasattr(vm, "rank_of") else None
         st.markdown(C.adp_market_html(ctx.get("adp_df"), pm.name, pm.position, vrank),
                     unsafe_allow_html=True)
-        # Waiver buzz: 🔥 rising / ❄️ cooling from Sleeper add-drop velocity (news proxy)
+        # Waiver buzz: rising / cooling from Sleeper add-drop velocity (news proxy)
         buzz_chip = C.buzz_chip_html(pid, registry, ctx.get("buzz"))
         if buzz_chip:
             st.markdown(buzz_chip, unsafe_allow_html=True)

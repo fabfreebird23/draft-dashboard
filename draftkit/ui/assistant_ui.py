@@ -188,7 +188,7 @@ def render(ctx) -> None:
                 steals_traps_widget(steals, traps, reg, f"{akey}_st", _inspect)
             rh = C.rookie_history_html(ctx.get("rookie_curve"), reg, ctx["adp_pool"])
             if rh:
-                st.markdown('<div class="dr-h">📜 Rookie reach</div>', unsafe_allow_html=True)
+                st.markdown('<div class="dr-h">Rookie reach</div>', unsafe_allow_html=True)
                 st.caption("Your league drafts rookies earlier than ADP — predictions reflect it.")
                 st.markdown(rh, unsafe_allow_html=True)
         with ltabs[4]:
@@ -249,7 +249,7 @@ def render(ctx) -> None:
 
     # ---- RIGHT: live Picks feed (with predicted picks folded in) + draft intel ----
     preds = predict_upcoming(ctx, drafted, pick_no, my_slot, kept_overall,
-                             pids_by_slot=pids_by_slot)
+                             pids_by_slot=pids_by_slot, limit=16)
     pred_map = {ov: pid for ov, _s, pid in preds}
     with right, st.container(key="dr_panel_intel"):
         rtabs = st.tabs(["Pick Predictor", "My Team"])
@@ -257,7 +257,7 @@ def render(ctx) -> None:
             st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
             st.markdown(C.picks_feed_html(pick_pids, pick_no, n, rounds, slot_names, my_slot, owner,
                                           need_map, reg, kept_overalls=kept_at,
-                                          predictions=pred_map, queued=queued),
+                                          predictions=pred_map, queued=queued, lookahead=18),
                         unsafe_allow_html=True)
         with rtabs[1]:
             _labels = [f"{slot_names[s]} (you)" if s == my_slot else slot_names[s]

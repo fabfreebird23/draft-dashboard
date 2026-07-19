@@ -73,7 +73,7 @@ def _odds_bar(pct, color) -> str:
 
 
 def render(ctx) -> None:
-    st.markdown('<div class="dr-h">🏁 Draft Report Card</div>', unsafe_allow_html=True)
+    st.markdown('<div class="dr-h">Draft Report Card</div>', unsafe_allow_html=True)
     st.caption("After a draft, grade every team and project the season — records, "
                "playoff & title odds — from the rosters drafted, the value captured, "
                "and each manager's past results.")
@@ -140,7 +140,7 @@ def render(ctx) -> None:
         'text-transform:uppercase;letter-spacing:.04em;">' + head + '</thead>'
         '<tbody>' + "".join(trs) + '</tbody></table>',
         unsafe_allow_html=True)
-    st.caption(f"🏆 **Title favorite:** {slot_names[champ['slot']]} "
+    st.caption(f"**Title favorite:** {slot_names[champ['slot']]} "
                f"({champ['title_pct']:.1f}%) · {rows[0]['reg_weeks']}-week season, "
                f"top {min(len(rows), grades.league_format(ctx)[1])} make the playoffs.")
 
@@ -150,7 +150,7 @@ def render(ctx) -> None:
     reg, value = ctx["registry"], ctx["value"]
     for r in rows:
         nm = slot_names[r["slot"]] if r["slot"] < len(slot_names) else f"Team {r['slot']+1}"
-        tag = " ⭐" if r["slot"] == my_slot else ""
+        tag = " ★" if r["slot"] == my_slot else ""
         with st.expander(f"{r['proj_seed']}. {nm}{tag} — {r['grade']} · "
                          f"{r['exp_wins']:.0f}-{r['exp_losses']:.0f} · "
                          f"playoffs {r['playoff_pct']}% · title {r['title_pct']:.1f}%"):

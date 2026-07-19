@@ -64,7 +64,7 @@ def render(ctx) -> None:
                                 disabled=(mode == "Manual / live"),
                                 help="ON: opponents pick one at a time with a short delay. "
                                      "OFF: opponents resolve instantly up to your pick.")
-        st.toggle("🔒 Predict missing keepers", key=f"{mkey}_predictkp",
+        st.toggle("Predict missing keepers", key=f"{mkey}_predictkp",
                   help="For teams without dashboard keepers, predict their likely keepers "
                        "so the board reflects a realistic keeper draft.")
         npred = st.session_state.get(f"{mkey}_npred", 0)
@@ -75,10 +75,10 @@ def render(ctx) -> None:
             help="Biases the ★ recommendation and Suggestions toward a plan "
                  "(Hero/Zero/Robust RB, Elite TE, Late-Round QB, or pure value).")
     manual = mode == "Manual / live"
-    autopick = ctrl[2].button("🤖 Pick for me", key=f"{mkey}_autome", use_container_width=True,
+    autopick = ctrl[2].button("Pick for me", key=f"{mkey}_autome", use_container_width=True,
                               disabled=manual,
                               help="Let the AI make YOUR current pick from your draft tendencies.")
-    sim_end = ctrl[3].button("⏩ Sim to end", key=f"{mkey}_simend", use_container_width=True,
+    sim_end = ctrl[3].button("Sim to end", key=f"{mkey}_simend", use_container_width=True,
                              disabled=manual,
                              help="Auto-draft every remaining pick straight to the recap.")
     reset = ctrl[4].button("Reset", key=f"{mkey}_reset", use_container_width=True)
@@ -201,7 +201,7 @@ def render(ctx) -> None:
                    "Reset to run another.")
         csv_str = C.draft_csv(board, n, rounds, slot_names, owner, reg,
                               ctx["adp_rank"], set(kept_by_overall), ctx.get("value"))
-        st.download_button("⬇ Export full draft (CSV)", csv_str,
+        st.download_button("Export full draft (CSV)", csv_str,
                            file_name="mock_draft.csv", mime="text/csv")
         # let the user flip back to the full draft board after the draft finishes
         fview = st.radio("Final view", ["Draft board", "Recap & grade"], horizontal=True,
@@ -290,7 +290,7 @@ def render(ctx) -> None:
                 steals_traps_widget(steals, traps, reg, f"{mkey}_st", show_card)
             rh = C.rookie_history_html(ctx.get("rookie_curve"), reg, ctx["adp_pool"])
             if rh:
-                st.markdown('<div class="dr-h">📜 Rookie reach</div>', unsafe_allow_html=True)
+                st.markdown('<div class="dr-h">Rookie reach</div>', unsafe_allow_html=True)
                 st.caption("Your league drafts rookies earlier than ADP — the mock reflects it.")
                 st.markdown(rh, unsafe_allow_html=True)
         with ltabs[4]:
@@ -302,7 +302,7 @@ def render(ctx) -> None:
                                             ctx["roster_slots"], reg, on_clock_slot=on_slot),
                         unsafe_allow_html=True)
         with ltabs[5]:
-            with st.expander("🎯 AI draft boards — set each manager's ranking source"):
+            with st.expander("AI draft boards — set each manager's ranking source"):
                 st.caption("Pick which board each AI manager drafts from. "
                            "Sleeper doesn't publish ADP, so Underdog (best-ball) stands in.")
                 for s in range(n):
@@ -361,7 +361,7 @@ def render(ctx) -> None:
 
     # ---- RIGHT: live Picks feed (with predicted picks folded in) + draft intel ----
     preds = predict_upcoming(ctx, taken, pick_no, my_slot, kept_by_overall,
-                             pids_by_slot=pids_by_slot)
+                             pids_by_slot=pids_by_slot, limit=16)
     pred_map = {ov: pid for ov, _s, pid in preds}
     with right, st.container(key="dr_panel_intel"):
         rtabs = st.tabs(["Pick Predictor", "My Team"])
@@ -369,7 +369,7 @@ def render(ctx) -> None:
             st.markdown(C.insights_html(board_avail, recent_positions, needs), unsafe_allow_html=True)
             st.markdown(C.picks_feed_html(board, pick_no, n, rounds, slot_names, my_slot, owner,
                                           need_map, reg, kept_overalls=set(kept_by_overall),
-                                          predictions=pred_map, queued=queued),
+                                          predictions=pred_map, queued=queued, lookahead=18),
                         unsafe_allow_html=True)
         with rtabs[1]:
             # switch between your team and any leaguemate's roster

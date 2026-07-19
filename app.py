@@ -17,7 +17,7 @@ from draftkit import draft_history, keepers as keepers_mod, rankings as rankings
 from draftkit.ui import assistant_ui, mock_ui, rankings_ui, report_card_ui
 from draftkit.ui.components import board_pos_rank
 
-st.set_page_config(page_title="Draft Room — Mock + Live Draft", page_icon="🏈", layout="wide")
+st.set_page_config(page_title="Draft Room — Mock + Live Draft", layout="wide")
 theme.inject(st, dark=st.session_state.get("dark_mode", False))   # Night Draft = dark hero
 
 
@@ -432,7 +432,7 @@ def main():
             # you back to 'My Rankings'. The callback flips state pre-rerun instead.
             def _toggle_dark():
                 st.session_state["dark_mode"] = not st.session_state.get("dark_mode", False)
-            st.button("☀ Light mode" if dark_on else "🌙 War room", key="dark_btn",
+            st.button("Light mode" if dark_on else "War room", key="dark_btn",
                       use_container_width=True, on_click=_toggle_dark,
                       help="Toggle the dark 'war-room' theme for live drafting.")
         with head[2]:

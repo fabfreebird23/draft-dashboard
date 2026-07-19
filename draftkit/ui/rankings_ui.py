@@ -135,7 +135,7 @@ def render(ctx) -> None:
     # ---- edit mode: hand-tweak the board; tweaks persist + re-apply on every pull ----
     tw = storage.load_tweaks(ctx["league_key"])
     tcol1, tcol2 = st.columns([3, 1])
-    edit = tcol1.toggle("✏️ Edit my board (nudge players ↑/↓, set tiers)",
+    edit = tcol1.toggle("Edit my board (nudge players ↑/↓, set tiers)",
                         key=f"{rkey}_edit")
     if tw:
         if tcol2.button(f"Reset {len(tw)} tweaks", use_container_width=True):

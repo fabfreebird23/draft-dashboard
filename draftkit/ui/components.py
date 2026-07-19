@@ -232,7 +232,7 @@ def status_html(pick_no: int, n: int, on_clock_name: str, is_yours: bool,
            else f'<span class="clk">On the clock: <b>{on_clock_name}</b></span>')
     until = ""
     if not is_yours and picks_until_me is not None and picks_until_me > 0:
-        until = f'<span class="clk">⏳ <b>{picks_until_me}</b> until you</span>'
+        until = f'<span class="clk"><b>{picks_until_me}</b> until you</span>'
     return (f'<div class="dr-status"><span class="rd">{pick_no}'
             f'<small>OVERALL</small></span>'
             f'<span class="clk">Round <b>{rd}</b> · Pick <b>{rd}.{inrd:02d}</b></span>'
@@ -405,7 +405,7 @@ def last_pick_html(overall, n, team_name, pid, registry) -> str:
 
 
 def on_clock_html(team_name) -> str:
-    return f'<div class="dr-onclock">⏳ <b>{team_name}</b> is on the clock…</div>'
+    return f'<div class="dr-onclock"><b>{team_name}</b> is on the clock…</div>'
 
 
 def recent_ticker_html(picks_by_overall, registry, n=7) -> str:
@@ -497,7 +497,7 @@ def run_banner_html(board_avail, recent_positions, next_pick, adp_rank, registry
     if next_pick and gone:
         tail += f" · ~{gone} likely gone by your pick"
     urge = " — you need one" if is_need else ""
-    return (f'<div class="dr-runban {css}">🔥 <b>{pos} run</b> · {ct} of last '
+    return (f'<div class="dr-runban {css}"><b>{pos} run</b> · {ct} of last '
             f'{len(recent)} picks · {tail}{urge}</div>')
 
 
@@ -527,7 +527,7 @@ def act_now_html(board_avail, next_pick, adp_rank, registry, value=None,
             f'{rk}<span class="an-nm">{short_name(pm.name)}</span>'
             f'<span class="an-tm">{pm.position}·{pm.team}</span>'
             f'<span class="an-sv">{sv}%</span></div>')
-    return ('<div class="dr-actnow"><div class="an-h">⏳ Likely gone by your next pick</div>'
+    return ('<div class="dr-actnow"><div class="an-h">Likely gone by your next pick</div>'
             + "".join(items) + "</div>")
 
 
@@ -549,16 +549,16 @@ def _buzz_for(pid, registry, buzz):
 
 
 def buzz_chip_html(pid, registry, buzz) -> str:
-    """A 🔥 rising / ❄️ falling chip for the spotlight, from Sleeper add/drop velocity."""
+    """A rising / falling chip for the spotlight, from Sleeper add/drop velocity."""
     b = _buzz_for(pid, registry, buzz)
     if not b:
         return ""
     kind, ct = b
     if kind == "up":
         return (f'<span class="dr-buzz up" title="Added in {ct:,} Sleeper leagues in 24h">'
-                f'🔥 Rising · {ct:,} adds/24h</span>')
+                f'Rising · {ct:,} adds/24h</span>')
     return (f'<span class="dr-buzz down" title="Dropped in {ct:,} Sleeper leagues in 24h">'
-            f'❄️ Cooling · {ct:,} drops/24h</span>')
+            f'Cooling · {ct:,} drops/24h</span>')
 
 
 def buzz_list_html(board_avail, registry, buzz, *, limit=6) -> str:
@@ -581,8 +581,8 @@ def buzz_list_html(board_avail, registry, buzz, *, limit=6) -> str:
             f'<div class="bz-row pos-{pm.position}">{theme.img_tag(r["pid"], "bz-img")}'
             f'<span class="bz-nm">{short_name(pm.name)}</span>'
             f'<span class="bz-tm">{pm.position}·{pm.team}</span>'
-            f'<span class="bz-ct">🔥 {ct:,}</span></div>')
-    return ('<div class="dr-buzzlist"><div class="bz-h">📈 Waiver Buzz · most-added (24h)</div>'
+            f'<span class="bz-ct">{ct:,}</span></div>')
+    return ('<div class="dr-buzzlist"><div class="bz-h">Waiver Buzz · most-added (24h)</div>'
             + "".join(items) + "</div>")
 
 
@@ -661,7 +661,7 @@ def rookie_history_html(rookie_curve, registry, adp_pool, *, limit=6) -> str:
         foot = ('<div class="rh-foot">e.g. ' + str(yr) + ': '
                 + ", ".join(f'{short_name(s["name"])} #{s["pick"]}' for s in ev)
                 + "</div>")
-    return ('<div class="dr-rookhist"><div class="rh-h">📜 Rookie reach · your last '
+    return ('<div class="dr-rookhist"><div class="rh-h">Rookie reach · your last '
             + f'{n_seasons} drafts</div>' + "".join(rows) + foot + "</div>")
 
 
@@ -977,7 +977,7 @@ def picks_feed_html(board, pick_no, n, rounds, slot_names, my_slot, owner_fn,
             rows.append(
                 f'<div class="{cls} yours"><div class="pf-l"><span class="pf-pk">{pklbl}</span>'
                 f'<span class="pf-mgr">Your Team</span></div>'
-                f'<div class="pf-yours">⏳ Your Pick!</div></div>')
+                f'<div class="pf-yours">Your Pick!</div></div>')
         else:
             needs = need_map.get(slot, set())
             pills = "".join(f'<span class="pf-need pos-{p}">{p}</span>'
@@ -1059,9 +1059,9 @@ def adp_market_html(adp_df, name, position, value_rank=None) -> str:
     if value_rank and cons:
         gap = int(cons - value_rank)            # ADP later than value → undervalued
         if gap >= 8:
-            buy = f'<span class="mk-buy">📈 Market sleeping (value #{int(value_rank)})</span>'
+            buy = f'<span class="mk-buy">Market sleeping (value #{int(value_rank)})</span>'
         elif gap <= -8:
-            buy = f'<span class="mk-sell">📉 Going early (value #{int(value_rank)})</span>'
+            buy = f'<span class="mk-sell">Going early (value #{int(value_rank)})</span>'
     return (f'<div class="dr-market"><span class="mk-tag {cls}">{tag}</span>{buy}'
             f'<span class="mk-srcs">{chips}</span></div>')
 
@@ -1263,11 +1263,11 @@ def strategy_banner_html(strategy, help_text, targets) -> str:
     """A small always-visible banner showing the active draft strategy, its plan, and
     the players it's steering you toward right now — so switching strategies visibly
     changes the screen on any tab."""
-    return (f'<div class="dr-strat">🎯 <b>{strategy}</b> — {help_text}'
+    return (f'<div class="dr-strat"><b>{strategy}</b> — {help_text}'
             f'<span class="st-tgt">Targets now: <b>{targets}</b></span></div>')
 
 
-ROOKIE_FILTER = "🆕 Rook"
+ROOKIE_FILTER = "Rook"
 
 
 def filter_pos(rows, pos_f, registry):
