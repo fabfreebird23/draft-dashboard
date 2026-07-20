@@ -151,8 +151,12 @@ def render(ctx) -> None:
     with st.container(key="dr_board_top"):
         st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
         st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
-                                kept_overalls=kept_at, owner_fn=owner, window_rounds=6),
+                                kept_overalls=kept_at, owner_fn=owner),
                     unsafe_allow_html=True)
+        # snaps the (freely-scrollable) board back to the current pick after every
+        # draft action — see current_pick_scroll_html's docstring for why this has
+        # to be a components.html iframe rather than plain st.markdown.
+        st.components.v1.html(C.current_pick_scroll_html(), height=0)
 
     left, center, right = st.columns([1.05, 1.9, 1.05])
 

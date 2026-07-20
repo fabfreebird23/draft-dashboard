@@ -360,6 +360,10 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
                 short = (onm.split()[0] if onm.split() else onm)[:8]
                 trade_badge = f'<span class="dr-trade" title="Traded to {onm}">⇄{short}</span>'
             is_now = overall == current_pick
+            # a stable id on whichever cell is the current pick, so a tiny script
+            # (see current_pick_scroll_html) can find and scroll to it after every
+            # draft action — the board can be freely scrolled by hand in between.
+            now_id = ' id="dr-current-pick"' if is_now else ""
             if is_now:
                 klass += " now"
             if pid:
@@ -375,13 +379,13 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
                 img = (f'<img class="c-img" loading="lazy" alt="" '
                        f'src="{theme.headshot_src(pid)}">')
                 cells.append(
-                    f'<div class="{klass}"><span class="pk">{pk}</span>'
+                    f'<div class="{klass}"{now_id}><span class="pk">{pk}</span>'
                     f'<div class="c-name"><span>{first}</span>'
                     f'<span>{last or "&nbsp;"}</span></div>{img}'
                     f'<span class="c-meta">{pm.position}-{pm.team}{tag}</span>{trade_badge}</div>')
             elif is_now:
                 # on-the-clock card — solid blue with a prominent pick number
-                cells.append(f'<div class="{klass} onclk"><span class="oc-arrow">‹</span>'
+                cells.append(f'<div class="{klass} onclk"{now_id}><span class="oc-arrow">‹</span>'
                              f'<span class="oc-pk">{pk}</span>{trade_badge}</div>')
             else:
                 cells.append(f'<div class="{klass} empty"><span class="pk">{pk}</span>'
@@ -391,6 +395,23 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
     grid = (f'<div class="{grid_cls}" style="grid-template-columns:30px repeat({n},{cw});">'
             + "".join(cells) + "</div>")
     return '<div class="neonwrap dr-board-scroll">' + grid + "</div>"
+
+
+def current_pick_scroll_html() -> str:
+    """A near-invisible snippet for st.components.v1.html: components render as a
+    real <iframe>, so unlike st.markdown its <script> actually executes (a script
+    inserted via unsafe_allow_html's innerHTML-style injection never runs — the
+    iframe route is the only way to run JS after a rerun). It reaches into the
+    PARENT page (same-origin, so window.parent.document works) and scrolls the
+    #dr-current-pick cell (tagged in grid_html) into view — every draft action
+    triggers a full script rerun, so this fires fresh each time and 'snaps back'
+    to the current pick, while manual scrolling in between is untouched."""
+    return (
+        "<script>try{var d=window.parent.document;"
+        "var el=d.getElementById('dr-current-pick');"
+        "if(el)el.scrollIntoView({block:'center',inline:'center',behavior:'auto'});"
+        "}catch(e){}</script>"
+    )
 
 
 def last_pick_html(overall, n, team_name, pid, registry) -> str:

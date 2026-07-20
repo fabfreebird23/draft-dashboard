@@ -123,9 +123,11 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 /* ---- panel cards: the three main columns read as distinct modules ---- */
 [class*="dr_panel_"]{ background:var(--panel); border:1px solid var(--line); border-radius:12px;
   padding:11px 12px 9px; box-shadow:var(--shadow); }
-/* draft board is pinned on top, windowed to a few rounds around the current pick
-   (see grid_html window_rounds) so it stays short and moves forward with the
-   draft instead of showing every round at once */
+/* draft board is pinned on top: the FULL board renders (every round), capped to a
+   compact height and scrollable — the user can freely scroll it to browse other
+   rounds, and a tiny script (current_pick_scroll_html, run via components.html
+   right after this markdown) snaps it back to the current pick after every draft
+   action, since that's a full script rerun. */
 [class*="dr_board_top"]{ max-height:400px !important; overflow-y:auto !important;
   overflow-x:auto !important; margin-bottom:8px; }
 [class*="dr_board_top"] .dr-grid{ min-width:0; }
