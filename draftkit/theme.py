@@ -422,13 +422,15 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .sc-target b{ color:var(--blue); }
 .sc-thin,.sc-empty{ font-size:11px; color:var(--mut2); font-style:italic; }
 
-/* ---- rankings list scrolls inside its own box (page stays put) ---- */
-[class*="_ranklist"]{ max-height:calc(100vh - 920px); min-height:140px; overflow-y:auto;
-  overflow-x:hidden; padding-right:4px; margin-top:2px; }
+/* ---- rankings list: no height of its own — the outer panel (dr_panel_board,
+   height:calc(100vh - 800px)) is the ONLY scroll region. A second independent
+   max-height here used to be shorter than the outer panel and leave a dead gap
+   below the list; letting it size to content and scroll with the panel fixes that. */
+[class*="_ranklist"]{ overflow-x:hidden; padding-right:4px; margin-top:2px; }
 
-/* ---- live 'Picks' rail (FantasyPros-style) ---- */
-.dr-picks{ display:flex; flex-direction:column; gap:5px; max-height:calc(100vh - 920px);
-  min-height:140px; overflow:auto; padding-right:3px; margin-bottom:8px; }
+/* ---- live 'Picks' rail (FantasyPros-style) — same reasoning: no independent
+   height/scroll, the outer dr_panel_intel panel handles it alone. ---- */
+.dr-picks{ display:flex; flex-direction:column; gap:5px; padding-right:3px; margin-bottom:8px; }
 .pf-head{ font-size:12px; font-weight:700; color:var(--ink); padding:3px 2px 6px;
   position:sticky; top:0; background:var(--panel); z-index:2; }
 .pf-head b{ color:var(--blue); }

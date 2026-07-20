@@ -420,9 +420,14 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
     vm = ctx.get("value")
     pos_rank = ctx["pos_rank"]
 
-    st.markdown('<div class="sg-colhead"><span></span><span class="r">ADP</span>'
-                '<span class="r">Rank</span><span class="r">Value</span>'
-                '<span class="r">Survival</span></div>', unsafe_allow_html=True)
+    # header sits in the SAME 3-column split as each row (Draft | info-grid | star)
+    # so its ADP/Rank/Value/Survival labels land exactly over the row's own grid,
+    # instead of spanning the full width and drifting out of alignment.
+    hcols = st.columns([0.9, 7.6, 0.42], gap="small")
+    with hcols[1]:
+        st.markdown('<div class="sg-colhead"><span></span><span class="r">ADP</span>'
+                    '<span class="r">Rank</span><span class="r">Value</span>'
+                    '<span class="r">Survival</span></div>', unsafe_allow_html=True)
 
     for s in sugg:
         r, pm = s["row"], s["pm"]
