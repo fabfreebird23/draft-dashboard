@@ -164,7 +164,10 @@ def roster_multiplier(pos: str, my_pids, roster_slots, registry) -> float:
         return round(max(0.4, base * (0.85 ** surplus)), 2)
     if pos in ("QB", "TE", "K", "DST"):
         return round(max(0.08, 0.22 ** (surplus + 1)), 2)  # backup 1-slot spot: low
-    return round(max(0.3, 0.55 ** (surplus + 1)), 2)       # RB/WR bench depth
+    # RB/WR bench depth once flex is numerically full: still worth real bench/trade
+    # value (unlike a redundant QB/TE), so decay gently off the same 0.85 curve as
+    # flex depth above rather than cliffing to near-zero.
+    return round(max(0.4, 0.75 * (0.85 ** surplus)), 2)
 
 
 def marginal_vorp(model: "ValueModel", pid, my_pids, registry, roster_slots) -> float:
@@ -427,8 +430,12 @@ def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
         # moderate need-nudge: a player at a position with an OPEN starting need
         # gets an extra bump so a real need (e.g. your first WR) surfaces in the
         # top few over a high-VORP backup that only fills the flex — without
-        # burying a genuinely elite value at a filled spot.
-        if pm.position in needs:
+        # burying a genuinely elite value at a filled spot. Skip when mult>=0.999
+        # already applied the +22 starter-fill bonus above for this same signal —
+        # stacking both let an empty single-slot spot (QB/TE) swamp every other
+        # position's suggestions regardless of raw value (e.g. a bench-caliber TE
+        # outscoring a true difference-maker WR).
+        if pm.position in needs and mult < 0.999:
             score += 10
         left = model.startable_left(pm.position, taken_s)
         sv = survival_fn(pid) if (survival_fn and next_pick) else None
