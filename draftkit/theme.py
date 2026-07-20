@@ -126,7 +126,8 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 /* draft board is pinned on top, windowed to a few rounds around the current pick
    (see grid_html window_rounds) so it stays short and moves forward with the
    draft instead of showing every round at once */
-[class*="dr_board_top"]{ max-height:400px; overflow-y:auto; overflow-x:auto; margin-bottom:8px; }
+[class*="dr_board_top"]{ max-height:400px !important; overflow-y:auto !important;
+  overflow-x:auto !important; margin-bottom:8px; }
 [class*="dr_board_top"] .dr-grid{ min-width:0; }
 /* compact-ish cells in the pinned board (headshots dropped) — still 6 rounds, but
    with real row height so it doesn't feel cramped */
@@ -143,8 +144,34 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 [class*="dr_board_top"] .dr-rdlabel .dr-snk{ font-size:12px; }
 /* the three draft columns fill the rest of one screen so their bottoms align and the
    page itself never scrolls — each scrolls its own content internally */
+/* The panel itself is a FLEX ITEM (Streamlit's stVerticalBlock is display:flex)
+   with flex-grow:1 — so a plain `height`, even !important, is only used as the
+   flex-basis and then OVERRIDDEN by flex-grow distributing the parent's full
+   content height to it (confirmed empirically: height:400px!important computed
+   to 1655px anyway). The fix is the `flex` SHORTHAND with grow/shrink pinned to
+   0, which stops the flex algorithm from resizing it past the given basis. */
 [class*="dr_panel_board"],[class*="dr_panel_intel"]{
-  height:calc(100vh - 920px); min-height:260px; overflow-y:auto; overflow-x:hidden; }
+  flex:0 0 calc(100vh - 800px) !important; height:calc(100vh - 800px) !important;
+  min-height:260px !important; overflow-y:auto !important; overflow-x:hidden !important; }
+/* the flexbox chain (stHorizontalBlock -> stColumn -> stVerticalBlock*) must be
+   allowed to SHRINK (min-height:0) for the panel's own height+overflow-y:auto to
+   actually clip its content — otherwise a flex ancestor's default min-height:auto
+   refuses to shrink below its content's natural height, so the whole COLUMN (and
+   with it the page) grows tall instead of the panel scrolling internally. Scoped
+   via :has() to just the row containing our draft columns. */
+[data-testid="stHorizontalBlock"]:has([class*="dr_panel_board"]),
+[data-testid="stHorizontalBlock"]:has([class*="dr_panel_boardc"]),
+[data-testid="stHorizontalBlock"]:has([class*="dr_panel_intel"]){ align-items:stretch; }
+[data-testid="stHorizontalBlock"]:has([class*="dr_panel_board"]) .stColumn,
+[data-testid="stHorizontalBlock"]:has([class*="dr_panel_boardc"]) .stColumn,
+[data-testid="stHorizontalBlock"]:has([class*="dr_panel_intel"]) .stColumn,
+[data-testid="stHorizontalBlock"]:has([class*="dr_panel_board"]) [data-testid="stVerticalBlockBorderWrapper"],
+[data-testid="stHorizontalBlock"]:has([class*="dr_panel_boardc"]) [data-testid="stVerticalBlockBorderWrapper"],
+[data-testid="stHorizontalBlock"]:has([class*="dr_panel_intel"]) [data-testid="stVerticalBlockBorderWrapper"],
+[data-testid="stHorizontalBlock"]:has([class*="dr_panel_board"]) [data-testid="stVerticalBlock"],
+[data-testid="stHorizontalBlock"]:has([class*="dr_panel_boardc"]) [data-testid="stVerticalBlock"],
+[data-testid="stHorizontalBlock"]:has([class*="dr_panel_intel"]) [data-testid="stVerticalBlock"]{
+  min-height:0 !important; }
 [class*="dr_panel_"] [data-testid="stExpander"]{ background:var(--panel2); border:1px solid var(--line);
   border-radius:10px; margin-top:8px; }
 [class*="dr_panel_"] [data-testid="stExpander"] summary{ font-size:11px; font-weight:800;

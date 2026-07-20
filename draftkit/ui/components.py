@@ -1078,19 +1078,11 @@ def cheat_sheet_html(board_avail, registry, survival_fn=None, *, per_pos=14,
                 if r.get("pid") and registry.meta(r["pid"]).position == pos][:per_pos]
         if not rows:
             continue
-        # renumber the source (UDK) tiers so each column starts at Tier 1
-        disp, prev, tiered = 0, None, []
-        for r in rows:
-            src = r.get("pos_tier") or r.get("tier")
-            if disp == 0:
-                disp = 1
-            elif src is not None and prev is not None and src > prev:
-                disp += 1
-            if src is not None:
-                prev = src
-            tiered.append((r, disp))
+        # the source (UDK) tier is absolute and never renumbered — Tier 1 always
+        # means the same players, whether or not they're still on the board.
         cells, last = [], None
-        for r, t in tiered:
+        for r in rows:
+            t = r.get("pos_tier") or r.get("tier") or 1
             if t != last:
                 cells.append(f'<div class="cs-tier">Tier {t}</div>')
                 last = t

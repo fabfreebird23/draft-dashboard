@@ -255,34 +255,22 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
                 emit_row(r)
 
 
-def _position_tiers(rows, *, max_per_tier=10):
-    """Renumber the active ranking source's OWN tiers for a single-position view so
-    the list starts at Tier 1 and bumps at the source's real tier breaks — i.e. UDK's
-    published tiers (each row carries `tier` from the parsed board), not a synthetic
-    ADP-gap scheme. Renumbering makes the first player in the position Tier 1 and
-    each subsequent source-tier jump a new tier (UDK's overall Tier 1,3,6 for a
-    position become 1,2,3).
-
-    `rows` must already be in rank order. A pathologically long single-tier run (can
-    happen mid-draft once a position is depleted to one UDK tier) is still capped at
-    `max_per_tier` so it splits into readable sub-tiers."""
-    out, disp, prev, n_in_tier = [], 0, None, 0
+def _position_tiers(rows):
+    """Tag each row with the active ranking source's OWN positional tier for a
+    single-position view — i.e. UDK's published tier (each row carries `tier` from
+    the parsed board), not a synthetic ADP-gap scheme. The tier number is the
+    source's ABSOLUTE tier and never changes as players are drafted: Tier 1 always
+    means the same players, whether or not they're still on the board. (An earlier
+    version renumbered from 1 for whatever was currently available, which made
+    Tier 1 drift to different players once the real Tier 1 emptied out — fixed.)"""
+    out = []
     for r in rows:
         # prefer UDK's real POSITIONAL tier (from a position-rankings import) over
         # the overall board tier
-        src = r.get("pos_tier") or r.get("tier")
-        cliff = src is not None and prev is not None and src > prev
-        if disp == 0:
-            disp, n_in_tier = 1, 0
-        elif cliff or n_in_tier >= max_per_tier:
-            disp += 1
-            n_in_tier = 0
-        if src is not None:
-            prev = src
+        src = r.get("pos_tier") or r.get("tier") or 1
         nr = dict(r)
-        nr["tier"] = disp
+        nr["tier"] = src
         out.append(nr)
-        n_in_tier += 1
     return out
 
 
@@ -346,7 +334,7 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
         avail = sorted(avail, key=lambda r: ctx["value"].vorp_of(r["pid"]), reverse=True)
     elif pos_f not in ("All", C.ROOKIE_FILTER):
         # filtering to one position → order by UDK's positional rank (its tiers
-        # follow that, not overall ADP) then renumber the tiers to start at Tier 1
+        # follow that, not overall ADP), tagged with the source's absolute tier
         if any(r.get("pos_rank") for r in avail):
             avail = sorted(avail, key=lambda r: (r.get("pos_rank") or r.get("rank") or 9999))
         avail = _position_tiers(avail)
