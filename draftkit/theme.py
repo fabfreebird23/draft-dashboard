@@ -665,11 +665,26 @@ div[data-testid="stRadio"] label{ font-size:12px; }
   overflow:hidden; margin-left:auto; }
 .lm-track i{ display:block; height:100%; }
 .lm-wrap{ display:flex; align-items:center; gap:5px; justify-content:flex-end; font-size:12px; }
-.jc-table td.a{ padding-left:6px; padding-right:6px; }
-tr.jc-head td{ font-size:9.5px; font-weight:800; color:var(--mut2); letter-spacing:.4px;
-  border-bottom:1px solid var(--line2); padding-top:2px; padding-bottom:2px; }
-tr.jc-head td.r,tr.jc-head td.a,tr.jc-head td.sv{ text-align:right; }
-tr.jc-head td.r{ text-align:center; }
+
+/* ---- Juice's Value rows: grid layout (name + ADP/ECR/Δ/LANDMINE), same trick as
+   the Suggestions rows so a real ☆ button can sit beside each row. ---- */
+:root{ --jc-cols:26px minmax(0,1fr) 40px 40px 46px 88px; }
+.jc-colhead{ display:grid; grid-template-columns:var(--jc-cols); align-items:center; gap:8px;
+  padding:4px 6px 6px; color:var(--mut2); font-size:9.5px; font-weight:800; letter-spacing:.06em;
+  text-transform:uppercase; border-bottom:1px solid var(--line2); margin-bottom:2px; }
+.jc-colhead .c{ text-align:center; } .jc-colhead .r{ text-align:right; }
+.jc-row{ display:grid; grid-template-columns:var(--jc-cols); align-items:center; gap:8px;
+  padding:5px 6px; border-radius:8px; }
+.jc-row:hover{ background:var(--panel2); }
+.jc-row .c{ text-align:center; font-weight:700; font-size:12.5px; font-variant-numeric:tabular-nums; }
+.jc-row .r{ text-align:right; }
+.jc-rk{ text-align:center; color:var(--mut2); font-weight:700; font-size:12px; }
+.jc-who{ display:flex; align-items:center; gap:8px; min-width:0; }
+.jc-nm-wrap{ min-width:0; }
+.jc-nm{ font-weight:800; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.jc-row .pp{ font-size:10px; color:var(--mut2); }
+.jc-row.drafted{ opacity:.5; }
+.jc-row.drafted .jc-nm{ text-decoration:line-through; }
 
 /* ---- league board (opponent rosters/needs) ---- */
 .lb{ display:flex; flex-direction:column; gap:3px; }

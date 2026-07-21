@@ -282,10 +282,11 @@ def render(ctx) -> None:
                     ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
                     next_user_pick)), unsafe_allow_html=True)
         with ltabs[2]:
-            juice_tab(ctx, key_prefix=mkey, taken=taken)
+            juice_tab(ctx, key_prefix=mkey, taken=taken, queued=queued, on_star=toggle_queue)
         with ltabs[3]:
             queue_manager(ctx, qkey, st.session_state.get(ctx["ranks_key"]) or ranks_active,
-                          taken, reg, f"{mkey}_q", on_pick=show_card)
+                          taken, reg, f"{mkey}_q", on_pick=show_card,
+                          quick_draft=(draft if can_draft else None))
         with ltabs[4]:
             st.markdown(C.buzz_list_html(board_avail, reg, ctx.get("buzz")),
                         unsafe_allow_html=True)

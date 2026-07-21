@@ -363,7 +363,7 @@ _JUICE_SORTS = {
 }
 
 
-def juice_tab(ctx, *, key_prefix, taken) -> None:
+def juice_tab(ctx, *, key_prefix, taken, queued=None, on_star=None, limit=80) -> None:
     """Juice's Value tab: Sleeper's default draft-room rank vs FantasyPros ADP/ECR,
     so you can spot who your draft site over/undervalues before you draft off its
     board. Sourced from a public, periodically-updated sheet, scoped to this
@@ -371,13 +371,15 @@ def juice_tab(ctx, *, key_prefix, taken) -> None:
     positive/green = Sleeper ranks him later than the experts — a value, he'll
     likely fall further than he should. Negative/red = Sleeper ranks him earlier —
     a reach if you chase him at that slot. **Landmine** is the sheet's own 0-10
-    risk scale (0 = great value, 10 = avoid)."""
+    risk scale (0 = great value, 10 = avoid). Each row gets a real ☆ so you can
+    queue him straight from here (same shared queue as the board/Rankings)."""
     reg = ctx["registry"]
     jmap = ctx.get("juice") or {}
     if not jmap:
         st.caption("Couldn't load Juice's Value sheet right now — try again shortly.")
         return
     taken_s = {str(x) for x in (taken or set())}
+    queued_s = {str(x) for x in (queued or set())}
     present = {row.get("position") for row in jmap.values()}
     positions = ["All"] + [p for p in ("QB", "RB", "WR", "TE") if p in present]
     with st.container(key=f"{key_prefix}_jc_posf"):
@@ -390,13 +392,25 @@ def juice_tab(ctx, *, key_prefix, taken) -> None:
     st.caption("**ADP**/**ECR** = FantasyPros market ADP / expert consensus rank · "
                "**Δ** = Sleeper rank − ECR, in spots (green = value, falls later "
                "than deserved · red = reach, goes earlier) · **Landmine** = risk "
-               "of overpaying in your room, 0-10 (10 = avoid).")
+               "of overpaying in your room, 0-10 (10 = avoid). Tap **☆** to queue.")
     rows = [{"pid": pid, **row} for pid, row in jmap.items()
             if pos_f == "All" or row.get("position") == pos_f]
     rows.sort(key=_JUICE_SORTS[sort])
-    with st.container(key=f"{key_prefix}_jc_list"):
-        st.markdown(C.juice_html(rows, taken=taken_s, show_drafted=show_drafted),
-                    unsafe_allow_html=True)
+    if not show_drafted:
+        rows = [r for r in rows if str(r["pid"]) not in taken_s]
+    rows = rows[:limit]
+    st.markdown(C.juice_colhead_html(), unsafe_allow_html=True)
+    for r in rows:
+        pid = str(r["pid"])
+        is_taken = pid in taken_s
+        cols = st.columns([7.6, 0.42], gap="small")
+        with cols[0]:
+            st.markdown(C.juice_row_html(r, is_taken=is_taken), unsafe_allow_html=True)
+        with cols[1], st.container(key=f"{key_prefix}_jcstar_{pid}"):
+            if not is_taken:
+                starred = pid in queued_s
+                if st.button("★" if starred else "☆", key=f"{key_prefix}_jcst_{pid}") and on_star:
+                    on_star(pid)
 
 
 def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
@@ -760,10 +774,13 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
                 draft_fn(pid)
 
 
-def queue_manager(ctx, qkey, ranks, taken, registry, widget_key, on_pick=None) -> None:
+def queue_manager(ctx, qkey, ranks, taken, registry, widget_key, on_pick=None,
+                  quick_draft=None) -> None:
     """Pick-queue UI: search to add, ★ on the board to add, and each queued player
-    is a clickable row that opens their card (so you can draft from your queue).
-    A ✕ removes it. `qkey` is the shared queue store; `widget_key` is per-tab."""
+    is a clickable row that opens their card. When `quick_draft` is given (i.e. it's
+    actually your turn), a green **Draft** button drafts him straight from the
+    queue without switching tabs. A ✕ removes it. `qkey` is the shared queue
+    store; `widget_key` is per-tab."""
     label_to_pid, options = {}, []
     for r in ranks:
         pid = r.get("pid")
@@ -807,12 +824,16 @@ def queue_manager(ctx, qkey, ranks, taken, registry, widget_key, on_pick=None) -
             r = row_by_pid.get(str(pid), {"pid": str(pid), "name": pm.name, "rank": None})
             # reuse the board's `_brow_` row styling (headshot, pos bar, value chip)
             rk = f"{widget_key}_qb_brow_{pm.position}_{pid}"
-            row = st.columns([8, 1], gap="small")
-            with row[0], st.container(key=rk):
+            row = st.columns([0.9, 6.4, 0.7], gap="small")
+            if quick_draft and not drafted:
+                with row[0], st.container(key=f"{widget_key}_qdraft_{pid}"):
+                    if st.button("Draft", key=f"{widget_key}_qd_{pid}", use_container_width=True):
+                        quick_draft(pid)
+            with row[1], st.container(key=rk):
                 st.markdown(f'<style>{_headshot_css(rk, pid)}</style>', unsafe_allow_html=True)
                 if st.button(player_label(ctx, r, pm), key=f"{widget_key}_qpick_{pid}",
                              use_container_width=True, disabled=drafted) and on_pick:
                     on_pick(pid)
-            with row[1], st.container(key=f"{widget_key}_qx_{pid}"):
+            with row[2], st.container(key=f"{widget_key}_qx_{pid}"):
                 if st.button("✕", key=f"{widget_key}_qrm_{pid}", use_container_width=True):
                     _remove(pid)

@@ -1138,75 +1138,63 @@ def cheat_sheet_html(board_rows, registry, survival_fn=None, *, per_pos=14,
             'next pick</div><div class="cs-cols">' + "".join(cols) + "</div></div>")
 
 
-def juice_html(rows, *, taken=None, show_drafted=False, limit=250) -> str:
-    """Juice's Value: Sleeper's in-draft-room rank vs FantasyPros ADP/ECR, sorted by
-    whatever order the caller passes in (Sleeper rank, biggest value, or biggest
-    landmine — see ``juice_tab``'s sort control). **Δ** is the plain rank-spot gap
-    (Sleeper rank − ECR rank): positive/green = Sleeper ranks him LATER than the
-    experts (he'll fall further than he should — a value); negative/red = Sleeper
-    ranks him EARLIER (a reach if you chase him at that slot). **Landmine** is the
-    sheet's own 0-10 risk scale (0 = great value, 10 = avoid). ``rows`` are dicts
-    with pid/name/position/team/adp_rank/ecr_rank/sleeper_rank/skew/landmine, e.g.
-    from ``ctx["juice"]``."""
-    taken = {str(x) for x in (taken or set())}
-    head = ('<tr class="jc-head"><td class="r">RK</td><td>PLAYER</td>'
-            '<td class="a">ADP</td><td class="a">ECR</td><td class="a">&Delta;</td>'
-            '<td class="sv">LANDMINE</td></tr>')
-    body, shown = [], 0
-    for r in rows:
-        if shown >= limit:
-            break
-        pid = str(r.get("pid") or "")
-        is_taken = pid in taken
-        if is_taken and not show_drafted:
-            continue
-        shown += 1
-        name, pos, team = r.get("name", ""), r.get("position", ""), r.get("team", "")
-        rank = r.get("sleeper_rank")
-        rank_disp = int(rank) if rank is not None else "—"
-        if is_taken:
-            body.append(
-                f'<tr class="drafted"><td class="r">{rank_disp}</td>'
-                f'<td>{theme.img_tag(pid)}<b>{name}</b>'
+def juice_colhead_html() -> str:
+    """Column header for the Juice's Value rows (see ``juice_row_html``) — a plain
+    grid div so it lines up with each row's own grid, same trick as ``sg-colhead``
+    lining up with ``sg-row`` in the Suggestions tab."""
+    return ('<div class="jc-colhead"><span></span><span>PLAYER</span>'
+            '<span class="c">ADP</span><span class="c">ECR</span>'
+            '<span class="c">&Delta;</span><span class="r">LANDMINE</span></div>')
+
+
+def juice_row_html(r, *, is_taken=False) -> str:
+    """One Juice's Value row as a div (not a `<tr>`) so the caller can place a real
+    ☆ queue button beside it (a `<table>` can't have a Streamlit widget spliced
+    between rows — see ``juice_tab``). **Δ** is the plain rank-spot gap (Sleeper
+    rank − ECR rank): positive/green = Sleeper ranks him LATER than the experts
+    (he'll fall further than he should — a value); negative/red = Sleeper ranks
+    him EARLIER (a reach if you chase him at that slot). **Landmine** is the
+    sheet's own 0-10 risk scale (0 = great value, 10 = avoid). ``r`` is a dict with
+    pid/name/position/team/adp_rank/ecr_rank/sleeper_rank/skew/landmine, e.g. one
+    value from ``ctx["juice"]``."""
+    pid = str(r.get("pid") or "")
+    name, pos, team = r.get("name", ""), r.get("position", ""), r.get("team", "")
+    rank = r.get("sleeper_rank")
+    rank_disp = int(rank) if rank is not None else "—"
+    if is_taken:
+        return (f'<div class="jc-row drafted"><span class="jc-rk">{rank_disp}</span>'
+                f'<span class="jc-who">{theme.img_tag(pid)}<span class="jc-nm-wrap">'
+                f'<span class="jc-nm">{name}</span>'
                 f'<span class="drafted-tag">DRAFTED</span>'
-                f'<div class="pp">{pos} · {team}</div></td>'
-                f'<td class="a">—</td><td class="a">—</td><td class="a">—</td>'
-                f'<td class="sv"></td></tr>')
-            continue
-        adp, ecr = r.get("adp_rank"), r.get("ecr_rank")
-        adp_disp = int(adp) if adp is not None else "—"
-        ecr_disp = int(ecr) if ecr is not None else "—"
-        delta = (rank - ecr) if (rank is not None and ecr is not None) else None
-        delta_html = "—"
-        if delta is not None:
-            color = ("var(--green)" if delta > 0 else
-                     ("var(--red)" if delta < 0 else "var(--mut2)"))
-            sign = "+" if delta > 0 else ""
-            tip = ("value — falls later than ECR" if delta > 0 else
-                   "reach — goes earlier than ECR" if delta < 0 else "matches ECR")
-            delta_html = f'<b style="color:{color}" title="{tip}">{sign}{delta:.0f}</b>'
-        lm = r.get("landmine")
-        lm_html = "—"
-        if lm is not None:
-            c = "var(--red)" if lm >= 7 else ("var(--amber)" if lm >= 5 else "var(--green)")
-            lm_html = (f'<div class="lm-wrap" title="Landmine risk {lm:.1f}/10">'
-                       f'<span style="color:{c};font-weight:800">{lm:.1f}</span>'
-                       f'<div class="lm-track"><i style="width:{min(100, lm * 10):.0f}%;'
-                       f'background:{c}"></i></div></div>')
-        body.append(
-            f'<tr><td class="r">{rank_disp}</td>'
-            f'<td>{theme.img_tag(pid)}<b>{name}</b>'
-            f'<div class="pp">{pos} · {team}</div></td>'
-            f'<td class="a">{adp_disp}</td>'
-            f'<td class="a">{ecr_disp}</td>'
-            f'<td class="a">{delta_html}</td>'
-            f'<td class="sv">{lm_html}</td></tr>')
-    if not body:
-        return ('<div class="cs-empty">No data — the Juice sheet may be '
-                'unreachable right now.</div>')
-    return ('<div class="neonwrap" style="max-height:620px;overflow:auto;">'
-            '<table class="dr-avail jc-table"><tbody>' + head + "".join(body)
-            + '</tbody></table></div>')
+                f'<div class="pp">{pos} · {team}</div></span></span>'
+                f'<span class="c">—</span><span class="c">—</span><span class="c">—</span>'
+                f'<span class="r"></span></div>')
+    adp, ecr = r.get("adp_rank"), r.get("ecr_rank")
+    adp_disp = int(adp) if adp is not None else "—"
+    ecr_disp = int(ecr) if ecr is not None else "—"
+    delta = (rank - ecr) if (rank is not None and ecr is not None) else None
+    delta_html = "—"
+    if delta is not None:
+        color = ("var(--green)" if delta > 0 else
+                 ("var(--red)" if delta < 0 else "var(--mut2)"))
+        sign = "+" if delta > 0 else ""
+        tip = ("value — falls later than ECR" if delta > 0 else
+               "reach — goes earlier than ECR" if delta < 0 else "matches ECR")
+        delta_html = f'<b style="color:{color}" title="{tip}">{sign}{delta:.0f}</b>'
+    lm = r.get("landmine")
+    lm_html = "—"
+    if lm is not None:
+        c = "var(--red)" if lm >= 7 else ("var(--amber)" if lm >= 5 else "var(--green)")
+        lm_html = (f'<div class="lm-wrap" title="Landmine risk {lm:.1f}/10">'
+                   f'<span style="color:{c};font-weight:800">{lm:.1f}</span>'
+                   f'<div class="lm-track"><i style="width:{min(100, lm * 10):.0f}%;'
+                   f'background:{c}"></i></div></div>')
+    return (f'<div class="jc-row"><span class="jc-rk">{rank_disp}</span>'
+            f'<span class="jc-who">{theme.img_tag(pid)}<span class="jc-nm-wrap">'
+            f'<span class="jc-nm">{name}</span>'
+            f'<div class="pp">{pos} · {team}</div></span></span>'
+            f'<span class="c">{adp_disp}</span><span class="c">{ecr_disp}</span>'
+            f'<span class="c">{delta_html}</span><span class="r">{lm_html}</span></div>')
 
 
 def draft_csv(board, n, rounds, slot_names, owner_fn, registry, adp_rank,
