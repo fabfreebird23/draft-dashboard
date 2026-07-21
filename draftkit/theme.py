@@ -659,6 +659,11 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .dr-avail tr.drafted img{ filter:grayscale(1); }
 .dr-avail .drafted-tag{ font-size:8px; font-weight:800; color:var(--mut2); background:var(--line2);
   padding:1px 5px; border-radius:3px; margin-left:6px; letter-spacing:.5px; }
+.cs-row.drafted{ opacity:.5; }
+.cs-row.drafted .cs-nm{ text-decoration:line-through; }
+.lm-track{ flex:1; max-width:46px; height:7px; background:var(--line2); border-radius:4px;
+  overflow:hidden; margin-left:auto; }
+.lm-track i{ display:block; height:100%; }
 
 /* ---- league board (opponent rosters/needs) ---- */
 .lb{ display:flex; flex-direction:column; gap:3px; }
@@ -865,6 +870,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   margin-left:4px; vertical-align:middle; white-space:nowrap; }
 .sg-tag.rook{ background:var(--te); } .sg-tag.fall{ background:var(--red); }
 .sg-tag.stack{ background:var(--violet); } .sg-tag.bye{ background:var(--red); }
+.sg-tag.value{ background:var(--green); } .sg-tag.landmine{ background:var(--red); }
 .sg-sub{ font-size:10.5px; color:var(--muted); font-weight:600; margin-top:1px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .sg-sub .dot{ display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:4px;

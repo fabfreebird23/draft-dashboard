@@ -6,7 +6,7 @@ import streamlit as st
 
 from ..providers.espn import EspnAuthError
 from . import components as C
-from .widgets import (predict_upcoming, predictor_widget, queue_manager,
+from .widgets import (juice_tab, predict_upcoming, predictor_widget, queue_manager,
                       rankings_tab, select_player, spotlight_panel,
                       steals_traps_widget, suggestions_tab)
 
@@ -163,7 +163,8 @@ def render(ctx) -> None:
     # ---- LEFT: rankings · queue · trends (buzz / steals / rookie reach) ----
     from .. import value as V
     with left, st.container(key="dr_panel_board"):
-        ltabs = st.tabs(["Rankings", "Cheat Sheet", "Queue", "Trends", "League", "Scouting"])
+        ltabs = st.tabs(["Rankings", "Cheat Sheet", "Juice's Value", "Queue", "Trends",
+                        "League", "Scouting"])
         with ltabs[0]:
             ranks_active = rankings_tab(
                 ctx, key_prefix=akey, taken=drafted, queued=queued, is_my_turn=True,
@@ -173,15 +174,18 @@ def render(ctx) -> None:
         board_avail = [r for r in ranks_active
                        if r.get("pid") and str(r["pid"]) not in drafted]
         with ltabs[1]:
+            show_cs_drafted = st.toggle("Show drafted", key=f"{akey}_cs_showdrafted")
             st.markdown(C.cheat_sheet_html(
-                board_avail, reg,
+                ranks_active, reg, taken=drafted, show_drafted=show_cs_drafted,
                 survival_fn=lambda pid: C.survival_pct(
                     ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
                     next_user_pick)), unsafe_allow_html=True)
         with ltabs[2]:
+            juice_tab(ctx, key_prefix=akey, taken=drafted)
+        with ltabs[3]:
             queue_manager(ctx, qkey, st.session_state.get(ctx["ranks_key"]) or ranks_active,
                           drafted, reg, f"{akey}_q", on_pick=_inspect)
-        with ltabs[3]:
+        with ltabs[4]:
             st.markdown(C.buzz_list_html(board_avail, reg, ctx.get("buzz")),
                         unsafe_allow_html=True)
             if ctx.get("value"):
@@ -195,7 +199,7 @@ def render(ctx) -> None:
                 st.markdown('<div class="dr-h">Rookie reach</div>', unsafe_allow_html=True)
                 st.caption("Your league drafts rookies earlier than ADP — predictions reflect it.")
                 st.markdown(rh, unsafe_allow_html=True)
-        with ltabs[4]:
+        with ltabs[5]:
             st.markdown('<div class="dr-h dr-title">Roster Strength</div>', unsafe_allow_html=True)
             st.markdown(C.roster_strength_html(pids_by_slot, my_slot, slot_names, reg,
                                                ctx["adp_rank"]), unsafe_allow_html=True)
@@ -203,7 +207,7 @@ def render(ctx) -> None:
             st.markdown(C.league_board_html(pids_by_slot, slot_names, my_slot,
                                             ctx["roster_slots"], reg, on_clock_slot=on_slot),
                         unsafe_allow_html=True)
-        with ltabs[5]:
+        with ltabs[6]:
             st.markdown(C.scouting_report_html(ctx.get("profiles", {}), slot_names,
                                                ctx["owner_by_slot"], my_slot,
                                                on_clock_slot=on_slot, round_no=round_no),

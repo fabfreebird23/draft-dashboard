@@ -1087,16 +1087,23 @@ def adp_market_html(adp_df, name, position, value_rank=None) -> str:
             f'<span class="mk-srcs">{chips}</span></div>')
 
 
-def cheat_sheet_html(board_avail, registry, survival_fn=None, *, per_pos=14,
-                     positions=("QB", "RB", "WR", "TE")) -> str:
+def cheat_sheet_html(board_rows, registry, survival_fn=None, *, per_pos=14,
+                     positions=("QB", "RB", "WR", "TE"), taken=None,
+                     show_drafted=False) -> str:
     """All-positions cheat sheet: QB/RB/WR/TE side-by-side as tiered columns, each
     available player tagged with the % chance he's still there at your next pick
     (a pick-predictor). Like FantasyPros' Cheat Sheets tab — see every position's
-    run/scarcity at a glance instead of one position at a time."""
+    run/scarcity at a glance instead of one position at a time. When
+    ``show_drafted``, drafted players stay in their tier struck-through instead of
+    being removed (``board_rows`` should then be the FULL board, not pre-filtered)."""
+    taken = {str(x) for x in (taken or set())}
     cols = []
     for pos in positions:
-        rows = [r for r in board_avail
-                if r.get("pid") and registry.meta(r["pid"]).position == pos][:per_pos]
+        rows = [r for r in board_rows
+                if r.get("pid") and registry.meta(r["pid"]).position == pos]
+        if not show_drafted:
+            rows = [r for r in rows if str(r["pid"]) not in taken]
+        rows = rows[:per_pos]
         if not rows:
             continue
         # the source (UDK) tier is absolute and never renumbered — Tier 1 always
@@ -1108,6 +1115,11 @@ def cheat_sheet_html(board_avail, registry, survival_fn=None, *, per_pos=14,
                 cells.append(f'<div class="cs-tier">Tier {t}</div>')
                 last = t
             pm = registry.meta(r["pid"])
+            if str(r["pid"]) in taken:
+                cells.append(
+                    f'<div class="cs-row drafted"><span class="cs-nm">{r["name"]}</span>'
+                    f'<span class="drafted-tag">DRAFTED</span></div>')
+                continue
             sv = survival_fn(r["pid"]) if survival_fn else None
             chip = ""
             if sv is not None:
@@ -1124,6 +1136,60 @@ def cheat_sheet_html(board_avail, registry, survival_fn=None, *, per_pos=14,
         return '<div class="cs-empty">No players available.</div>'
     return ('<div class="cheat-sheet"><div class="cs-cap">% = chance he lasts to your '
             'next pick</div><div class="cs-cols">' + "".join(cols) + "</div></div>")
+
+
+def juice_html(rows, *, taken=None, show_drafted=False, limit=250) -> str:
+    """Juice's Value: Sleeper's in-draft-room rank vs FantasyPros ECR, sorted by
+    Sleeper's own rank (the order you'll actually see in the draft room). Each row
+    is tagged with a value/reach chip (skew) and a Landmine risk bar (0-10, red =
+    avoid). ``rows`` are dicts with pid/name/position/team/ecr_rank/sleeper_rank/
+    skew/landmine, e.g. from ``ctx["juice"]``."""
+    taken = {str(x) for x in (taken or set())}
+    body, shown = [], 0
+    for r in rows:
+        if shown >= limit:
+            break
+        pid = str(r.get("pid") or "")
+        is_taken = pid in taken
+        if is_taken and not show_drafted:
+            continue
+        shown += 1
+        name, pos, team = r.get("name", ""), r.get("position", ""), r.get("team", "")
+        rank = r.get("sleeper_rank")
+        rank_disp = int(rank) if rank is not None else "—"
+        if is_taken:
+            body.append(
+                f'<tr class="drafted"><td class="r">{rank_disp}</td>'
+                f'<td>{theme.img_tag(pid)}<b>{name}</b>'
+                f'<span class="drafted-tag">DRAFTED</span>'
+                f'<div class="pp">{pos} · {team}</div></td>'
+                f'<td class="a">—</td><td class="sv"></td></tr>')
+            continue
+        ecr = r.get("ecr_rank")
+        ecr_disp = int(ecr) if ecr is not None else "—"
+        skew, lm = r.get("skew"), r.get("landmine")
+        chip = ""
+        if skew is not None:
+            if skew >= 0.3:
+                chip = f'<span class="vchip value">▼ {skew:+.2f}</span>'
+            elif skew <= -0.3:
+                chip = f'<span class="vchip reach">▲ {skew:+.2f}</span>'
+        lm_html = ""
+        if lm is not None:
+            c = "var(--red)" if lm >= 7 else ("var(--amber)" if lm >= 5 else "var(--green)")
+            lm_html = (f'<div class="lm-track" title="Landmine risk {lm:.1f}/10">'
+                       f'<i style="width:{min(100, lm * 10):.0f}%;background:{c}"></i></div>')
+        body.append(
+            f'<tr><td class="r">{rank_disp}</td>'
+            f'<td>{theme.img_tag(pid)}<b>{name}</b>{chip}'
+            f'<div class="pp">{pos} · {team}</div></td>'
+            f'<td class="a">ECR<br>{ecr_disp}</td>'
+            f'<td class="sv">{lm_html}</td></tr>')
+    if not body:
+        return ('<div class="cs-empty">No data — the Juice sheet may be '
+                'unreachable right now.</div>')
+    return ('<div class="neonwrap" style="max-height:620px;overflow:auto;">'
+            '<table class="dr-avail"><tbody>' + "".join(body) + '</tbody></table></div>')
 
 
 def draft_csv(board, n, rounds, slot_names, owner_fn, registry, adp_rank,

@@ -401,16 +401,25 @@ def upside_score(model: "ValueModel", registry, pid) -> float:
     return base + bonus
 
 
+JUICE_SKEW_WEIGHT = 9.0  # points of score nudge per full unit of Juice's Value skew
+
+
 def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
                     next_pick=None, survival_fn=None, my_pids=None, roster_slots=None,
-                    byes=None, k=6, upside=False, strategy=None, round_no=None):
+                    byes=None, k=6, upside=False, strategy=None, round_no=None,
+                    juice_map=None):
     """A ranked list of the best picks right now — the engine behind the Suggestions
     tab. Roster-aware scoring like ``best_pick`` (value × roster fit + starter need +
     positional scarcity + 'won't survive to your next pick'), now also nudged by
     **stacks** (a pass-catcher with your QB, or vice-versa) and away from **bye-week
-    clashes** with a starter you already own. Returns the top ``k`` with the raw
-    signals so the UI can render reasons and a FIT %. Each item carries
-    {row, pm, score, raw, mult, sv, left, stack, bye_clash}."""
+    clashes** with a starter you already own. ``juice_map`` (Juice's Value — Sleeper's
+    in-draft-room rank vs FantasyPros ECR) nudges the score by a market-inefficiency
+    signal independent of roster fit: positive skew means Sleeper ranks him later
+    than the experts (he'll likely fall further than he should — a value bump);
+    negative means Sleeper ranks him earlier (a reach if you chase him here). Applied
+    after roster/strategy adjustments so it holds even under Value (BPA). Returns the
+    top ``k`` with the raw signals so the UI can render reasons and a FIT %. Each item
+    carries {row, pm, score, raw, mult, sv, left, stack, bye_clash, skew, landmine}."""
     needs = needs or set()
     taken_s = {str(x) for x in (taken or [])}
     use_roster = my_pids is not None and roster_slots is not None
@@ -456,9 +465,15 @@ def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
         elif strategy and strategy != "Balanced":
             score *= strategy_weight(strategy, pm.position, round_no, my_pids,
                                      registry, roster_slots)
+        j = (juice_map or {}).get(pid)
+        skew = j.get("skew") if j else None
+        landmine = j.get("landmine") if j else None
+        if skew is not None:
+            score += skew * JUICE_SKEW_WEIGHT
         out.append({"row": r, "pm": pm, "score": round(score, 1), "raw": raw,
                     "mult": mult, "sv": sv, "left": left,
-                    "stack": is_stack, "bye_clash": clash})
+                    "stack": is_stack, "bye_clash": clash,
+                    "skew": skew, "landmine": landmine})
     out.sort(key=lambda x: -x["score"])
     return out[:k]
 

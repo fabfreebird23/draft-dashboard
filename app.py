@@ -156,6 +156,12 @@ def get_projections(season: int, scoring: str):
     return projections.load_projections(season, scoring)
 
 
+@st.cache_data(ttl=21600, show_spinner="Loading Juice's Value sheet…")
+def get_juice_value(season: int, scoring: str, _registry):
+    from draftkit import juice
+    return juice.load(_registry, scoring)
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_schedule(season: int):
     from draftkit import schedule
@@ -346,6 +352,10 @@ def build_context(sel: dict) -> dict:
     # Playoff strength of schedule (weeks 15-17) from real defense-vs-position.
     schedule = get_schedule(config.current_season())
     dvp = get_dvp(config.current_season() - 1, registry, meta.scoring)
+    # Juice's Value: Sleeper's in-draft-room rank vs FantasyPros ECR, scoped to
+    # this league's own scoring format so the skew lines up with what you'll
+    # actually see in the Sleeper draft room.
+    juice_map = get_juice_value(config.current_season(), meta.scoring, registry)
 
     def get_ranks(source: str):
         """Board rows for an alternate ranking source (FantasyPros ECR / ESPN),
@@ -366,6 +376,7 @@ def build_context(sel: dict) -> dict:
         "keepers_raw": keepers_raw, "keepers": placements, "tendencies": tendencies,
         "profiles": profiles,
         "value": value, "proj": proj, "schedule": schedule, "dvp": dvp,
+        "juice": juice_map,
         "pick_owner_slot": pick_owner_slot, "traded_picks": traded,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
     }

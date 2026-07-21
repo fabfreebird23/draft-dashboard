@@ -355,6 +355,36 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
     return ranks
 
 
+def juice_tab(ctx, *, key_prefix, taken) -> None:
+    """Juice's Value tab: Sleeper's default draft-room rank vs FantasyPros ECR, so
+    you can spot who your draft site over/undervalues before you draft off its
+    board. Sourced from a public, periodically-updated sheet, scoped to this
+    league's own scoring format. Positive skew (blue) = Sleeper ranks him later
+    than the experts — a value, he'll likely fall further than he should. Negative
+    (red) = Sleeper ranks him earlier — a reach if you chase him at that slot."""
+    reg = ctx["registry"]
+    jmap = ctx.get("juice") or {}
+    if not jmap:
+        st.caption("Couldn't load Juice's Value sheet right now — try again shortly.")
+        return
+    taken_s = {str(x) for x in (taken or set())}
+    present = {row.get("position") for row in jmap.values()}
+    positions = ["All"] + [p for p in ("QB", "RB", "WR", "TE") if p in present]
+    with st.container(key=f"{key_prefix}_jc_posf"):
+        pos_f = st.radio("Position", positions, horizontal=True,
+                         key=f"{key_prefix}_jcpos", label_visibility="collapsed")
+    show_drafted = st.toggle("Show drafted", key=f"{key_prefix}_jc_showdrafted")
+    st.caption("Sleeper's in-draft rank vs FantasyPros ECR. **Blue** = Sleeper "
+               "undervalues him (falls further than he should — a value). "
+               "**Red** = Sleeper overvalues him (a reach if you chase him here).")
+    rows = [{"pid": pid, **row} for pid, row in jmap.items()
+            if pos_f == "All" or row.get("position") == pos_f]
+    rows.sort(key=lambda x: x.get("sleeper_rank") if x.get("sleeper_rank") is not None else 9999)
+    with st.container(key=f"{key_prefix}_jc_list"):
+        st.markdown(C.juice_html(rows, taken=taken_s, show_drafted=show_drafted),
+                    unsafe_allow_html=True)
+
+
 def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
                     pick_no, on_click=None, on_star=None, quick_draft=None, queued=None,
                     strategy=None, round_no=None, k=7):
@@ -387,7 +417,7 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
         survival_fn=lambda pid: C.survival_pct(
             ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_pick),
         my_pids=my_pids, roster_slots=ctx["roster_slots"], byes=ctx.get("byes"), k=k,
-        upside=upside, strategy=strategy, round_no=round_no)
+        upside=upside, strategy=strategy, round_no=round_no, juice_map=ctx.get("juice"))
     if strategy and strategy != "Balanced":
         st.caption(f"**{strategy}** — {V.STRATEGY_HELP.get(strategy, '')}")
     if not sugg:
@@ -438,6 +468,13 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
             tags += '<span class="sg-tag stack">STK</span>'
         if s.get("bye_clash"):
             tags += '<span class="sg-tag bye">bye</span>'
+        skew = s.get("skew")
+        if skew is not None and skew >= 0.5:
+            tags += ('<span class="sg-tag value" title="Juice\'s Value: Sleeper '
+                     'ranks him later than FantasyPros ECR — likely value">V</span>')
+        elif (s.get("landmine") or 0) >= 7:
+            tags += ('<span class="sg-tag landmine" title="Juice\'s Value: Sleeper '
+                     'ranks him well ahead of FantasyPros ECR — reach risk">LM</span>')
 
         v = vm.vorp_of(pid) if vm else None
         val_html = "—"
