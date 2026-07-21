@@ -1139,12 +1139,19 @@ def cheat_sheet_html(board_rows, registry, survival_fn=None, *, per_pos=14,
 
 
 def juice_html(rows, *, taken=None, show_drafted=False, limit=250) -> str:
-    """Juice's Value: Sleeper's in-draft-room rank vs FantasyPros ECR, sorted by
-    Sleeper's own rank (the order you'll actually see in the draft room). Each row
-    is tagged with a value/reach chip (skew) and a Landmine risk bar (0-10, red =
-    avoid). ``rows`` are dicts with pid/name/position/team/ecr_rank/sleeper_rank/
-    skew/landmine, e.g. from ``ctx["juice"]``."""
+    """Juice's Value: Sleeper's in-draft-room rank vs FantasyPros ADP/ECR, sorted by
+    whatever order the caller passes in (Sleeper rank, biggest value, or biggest
+    landmine — see ``juice_tab``'s sort control). **Δ** is the plain rank-spot gap
+    (Sleeper rank − ECR rank): positive/green = Sleeper ranks him LATER than the
+    experts (he'll fall further than he should — a value); negative/red = Sleeper
+    ranks him EARLIER (a reach if you chase him at that slot). **Landmine** is the
+    sheet's own 0-10 risk scale (0 = great value, 10 = avoid). ``rows`` are dicts
+    with pid/name/position/team/adp_rank/ecr_rank/sleeper_rank/skew/landmine, e.g.
+    from ``ctx["juice"]``."""
     taken = {str(x) for x in (taken or set())}
+    head = ('<tr class="jc-head"><td class="r">RK</td><td>PLAYER</td>'
+            '<td class="a">ADP</td><td class="a">ECR</td><td class="a">&Delta;</td>'
+            '<td class="sv">LANDMINE</td></tr>')
     body, shown = [], 0
     for r in rows:
         if shown >= limit:
@@ -1163,33 +1170,43 @@ def juice_html(rows, *, taken=None, show_drafted=False, limit=250) -> str:
                 f'<td>{theme.img_tag(pid)}<b>{name}</b>'
                 f'<span class="drafted-tag">DRAFTED</span>'
                 f'<div class="pp">{pos} · {team}</div></td>'
-                f'<td class="a">—</td><td class="sv"></td></tr>')
+                f'<td class="a">—</td><td class="a">—</td><td class="a">—</td>'
+                f'<td class="sv"></td></tr>')
             continue
-        ecr = r.get("ecr_rank")
+        adp, ecr = r.get("adp_rank"), r.get("ecr_rank")
+        adp_disp = int(adp) if adp is not None else "—"
         ecr_disp = int(ecr) if ecr is not None else "—"
-        skew, lm = r.get("skew"), r.get("landmine")
-        chip = ""
-        if skew is not None:
-            if skew >= 0.3:
-                chip = f'<span class="vchip value">▼ {skew:+.2f}</span>'
-            elif skew <= -0.3:
-                chip = f'<span class="vchip reach">▲ {skew:+.2f}</span>'
-        lm_html = ""
+        delta = (rank - ecr) if (rank is not None and ecr is not None) else None
+        delta_html = "—"
+        if delta is not None:
+            color = ("var(--green)" if delta > 0 else
+                     ("var(--red)" if delta < 0 else "var(--mut2)"))
+            sign = "+" if delta > 0 else ""
+            tip = ("value — falls later than ECR" if delta > 0 else
+                   "reach — goes earlier than ECR" if delta < 0 else "matches ECR")
+            delta_html = f'<b style="color:{color}" title="{tip}">{sign}{delta:.0f}</b>'
+        lm = r.get("landmine")
+        lm_html = "—"
         if lm is not None:
             c = "var(--red)" if lm >= 7 else ("var(--amber)" if lm >= 5 else "var(--green)")
-            lm_html = (f'<div class="lm-track" title="Landmine risk {lm:.1f}/10">'
-                       f'<i style="width:{min(100, lm * 10):.0f}%;background:{c}"></i></div>')
+            lm_html = (f'<div class="lm-wrap" title="Landmine risk {lm:.1f}/10">'
+                       f'<span style="color:{c};font-weight:800">{lm:.1f}</span>'
+                       f'<div class="lm-track"><i style="width:{min(100, lm * 10):.0f}%;'
+                       f'background:{c}"></i></div></div>')
         body.append(
             f'<tr><td class="r">{rank_disp}</td>'
-            f'<td>{theme.img_tag(pid)}<b>{name}</b>{chip}'
+            f'<td>{theme.img_tag(pid)}<b>{name}</b>'
             f'<div class="pp">{pos} · {team}</div></td>'
-            f'<td class="a">ECR<br>{ecr_disp}</td>'
+            f'<td class="a">{adp_disp}</td>'
+            f'<td class="a">{ecr_disp}</td>'
+            f'<td class="a">{delta_html}</td>'
             f'<td class="sv">{lm_html}</td></tr>')
     if not body:
         return ('<div class="cs-empty">No data — the Juice sheet may be '
                 'unreachable right now.</div>')
     return ('<div class="neonwrap" style="max-height:620px;overflow:auto;">'
-            '<table class="dr-avail"><tbody>' + "".join(body) + '</tbody></table></div>')
+            '<table class="dr-avail jc-table"><tbody>' + head + "".join(body)
+            + '</tbody></table></div>')
 
 
 def draft_csv(board, n, rounds, slot_names, owner_fn, registry, adp_rank,

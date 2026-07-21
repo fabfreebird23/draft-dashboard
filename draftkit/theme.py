@@ -664,6 +664,12 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .lm-track{ flex:1; max-width:46px; height:7px; background:var(--line2); border-radius:4px;
   overflow:hidden; margin-left:auto; }
 .lm-track i{ display:block; height:100%; }
+.lm-wrap{ display:flex; align-items:center; gap:5px; justify-content:flex-end; font-size:12px; }
+.jc-table td.a{ padding-left:6px; padding-right:6px; }
+tr.jc-head td{ font-size:9.5px; font-weight:800; color:var(--mut2); letter-spacing:.4px;
+  border-bottom:1px solid var(--line2); padding-top:2px; padding-bottom:2px; }
+tr.jc-head td.r,tr.jc-head td.a,tr.jc-head td.sv{ text-align:right; }
+tr.jc-head td.r{ text-align:center; }
 
 /* ---- league board (opponent rosters/needs) ---- */
 .lb{ display:flex; flex-direction:column; gap:3px; }

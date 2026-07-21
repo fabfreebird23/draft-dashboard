@@ -355,13 +355,23 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
     return ranks
 
 
+_JUICE_SORTS = {
+    "Sleeper Rank": lambda x: (x.get("sleeper_rank") if x.get("sleeper_rank") is not None else 9999),
+    "Biggest Value": lambda x: -(x.get("skew") if x.get("skew") is not None else -99),
+    "Biggest Reach": lambda x: (x.get("skew") if x.get("skew") is not None else 99),
+    "Biggest Landmine": lambda x: -(x.get("landmine") if x.get("landmine") is not None else -1),
+}
+
+
 def juice_tab(ctx, *, key_prefix, taken) -> None:
-    """Juice's Value tab: Sleeper's default draft-room rank vs FantasyPros ECR, so
-    you can spot who your draft site over/undervalues before you draft off its
+    """Juice's Value tab: Sleeper's default draft-room rank vs FantasyPros ADP/ECR,
+    so you can spot who your draft site over/undervalues before you draft off its
     board. Sourced from a public, periodically-updated sheet, scoped to this
-    league's own scoring format. Positive skew (blue) = Sleeper ranks him later
-    than the experts — a value, he'll likely fall further than he should. Negative
-    (red) = Sleeper ranks him earlier — a reach if you chase him at that slot."""
+    league's own scoring format. **Δ** = Sleeper rank − ECR rank in plain spots:
+    positive/green = Sleeper ranks him later than the experts — a value, he'll
+    likely fall further than he should. Negative/red = Sleeper ranks him earlier —
+    a reach if you chase him at that slot. **Landmine** is the sheet's own 0-10
+    risk scale (0 = great value, 10 = avoid)."""
     reg = ctx["registry"]
     jmap = ctx.get("juice") or {}
     if not jmap:
@@ -373,13 +383,17 @@ def juice_tab(ctx, *, key_prefix, taken) -> None:
     with st.container(key=f"{key_prefix}_jc_posf"):
         pos_f = st.radio("Position", positions, horizontal=True,
                          key=f"{key_prefix}_jcpos", label_visibility="collapsed")
-    show_drafted = st.toggle("Show drafted", key=f"{key_prefix}_jc_showdrafted")
-    st.caption("Sleeper's in-draft rank vs FantasyPros ECR. **Blue** = Sleeper "
-               "undervalues him (falls further than he should — a value). "
-               "**Red** = Sleeper overvalues him (a reach if you chase him here).")
+    ctrl = st.columns([1.6, 1])
+    sort = ctrl[0].radio("Sort", list(_JUICE_SORTS), horizontal=True,
+                        key=f"{key_prefix}_jcsort", label_visibility="collapsed")
+    show_drafted = ctrl[1].toggle("Show drafted", key=f"{key_prefix}_jc_showdrafted")
+    st.caption("**ADP**/**ECR** = FantasyPros market ADP / expert consensus rank · "
+               "**Δ** = Sleeper rank − ECR, in spots (green = value, falls later "
+               "than deserved · red = reach, goes earlier) · **Landmine** = risk "
+               "of overpaying in your room, 0-10 (10 = avoid).")
     rows = [{"pid": pid, **row} for pid, row in jmap.items()
             if pos_f == "All" or row.get("position") == pos_f]
-    rows.sort(key=lambda x: x.get("sleeper_rank") if x.get("sleeper_rank") is not None else 9999)
+    rows.sort(key=_JUICE_SORTS[sort])
     with st.container(key=f"{key_prefix}_jc_list"):
         st.markdown(C.juice_html(rows, taken=taken_s, show_drafted=show_drafted),
                     unsafe_allow_html=True)
