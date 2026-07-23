@@ -385,7 +385,10 @@ def build_placements(keepers: Dict[str, List[dict]], owner_slot: Dict[str, int],
     }
     A keeper occupies one of its owner's *actual* picks nearest `cost_round`. When
     `pick_owner_slot(overall)` is given it respects traded picks (an owner may hold
-    two picks in a round, or none); otherwise it falls back to a plain snake.
+    two picks in a round, or none) — and when they hold more than one in that
+    round, the keeper takes the LAST of them, not the first, so the owner's
+    earliest pick in the round stays free for the live draft. Otherwise it falls
+    back to a plain snake.
     """
     by_overall: Dict[int, str] = {}
     kept_pids = set()
@@ -425,7 +428,11 @@ def build_placements(keepers: Dict[str, List[dict]], owner_slot: Dict[str, int],
                     if pick_owner_slot:
                         free = [o for o in slot_owned.get(cand, []) if o not in used_ov]
                         if free:
-                            ov = free[0]
+                            # when this owner holds MULTIPLE picks in the round
+                            # (via trade), the keeper takes the LAST one — the
+                            # owner keeps their earliest pick free for the live
+                            # draft instead of losing it to the keeper.
+                            ov = free[-1]
                             break
                     else:
                         cov = snake_overall(slot, cand)
