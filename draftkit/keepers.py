@@ -137,18 +137,20 @@ def predict_keepers(league_id: str, value, current_season: int,
                     have_owners: set, registry=None, rounds: int = 0) -> Dict[str, List[dict]]:
     """Predict keepers for owners who haven't entered any on the keeper dashboard.
 
-    Uses last season's draft: each owner's drafted players become keeper candidates,
-    and we keep their top `max_keepers` by VORP. Cost round: a player drafted *as a
-    rookie* (his rookie season was the draft season) is a ROOKIE keeper, kept at the
-    last round (the cheap, career-long way keeper leagues hold rookies) — otherwise
-    he costs the round he was drafted. A candidate the owner no longer actually
-    rosters (dropped/traded since that draft) is filtered out first — otherwise a
-    player who's since moved to another team's roster gets "kept" by his old owner
-    too, same bug ``_filter_to_rosters`` guards against for submitted keepers.
-    Returns {owner_id: [{player_id, cost_round, is_rookie_keeper, predicted}]} for
-    owners NOT in `have_owners`.
+    Candidates = each owner's CURRENT roster, costed by the round that player was
+    drafted in the most recent prior season — his league-wide draft cost, NOT tied
+    to who originally picked him. A player traded since that draft is a keeper
+    candidate for whoever rosters him now, not his old owner (e.g. a manager who
+    traded for a stud RB after the draft would obviously keep him over a
+    lower-value player they drafted themselves — using ``picked_by`` instead of the
+    live roster missed exactly that). We keep the top `max_keepers` by VORP. Cost
+    round: a player drafted *as a rookie* (his rookie season was the draft season)
+    is a ROOKIE keeper, kept at the last round (the cheap, career-long way keeper
+    leagues hold rookies) — otherwise he costs the round he was drafted. A player
+    not in that prior draft at all (e.g. an undrafted waiver pickup) isn't
+    keeper-eligible and is skipped. Returns {owner_id: [{player_id, cost_round,
+    is_rookie_keeper, predicted}]} for owners NOT in `have_owners`.
     """
-    from collections import defaultdict
     from . import sleeper_client as sleeper
     try:
         league = sleeper.get_league(str(league_id))
@@ -164,6 +166,8 @@ def predict_keepers(league_id: str, value, current_season: int,
         rosters = []
     owned = {str(r.get("owner_id")): {str(p) for p in (r.get("players") or [])}
              for r in rosters if r.get("owner_id")}
+    if not owned:
+        return {}
 
     def _years_exp(pid: str):
         if registry is None:
@@ -173,30 +177,27 @@ def predict_keepers(league_id: str, value, current_season: int,
         except Exception:  # noqa: BLE001
             return None
 
-    out: Dict[str, List[dict]] = {}
     for entry in sleeper.league_chain(str(league_id)):
         draft_season = int(entry.get("season") or 0)
         if draft_season >= int(current_season):
             continue                                   # find the most recent PRIOR draft
         picks = sleeper.get_draft_picks(entry.get("draft_id")) or []
-        by_owner: Dict[str, list] = defaultdict(list)
+        pid_round: Dict[str, int] = {}
         for pk in picks:
-            owner = str(pk.get("picked_by") or "")
             pid = str(pk.get("player_id") or "")
             rnd = int(pk.get("round") or 0)
-            if owner and pid and rnd:
-                by_owner[owner].append((pid, rnd))
-        if not by_owner:
+            if pid and rnd:
+                pid_round[pid] = rnd
+        if not pid_round:
             continue
         # A player is a rookie keeper if his rookie season was the draft season —
         # i.e. current years_exp == seasons since that draft (he entered that year).
         rookie_gap = int(current_season) - draft_season
-        for owner, plist in by_owner.items():
+        out: Dict[str, List[dict]] = {}
+        for owner, roster in owned.items():
             if str(owner) in have_owners:
                 continue                               # they already set keepers
-            if owned:
-                roster = owned.get(str(owner), set())
-                plist = [(pid, rnd) for pid, rnd in plist if pid in roster]
+            plist = [(pid, pid_round[pid]) for pid in roster if pid in pid_round]
             ranked = sorted(plist, key=lambda x: -(value.vorp_of(x[0]) if value else 0.0))
             kept = []
             for pid, rnd in ranked[:max_keepers]:
@@ -208,7 +209,7 @@ def predict_keepers(league_id: str, value, current_season: int,
             if kept:
                 out[owner] = kept
         return out                                     # only the most recent prior season
-    return out
+    return {}
 
 
 def build_placements(keepers: Dict[str, List[dict]], owner_slot: Dict[str, int],
