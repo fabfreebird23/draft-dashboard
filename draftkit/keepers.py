@@ -70,6 +70,97 @@ def load_manager_names(league_id: str) -> dict:
     return {}
 
 
+# Fallback house rules for a league whose dashboard config.yaml is unreachable or
+# doesn't define a `rules:` block — max_keep_years=99 makes the year-cap a no-op
+# rather than guessing a number that isn't this league's actual rule.
+_DEFAULT_KEEPER_RULES = {
+    "max_regular_keepers": None, "max_rookie_keepers": None,
+    "max_keep_years": 99, "year2_bump_rounds": 0, "rookie_fixed_round": None,
+}
+
+
+def load_keeper_rules(league_id: str) -> dict:
+    """House keeper rules from the dashboard's config.yaml `league:`/`rules:`
+    blocks — Sleeper's own settings only expose a flat `max_keepers` total, not
+    the regular/rookie split, the year cap, or the cost-escalation-per-year rule."""
+    import re
+    cfg = KEEPER_REPOS.get(str(league_id))
+    if not cfg:
+        return dict(_DEFAULT_KEEPER_RULES)
+    for branch in ("main", "master"):
+        url = _CONFIG_RAW.format(repo=cfg["repo"], branch=branch)
+        try:
+            r = requests.get(url, timeout=12)
+            if r.status_code != 200:
+                continue
+            text = r.text
+            out = dict(_DEFAULT_KEEPER_RULES)
+            found = False
+            for key in ("max_regular_keepers", "max_rookie_keepers", "max_keep_years",
+                       "year2_bump_rounds", "rookie_fixed_round"):
+                m = re.search(rf'^\s*{key}\s*:\s*(\d+)', text, re.M)
+                if m:
+                    out[key] = int(m.group(1))
+                    found = True
+            if found:
+                return out
+        except Exception:  # noqa: BLE001
+            continue
+    return dict(_DEFAULT_KEEPER_RULES)
+
+
+def _kept_pid_sets(league_id: str, seasons: List[int]) -> Dict[int, set]:
+    """{season: {player_id kept that season, whoever's roster}} from the dashboard's
+    own historical keepers_<season>.json files — the authoritative record of who
+    was actually kept. (Sleeper's own per-pick `is_keeper` flag turns out to be set
+    inconsistently in older drafts in practice, so we go straight to the
+    dashboard's history instead of trying to infer it from the draft record.)"""
+    cfg = KEEPER_REPOS.get(str(league_id))
+    out: Dict[int, set] = {}
+    if not cfg:
+        return out
+    for yr in seasons:
+        url = _RAW.format(repo=cfg["repo"], branch=cfg["branch"], season=yr)
+        try:
+            r = requests.get(url, timeout=12)
+            if r.status_code == 200 and r.text.strip():
+                data = json.loads(r.text)
+                out[yr] = {str(k.get("player_id")) for ks in data.values() for k in ks
+                          if k.get("player_id")}
+        except Exception:  # noqa: BLE001
+            continue
+    return out
+
+
+def _owned_rounds(league_id: str, rounds: int) -> Dict[str, Dict[int, int]]:
+    """{owner_id: {round: how many picks currently owned}} for THIS season's draft,
+    accounting for trades — so a predicted keeper never lands on a round the owner
+    doesn't actually hold a pick in (you can't pay a keeper's draft-pick cost with
+    a pick you traded away)."""
+    from . import sleeper_client as sleeper
+    try:
+        league = sleeper.get_league(str(league_id))
+        draft_id = league.get("draft_id")
+        rosters = sleeper.get_rosters(str(league_id)) or []
+        trades = sleeper.get_traded_picks(draft_id) if draft_id else []
+    except Exception:  # noqa: BLE001
+        return {}
+    rid_to_uid = {r.get("roster_id"): str(r.get("owner_id"))
+                  for r in rosters if r.get("owner_id")}
+    owned: Dict[str, Dict[int, int]] = {
+        uid: {r: 1 for r in range(1, rounds + 1)} for uid in set(rid_to_uid.values())
+    }
+    for t in (trades or []):
+        rnd = t.get("round")
+        orig = rid_to_uid.get(t.get("roster_id"))
+        new = rid_to_uid.get(t.get("owner_id"))
+        if not (rnd and orig and new) or orig == new:
+            continue
+        owned.setdefault(orig, {})[rnd] = owned.get(orig, {}).get(rnd, 0) - 1
+        owned.setdefault(new, {})[rnd] = owned.get(new, {}).get(rnd, 0) + 1
+    return owned
+
+
 def _parse_draft_order(text: str) -> List[str]:
     import re
     out, in_block = [], False
@@ -135,39 +226,52 @@ def _filter_to_rosters(data: Dict[str, List[dict]], league_id: str) -> Dict[str,
 
 def predict_keepers(league_id: str, value, current_season: int,
                     have_owners: set, registry=None, rounds: int = 0) -> Dict[str, List[dict]]:
-    """Predict keepers for owners who haven't entered any on the keeper dashboard.
+    """Predict keepers for owners who haven't entered any on the keeper dashboard,
+    honoring this league's actual house rules (config.yaml `rules:`) instead of a
+    flat "top N by value":
 
-    Candidates = each owner's CURRENT roster, costed by the round that player was
-    drafted in the most recent prior season — his league-wide draft cost, NOT tied
-    to who originally picked him. A player traded since that draft is a keeper
-    candidate for whoever rosters him now, not his old owner (e.g. a manager who
-    traded for a stud RB after the draft would obviously keep him over a
-    lower-value player they drafted themselves — using ``picked_by`` instead of the
-    live roster missed exactly that). We keep the top `max_keepers` by VORP. Cost
-    round: a player drafted *as a rookie* (his rookie season was the draft season)
-    is a ROOKIE keeper, kept at the last round (the cheap, career-long way keeper
-    leagues hold rookies) — otherwise he costs the round he was drafted. A player
-    not in that prior draft at all (e.g. an undrafted waiver pickup) isn't
-    keeper-eligible and is skipped. Returns {owner_id: [{player_id, cost_round,
-    is_rookie_keeper, predicted}]} for owners NOT in `have_owners`.
+    - Candidates = each owner's CURRENT roster, costed by the round that player was
+      drafted in the most recent prior season — his league-wide draft cost, NOT
+      tied to who originally picked him (a player traded in since that draft is a
+      candidate for his new owner, not his old one).
+    - Regular and rookie keepers are separate buckets with separate caps
+      (``max_regular_keepers`` / ``max_rookie_keepers``) — a rookie candidate never
+      displaces a regular one or vice versa.
+    - A REGULAR candidate already kept ``max_keep_years`` seasons in a row (per the
+      dashboard's own keeper history, any owner — a trade doesn't reset the clock)
+      has used up his eligibility and is dropped; rookies are exempt (kept "for
+      their whole career" per this league's rules).
+    - A candidate whose cost round the owner doesn't currently hold a pick in
+      (traded away since) is dropped — you can't pay a keeper's draft-pick cost
+      with a pick you no longer have.
+    - Rookie cost follows ``rookie_keeper_cost: last_rounds`` — the 1st rookie slot
+      costs the LAST round, the 2nd costs the round before that, and so on.
+
+    Returns {owner_id: [{player_id, cost_round, is_rookie_keeper, predicted}]} for
+    owners NOT in `have_owners`.
     """
     from . import sleeper_client as sleeper
     try:
         league = sleeper.get_league(str(league_id))
-        max_keepers = int((league.get("settings") or {}).get("max_keepers") or 0)
+        settings_max = int((league.get("settings") or {}).get("max_keepers") or 0)
     except Exception:  # noqa: BLE001
-        max_keepers = 0
-    if max_keepers <= 0:
+        settings_max = 0
+    if settings_max <= 0:
         return {}
+
+    rules = load_keeper_rules(league_id)
+    max_regular = rules["max_regular_keepers"] or settings_max
+    max_rookie = rules["max_rookie_keepers"] or 0
 
     try:
         rosters = sleeper.get_rosters(str(league_id)) or []
     except Exception:  # noqa: BLE001
         rosters = []
-    owned = {str(r.get("owner_id")): {str(p) for p in (r.get("players") or [])}
-             for r in rosters if r.get("owner_id")}
-    if not owned:
+    owned_players = {str(r.get("owner_id")): {str(p) for p in (r.get("players") or [])}
+                     for r in rosters if r.get("owner_id")}
+    if not owned_players:
         return {}
+    owned_rounds = _owned_rounds(league_id, rounds) if rounds else {}
 
     def _years_exp(pid: str):
         if registry is None:
@@ -193,19 +297,63 @@ def predict_keepers(league_id: str, value, current_season: int,
         # A player is a rookie keeper if his rookie season was the draft season —
         # i.e. current years_exp == seasons since that draft (he entered that year).
         rookie_gap = int(current_season) - draft_season
+        # Consecutive-kept-year streak per candidate, from the dashboard's own
+        # history (only fetched for leagues that actually have a dashboard).
+        streak_seasons = (list(range(int(current_season) - 1,
+                                     int(current_season) - 1 - rules["max_keep_years"], -1))
+                          if league_has_keepers(league_id) else [])
+        kept_sets = _kept_pid_sets(league_id, streak_seasons) if streak_seasons else {}
+
+        def _kept_streak(pid: str) -> int:
+            n = 0
+            for yr in streak_seasons:
+                if pid in kept_sets.get(yr, set()):
+                    n += 1
+                else:
+                    break
+            return n
+
         out: Dict[str, List[dict]] = {}
-        for owner, roster in owned.items():
+        for owner, roster in owned_players.items():
             if str(owner) in have_owners:
                 continue                               # they already set keepers
             plist = [(pid, pid_round[pid]) for pid in roster if pid in pid_round]
             ranked = sorted(plist, key=lambda x: -(value.vorp_of(x[0]) if value else 0.0))
-            kept = []
-            for pid, rnd in ranked[:max_keepers]:
+            regular, rookies = [], []
+            for pid, rnd in ranked:
                 ye = _years_exp(pid)
                 is_rookie = ye is not None and ye == rookie_gap
-                cost = rounds if (is_rookie and rounds) else rnd
+                (rookies if is_rookie else regular).append((pid, rnd))
+
+            oround = owned_rounds.get(str(owner), {})
+
+            def _has_pick(rnd: int) -> bool:
+                return not oround or oround.get(rnd, 0) > 0
+
+            kept, n = [], 0
+            for pid, rnd in regular:
+                if n >= max_regular:
+                    break
+                if _kept_streak(pid) >= rules["max_keep_years"]:
+                    continue                           # used up his keeper years
+                if not _has_pick(rnd):
+                    continue                           # owner traded that pick away
+                kept.append({"player_id": pid, "cost_round": rnd,
+                            "is_rookie_keeper": False, "predicted": True})
+                n += 1
+
+            slot_round, n = rounds, 0
+            for pid, rnd in rookies:
+                if n >= max_rookie:
+                    break
+                cost = slot_round if rounds else rnd
+                if not _has_pick(cost):
+                    continue
                 kept.append({"player_id": pid, "cost_round": cost,
-                             "is_rookie_keeper": is_rookie, "predicted": True})
+                            "is_rookie_keeper": True, "predicted": True})
+                n += 1
+                slot_round -= 1
+
             if kept:
                 out[owner] = kept
         return out                                     # only the most recent prior season
