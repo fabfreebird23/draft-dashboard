@@ -233,10 +233,16 @@ def predict_keepers(league_id: str, value, current_season: int,
     - Candidates = each owner's CURRENT roster, costed by the round that player was
       drafted in the most recent prior season — his league-wide draft cost, NOT
       tied to who originally picked him (a player traded in since that draft is a
-      candidate for his new owner, not his old one).
+      candidate for his new owner, not his old one) — EXCEPT the rookie-slot
+      privilege itself, which does NOT transfer by trade (see below).
     - Regular and rookie keepers are separate buckets with separate caps
       (``max_regular_keepers`` / ``max_rookie_keepers``) — a rookie candidate never
-      displaces a regular one or vice versa.
+      displaces a regular one or vice versa. A rookie only qualifies for the cheap
+      ROOKIE bucket if the current owner is the one who ORIGINALLY drafted him that
+      rookie season; a team that traded for him since is still a valid keeper
+      candidate, just as a REGULAR keeper at his drafted round — otherwise you
+      could rent a cheap rookie-keeper slot via trade instead of drafting the
+      rookie yourself.
     - A REGULAR candidate already kept ``max_keep_years`` seasons in a row (per the
       dashboard's own keeper history, any owner — a trade doesn't reset the clock)
       has used up his eligibility and is dropped; rookies are exempt (kept "for
@@ -287,11 +293,13 @@ def predict_keepers(league_id: str, value, current_season: int,
             continue                                   # find the most recent PRIOR draft
         picks = sleeper.get_draft_picks(entry.get("draft_id")) or []
         pid_round: Dict[str, int] = {}
+        pid_drafter: Dict[str, str] = {}
         for pk in picks:
             pid = str(pk.get("player_id") or "")
             rnd = int(pk.get("round") or 0)
             if pid and rnd:
                 pid_round[pid] = rnd
+                pid_drafter[pid] = str(pk.get("picked_by") or "")
         if not pid_round:
             continue
         # A player is a rookie keeper if his rookie season was the draft season —
@@ -322,7 +330,13 @@ def predict_keepers(league_id: str, value, current_season: int,
             regular, rookies = [], []
             for pid, rnd in ranked:
                 ye = _years_exp(pid)
-                is_rookie = ye is not None and ye == rookie_gap
+                # A rookie keeper slot only stays with whoever ORIGINALLY drafted
+                # him that rookie season — a team that traded for him since keeps
+                # him (if at all) as a regular keeper at his drafted round, not a
+                # cheap rookie slot (otherwise you could rent a cheap rookie-keeper
+                # spot via trade instead of drafting the rookie yourself).
+                is_rookie = (ye is not None and ye == rookie_gap
+                            and pid_drafter.get(pid) == str(owner))
                 (rookies if is_rookie else regular).append((pid, rnd))
 
             oround = owned_rounds.get(str(owner), {})
