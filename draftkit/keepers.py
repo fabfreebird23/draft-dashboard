@@ -141,8 +141,12 @@ def predict_keepers(league_id: str, value, current_season: int,
     and we keep their top `max_keepers` by VORP. Cost round: a player drafted *as a
     rookie* (his rookie season was the draft season) is a ROOKIE keeper, kept at the
     last round (the cheap, career-long way keeper leagues hold rookies) — otherwise
-    he costs the round he was drafted. Returns {owner_id: [{player_id, cost_round,
-    is_rookie_keeper, predicted}]} for owners NOT in `have_owners`.
+    he costs the round he was drafted. A candidate the owner no longer actually
+    rosters (dropped/traded since that draft) is filtered out first — otherwise a
+    player who's since moved to another team's roster gets "kept" by his old owner
+    too, same bug ``_filter_to_rosters`` guards against for submitted keepers.
+    Returns {owner_id: [{player_id, cost_round, is_rookie_keeper, predicted}]} for
+    owners NOT in `have_owners`.
     """
     from collections import defaultdict
     from . import sleeper_client as sleeper
@@ -153,6 +157,13 @@ def predict_keepers(league_id: str, value, current_season: int,
         max_keepers = 0
     if max_keepers <= 0:
         return {}
+
+    try:
+        rosters = sleeper.get_rosters(str(league_id)) or []
+    except Exception:  # noqa: BLE001
+        rosters = []
+    owned = {str(r.get("owner_id")): {str(p) for p in (r.get("players") or [])}
+             for r in rosters if r.get("owner_id")}
 
     def _years_exp(pid: str):
         if registry is None:
@@ -183,6 +194,9 @@ def predict_keepers(league_id: str, value, current_season: int,
         for owner, plist in by_owner.items():
             if str(owner) in have_owners:
                 continue                               # they already set keepers
+            if owned:
+                roster = owned.get(str(owner), set())
+                plist = [(pid, rnd) for pid, rnd in plist if pid in roster]
             ranked = sorted(plist, key=lambda x: -(value.vorp_of(x[0]) if value else 0.0))
             kept = []
             for pid, rnd in ranked[:max_keepers]:
