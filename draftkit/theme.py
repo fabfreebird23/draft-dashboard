@@ -109,6 +109,10 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .tb-pill{ font-size:10px; font-weight:700; color:var(--muted); background:var(--panel2);
   border:1px solid var(--line); border-radius:20px; padding:2px 9px; text-transform:uppercase;
   letter-spacing:.3px; }
+.dr-health{ display:inline-flex; align-items:center; gap:9px; margin-left:10px; }
+.dr-health .hz{ display:inline-flex; align-items:center; gap:4px; font-size:10px;
+  font-weight:700; color:var(--mut2); text-transform:uppercase; letter-spacing:.3px; }
+.dr-health .hz i{ width:6px; height:6px; border-radius:50%; display:inline-block; }
 [class*="dr_topbar"] .stButton button{ float:right; }
 
 /* ---- shared card / scroll wrappers ---- */

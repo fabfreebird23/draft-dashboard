@@ -13,6 +13,19 @@ from .widgets import (juice_tab, predict_upcoming, predictor_widget, queue_manag
                       rankings_tab, select_player, spotlight_panel,
                       steals_traps_widget, suggestions_tab)
 
+@st.cache_data(ttl=1800, show_spinner="Predicting keepers…")
+def _predicted_keepers(league_id: str, season: int, have_owners: tuple,
+                       rounds: int, _value, _registry):
+    """Cached predict_keepers. Uncached it fires ~5 GitHub requests (config.yaml,
+    a keepers_<year>.json per streak season, the league chain, traded picks) on
+    EVERY Streamlit rerun — which self-inflicts the rate limiting that makes those
+    same fetches silently fall back to wrong defaults. `have_owners` is a tuple so
+    the cache key changes the moment someone submits real keepers."""
+    from .. import keepers as _K
+    return _K.predict_keepers(league_id, _value, season, set(have_owners),
+                              registry=_registry, rounds=rounds)
+
+
 _PICK_DELAY = 0.7  # seconds between AI picks in live-pace mode
 _AI_JITTER = 0.15  # per-pick randomness so every mock draft plays out differently
 
@@ -35,9 +48,9 @@ def render(ctx) -> None:
         from .. import keepers as _K, config as _cfg
         keepers_raw = ctx.get("keepers_raw") or {}
         have_kp = {str(o) for o, kl in keepers_raw.items() if kl}
-        predicted = _K.predict_keepers(ctx["meta"].league_id, ctx.get("value"),
-                                       _cfg.current_season(), have_kp,
-                                       registry=ctx["registry"], rounds=rounds)
+        predicted = _predicted_keepers(
+            ctx["meta"].league_id, _cfg.current_season(), tuple(sorted(have_kp)),
+            rounds, ctx.get("value"), ctx["registry"])
         _pl = _K.build_placements({**keepers_raw, **predicted}, ctx["owner_slot"],
                                   n, rounds, pick_owner_slot=ctx["pick_owner_slot"])
         kept_by_overall, kept_pids = _pl["by_overall"], _pl["kept_pids"]

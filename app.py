@@ -15,7 +15,7 @@ from draftkit.names import normalize_name
 from draftkit.providers import get_provider, EspnAuthError
 from draftkit import draft_history, keepers as keepers_mod, rankings as rankings_mod
 from draftkit.ui import assistant_ui, mock_ui, rankings_ui, report_card_ui
-from draftkit.ui.components import board_pos_rank
+from draftkit.ui.components import board_pos_rank, health_html
 
 st.set_page_config(page_title="Draft Room — Mock + Live Draft", layout="wide")
 theme.inject(st, dark=st.session_state.get("dark_mode", False))   # Night Draft = dark hero
@@ -173,6 +173,12 @@ def get_juice_value(season: int, scoring: str, _registry):
     return juice.load(_registry, scoring)
 
 
+# NOTE: this module runs as __main__ under Streamlit and calls main() at import
+# time, so never `from app import ...` inside draftkit/ — that re-imports this
+# file under a second module name and re-executes main(), which blows up on
+# duplicate widget keys. Shared cached helpers belong in draftkit/, not here.
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_schedule(season: int):
     from draftkit import schedule
@@ -300,6 +306,7 @@ def build_context(sel: dict) -> dict:
         return owner_slot.get(owner_team, col)
     # ADP for the current season (the draftable pool + best-available ranks).
     adp_df, adp_lk = get_adp(config.current_season())
+    adp_age = consensus.age_hours(config.current_season())
 
     def adp_rank(name: str, position: str = ""):
         key = f"{normalize_name(name)}|{position.lower()}" if position else None
@@ -388,6 +395,15 @@ def build_context(sel: dict) -> dict:
         "profiles": profiles,
         "value": value, "proj": proj, "schedule": schedule, "dvp": dvp,
         "juice": juice_map,
+        # Every external fetch here degrades silently by design (a network blip
+        # must not take the app down mid-draft). That's only safe if the
+        # degradation is VISIBLE — health_html renders this in the topbar.
+        "health": {
+            "adp_age_h": adp_age, "keepers": len(placements["kept_pids"]),
+            "keeper_league": keepers_mod.league_has_keepers(meta.league_id),
+            "order_scraped": bool(scraped), "juice": len(juice_map or {}),
+            "names_scraped": bool(mgr_names),
+        },
         "pick_owner_slot": pick_owner_slot, "traded_picks": traded,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
     }
@@ -444,7 +460,8 @@ def main():
         head = st.columns([5.4, 1.3, 1.3])
         with head[0]:
             st.markdown(f'<div class="tb-row">{theme.logo_html(20, tag=None)}'
-                        f'<span class="tb-name">{meta.name}</span>{pill_html}</div>',
+                        f'<span class="tb-name">{meta.name}</span>{pill_html}'
+                        f'{health_html(ctx.get("health"))}</div>',
                         unsafe_allow_html=True)
         with head[1], st.container(key="tb_war"):
             # a plain button is a far bigger / more reliable click target than a toggle.

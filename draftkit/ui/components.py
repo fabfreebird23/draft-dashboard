@@ -1138,6 +1138,37 @@ def cheat_sheet_html(board_rows, registry, survival_fn=None, *, per_pos=14,
             'next pick</div><div class="cs-cols">' + "".join(cols) + "</div></div>")
 
 
+def health_html(h: dict) -> str:
+    """A one-line data-health strip for the topbar.
+
+    Every external fetch in build_context degrades silently so a network blip
+    can't take the app down mid-draft — but a silent fallback is exactly how you
+    end up drafting off a stale board, a board with no keepers on it, or a board
+    where every manager is in the wrong seat. This surfaces each one: green when
+    the data is live, amber/red when we're running on a fallback."""
+    if not h:
+        return ""
+    def chip(label, ok, warn=False):
+        c = "var(--red)" if not ok else ("var(--amber)" if warn else "var(--green)")
+        return (f'<span class="hz"><i style="background:{c}"></i>{label}</span>')
+    bits = []
+    age = h.get("adp_age_h")
+    if age is None:
+        bits.append(chip("ADP missing", False))
+    elif age < 24:
+        bits.append(chip(f"ADP {int(age)}h", True))
+    else:
+        bits.append(chip(f"ADP {int(age / 24)}d old", True, warn=True))
+    if h.get("keeper_league"):
+        n = h.get("keepers") or 0
+        bits.append(chip(f"{n} keepers", n > 0))
+        bits.append(chip("draft order" if h.get("order_scraped") else "order: Sleeper fallback",
+                        bool(h.get("order_scraped")), warn=not h.get("order_scraped")))
+    j = h.get("juice") or 0
+    bits.append(chip(f"Juice {j}", j > 0, warn=j == 0))
+    return f'<div class="dr-health">{"".join(bits)}</div>'
+
+
 def juice_colhead_html() -> str:
     """Column header for the Juice's Value rows (see ``juice_row_html``) — a plain
     grid div so it lines up with each row's own grid, same trick as ``sg-colhead``
