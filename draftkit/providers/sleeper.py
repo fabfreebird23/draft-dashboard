@@ -97,6 +97,10 @@ class SleeperProvider(Provider):
         starters = [p for p in roster_pos if p not in _BENCH]
         # Sleeper uses SUPER_FLEX / WRRB_FLEX / REC_FLEX — normalize to FLEX label.
         starters = [("FLEX" if "FLEX" in p else p) for p in starters]
+        # Sleeper calls team defenses "DEF"; the rest of this codebase (and every
+        # other ADP source) calls them "DST". Without this the DEF starting slot
+        # is invisible to _STARTABLE / open_needs / roster_multiplier.
+        starters = [("DST" if p == "DEF" else p) for p in starters]
         return starters or list(_DEFAULT_SLOTS)
 
     def get_live_picks(self) -> List[Pick]:

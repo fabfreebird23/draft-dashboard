@@ -76,7 +76,14 @@ def load_manager_names(league_id: str) -> dict:
 _DEFAULT_KEEPER_RULES = {
     "max_regular_keepers": None, "max_rookie_keepers": None,
     "max_keep_years": 99, "year2_bump_rounds": 0, "rookie_fixed_round": None,
+    # Whether a keeper must land on a pick the team still owns. Kreeper enforces
+    # it implicitly; Babies and Boomer sets it False ("a keeper just costs its
+    # computed round regardless of which picks were traded").
+    "enforce_owned_picks": True,
 }
+_INT_RULES = ("max_regular_keepers", "max_rookie_keepers", "max_keep_years",
+              "year2_bump_rounds", "rookie_fixed_round")
+_BOOL_RULES = ("enforce_owned_picks",)
 
 
 def load_keeper_rules(league_id: str) -> dict:
@@ -96,11 +103,15 @@ def load_keeper_rules(league_id: str) -> dict:
             text = r.text
             out = dict(_DEFAULT_KEEPER_RULES)
             found = False
-            for key in ("max_regular_keepers", "max_rookie_keepers", "max_keep_years",
-                       "year2_bump_rounds", "rookie_fixed_round"):
+            for key in _INT_RULES:
                 m = re.search(rf'^\s*{key}\s*:\s*(\d+)', text, re.M)
                 if m:
                     out[key] = int(m.group(1))
+                    found = True
+            for key in _BOOL_RULES:
+                m = re.search(rf'^\s*{key}\s*:\s*(true|false)\b', text, re.M | re.I)
+                if m:
+                    out[key] = m.group(1).lower() == "true"
                     found = True
             if found:
                 return out
@@ -109,14 +120,21 @@ def load_keeper_rules(league_id: str) -> dict:
     return dict(_DEFAULT_KEEPER_RULES)
 
 
-def _kept_pid_sets(league_id: str, seasons: List[int]) -> Dict[int, set]:
-    """{season: {player_id kept that season, whoever's roster}} from the dashboard's
-    own historical keepers_<season>.json files — the authoritative record of who
-    was actually kept. (Sleeper's own per-pick `is_keeper` flag turns out to be set
-    inconsistently in older drafts in practice, so we go straight to the
-    dashboard's history instead of trying to infer it from the draft record.)"""
+def _kept_pid_sets(league_id: str, seasons: List[int]) -> Dict[int, dict]:
+    """{season: {"all": {pid kept that season}, "rookie": {pid kept in a ROOKIE
+    slot}}} from the dashboard's own historical keepers_<season>.json files — the
+    authoritative record of who was actually kept, and how. (Sleeper's own per-pick
+    `is_keeper` flag turns out to be set inconsistently in older drafts in
+    practice, so we go straight to the dashboard's history instead of trying to
+    infer it from the draft record.)
+
+    The rookie set matters because rookie status is CARRIED, not re-derived: this
+    league keeps rookies "for their whole career", so a player kept in a rookie
+    slot since 2022 is still a rookie keeper today even though his years_exp is
+    now 5. Inferring it from years_exp alone only ever catches last year's rookie
+    class — of the 14 real rookie keepers in Kreeper 2026, that caught 4."""
     cfg = KEEPER_REPOS.get(str(league_id))
-    out: Dict[int, set] = {}
+    out: Dict[int, dict] = {}
     if not cfg:
         return out
     for yr in seasons:
@@ -125,8 +143,16 @@ def _kept_pid_sets(league_id: str, seasons: List[int]) -> Dict[int, set]:
             r = requests.get(url, timeout=12)
             if r.status_code == 200 and r.text.strip():
                 data = json.loads(r.text)
-                out[yr] = {str(k.get("player_id")) for ks in data.values() for k in ks
-                          if k.get("player_id")}
+                allp, rook = set(), set()
+                for ks in data.values():
+                    for k in ks:
+                        pid = k.get("player_id")
+                        if not pid:
+                            continue
+                        allp.add(str(pid))
+                        if k.get("is_rookie_keeper"):
+                            rook.add(str(pid))
+                out[yr] = {"all": allp, "rookie": rook}
         except Exception:  # noqa: BLE001
             continue
     return out
@@ -311,11 +337,15 @@ def predict_keepers(league_id: str, value, current_season: int,
                                      int(current_season) - 1 - rules["max_keep_years"], -1))
                           if league_has_keepers(league_id) else [])
         kept_sets = _kept_pid_sets(league_id, streak_seasons) if streak_seasons else {}
+        # Anyone ever kept in a ROOKIE slot keeps that status for his whole career.
+        ever_rookie = set()
+        for _s in kept_sets.values():
+            ever_rookie |= _s.get("rookie", set())
 
         def _kept_streak(pid: str) -> int:
             n = 0
             for yr in streak_seasons:
-                if pid in kept_sets.get(yr, set()):
+                if pid in kept_sets.get(yr, {}).get("all", set()):
                     n += 1
                 else:
                     break
@@ -335,24 +365,45 @@ def predict_keepers(league_id: str, value, current_season: int,
                 # him (if at all) as a regular keeper at his drafted round, not a
                 # cheap rookie slot (otherwise you could rent a cheap rookie-keeper
                 # spot via trade instead of drafting the rookie yourself).
-                is_rookie = (ye is not None and ye == rookie_gap
-                            and pid_drafter.get(pid) == str(owner))
+                # Rookie status is CARRIED FORWARD from the dashboard's history
+                # (these leagues keep rookies for their whole career), and only
+                # falls back to the years_exp heuristic for someone whose rookie
+                # year IS the prior draft — i.e. this year's first-time rookie
+                # keepers, who have no history to carry yet.
+                is_rookie = (pid_drafter.get(pid) == str(owner)
+                            and (pid in ever_rookie
+                                 or (ye is not None and ye == rookie_gap)))
                 (rookies if is_rookie else regular).append((pid, rnd))
 
             oround = owned_rounds.get(str(owner), {})
+            _enforce = bool(rules.get("enforce_owned_picks", True))
 
             def _has_pick(rnd: int) -> bool:
+                # Leagues that set enforce_owned_picks: false charge the computed
+                # round regardless of which picks were traded, so a traded-away
+                # round must not disqualify the keeper there.
+                if not _enforce:
+                    return True
                 return not oround or oround.get(rnd, 0) > 0
 
+            bump = int(rules.get("year2_bump_rounds") or 0)
             kept, n = [], 0
             for pid, rnd in regular:
                 if n >= max_regular:
                     break
-                if _kept_streak(pid) >= rules["max_keep_years"]:
+                streak = _kept_streak(pid)
+                if streak >= rules["max_keep_years"]:
                     continue                           # used up his keeper years
-                if not _has_pick(rnd):
+                # Each additional keeper year costs `year2_bump_rounds` earlier.
+                # `rnd` is the round he occupied in the PRIOR draft, which already
+                # includes every bump applied up to now, so this is one
+                # subtraction rather than bump x streak. Verified against the real
+                # submitted board: JSN 10->7, Breece Hall 13->10, Zay Flowers
+                # 13->10, Bucky Irving 12->9, and first-time keepers unchanged.
+                cost = max(1, rnd - bump) if streak >= 1 else rnd
+                if not _has_pick(cost):
                     continue                           # owner traded that pick away
-                kept.append({"player_id": pid, "cost_round": rnd,
+                kept.append({"player_id": pid, "cost_round": cost,
                             "is_rookie_keeper": False, "predicted": True})
                 n += 1
 

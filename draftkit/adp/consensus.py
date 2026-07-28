@@ -28,6 +28,13 @@ PROVIDERS: Dict[str, Callable[[int, str], List[AdpRow]]] = {
 # double-count platforms that already feed their per-source sub-columns.
 AGGREGATE_SOURCES = {"FantasyPros", "FootballGuys"}
 
+# Format-mismatched columns: MFL's board is a SUPERFLEX/2QB market — it ranks Josh
+# Allen ~1 where every 1-QB source says 22-35, and pushes RBs down to compensate.
+# Averaging that into a 1-QB consensus is a category error (it dragged Drake Maye
+# 13 spots and Joe Burrow 9 spots too early), so it's shown but not averaged.
+SUPERFLEX_SOURCES = {"MFL"}
+_EXCLUDE_FROM_MEAN = AGGREGATE_SOURCES | SUPERFLEX_SOURCES
+
 
 def collect_rows(season: int, scoring: str) -> (List[AdpRow], Dict[str, str]):
     rows: List[AdpRow] = []
@@ -89,7 +96,7 @@ def build(season: int | None = None, scoring: str | None = None) -> pd.DataFrame
     for rec in players.values():
         src_avg = {s: round(sum(v) / len(v), 2) for s, v in rec["sources"].items()}
         all_sources.update(src_avg)
-        primary = [v for s, v in src_avg.items() if s not in AGGREGATE_SOURCES]
+        primary = [v for s, v in src_avg.items() if s not in _EXCLUDE_FROM_MEAN]
         pool = primary if primary else list(src_avg.values())
         consensus = round(sum(pool) / len(pool), 2) if pool else None
         row = {
@@ -98,7 +105,7 @@ def build(season: int | None = None, scoring: str | None = None) -> pd.DataFrame
             "name": rec["name"],
             "position": rec["position"],
             "consensus_adp": consensus,
-            "n_sources": len([s for s in src_avg if s not in AGGREGATE_SOURCES]) or len(src_avg),
+            "n_sources": len([s for s in src_avg if s not in _EXCLUDE_FROM_MEAN]) or len(src_avg),
         }
         row.update(src_avg)
         records.append(row)
@@ -111,6 +118,11 @@ def build(season: int | None = None, scoring: str | None = None) -> pd.DataFrame
 
     config.DATA_DIR.mkdir(exist_ok=True)
     out = config.DATA_DIR / f"adp_{season}.csv"
+    if df.empty and out.exists():
+        # Every provider failed (network blip / a site changed its HTML). Writing
+        # the empty frame here would clobber a perfectly good board with a
+        # 1-byte CSV that load() then chokes on — keep the old file instead.
+        return load(season)
     df.to_csv(out, index=False)
     meta = {
         "season": season,
@@ -129,7 +141,22 @@ def load(season: int | None = None) -> pd.DataFrame:
     path = config.DATA_DIR / f"adp_{season}.csv"
     if not path.exists():
         return pd.DataFrame()
-    return pd.read_csv(path)
+    try:
+        return pd.read_csv(path)
+    except Exception:  # noqa: BLE001 — truncated/empty CSV: behave as "no ADP yet"
+        return pd.DataFrame()          # so a caller rebuilds instead of crashing
+
+
+def age_hours(season: int | None = None) -> float | None:
+    """How old the built ADP board is, in hours (None if it doesn't exist yet).
+    Used to decide when to rebuild, and to show the user how fresh the market
+    data behind every survival % and value chip actually is."""
+    season = season or config.current_season()
+    path = config.DATA_DIR / f"adp_{season}.csv"
+    if not path.exists():
+        return None
+    import time
+    return (time.time() - path.stat().st_mtime) / 3600.0
 
 
 def load_meta(season: int | None = None) -> dict:

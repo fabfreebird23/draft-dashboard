@@ -61,6 +61,7 @@ def render(ctx) -> None:
         if undo and made:
             del made[max(made)]                       # remove the most recent entry
         pick_pids = {ov: pid for ov, pid in made.items()}
+        filled = {ov for ov, pid in made.items() if pid}
         picks_exist = bool(made)
     else:
         if auto:
@@ -80,11 +81,21 @@ def render(ctx) -> None:
             return
         pick_pids = {p.overall: (p.player.sleeper_pid if p.player else None)
                      for p in picks if p.overall}
+        # A pick Sleeper reports but we can't resolve to a registry player still
+        # OCCUPIES that slot. Track occupancy separately from identity: the
+        # on-the-clock scan below walks forward while slots are filled, so a single
+        # unresolvable pick would otherwise stop it dead for the rest of the draft.
+        # (raw_id survives even when player is None.)
+        filled = {p.overall for p in picks if p.overall and (p.player or p.raw_id)}
         picks_exist = bool(picks)
 
     # overlay keepers onto any empty keeper slots
     kept_at = set()
     for ov, pid in kept_overall.items():
+        # never paint a keeper over a slot the draft has actually used — including
+        # a real pick we couldn't resolve to a player (see `filled`).
+        if ov in filled:
+            continue
         if ov not in pick_pids or not pick_pids[ov]:
             pick_pids[ov] = pid
             kept_at.add(ov)
@@ -96,9 +107,12 @@ def render(ctx) -> None:
             pids_by_slot.setdefault(owner(ov), []).append(pid)
     my_pids = [pid for ov, pid in pick_pids.items() if pid and owner(ov) == my_slot]
 
-    # the pick on the clock: next overall not yet filled (keepers + entered picks)
+    # the pick on the clock: next overall not yet filled (keepers + entered picks).
+    # `filled` covers picks we couldn't resolve to a player, so an unrecognized
+    # pick can't stall the clock here for the remainder of the draft.
     pick_no = 1
-    while pick_no <= total and (pick_no in kept_overall or pick_pids.get(pick_no)):
+    while pick_no <= total and (pick_no in kept_overall or pick_pids.get(pick_no)
+                                or pick_no in filled):
         pick_no += 1
     pick_no = min(pick_no, total)
     on_slot = owner(pick_no)

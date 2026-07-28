@@ -12,7 +12,20 @@ from typing import Dict, Optional
 from . import sleeper_client as sleeper, theme
 from .names import normalize_name
 
-_SKILL = ("QB", "RB", "WR", "TE")
+# Positions we index. K/DEF matter for leagues that start them (Babies and Boomer
+# starts a K and a DEF) — without them a live K/DEF pick resolves to nothing and
+# the draft board can't account for it. Sleeper labels team defenses "DEF"; the
+# rest of this codebase (and every other ADP source) calls them "DST", so we
+# normalize at this boundary — see _POS_IN.
+_SKILL = ("QB", "RB", "WR", "TE", "K", "DEF")
+# Skill positions outrank K/DST when two players normalize to the same name, so a
+# kicker can never displace a real skill player in the name index.
+_NAME_PRIORITY = {"QB": 0, "RB": 0, "WR": 0, "TE": 0, "K": 1, "DST": 1}
+
+
+def _pos_in(raw: str) -> str:
+    """Sleeper's position label -> this codebase's convention ("DEF" -> "DST")."""
+    return "DST" if raw == "DEF" else raw
 
 
 @dataclass
@@ -80,16 +93,25 @@ def build_registry(season: int) -> PlayerRegistry:
     for pid, p in sleeper.get_players().items():
         if p.get("position") not in _SKILL:
             continue
+        pos = _pos_in(p.get("position", ""))
         name = p.get("full_name") or ""
+        if not name and pos == "DST":
+            # Team defenses carry no full_name — their player_id IS the team code
+            # ("HOU") and the name lives split across first/last ("Houston"/"Texans").
+            name = f"{p.get('first_name') or ''} {p.get('last_name') or ''}".strip()
         nm = normalize_name(name)
         if not nm:
             continue
-        # On a name collision, prefer the player who currently has a team.
+        # On a name collision, prefer a skill player over a K/DST, then prefer the
+        # player who currently has a team.
         existing = reg.by_norm.get(nm)
-        if existing is not None and existing.team and not p.get("team"):
-            continue
+        if existing is not None:
+            if _NAME_PRIORITY.get(existing.position, 9) < _NAME_PRIORITY.get(pos, 9):
+                continue
+            if existing.team and not p.get("team"):
+                continue
         rec = Player(sleeper_pid=str(pid), espn_id=p.get("espn_id"),
-                     name=name, position=p.get("position", ""), team=p.get("team") or "",
+                     name=name, position=pos, team=p.get("team") or "",
                      age=p.get("age"), years_exp=p.get("years_exp"),
                      injury_status=p.get("injury_status"),
                      injury_body_part=p.get("injury_body_part"),

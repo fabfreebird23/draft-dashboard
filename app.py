@@ -27,14 +27,25 @@ def get_registry(season: int):
     return players.build_registry(season)
 
 
+# Rebuild the consensus board when it's older than this. ADP moves all summer
+# (camp news, injuries, holdouts) and it drives survival %, value/reach chips,
+# tier bands and the AI opponents' draft order — a board built in June is not
+# the board your league is drafting off in late July.
+ADP_MAX_AGE_HOURS = 12
+
+
 @st.cache_data(ttl=3600, show_spinner="Building consensus ADP…")
 def get_adp(season: int):
     df = consensus.load(season)
-    if df is None or df.empty:
+    age = consensus.age_hours(season)
+    stale = age is None or age > ADP_MAX_AGE_HOURS
+    if df is None or df.empty or stale:
         try:
-            df = consensus.build(season)
-        except Exception:  # noqa: BLE001 - ADP is best-effort; mock degrades without it
-            df = consensus.load(season)
+            built = consensus.build(season)
+            if built is not None and not built.empty:
+                df = built
+        except Exception:  # noqa: BLE001 - ADP is best-effort; keep what we had.
+            pass           # a stale board still beats no board — never downgrade.
     return df, consensus.adp_lookup(season)
 
 
