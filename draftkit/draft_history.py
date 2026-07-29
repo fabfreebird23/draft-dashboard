@@ -329,7 +329,7 @@ def owner_profiles(league_id: str, max_seasons: int = 4) -> Dict[str, dict]:
         reach = {p: round(league_avg_first[p] - avg_first[p], 1)
                  for p in avg_first if p in league_avg_first}
 
-        fav_teams = [t for t, _ in Counter(r["team"] for r in skill if r["team"]).most_common(3)]
+        fav_teams = _fav_teams(skill)
 
         # predictability: how consistently they open with the same position (0..100)
         top_first = first_pos.most_common(1)
@@ -346,6 +346,52 @@ def owner_profiles(league_id: str, max_seasons: int = 4) -> Dict[str, dict]:
                                           reach, fav_teams),
         }
     return profiles
+
+
+_NFL_TEAMS = 32
+_FAV_MIN_PLAYERS = 3      # never call two of anything a pattern, whatever the maths
+_FAV_MAX_FWER = 0.10      # family-wise false-positive rate across all 32 teams
+
+
+def _poisson_sf(k: int, lam: float) -> float:
+    """P(X >= k) for Poisson(lam). Small k and lam here, so the direct sum is fine."""
+    import math
+    cdf = sum(math.exp(-lam) * lam ** i / math.factorial(i) for i in range(k))
+    return max(0.0, 1.0 - cdf)
+
+
+def _fav_teams(skill: List[dict]) -> List[str]:
+    """NFL teams a manager demonstrably favours — or [] when nothing clears the bar.
+
+    Two corrections over just taking the top of a Counter:
+
+    1. Count DISTINCT PLAYERS, not picks. Re-drafting the same guy year after year
+       is a player preference, not a team one — Mark Andrews alone supplied two of
+       Jared's three "Ravens" picks.
+    2. Demand actual significance. Spread ~31 players over 32 teams and per-team
+       counts are about Poisson(1). P(X>=3) is 8%, but we take the MAX over 32
+       teams, so ~2.6 teams clear 3 BY CHANCE for every manager. A raw "top team"
+       is therefore noise almost every time. We keep a team only if its count
+       would be unlikely even after that multiple comparison.
+
+    With three drafts of history this bar is rarely met, which is the honest
+    answer: you cannot read a team preference off ~30 picks. It scales on its own
+    as seasons accumulate — a manager who really does hoard Ravens will clear it
+    once there's enough evidence to say so."""
+    by_team: Dict[str, set] = defaultdict(set)
+    for r in skill:
+        if r.get("team") and r.get("name"):
+            by_team[r["team"]].add(r["name"])
+    n_distinct = len({r["name"] for r in skill if r.get("name")})
+    if not by_team or n_distinct < 1:
+        return []
+    lam = n_distinct / _NFL_TEAMS
+    qualified = [(t, len(ps)) for t, ps in by_team.items()
+                 if len(ps) >= _FAV_MIN_PLAYERS
+                 and _poisson_sf(len(ps), lam) * _NFL_TEAMS < _FAV_MAX_FWER]
+    # deterministic: most players first, then team code (never dict insertion order)
+    qualified.sort(key=lambda tp: (-tp[1], tp[0]))
+    return [t for t, _ in qualified[:3]]
 
 
 def _archetype(pos_share: dict, avg_first: dict, reach: dict) -> str:
