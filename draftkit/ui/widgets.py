@@ -170,9 +170,9 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
                f'background-image:url("{theme.headshot_src(r["pid"])}")}}')
         if next_pick:
             adp = adp_rank(pm.name, pm.position)
-            sc = C.survival_colors(C.survival_pct(adp, next_pick))
+            pct = C.survival_pct(adp, next_pick, pick)
+            sc = C.survival_colors(pct)
             if sc:
-                pct = C.survival_pct(adp, next_pick)
                 css += (f'.st-key-{rk} .stButton button::after{{content:"{pct}%";'
                         f'background:{sc[0]};color:{sc[1]}}}')
         pid = str(r["pid"])
@@ -443,7 +443,8 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
     sugg = V.top_suggestions(
         avail, ctx["value"], reg, needs, taken_s, next_pick=next_pick,
         survival_fn=lambda pid: C.survival_pct(
-            ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_pick),
+            ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
+            next_pick, pick_no),
         my_pids=my_pids, roster_slots=ctx["roster_slots"], byes=ctx.get("byes"), k=k,
         upside=upside, strategy=strategy, round_no=round_no, juice_map=ctx.get("juice"))
     if strategy and strategy != "Balanced":
@@ -707,7 +708,7 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
         if vm:
             taken_s = {str(x) for x in (taken or [])}
             left = vm.startable_left(pm.position, taken_s)
-            sv = C.survival_pct(adp, next_pick) if next_pick else None
+            sv = C.survival_pct(adp, next_pick, current_pick) if next_pick else None
             mult = (V.roster_multiplier(pm.position, my_pids, ctx["roster_slots"], registry)
                     if my_pids is not None else None)
             verdict = V.grab_verdict(sv, left, is_need=(pm.position in (needs or set())),
@@ -792,13 +793,24 @@ def queue_manager(ctx, qkey, ranks, taken, registry, widget_key, on_pick=None,
         options.append(lbl)
     taken_s = {str(x) for x in taken}
     cur = [str(x) for x in st.session_state.get(qkey, [])]
-    cur_labels = [lbl for lbl in options if label_to_pid[lbl] in cur]
+    # Follow the QUEUE's own order, not the board's. Iterating `options` here
+    # re-sorted the queue into board order on every rerun, and queue[0] drives the
+    # ★ "from your queue" recommendation — so simply opening the tab could change
+    # which player the app told you to take.
+    pid_to_label = {p: l for l, p in label_to_pid.items()}
+    cur_labels = [pid_to_label[p] for p in cur if p in pid_to_label]
+    # Queued players who aren't on the active board (different ranking source, or
+    # already drafted) have no label, so they can't appear in the multiselect —
+    # keep them so a later edit doesn't silently delete them.
+    off_board = [p for p in cur if p not in pid_to_label]
     n_avail = len([p for p in cur if p not in taken_s])
     ms_key = f"{widget_key}_ms"
 
     def _sync_to_queue():
         sel = st.session_state.get(ms_key, [])
-        st.session_state[qkey] = [label_to_pid[l] for l in sel if l in label_to_pid]
+        # keep off-board entries the widget can't represent (see `off_board`)
+        st.session_state[qkey] = ([label_to_pid[l] for l in sel if l in label_to_pid]
+                                  + off_board)
 
     def _remove(pid):
         q = [str(x) for x in st.session_state.get(qkey, [])]

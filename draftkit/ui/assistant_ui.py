@@ -116,9 +116,19 @@ def render(ctx) -> None:
         pick_no += 1
     pick_no = min(pick_no, total)
     on_slot = owner(pick_no)
+
+    def _my_open_pick(k: int) -> bool:
+        """A pick I own AND will actually get to use. A slot already spent on one
+        of my keepers is not a turn I draft on — counting it makes 'next turn in
+        N picks' wrong and, worse, computes every survival % against a pick I'm
+        never selecting at (my first Kreeper keeper sits in round 7, so
+        everything from there on was measured against the wrong target)."""
+        return (k <= total and owner(k) == my_slot
+                and k not in kept_overall and k not in filled)
+
     until = 0
-    for k in range(pick_no, pick_no + total):
-        if owner(k) == my_slot:
+    for k in range(pick_no, pick_no + total + 1):
+        if _my_open_pick(k):
             until = k - pick_no
             break
 
@@ -131,11 +141,13 @@ def render(ctx) -> None:
     recent_positions = [reg.meta(pid).position
                         for ov, pid in sorted(real_picks.items())[-6:] if pid]
     qkey = f"queue_{ctx['league_key']}"
-    # your next pick after the upcoming opponent run (skip back-to-back picks)
+    # your next pick after the upcoming opponent run (skip back-to-back picks).
+    # Uses _my_open_pick so keeper slots don't masquerade as turns you draft on —
+    # this value is the target every survival % is measured against.
     nxt = pick_no
-    while nxt <= total and owner(nxt) == my_slot:
+    while nxt <= total and _my_open_pick(nxt):
         nxt += 1
-    while nxt <= total and owner(nxt) != my_slot:
+    while nxt <= total and not _my_open_pick(nxt):
         nxt += 1
     next_user_pick = nxt if nxt <= total else None
 
@@ -193,7 +205,7 @@ def render(ctx) -> None:
                 ranks_active, reg, taken=drafted, show_drafted=show_cs_drafted,
                 survival_fn=lambda pid: C.survival_pct(
                     ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
-                    next_user_pick)), unsafe_allow_html=True)
+                    next_user_pick, pick_no)), unsafe_allow_html=True)
         with ltabs[2]:
             juice_tab(ctx, key_prefix=akey, taken=drafted, queued=queued, on_star=toggle_queue)
         with ltabs[3]:
@@ -238,9 +250,11 @@ def render(ctx) -> None:
         rec_row, _, why = V.best_pick(
             board_avail, ctx["value"], reg, needs, drafted, next_pick=next_user_pick,
             survival_fn=lambda pid: C.survival_pct(
-                ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_user_pick),
+                ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
+                next_user_pick, pick_no),
             my_pids=my_pids, roster_slots=ctx["roster_slots"],
-            strategy=strategy, round_no=round_no)
+            strategy=strategy, round_no=round_no,
+            byes=ctx.get("byes"), juice_map=ctx.get("juice"))
         if rec_row is None:
             rec_row = board_avail[0]
 

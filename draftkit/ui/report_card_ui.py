@@ -107,6 +107,13 @@ def render(ctx) -> None:
 
     slot_names = ctx["slot_names"]
     my_slot = (st.session_state.get(f"mock_{ctx['league_key']}") or {}).get("slot")
+    if my_slot is None:
+        # grading a LIVE draft — the mock tab's slot doesn't exist, so fall back
+        # to the team picked on the Live Draft Assistant rather than highlighting
+        # nobody (or whoever the last mock happened to use).
+        _me = st.session_state.get(f"live_{ctx['league_key']}_me")
+        if _me in (ctx.get("slot_names") or []):
+            my_slot = ctx["slot_names"].index(_me)
     champ = max(rows, key=lambda r: r["title_pct"])
 
     # ---- standings table ----

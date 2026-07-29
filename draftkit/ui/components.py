@@ -35,14 +35,29 @@ def _phi(z):
     return 0.5 * (1 + math.erf(z / math.sqrt(2)))
 
 
-def survival_pct(adp, next_pick):
+def survival_pct(adp, next_pick, current_pick=None):
     """Probability (0-100) a player with this ADP is still available at your next
     pick — models draft position as Normal(adp, sigma) with sigma growing for
-    later ADPs, and returns P(not drafted before next_pick)."""
+    later ADPs.
+
+    Conditioned on him being available RIGHT NOW when `current_pick` is given:
+    P(survives to next | survived to now) = P(X > next) / P(X > now). Without
+    that conditioning a player who has fallen well past his ADP reads 0% — the
+    model keeps insisting he's already gone while he's sitting on the board in
+    front of you — which then hands him the maximum 'unlikely to return' urgency
+    bonus and a GRAB NOW verdict. The evidence that he lasted this long is
+    exactly what should raise his odds of lasting a bit longer."""
     if not adp or not next_pick:
         return None
-    sigma = max(3.0, 0.16 * float(adp))
-    p = 1 - _phi((float(next_pick) - float(adp)) / sigma)
+    # Measure from wherever the market actually has him NOW. A player still on the
+    # board past his ADP has already falsified the original estimate, so anchoring
+    # to the stale ADP is what produced the 0%. (A Normal's tail decays fast enough
+    # that the textbook conditional P(X>next)/P(X>now) underflows to exactly 0 for
+    # a top-5 ADP player who fell 35 picks — this is equivalent where the maths is
+    # well behaved, and stays finite where it isn't.)
+    eff = max(float(adp), float(current_pick)) if current_pick else float(adp)
+    sigma = max(4.0, 0.16 * eff)
+    p = 1 - _phi((float(next_pick) - eff) / sigma)
     return max(0, min(100, round(p * 100)))
 
 
@@ -296,7 +311,7 @@ def avail_html(rows, drafted, registry, adp_rank: Callable, *, pos_rank=None,
         pr = pos_rank.get(str(r["pid"]), "")
         pr_html = f'<span class="posrank {pm.position}">{pr}</span>' if pr else ""
         vchip = _value_chip(adp, current_pick)
-        sv = survival_pct(adp, next_pick) if next_pick else None
+        sv = survival_pct(adp, next_pick, current_pick) if next_pick else None
         sv_td = f'<td class="sv">{survival_box_html(sv)}</td>'
         body.append(
             f'<tr{rec}><td class="r">{r["rank"]}</td>'
@@ -1396,14 +1411,23 @@ def filter_pos(rows, pos_f, registry):
 
 
 def filter_search(rows, query, registry):
-    """Filter board rows by a name/team substring query."""
+    """Filter board rows by a name/team query.
+
+    Matches on the NORMALIZED name as well as the raw one, so punctuation you
+    won't stop to type mid-draft doesn't matter: 'jamarr' finds Ja'Marr Chase,
+    'aj brown' finds A.J. Brown, 'cj stroud' finds C.J. Stroud. A raw substring
+    match alone returned nothing for every one of those."""
+    from ..names import normalize_name
     q = (query or "").strip().lower()
     if not q:
         return rows
+    qn = normalize_name(q)
     out = []
     for r in rows:
         nm = (r.get("name") or "").lower()
         team = registry.meta(r["pid"]).team.lower() if r.get("pid") else ""
-        if q in nm or (team and q == team):
+        if q in nm or (qn and qn in normalize_name(r.get("name") or "")):
+            out.append(r)
+        elif team and q == team:
             out.append(r)
     return out

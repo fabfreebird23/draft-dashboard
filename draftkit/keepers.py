@@ -213,16 +213,28 @@ def load_keepers(league_id: str, season: int) -> Dict[str, List[dict]]:
     cfg = KEEPER_REPOS.get(str(league_id))
     if not cfg:
         return {}
-    for yr in (season, season - 1):   # fall back to last year as a preview
+    # Fall back to last season ONLY when this season's file genuinely isn't
+    # published yet (404) — that's a fair preview. On a transient error we must
+    # NOT silently substitute a different season: last year's file has
+    # cost_round: null on every entry, which lands all ~37 keepers in the final
+    # round. Returning {} instead surfaces as "0 keepers" in the health strip,
+    # and visibly-missing beats confidently-wrong.
+    for yr in (season, season - 1):
         url = _RAW.format(repo=cfg["repo"], branch=cfg["branch"], season=yr)
         try:
             r = requests.get(url, timeout=12)
-            if r.status_code == 200 and r.text.strip():
+        except Exception:  # noqa: BLE001 — network blip: don't swap seasons
+            return {}
+        if r.status_code == 404:
+            continue                       # not published yet — try the preview
+        if r.status_code == 200 and r.text.strip():
+            try:
                 data = json.loads(r.text)
-                if any(data.values()):
-                    return _filter_to_rosters(data, league_id)
-        except Exception:  # noqa: BLE001
-            continue
+            except Exception:  # noqa: BLE001 — malformed/truncated JSON
+                return {}
+            if any(data.values()):
+                return _filter_to_rosters(data, league_id)
+        return {}                          # any other status: don't guess
     return {}
 
 
@@ -469,7 +481,13 @@ def build_placements(keepers: Dict[str, List[dict]], owner_slot: Dict[str, int],
             pid = str(k.get("player_id") or "")
             if not pid:
                 continue
-            want = max(1, min(rounds, int(k.get("cost_round") or rounds)))
+            try:
+                want = int(k.get("cost_round") or rounds)
+            except (TypeError, ValueError):
+                # externally-authored JSON: a stray "Round 7" must not take the
+                # whole app down with a ValueError inside build_context
+                want = rounds
+            want = max(1, min(rounds, want))
             ov = None
             # search outward from the cost round for one of this owner's free picks
             for d in range(rounds):

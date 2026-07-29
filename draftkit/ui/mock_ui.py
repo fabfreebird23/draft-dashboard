@@ -293,7 +293,7 @@ def render(ctx) -> None:
                 ranks_active, reg, taken=taken, show_drafted=show_cs_drafted,
                 survival_fn=lambda pid: C.survival_pct(
                     ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
-                    next_user_pick)), unsafe_allow_html=True)
+                    next_user_pick, pick_no)), unsafe_allow_html=True)
         with ltabs[2]:
             juice_tab(ctx, key_prefix=mkey, taken=taken, queued=queued, on_star=toggle_queue)
         with ltabs[3]:
@@ -347,9 +347,11 @@ def render(ctx) -> None:
         rec_row, _, rec_tag = V.best_pick(
             board_avail, ctx["value"], reg, needs, taken, next_pick=next_user_pick,
             survival_fn=lambda pid: C.survival_pct(
-                ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position), next_user_pick),
+                ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
+                next_user_pick, pick_no),
             my_pids=my_pids, roster_slots=ctx["roster_slots"],
-            strategy=strategy, round_no=round_no)
+            strategy=strategy, round_no=round_no,
+            byes=ctx.get("byes"), juice_map=ctx.get("juice"))
         if rec_row is None:
             rec_row = board_avail[0]
 

@@ -1,7 +1,12 @@
-streamlit>=1.33
-pandas>=2.0
-requests>=2.31
-lxml>=5.0
-beautifulsoup4>=4.12
-streamlit-autorefresh>=1.0
+# Floors match what this app is actually developed and tested against, with an
+# upper bound on the majors that would break it. The old floors were far below
+# reality (streamlit>=1.33 vs the 1.50 APIs in use), so a Streamlit Cloud
+# redeploy could resolve to a version this code doesn't run on — not a surprise
+# you want on draft day.
+streamlit>=1.50,<2
+pandas>=2.3,<3
+requests>=2.32,<3
+lxml>=6.0,<7
+beautifulsoup4>=4.13,<5
+streamlit-autorefresh>=1.0,<2
 anthropic>=0.69

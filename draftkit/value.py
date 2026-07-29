@@ -311,54 +311,40 @@ def strategy_weight(strategy, pos, round_no, my_pids, registry, roster_slots) ->
 
 def best_pick(board_avail, model: "ValueModel", registry, needs, taken,
               next_pick=None, survival_fn=None, my_pids=None, roster_slots=None,
-              strategy=None, round_no=None):
-    """Roster-aware recommendation: rank available players by VORP (marginal —
-    adjusted for the roster you've already built), boosted for positions you still
-    need and for scarcity. Returns (row, score, reason) or (None, 0, '')."""
-    needs = needs or set()
-    taken_s = {str(x) for x in (taken or [])}
-    use_roster = my_pids is not None and roster_slots is not None
-    best = None
-    for r in board_avail[:60]:
-        pid = str(r["pid"])
-        pm = registry.meta(pid)
-        mult = (roster_multiplier(pm.position, my_pids, roster_slots, registry)
-                if use_roster else 1.0)
-        raw = model.vorp_of(pid)
-        score = raw * mult                       # roster-discounted value
-        reasons = [f"+{raw:.0f} value"]
-        # reward filling an actual starting need; only lightly reward depth, and
-        # never push a redundant 1-slot position (a 2nd QB/TE) up the board.
-        if mult >= 0.999:
-            score += 22
-            reasons.append(f"fills {pm.position} starter")
-        elif mult >= 0.55:
-            score += 6
-            reasons.append(f"{pm.position} depth")
-        else:
-            reasons.append(f"{pm.position} bench — already set")
-        # scarcity & 'won't return' only matter for a spot you'd actually start
-        if mult >= 0.6:
-            left = model.startable_left(pm.position, taken_s)
-            if left <= 3:
-                score += (4 - left) * 8
-                reasons.append(f"{left} startable {pm.position}s left")
-            if survival_fn and next_pick:
-                sv = survival_fn(pid)
-                if sv is not None and sv <= 35:
-                    score += (35 - sv) * 0.5
-                    reasons.append("unlikely to return")
-        if strategy == "Value (BPA)":
-            score = raw                      # pure value, ignore roster construction
-        elif strategy and strategy != "Balanced":
-            w = strategy_weight(strategy, pm.position, round_no, my_pids, registry, roster_slots)
-            if w != 1.0:
-                score *= w
-                if w > 1.0:
-                    reasons.insert(0, strategy)
-        if best is None or score > best[1]:
-            best = (r, score, " · ".join(reasons[:3]))
-    return best or (None, 0, "")
+              strategy=None, round_no=None, byes=None, juice_map=None):
+    """The single ★ recommendation. Returns (row, score, reason) or (None, 0, '').
+
+    This DELEGATES to ``top_suggestions`` and takes its #1 rather than scoring
+    independently. It used to carry its own near-copy of that scoring, which
+    silently drifted: it capped the search at the top 60 rows, never got the
+    needs-bump double-count fix, and never learned about Juice's Value or bye
+    clashes — so the ★ banner could confidently name a different player than the
+    #1 row rendered directly beneath it. One scorer, one answer."""
+    sugg = top_suggestions(board_avail, model, registry, needs, taken,
+                           next_pick=next_pick, survival_fn=survival_fn,
+                           my_pids=my_pids, roster_slots=roster_slots, byes=byes,
+                           k=1, strategy=strategy, round_no=round_no,
+                           juice_map=juice_map)
+    if not sugg:
+        return (None, 0, "")
+    s = sugg[0]
+    pm, mult, raw = s["pm"], s["mult"], s["raw"]
+    reasons = [f"+{raw:.0f} value"]
+    if mult >= 0.999:
+        reasons.append(f"fills {pm.position} starter")
+    elif mult >= 0.55:
+        reasons.append(f"{pm.position} depth")
+    else:
+        reasons.append(f"{pm.position} bench — already set")
+    if mult >= 0.6 and s.get("left") is not None and s["left"] <= 3:
+        reasons.append(f'{s["left"]} startable {pm.position}s left')
+    if s.get("sv") is not None and s["sv"] <= 35:
+        reasons.append("unlikely to return")
+    if s.get("stack"):
+        reasons.append("stacks with your QB")
+    if strategy and strategy not in ("Balanced", "Value (BPA)"):
+        reasons.insert(0, strategy)
+    return (s["row"], s["score"], " · ".join(reasons[:3]))
 
 
 def bye_clash(pm, my_pids, registry, byes) -> bool:
@@ -449,7 +435,12 @@ def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
         left = model.startable_left(pm.position, taken_s)
         sv = survival_fn(pid) if (survival_fn and next_pick) else None
         if mult >= 0.6:
-            if left <= 3:
+            # Scarcity urgency peaks at 1 startable left ("last one — take him"),
+            # NOT at zero. `left <= 3` handed the LARGEST bonus (+32) to a position
+            # with nothing startable remaining, where every option is by definition
+            # below replacement — which is how sub-replacement players floated to
+            # the top of the late rounds.
+            if 1 <= left <= 3:
                 score += (4 - left) * 8
             if sv is not None and sv <= 35:
                 score += (35 - sv) * 0.5
