@@ -62,6 +62,14 @@ class ValueModel:
     def vorp_of(self, pid) -> float:
         return self.vorp.get(str(pid), 0.0)
 
+    def is_projected(self, pid) -> bool:
+        """Whether we actually have a projection for this player. Unprojected
+        players (fullbacks, deep camp bodies) fall through vorp_of to a NEUTRAL
+        0.0, which silently outranks a real contributor carrying a negative VORP —
+        so late-round suggestions filled up with players nobody would draft.
+        Callers rank these below anyone we can genuinely evaluate."""
+        return str(pid) in self.proj
+
     def proj_of(self, pid) -> float:
         return self.proj.get(str(pid), 0.0)
 
@@ -168,6 +176,41 @@ def roster_multiplier(pos: str, my_pids, roster_slots, registry) -> float:
     # value (unlike a redundant QB/TE), so decay gently off the same 0.85 curve as
     # flex depth above rather than cliffing to near-zero.
     return round(max(0.4, 0.75 * (0.85 ** surplus)), 2)
+
+
+def redundant_single_slot(pos: str, my_pids, roster_slots, registry) -> bool:
+    """True for a player you could no longer get into your starting lineup.
+
+    In a 1-QB league a second QB never starts — you'd stream the one bye week.
+    Once your TE slot is full a second TE only plays if a FLEX is still open and
+    the league's flex accepts TE. These are the picks managers describe as "I
+    would never draft two QBs in this league."
+
+    VORP alone cannot see this, because VORP is measured against each position's
+    OWN replacement level. Late in a keeper draft the best remaining TE can be
+    TE5 (+12 over TE replacement) while the best remaining WR is WR60 (-20), so
+    positional value says take the TE — correctly, and uselessly, because he'd
+    never crack your lineup. Suggestions rank these below anything startable
+    instead of letting a positional-scarcity artifact win the pick."""
+    if pos not in ("QB", "TE", "K", "DST"):
+        return False
+    c = Counter(roster_slots or [])
+    superflex = sum(c.get(n, 0) for n in _SUPERFLEX_NAMES)
+    if pos == "QB" and superflex:
+        return False                       # superflex — a 2nd QB genuinely starts
+    dedicated = c.get(pos, 0) + (superflex if pos == "QB" else 0)
+    have = Counter(registry.meta(p).position for p in (my_pids or []))
+    if have.get(pos, 0) < dedicated:
+        return False                       # that starting slot is still open
+    if pos == "TE":
+        if c.get("TE", 0) == 0:
+            return False                   # TE-only-via-flex league: flex logic owns it
+        # a dedicated TE is filled — an extra TE still plays if a FLEX is open
+        flex_slots = sum(c.get(n, 0) for n in _FLEX_NAMES)
+        flex_used = sum(max(0, have.get(p, 0) - c.get(p, 0)) for p in ("RB", "WR"))
+        if max(0, flex_slots - flex_used) > 0:
+            return False
+    return True
 
 
 def marginal_vorp(model: "ValueModel", pid, my_pids, registry, roster_slots) -> float:
@@ -461,11 +504,21 @@ def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
         landmine = j.get("landmine") if j else None
         if skew is not None:
             score += skew * JUICE_SKEW_WEIGHT
+        redundant = (redundant_single_slot(pm.position, my_pids, roster_slots, registry)
+                     if use_roster else False)
         out.append({"row": r, "pm": pm, "score": round(score, 1), "raw": raw,
                     "mult": mult, "sv": sv, "left": left,
                     "stack": is_stack, "bye_clash": clash,
-                    "skew": skew, "landmine": landmine})
-    out.sort(key=lambda x: -x["score"])
+                    "skew": skew, "landmine": landmine, "redundant": redundant,
+                    "unprojected": not model.is_projected(pid)})
+    # Rank in tiers, not on score alone:
+    #   1. can he reach your lineup at all?  (redundant_single_slot)
+    #   2. do we actually have a projection?  (is_projected — an unprojected
+    #      player's neutral 0.0 otherwise beats a real player at -10)
+    #   3. then score.
+    # Sorted rather than dropped so they still appear when nothing better is left,
+    # and so the position pills can still surface them deliberately.
+    out.sort(key=lambda x: (x["redundant"], x["unprojected"], -x["score"]))
     return out[:k]
 
 
