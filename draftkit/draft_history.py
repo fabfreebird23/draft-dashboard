@@ -88,7 +88,9 @@ POS_CAPS = {"QB": 2, "TE": 2}
 
 def pick_for_owner(owner_id: str, rnd: int, available: list, tendencies: dict,
                    registry, top_k: int = 12, jitter: float = 0.0, rookie_lean: float = 0.12,
-                   roster_counts: Optional[dict] = None) -> Optional[dict]:
+                   roster_counts: Optional[dict] = None,
+                   pos_share: Optional[dict] = None,
+                   drafted_counts: Optional[dict] = None) -> Optional[dict]:
     """Choose a player for an AI owner: blend ADP value with the owner's
     positional tendency for this round. `available` is ADP-ordered
     [{pid, name, pos, adp}, ...]. Returns the chosen item (or None).
@@ -136,6 +138,27 @@ def pick_for_owner(owner_id: str, rnd: int, available: list, tendencies: dict,
             over = rc.get(p["pos"], 0) - 5
             if over > 0:
                 score -= 0.11 * over
+        # Pull back toward this manager's OWN historical position mix. `tendencies`
+        # is a per-round CONDITIONAL, P(position | round); taking its argmax round
+        # after round does not reproduce his marginal share, and a board that
+        # happens to be rich at one position compounds the drift. That is how a
+        # manager who genuinely drafts 50% WR opened 58% of simulated mocks with
+        # four straight WRs while sitting on two RBs. The 6+ penalty above can't
+        # catch it — with two WR keepers he'd need four WR picks before it fires.
+        #
+        # Compared against DRAFTED picks only, because that is how pos_share itself
+        # is measured (owner_profiles excludes keepers). Mixing the two is not a
+        # rounding error, it inverts the correction: Jared's two RB keepers put him
+        # at 40% RB against a 31% drafted-RB history, so a keeper-inclusive count
+        # penalises RB — the exact position he is short of — and lets WR run free.
+        dc = drafted_counts if drafted_counts is not None else rc
+        if pos_share and p["pos"] in ("RB", "WR"):
+            n_have = sum(dc.get(x, 0) for x in _SKILL)
+            target = pos_share.get(p["pos"])
+            if n_have >= 3 and target:
+                actual = dc.get(p["pos"], 0) / n_have
+                if actual > target:
+                    score -= min(0.40, 1.8 * (actual - target))
         # Rookie lean: a small tiebreak so a rookie edges an equal-ADP vet (keeps the
         # top rookie at #1 when his curve-ADP ties the consensus #1). Kept small on
         # purpose — when a league's rookie curve is applied, the pool ADP already

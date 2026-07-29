@@ -88,6 +88,16 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
             pos = reg.meta(pid).position
             c[pos] = c.get(pos, 0) + 1
         counts[slot] = c
+    # keeper positions per slot, so the share correction can look at DRAFTED
+    # picks only (pos_share is measured on non-keeper picks).
+    kept_counts = {}
+    for kov, kpid in (kept_by_overall or {}).items():
+        ks = owner(kov)
+        pos = reg.meta(kpid).position
+        kept_counts.setdefault(ks, {})[pos] = kept_counts.setdefault(ks, {}).get(pos, 0) + 1
+    drafted = {s2: {p2: max(0, c2 - kept_counts.get(s2, {}).get(p2, 0))
+                    for p2, c2 in cc.items()} for s2, cc in counts.items()}
+
     out, ov = [], current_overall
     while ov <= total and len(out) < limit:
         slot = owner(ov)
@@ -104,12 +114,17 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
             ov += 1
             continue
         ch = draft_history.pick_for_owner(owner_by_slot.get(slot), rnd, pool, tend, reg,
-                                          roster_counts=counts.get(slot, {}))
+                                          roster_counts=counts.get(slot, {}),
+                                          pos_share=(ctx.get("profiles", {})
+                                                     .get(owner_by_slot.get(slot), {})
+                                                     .get("pos_share")),
+                                          drafted_counts=drafted.get(slot, {}))
         if not ch:
             break
         sim.add(ch["pid"])
         pos = reg.meta(ch["pid"]).position
         counts.setdefault(slot, {})[pos] = counts.setdefault(slot, {}).get(pos, 0) + 1
+        drafted.setdefault(slot, {})[pos] = drafted.setdefault(slot, {}).get(pos, 0) + 1
         out.append((ov, slot, ch["pid"]))
         ov += 1
     return out

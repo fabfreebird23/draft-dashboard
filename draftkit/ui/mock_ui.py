@@ -140,6 +140,22 @@ def render(ctx) -> None:
                 rc[p] = rc.get(p, 0) + 1
         return rc
 
+    def _slot_drafted_counts(slot):
+        """Position→count of this owner's DRAFTED picks only (no keepers) — the
+        basis pos_share is measured on, so the share correction compares like
+        with like."""
+        rc = {}
+        for o, pid in made.items():
+            if owner(o) == slot:
+                pos = reg.meta(pid).position
+                rc[pos] = rc.get(pos, 0) + 1
+        return rc
+
+    def _slot_pos_share(slot):
+        """This manager's HISTORICAL position mix, so the AI drifts back toward it
+        instead of riding a hot board into an unrealistic 6-WR/2-RB roster."""
+        return (ctx.get("profiles", {}).get(owner_by_slot.get(slot), {}) or {}).get("pos_share")
+
     def _slot_pool(slot):
         """The draft board this AI manager uses — their assigned ranking source
         (Scouting tab) or the consensus default."""
@@ -152,7 +168,9 @@ def render(ctx) -> None:
         pool = [p for p in _slot_pool(owner(ov)) if p["pid"] not in tk]
         choice = draft_history.pick_for_owner(owner_by_slot.get(owner(ov)), rnd, pool,
                                               tendencies, reg, jitter=_AI_JITTER,
-                                              roster_counts=_slot_pos_counts(owner(ov)))
+                                              roster_counts=_slot_pos_counts(owner(ov)),
+                                              pos_share=_slot_pos_share(owner(ov)),
+                                              drafted_counts=_slot_drafted_counts(owner(ov)))
         if choice:
             made[ov] = choice["pid"]
             return True
