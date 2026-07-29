@@ -33,24 +33,17 @@ def owner_tendencies(league_id: str, max_seasons: int = 4) -> Dict[str, Dict[int
     """
     counts: Dict[str, Dict[int, Dict[str, float]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(float)))
-    chain = sleeper.league_chain(str(league_id))
-    used = 0
-    for entry in chain:
-        did = entry.get("draft_id")
-        if not did:
-            continue
-        picks = sleeper.get_draft_picks(did)
-        if not picks:
-            continue
-        used += 1
+    drafts = _gather_drafts(str(league_id), max_seasons)
+    # Keepers are placed at a fixed cost round, not chosen there — counting them
+    # teaches the AI a round->position habit the manager never actually had.
+    is_keeper = _real_pick_filter(str(league_id), [s for s, _ in drafts])
+    for season, picks in drafts:
         for p in picks:
             owner = str(p.get("picked_by") or "")
             rnd = p.get("round")
             pos = (p.get("metadata") or {}).get("position")
-            if owner and rnd and pos in _SKILL:
+            if owner and rnd and pos in _SKILL and not is_keeper(season, p):
                 counts[owner][int(rnd)][pos] += 1.0
-        if used >= max_seasons:
-            break
 
     out: Dict[str, Dict[int, Dict[str, float]]] = {}
     for owner, by_round in counts.items():
@@ -180,19 +173,45 @@ def pick_for_owner(owner_id: str, rnd: int, available: list, tendencies: dict,
 
 
 # ---------------------------------------------------------------- deep profiles
-def _gather_drafts(league_id: str, max_seasons: int) -> List[List[dict]]:
-    """Newest-first list of past drafts' picks (skipping empty / current draft)."""
-    out: List[List[dict]] = []
+def _gather_drafts(league_id: str, max_seasons: int) -> List[tuple]:
+    """Newest-first [(season, picks), ...] for past drafts (skipping empty ones).
+    The season comes back too because separating keepers from real draft picks
+    needs the dashboard's per-season record — see `_real_pick_filter`."""
+    out: List[tuple] = []
     for entry in sleeper.league_chain(str(league_id)):
         did = entry.get("draft_id")
         if not did:
             continue
         picks = sleeper.get_draft_picks(did)
         if picks:
-            out.append(picks)
+            out.append((int(entry.get("season") or 0), picks))
         if len(out) >= max_seasons:
             break
     return out
+
+
+def _real_pick_filter(league_id: str, seasons: List[int]):
+    """Returns is_keeper(season, pick) using the keeper dashboard as the source of
+    truth, falling back to Sleeper's own flag where no dashboard exists.
+
+    Sleeper's flag is unreliable across this league's history — 2024 marks 2 picks
+    where the dashboard records 36 — so a profile built on it treats roughly 8
+    keepers per manager as genuine draft decisions. Measured on the real data,
+    that moved positional share by up to 7 points, one manager's average first-QB
+    round by 3.5 rounds, and flipped another's "usually opens with" from RB to WR."""
+    from . import keepers as _K
+    truth = {}
+    try:
+        truth = _K.kept_pids_by_season(league_id, seasons) if _K.league_has_keepers(league_id) else {}
+    except Exception:  # noqa: BLE001 — dashboard unreachable: fall back to the flag
+        truth = {}
+
+    def is_keeper(season: int, p: dict) -> bool:
+        s = truth.get(season)
+        if s:
+            return str(p.get("player_id")) in s
+        return bool(p.get("is_keeper"))
+    return is_keeper
 
 
 def rookie_curve(league_id: str, registry, current_season: int,
@@ -271,12 +290,14 @@ def owner_profiles(league_id: str, max_seasons: int = 4) -> Dict[str, dict]:
     by_owner: Dict[str, List[dict]] = defaultdict(list)
     # league baseline: first round each position is taken, per owner-draft
     league_first: Dict[str, List[int]] = defaultdict(list)
-    for di, picks in enumerate(drafts):
+    is_keeper = _real_pick_filter(league_id, [s for s, _ in drafts])
+    for di, (season, picks) in enumerate(drafts):
         per: Dict[str, List[dict]] = defaultdict(list)
         for p in picks:
             owner = str(p.get("picked_by") or "")
             r = _rec(p, di)
             if owner and r:
+                r["keeper"] = is_keeper(season, p)   # dashboard truth, not the flag
                 by_owner[owner].append(r)
                 per[owner].append(r)
         for recs in per.values():
@@ -324,6 +345,17 @@ def owner_profiles(league_id: str, max_seasons: int = 4) -> Dict[str, dict]:
                     seen.add(r["pos"])
                     first_round_by_pos[r["pos"]].append(r["round"])
         avg_first = {p: sum(v) / len(v) for p, v in first_round_by_pos.items()}
+        # How consistent he is at each position, so a "reaches early / waits" claim
+        # can be held against his OWN scatter rather than a fixed round threshold.
+        # Gentis took his first TE in rounds 6 and 11 — an 8.5 average that reads as
+        # "waits on TE by 2 rounds" while the spread is wider than the claim.
+        first_se = {}
+        for p, v in first_round_by_pos.items():
+            if len(v) >= 2:
+                m = sum(v) / len(v)
+                first_se[p] = ((sum((x - m) ** 2 for x in v) / len(v)) ** 0.5) / (len(v) ** 0.5)
+            else:
+                first_se[p] = None       # one draft is not a tendency
 
         # reach vs the league: positive = takes the position earlier than the field
         reach = {p: round(league_avg_first[p] - avg_first[p], 1)
@@ -340,10 +372,10 @@ def owner_profiles(league_id: str, max_seasons: int = 4) -> Dict[str, dict]:
             "pos_share": pos_share, "pos_by_round": pos_by_round,
             "first_pick": dict(first_pos), "avg_first": {p: round(v, 1) for p, v in avg_first.items()},
             "reach": reach, "fav_teams": fav_teams,
-            "archetype": _archetype(pos_share, avg_first, reach),
+            "archetype": _archetype(pos_share, avg_first, reach, first_se),
             "predictability": predictability,
             "tendencies": _tendency_lines(pos_share, first_pos, n_drafts, avg_first,
-                                          reach, fav_teams),
+                                          reach, fav_teams, first_se),
         }
     return profiles
 
@@ -394,9 +426,17 @@ def _fav_teams(skill: List[dict]) -> List[str]:
     return [t for t, _ in qualified[:3]]
 
 
-def _archetype(pos_share: dict, avg_first: dict, reach: dict) -> str:
+def _archetype(pos_share: dict, avg_first: dict, reach: dict, first_se=None) -> str:
+    """The badge must be held to the same evidence bar as the tendency lines, or
+    the panel contradicts itself — asserting "Early-QB" beside a manager whose
+    QB-timing line was dropped for being inside his own scatter."""
+    def _reliable(pos):
+        rc, se = reach.get(pos), (first_se or {}).get(pos)
+        if rc is None or se is None or abs(rc) <= se:
+            return 0.0
+        return rc
     rb, wr = pos_share.get("RB", 0), pos_share.get("WR", 0)
-    qb_reach, te_reach = reach.get("QB", 0), reach.get("TE", 0)
+    qb_reach, te_reach = _reliable("QB"), _reliable("TE")
     rb_first = avg_first.get("RB", 99)
     if qb_reach >= 1.5:
         return "Early-QB"
@@ -404,14 +444,16 @@ def _archetype(pos_share: dict, avg_first: dict, reach: dict) -> str:
         return "Premium-TE"
     if rb_first >= 4 and rb < 0.32:
         return "Zero-RB"
-    if rb >= 0.42:
-        return "RB-heavy"
-    if wr >= 0.46:
-        return "WR-heavy"
+    # Whichever flex position he actually leans on — testing RB first against a
+    # LOWER bar (0.42 vs 0.46) badged a 43%-RB / 46%-WR manager "RB-heavy" while
+    # the tendency line beneath it read "WR-heavy: 46%".
+    if rb >= 0.42 or wr >= 0.46:
+        return "RB-heavy" if rb >= wr else "WR-heavy"
     return "Balanced"
 
 
-def _tendency_lines(pos_share, first_pos, n_drafts, avg_first, reach, fav_teams) -> List[str]:
+def _tendency_lines(pos_share, first_pos, n_drafts, avg_first, reach, fav_teams,
+                    first_se=None) -> List[str]:
     lines: List[str] = []
     if first_pos:
         pos, cnt = first_pos.most_common(1)[0]
@@ -421,6 +463,12 @@ def _tendency_lines(pos_share, first_pos, n_drafts, avg_first, reach, fav_teams)
             lines.append(f"Usually opens with a {pos} ({cnt}/{n_drafts})")
     for pos, label in (("QB", "QB"), ("TE", "TE")):
         rc = reach.get(pos)
+        # Only claim a habit that is bigger than his own scatter at that position,
+        # and never off a single draft — otherwise we report noise with the same
+        # confidence as a real pattern (see first_se).
+        se = (first_se or {}).get(pos)
+        if rc is not None and (se is None or abs(rc) <= se):
+            continue
         if rc is not None and rc >= 1.0:
             rnd = avg_first.get(pos)
             when = f" (~rd {rnd:.0f})" if rnd else ""

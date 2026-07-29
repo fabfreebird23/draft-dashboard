@@ -158,6 +158,17 @@ def _kept_pid_sets(league_id: str, seasons: List[int]) -> Dict[int, dict]:
     return out
 
 
+def kept_pids_by_season(league_id: str, seasons: List[int]) -> Dict[int, set]:
+    """{season: {player_id kept that season}} — the dashboard's authoritative record.
+
+    Sleeper's own per-pick `is_keeper` flag is unreliable across this league's
+    history (in 2024 it marks 2 picks where the dashboard records 36), so anything
+    that needs to separate keepers from real draft decisions should use this
+    instead. Empty for leagues with no companion dashboard, where the flag is the
+    only signal available."""
+    return {yr: v.get("all", set()) for yr, v in _kept_pid_sets(league_id, seasons).items()}
+
+
 def _owned_rounds(league_id: str, rounds: int) -> Dict[str, Dict[int, int]]:
     """{owner_id: {round: how many picks currently owned}} for THIS season's draft,
     accounting for trades — so a predicted keeper never lands on a round the owner
