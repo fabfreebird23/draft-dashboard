@@ -325,7 +325,7 @@ def render(ctx) -> None:
                 steals, traps = V.steals_and_traps(board_avail, ctx["value"], reg,
                                                    ctx["adp_rank"], pool_size=total)
                 st.markdown('<div class="dr-h">Steals &amp; Traps</div>', unsafe_allow_html=True)
-                st.caption("Market value vs. ADP — click any player to open their card.")
+                st.caption("Market value vs. ADP — biggest gaps between value and where he's going.")
                 steals_traps_widget(steals, traps, reg, f"{mkey}_st", show_card)
             rh = C.rookie_history_html(ctx.get("rookie_curve"), reg, ctx["adp_pool"])
             if rh:
@@ -380,7 +380,7 @@ def render(ctx) -> None:
                     unsafe_allow_html=True)
         if rec_row:
             rpm = reg.meta(rec_row["pid"])
-            cue = "click a player in the list to inspect" if can_draft else "your top target"
+            cue = "Draft him, or ★ to queue" if can_draft else "your top target"
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({rpm.position} · {rpm.team}) '
                         f'— <span class="why">{rec_tag}</span> · <i>{cue}</i></div>',
                         unsafe_allow_html=True)
@@ -441,9 +441,8 @@ def render(ctx) -> None:
                    "real draft. Undo removes the last pick." + kept_note)
     else:
         tnote = " · opponents draft by historical tendencies" if tendencies else ""
-        st.caption("Click any player on the board to open their card, then Draft from the "
-                   "card. Undo rolls back to your last pick, erasing the opponent picks "
-                   f"after it.{kept_note}{tnote}")
+        st.caption("Draft straight from the row, or ★ to queue him. Undo rolls back to "
+                   f"your last pick, erasing the opponent picks after it.{kept_note}{tnote}")
 
     # ----- live pace: advance one opponent pick after rendering, with a slight delay -----
     if live_pace and ai_on_clock:

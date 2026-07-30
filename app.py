@@ -49,25 +49,47 @@ def get_adp(season: int):
     return df, consensus.adp_lookup(season)
 
 
+# Streamlit caches whatever these return — INCLUDING an empty failure result —
+# for the whole TTL. One transient raw.githubusercontent blip therefore blanks all
+# 37 keepers (they re-enter your best-available board) or reseats the entire draft
+# order to Sleeper's roster order, and it stays wrong for 15 minutes.
+#
+# Every one of these describes something that CANNOT change during a draft — the
+# keeper deadline has passed and the seating is fixed — so the last value we
+# successfully fetched is strictly better than an empty one. Keep it and hand it
+# back on failure.
+_LAST_GOOD: dict = {}
+
+
+def _sticky(key: str, value):
+    """Return `value` when the fetch produced something, else the last good value.
+    Prevents a momentary network failure from being cached as fact."""
+    if value:
+        _LAST_GOOD[key] = value
+        return value
+    return _LAST_GOOD.get(key, value)
+
+
 @st.cache_data(ttl=900, show_spinner=False)
 def get_keepers(platform: str, league_id: str, season: int):
     if platform != "sleeper":
         return {}
-    return keepers_mod.load_keepers(league_id, season)
+    return _sticky(f"keepers:{league_id}:{season}",
+                   keepers_mod.load_keepers(league_id, season))
 
 
 @st.cache_data(ttl=900, show_spinner=False)
 def get_draft_order_override(platform: str, league_id: str):
     if platform != "sleeper":
         return []
-    return keepers_mod.load_draft_order(league_id)
+    return _sticky(f"order:{league_id}", keepers_mod.load_draft_order(league_id))
 
 
 @st.cache_data(ttl=900, show_spinner=False)
 def get_manager_names(platform: str, league_id: str):
     if platform != "sleeper":
         return {}
-    return keepers_mod.load_manager_names(league_id)
+    return _sticky(f"names:{league_id}", keepers_mod.load_manager_names(league_id))
 
 
 @st.cache_data(ttl=86400, show_spinner=False)

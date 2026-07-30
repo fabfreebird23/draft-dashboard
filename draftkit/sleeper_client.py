@@ -88,8 +88,13 @@ def get_trending(kind: str = "add", hours: int = 24, limit: int = 200) -> Dict[s
 
 def get_traded_picks(draft_id: str) -> List[Dict[str, Any]]:
     """Picks swapped between rosters — [{round, roster_id, owner_id, previous_owner_id}]
-    (ids are roster_ids). Lets us reflect real, traded draft capital."""
-    return _disk(f"tpicks_{draft_id}", 1800, lambda: _get(f"draft/{draft_id}/traded_picks") or [])
+    (ids are roster_ids). Lets us reflect real, traded draft capital.
+
+    Short TTL because managers trade picks DURING a draft, and a stale answer here
+    doesn't just mislabel a cell — it changes who the app thinks owns every pick
+    downstream (turn order, your-next-pick, keeper placement). 30 minutes meant a
+    mid-draft trade stayed invisible for most of a round."""
+    return _disk(f"tpicks_{draft_id}", 60, lambda: _get(f"draft/{draft_id}/traded_picks") or [])
 
 
 def get_draft_picks(draft_id: str) -> List[Dict[str, Any]]:

@@ -29,8 +29,17 @@ def current_season() -> int:
 
 
 def adp_sources() -> dict:
-    """Which ADP providers the consensus builder runs. All public, no keys."""
-    return {"espn": True, "fantasypros": True, "footballguys": True}
+    """Which ADP providers the consensus builder runs. All public, no keys.
+
+    fantasypros is OFF: the page stopped shipping its ADP table in static HTML
+    (only a 5x4 "Expert/Site/Date" table survives, so read_html raises "could not
+    locate player column"), and there is no embedded JSON to fall back on the way
+    UDK has — it is fetched client-side now. It has been contributing nothing
+    while still costing a request and printing a FAILED status on every rebuild.
+    FootballGuys still supplies the per-platform sub-columns (CBS, DraftKings,
+    Drafters, NFFC, Underdog), so the consensus is unaffected. Flip back on if
+    the scraper is ever reworked against their XHR endpoint."""
+    return {"espn": True, "fantasypros": False, "footballguys": True}
 
 
 def league() -> dict:

@@ -412,6 +412,44 @@ def grid_html(pick_pids, n, slot_names, my_slot, current_pick, rounds, registry,
     return '<div class="neonwrap dr-board-scroll">' + grid + "</div>"
 
 
+def turn_alert_html(is_my_turn: bool, picks_until: int = 0) -> str:
+    """Tell him it's his pick even when this tab is in the background.
+
+    Every existing turn cue is in-page — the YOUR PICK badge and the pulsing board
+    cell — so all of them are invisible in the one scenario this app is built for:
+    a second screen sitting behind the Sleeper draft room. This rewrites the parent
+    page's <title> (which the browser shows on the tab strip whether or not the tab
+    is visible) and chimes once on the TRANSITION into your turn, not on every
+    rerun. Same components.v1.html iframe route as current_pick_scroll_html — a
+    <script> injected through st.markdown never executes.
+
+    The chime uses a WebAudio oscillator rather than an asset, so there's nothing
+    to ship and nothing to 404; browsers gate audio behind a prior user gesture,
+    which drafting has obviously already provided."""
+    import json as _json
+    base = "Draft Room"
+    if is_my_turn:
+        title = "⏰ YOUR PICK — " + base
+    elif picks_until:
+        title = f"{picks_until} until your pick — {base}"
+    else:
+        title = base
+    return (
+        "<script>try{var w=window.parent,d=w.document;"
+        f"d.title={_json.dumps(title)};"
+        f"var mine={'true' if is_my_turn else 'false'};"
+        "if(mine&&!w.__drTurn){w.__drTurn=1;try{"
+        "var C=w.AudioContext||w.webkitAudioContext;var c=new C();"
+        "var o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);"
+        "o.frequency.value=880;g.gain.setValueAtTime(0.0001,c.currentTime);"
+        "g.gain.exponentialRampToValueAtTime(0.25,c.currentTime+0.02);"
+        "g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+0.45);"
+        "o.start();o.stop(c.currentTime+0.5);}catch(e){}}"
+        "if(!mine){w.__drTurn=0;}"
+        "}catch(e){}</script>"
+    )
+
+
 def current_pick_scroll_html() -> str:
     """A near-invisible snippet for st.components.v1.html: components render as a
     real <iframe>, so unlike st.markdown its <script> actually executes (a script

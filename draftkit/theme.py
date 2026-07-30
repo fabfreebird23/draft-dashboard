@@ -159,6 +159,22 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 [class*="dr_panel_board"],[class*="dr_panel_intel"]{
   flex:0 0 calc(100vh - 800px) !important; height:calc(100vh - 800px) !important;
   min-height:260px !important; overflow-y:auto !important; overflow-x:hidden !important; }
+/* SHORT viewports. The 800px subtrahend above assumes a tall screen; on a 13"
+   laptop (~750-800px of viewport) calc() floors to the 260px minimum, so all
+   three war-room panels collapse to about one row each while the pinned board
+   still claims its full 400px. The only other media query in this stylesheet is
+   a WIDTH query, so nothing rescued this. Rebalance in viewport-relative units
+   as the screen shortens — these must stay AFTER the rule above to win. */
+@media (max-height:1000px){
+  [class*="dr_board_top"]{ max-height:32vh !important; }
+  [class*="dr_panel_board"],[class*="dr_panel_intel"]{
+    flex:0 0 48vh !important; height:48vh !important; min-height:300px !important; }
+}
+@media (max-height:800px){
+  [class*="dr_board_top"]{ max-height:30vh !important; }
+  [class*="dr_panel_board"],[class*="dr_panel_intel"]{
+    flex:0 0 54vh !important; height:54vh !important; min-height:260px !important; }
+}
 /* the flexbox chain (stHorizontalBlock -> stColumn -> stVerticalBlock*) must be
    allowed to SHRINK (min-height:0) for the panel's own height+overflow-y:auto to
    actually clip its content — otherwise a flex ancestor's default min-height:auto

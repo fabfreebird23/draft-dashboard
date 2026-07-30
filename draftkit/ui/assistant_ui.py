@@ -55,6 +55,16 @@ def render(ctx) -> None:
     # ----- gather picks from the chosen source into a common {overall: pid} map -----
     if manual:
         made = st.session_state.setdefault(mankey, {})
+        # Seed manual entry from whatever Live sync already pulled. This is the
+        # escape hatch the sync-failure message tells him to take, so starting it
+        # from a blank board threw away every pick synced so far — exactly when
+        # things are already going wrong. Only seeds once, and never overwrites
+        # picks he has since typed himself.
+        if not made:
+            synced = st.session_state.get(f"{mankey}_synced") or {}
+            if synced:
+                made.update(synced)
+                st.session_state[mankey] = made
         if reset:
             made = {}
             st.session_state[mankey] = made
@@ -88,6 +98,10 @@ def render(ctx) -> None:
         # (raw_id survives even when player is None.)
         filled = {p.overall for p in picks if p.overall and (p.player or p.raw_id)}
         picks_exist = bool(picks)
+        # Keep the last good sync so flipping to Manual entry inherits the board
+        # rather than starting blank (see the manual branch above).
+        if pick_pids:
+            st.session_state[f"{mankey}_synced"] = {ov: pid for ov, pid in pick_pids.items() if pid}
 
     # overlay keepers onto any empty keeper slots
     kept_at = set()
@@ -183,6 +197,10 @@ def render(ctx) -> None:
         # draft action — see current_pick_scroll_html's docstring for why this has
         # to be a components.html iframe rather than plain st.markdown.
         st.components.v1.html(C.current_pick_scroll_html(), height=0)
+        # Live tab only: surface your turn on the browser tab itself, since this is
+        # the screen sitting behind the real Sleeper draft room.
+        st.components.v1.html(
+            C.turn_alert_html(on_slot == my_slot, picks_until=until), height=0)
 
     left, center, right = st.columns([1.05, 1.9, 1.05])
 
@@ -219,7 +237,7 @@ def render(ctx) -> None:
                 steals, traps = V.steals_and_traps(board_avail, ctx["value"], reg,
                                                    ctx["adp_rank"], pool_size=n * rounds)
                 st.markdown('<div class="dr-h">Steals &amp; Traps</div>', unsafe_allow_html=True)
-                st.caption("Market value vs. ADP — click any player to open their card.")
+                st.caption("Market value vs. ADP — biggest gaps between value and where he's going.")
                 steals_traps_widget(steals, traps, reg, f"{akey}_st", _inspect)
             rh = C.rookie_history_html(ctx.get("rookie_curve"), reg, ctx["adp_pool"])
             if rh:
@@ -266,7 +284,7 @@ def render(ctx) -> None:
         if rec_row:
             tpm = reg.meta(rec_row["pid"])
             st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({tpm.position} · {tpm.team}) '
-                        f'— <span class="why">{why}</span> · <i>click a player in the list to inspect</i></div>',
+                        f'— <span class="why">{why}</span></div>',
                         unsafe_allow_html=True)
         if strategy and strategy != "Balanced":
             _sg = V.top_suggestions(board_avail, ctx["value"], reg, needs, drafted,
