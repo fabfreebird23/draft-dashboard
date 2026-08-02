@@ -280,27 +280,46 @@ def apply_tweaks(board: list, tweaks: dict) -> list:
     return out
 
 
-def apply_rookie_curve(pool: list, registry, curve: dict) -> list:
-    """Return a copy of the AI draft pool with rookies pulled up to where THIS
-    league historically drafts them (from draft_history.rookie_curve). The k-th
-    rookie by ADP gets effective_adp = min(his_adp, curve[k]) — a pull-only boost,
-    never a demotion — then the pool is re-sorted. With an empty curve (no rookie
-    history) this is a no-op, so non-rookie-aggressive leagues are unaffected."""
-    if not curve:
-        return pool
-    rookies = [p for p in pool if _is_rookie(registry, p["pid"])]
-    rookies.sort(key=lambda p: p["adp"])
-    boost = {}
-    for rank, p in enumerate(rookies, 1):
-        tgt = curve.get(rank)
-        if tgt is not None and tgt < p["adp"]:
-            boost[p["pid"]] = float(tgt)
-    if not boost:
-        return pool
+def apply_rookie_curve(pool: list, registry, curve: dict, aggression: float = 1.0) -> list:
+    """Return a copy of the AI draft pool with rookies moved to where THIS league
+    drafts them (from draft_history.rookie_curve). The k-th rookie by ADP has a
+    learned pull target of min(his_adp, curve[k]).
+
+    `aggression` scales that, so mocks can be run at different rookie temperatures:
+
+        0.0  every rookie to the very top of the board
+        1.0  exactly how this league has actually drafted them (the default, and
+             identical to the original pull-only behaviour)
+        2.0  rookies at twice their ADP — they slide well past the market
+
+    The two halves meet continuously at 1.0: below it we scale the pull target
+    down toward pick 1; above it we interpolate from that target out to 2x ADP,
+    which is the half the original could not express at all (it never demoted a
+    rookie). With no learned curve the rookie's own ADP is the baseline, so the
+    slider still does something in a league with no rookie history."""
+    rookies = sorted((p for p in pool if _is_rookie(registry, p["pid"])),
+                     key=lambda p: p["adp"])
+    if not rookies or (not curve and abs(aggression - 1.0) < 1e-9):
+        return pool                      # nothing learned and nothing asked for
+    rank_of = {p["pid"]: r for r, p in enumerate(rookies, 1)}
     out = [dict(p) for p in pool]
+    changed = False
     for p in out:
-        if p["pid"] in boost:
-            p["adp"] = boost[p["pid"]]
+        rank = rank_of.get(p["pid"])
+        if rank is None:
+            continue
+        adp = float(p["adp"])
+        base = curve.get(rank)
+        target = min(adp, float(base)) if base is not None else adp
+        if aggression <= 1.0:
+            eff = max(1.0, target * aggression)
+        else:
+            eff = target + (aggression - 1.0) * (2.0 * adp - target)
+        if abs(eff - adp) > 1e-9:
+            p["adp"] = eff
+            changed = True
+    if not changed:
+        return pool
     out.sort(key=lambda x: x["adp"])
     return out
 

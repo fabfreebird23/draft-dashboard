@@ -26,6 +26,15 @@ def _predicted_keepers(league_id: str, season: int, have_owners: tuple,
                               registry=_registry, rounds=rounds)
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def _rookie_pool(aggression: float, curve_key: tuple, src: str, _pool, _registry):
+    """The AI board at a given rookie temperature. Cached on (aggression, curve,
+    source) — the pools themselves are big lists, so recomputing this on every
+    rerun of a live-pace mock would be wasteful."""
+    from .. import rankings as _R
+    return _R.apply_rookie_curve(_pool, _registry, dict(curve_key), aggression=aggression)
+
+
 _PICK_DELAY = 0.7  # seconds between AI picks in live-pace mode
 _AI_JITTER = 0.15  # per-pick randomness so every mock draft plays out differently
 
@@ -63,6 +72,15 @@ def render(ctx) -> None:
     adp_pool = ctx.get("ai_pool") or ctx["adp_pool"]   # rookie-boosted for the AI
     owner = ctx["pick_owner_slot"]   # who owns each overall pick (handles traded picks)
     total = n * rounds
+    # Rookie aggression slider (read here; the widget lives in the gear popover
+    # below, so fall back to its stored value / the league default of 1.0).
+    rookie_aggr = float(st.session_state.get(f"{mkey}_rookieaggr", 1.0))
+    _curve_key = tuple(sorted((ctx.get("rookie_curve") or {}).get("curve", {}).items()))
+    if abs(rookie_aggr - 1.0) > 1e-9:
+        # retemper the default board too, and hand the same one to the Pick
+        # Predictor so its forecast matches the mock the AI is actually running
+        adp_pool = _rookie_pool(rookie_aggr, _curve_key, "Consensus", ctx["adp_pool"], reg)
+        ctx = {**ctx, "ai_pool": adp_pool}
 
     from .. import value as V
     # ---- setup/config tucked into a gear dropdown; only actions stay on top ----
@@ -80,6 +98,12 @@ def render(ctx) -> None:
         st.toggle("Predict missing keepers", key=f"{mkey}_predictkp",
                   help="For teams without dashboard keepers, predict their likely keepers "
                        "so the board reflects a realistic keeper draft.")
+        rookie_aggr = st.slider(
+            "Rookie aggression", 0.0, 2.0, 1.0, 0.1, key=f"{mkey}_rookieaggr",
+            help="How hard the AI chases rookies. 1.0 = how this league has actually "
+                 "drafted them (learned from past drafts). Below 1 they fly off even "
+                 "earlier; above 1 they slide past their ADP. Change it between mocks "
+                 "to practise against very different boards.")
         npred = st.session_state.get(f"{mkey}_npred", 0)
         if st.session_state.get(f"{mkey}_predictkp", False) and npred:
             st.caption(f"+{npred} predicted keepers")
@@ -158,9 +182,14 @@ def render(ctx) -> None:
 
     def _slot_pool(slot):
         """The draft board this AI manager uses — their assigned ranking source
-        (Scouting tab) or the consensus default."""
+        (Scouting tab) or the consensus default, re-tempered to the Rookie
+        aggression slider. Applied per SOURCE so a manager scouting off ESPN's
+        board feels the slider too, not just the consensus default."""
         src = st.session_state.get(f"aisrc_{ctx['league_key']}_{slot}", "Consensus")
-        return ctx.get("source_pools", {}).get(src) or adp_pool
+        base = ctx.get("source_pools", {}).get(src) or ctx["adp_pool"]
+        if abs(rookie_aggr - 1.0) < 1e-9:
+            return ctx.get("source_pools", {}).get(src) or adp_pool   # prebuilt
+        return _rookie_pool(rookie_aggr, _curve_key, src, base, reg)
 
     def ai_pick(ov):
         rnd = (ov - 1) // n + 1
