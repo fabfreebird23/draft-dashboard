@@ -459,6 +459,18 @@ def main():
     if ctx["ranks_key"] not in st.session_state:
         st.session_state[ctx["ranks_key"]] = storage.load_rankings(ctx["league_key"])
 
+    # Per-manager AI draft boards, saved per league. Seeded HERE rather than beside
+    # the selectboxes because the mock tab owns the widgets but the live tab's pick
+    # predictor reads the same session keys — seeding centrally means both tabs get
+    # your saved boards even if you never open the mock. Once per session per league.
+    _ai_seeded = f"aisrc_seeded_{ctx['league_key']}"
+    if _ai_seeded not in st.session_state:
+        for _slot, _src in (storage.load_ai_sources(ctx["league_key"]) or {}).items():
+            _k = f"aisrc_{ctx['league_key']}_{_slot}"
+            if _src in ctx["ai_sources"] and _k not in st.session_state:
+                st.session_state[_k] = _src
+        st.session_state[_ai_seeded] = True
+
     # Positional rank (RB18, WR7…) shown next to each player must follow the SAME
     # board the overall rank (#30) comes from — otherwise UDK's Top-200 order (which
     # drives #rank) and consensus-ADP order (which drove RB##) disagree and a

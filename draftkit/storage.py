@@ -149,40 +149,65 @@ def load_rankings(key: str) -> List[dict]:
     return []
 
 
-# --- per-league rank/tier tweaks (overrides re-applied on every UDK refresh) ---
-def _tweaks_local(key: str) -> Path:
+# ---- generic per-league JSON doc (repo-backed when configured, else local) ----
+def _doc_local(kind: str, key: str) -> Path:
     base = Path(os.environ.get("DRAFTKIT_DATA", config.DATA_DIR))
     base.mkdir(parents=True, exist_ok=True)
-    return base / f"tweaks_{_safe_key(key)}.json"
+    return base / f"{kind}_{_safe_key(key)}.json"
 
 
-def save_tweaks(key: str, tweaks: dict) -> None:
+def _save_doc(kind: str, key: str, obj) -> None:
     if _gh_config() is not None:
         try:
-            _gh_write(f"data/tweaks_{_safe_key(key)}.json", tweaks, f"tweaks ({key})")
+            _gh_write(f"data/{kind}_{_safe_key(key)}.json", obj, f"{kind} ({key})")
             return
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001 - fall through to local on any GH error
             pass
     try:
         with _LOCK:
-            _tweaks_local(key).write_text(json.dumps(tweaks, indent=2))
+            _doc_local(kind, key).write_text(json.dumps(obj, indent=2))
     except Exception:  # noqa: BLE001
         pass
 
 
-def load_tweaks(key: str) -> dict:
+def _load_doc(kind: str, key: str, default):
     if _gh_config() is not None:
         try:
-            data, _ = _gh_read(f"data/tweaks_{_safe_key(key)}.json")
-            if isinstance(data, dict):
+            data, _ = _gh_read(f"data/{kind}_{_safe_key(key)}.json")
+            if isinstance(data, type(default)):
                 return data
         except Exception:  # noqa: BLE001
             pass
-    p = _tweaks_local(key)
+    p = _doc_local(kind, key)
     if p.exists():
         try:
             with _LOCK:
                 return json.loads(p.read_text())
         except Exception:  # noqa: BLE001
             pass
-    return {}
+    return default
+
+
+# --- per-league rank/tier tweaks (overrides re-applied on every UDK refresh) ---
+def _tweaks_local(key: str) -> Path:
+    return _doc_local("tweaks", key)
+
+
+def save_tweaks(key: str, tweaks: dict) -> None:
+    _save_doc("tweaks", key, tweaks)
+
+
+def load_tweaks(key: str) -> dict:
+    return _load_doc("tweaks", key, {})
+
+
+# --- per-league AI draft boards: which ranking source each manager drafts off ---
+def save_ai_sources(key: str, sources: dict) -> None:
+    """`sources` is {slot_index_as_str: source_name}. Stored per league so the
+    boards you assign to each manager survive a restart instead of resetting to
+    Consensus every session."""
+    _save_doc("aisrc", key, {str(k): v for k, v in (sources or {}).items()})
+
+
+def load_ai_sources(key: str) -> dict:
+    return _load_doc("aisrc", key, {})

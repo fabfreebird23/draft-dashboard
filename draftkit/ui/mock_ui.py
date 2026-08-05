@@ -381,13 +381,27 @@ def render(ctx) -> None:
                         unsafe_allow_html=True)
         with ltabs[6]:
             with st.expander("AI draft boards — set each manager's ranking source"):
-                st.caption("Pick which board each AI manager drafts from. "
-                           "Sleeper doesn't publish ADP, so Underdog (best-ball) stands in.")
+                st.caption("Pick which board each AI manager drafts from — saved per "
+                           "league, so you only set these once. Sleeper doesn't publish "
+                           "ADP, so Underdog (best-ball) stands in.")
+
+                def _persist_ai_sources():
+                    """Write the whole map on any change. Streamlit fires on_change
+                    BEFORE the rerun, so reading session_state here already sees the
+                    new value for the box that changed."""
+                    from .. import storage as _storage
+                    lk = ctx["league_key"]
+                    _storage.save_ai_sources(lk, {
+                        str(s2): st.session_state.get(f"aisrc_{lk}_{s2}")
+                        for s2 in range(n)
+                        if s2 != my_slot and st.session_state.get(f"aisrc_{lk}_{s2}")})
+
                 for s in range(n):
                     if s == my_slot:
                         continue
                     st.selectbox(slot_names[s], ctx["ai_sources"],
                                  key=f"aisrc_{ctx['league_key']}_{s}",
+                                 on_change=_persist_ai_sources,
                                  help="The board this manager drafts off in the mock.")
             st.markdown(C.scouting_report_html(ctx.get("profiles", {}), slot_names,
                                                owner_by_slot, my_slot, on_clock_slot=on_slot,
