@@ -104,6 +104,13 @@ def render(ctx) -> None:
                  "drafted them (learned from past drafts). Below 1 they fly off even "
                  "earlier; above 1 they slide past their ADP. Change it between mocks "
                  "to practise against very different boards.")
+        st.slider(
+            "My board influence", 0.0, 6.0, 0.0, 0.5, key=f"{mkey}_boardedge",
+            help="How much YOUR UDK board sways Suggestions. Your board already "
+                 "decides WHO is eligible and supplies the tier cliffs; this adds "
+                 "its DISAGREEMENT with market ADP as a score nudge, per 10 spots. "
+                 "0 = off (Suggestions stays a pure second opinion). Raise it to "
+                 "let your own tuning pull players up.")
         npred = st.session_state.get(f"{mkey}_npred", 0)
         if st.session_state.get(f"{mkey}_predictkp", False) and npred:
             st.caption(f"+{npred} predicted keepers")

@@ -19,6 +19,11 @@ _POSITIONS = ("QB", "RB", "WR", "TE")
 # Tune here to dial the rookie lean up or down across the whole app.
 ROOKIE_PREMIUM = 0.65
 ROOKIE_FLOOR = 16.0
+# Board-derived scoring weights. Defined UP HERE because best_pick() uses
+# BOARD_EDGE_WEIGHT as a DEFAULT ARGUMENT, which is evaluated at def-time — leaving
+# it further down the module raised NameError on import.
+TIER_CLIFF_BONUS = 10.0
+BOARD_EDGE_WEIGHT = 0.0
 
 
 def is_rookie(registry, pid) -> bool:
@@ -354,7 +359,8 @@ def strategy_weight(strategy, pos, round_no, my_pids, registry, roster_slots) ->
 
 def best_pick(board_avail, model: "ValueModel", registry, needs, taken,
               next_pick=None, survival_fn=None, my_pids=None, roster_slots=None,
-              strategy=None, round_no=None, byes=None, juice_map=None):
+              strategy=None, round_no=None, byes=None, juice_map=None,
+              board_edge_weight=BOARD_EDGE_WEIGHT, adp_rank_fn=None):
     """The single ★ recommendation. Returns (row, score, reason) or (None, 0, '').
 
     This DELEGATES to ``top_suggestions`` and takes its #1 rather than scoring
@@ -367,7 +373,8 @@ def best_pick(board_avail, model: "ValueModel", registry, needs, taken,
                            next_pick=next_pick, survival_fn=survival_fn,
                            my_pids=my_pids, roster_slots=roster_slots, byes=byes,
                            k=1, strategy=strategy, round_no=round_no,
-                           juice_map=juice_map)
+                           juice_map=juice_map, board_edge_weight=board_edge_weight,
+                           adp_rank_fn=adp_rank_fn)
     if not sugg:
         return (None, 0, "")
     s = sugg[0]
@@ -431,12 +438,43 @@ def upside_score(model: "ValueModel", registry, pid) -> float:
 
 
 JUICE_SKEW_WEIGHT = 9.0  # points of score nudge per full unit of Juice's Value skew
+# Your own board (UDK) reaches the scorer two ways, deliberately NOT as raw rank.
+# Blending rank into the score would mostly double-count: UDK's order is itself
+# largely projection-derived, i.e. the same input VORP already uses, so it drags
+# Suggestions toward Rankings and costs you the second opinion that makes the
+# panel worth having. What it adds instead is information VORP structurally
+# cannot hold:
+#   TIER_CLIFF_BONUS - VORP sees a smooth points gradient; a published tier says
+#     "these are interchangeable, and there is a drop after them". Being the last
+#     man before that drop is worth more than his VORP implies.
+#   BOARD_EDGE_WEIGHT - a DELTA, not a level: how far your board disagrees with
+#     the market, per 10 spots. Defaults to 0 so it changes nothing until asked.
+
+
+def tier_cliff_bonus(row, board_avail, registry) -> float:
+    """Extra value for the last players in a positional tier.
+
+    Scaled by how thin the tier is: the sole survivor of a tier gets the full
+    bonus, four-left gets a quarter of it. Uses the board's own `pos_tier` (UDK
+    publishes per-position tiers), so this is your ranking source's structure —
+    not something re-derived from ADP gaps."""
+    pos = registry.meta(str(row["pid"])).position
+    tier = row.get("pos_tier") or row.get("tier")
+    if tier is None or not pos:
+        return 0.0
+    same = sum(1 for r in board_avail
+               if (r.get("pos_tier") or r.get("tier")) == tier
+               and registry.meta(str(r["pid"])).position == pos)
+    if same <= 0 or same > 4:
+        return 0.0
+    return TIER_CLIFF_BONUS * (1.0 / same)
 
 
 def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
                     next_pick=None, survival_fn=None, my_pids=None, roster_slots=None,
                     byes=None, k=6, upside=False, strategy=None, round_no=None,
-                    juice_map=None):
+                    juice_map=None, board_edge_weight=BOARD_EDGE_WEIGHT,
+                    adp_rank_fn=None):
     """A ranked list of the best picks right now — the engine behind the Suggestions
     tab. Roster-aware scoring like ``best_pick`` (value × roster fit + starter need +
     positional scarcity + 'won't survive to your next pick'), now also nudged by
@@ -504,13 +542,29 @@ def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
         landmine = j.get("landmine") if j else None
         if skew is not None:
             score += skew * JUICE_SKEW_WEIGHT
+        # --- YOUR board, as structure and disagreement rather than as rank ---
+        cliff = tier_cliff_bonus(r, board_avail, registry)
+        score += cliff
+        # How far your board departs from the market, per 10 spots. Positive =
+        # your board rates him ABOVE consensus ADP. The market rank has to come
+        # from adp_rank_fn — a board row's own `adp` is UDK's round.pick figure
+        # (1.01), not a consensus rank, so reading it off the row silently yields
+        # nothing.
+        edge = 0.0
+        if board_edge_weight and r.get("rank") and adp_rank_fn:
+            mkt = adp_rank_fn(pm.name, pm.position)
+            if mkt:
+                edge = (float(mkt) - float(r["rank"])) / 10.0 * board_edge_weight
+                score += edge
         redundant = (redundant_single_slot(pm.position, my_pids, roster_slots, registry)
                      if use_roster else False)
         out.append({"row": r, "pm": pm, "score": round(score, 1), "raw": raw,
                     "mult": mult, "sv": sv, "left": left,
                     "stack": is_stack, "bye_clash": clash,
                     "skew": skew, "landmine": landmine, "redundant": redundant,
-                    "unprojected": not model.is_projected(pid)})
+                    "unprojected": not model.is_projected(pid),
+                    "cliff": round(cliff, 1), "board_edge": round(edge, 1),
+                    "board_rank": r.get("rank")})
     # Rank in tiers, not on score alone:
     #   1. can he reach your lineup at all?  (redundant_single_slot)
     #   2. do we actually have a projection?  (is_projected — an unprojected
@@ -518,7 +572,10 @@ def top_suggestions(board_avail, model: "ValueModel", registry, needs, taken, *,
     #   3. then score.
     # Sorted rather than dropped so they still appear when nothing better is left,
     # and so the position pills can still surface them deliberately.
-    out.sort(key=lambda x: (x["redundant"], x["unprojected"], -x["score"]))
+    #   4. within a point of each other the score is not really distinguishing
+    #      them, so defer to YOUR board rather than to float noise.
+    out.sort(key=lambda x: (x["redundant"], x["unprojected"], -round(x["score"]),
+                            x["board_rank"] if x["board_rank"] is not None else 9999))
     return out[:k]
 
 

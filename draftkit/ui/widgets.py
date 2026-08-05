@@ -461,7 +461,9 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
             ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
             next_pick, pick_no),
         my_pids=my_pids, roster_slots=ctx["roster_slots"], byes=ctx.get("byes"), k=k,
-        upside=upside, strategy=strategy, round_no=round_no, juice_map=ctx.get("juice"))
+        upside=upside, strategy=strategy, round_no=round_no, juice_map=ctx.get("juice"),
+        adp_rank_fn=ctx["adp_rank"],
+        board_edge_weight=float(st.session_state.get(f"{key_prefix}_boardedge", 0.0)))
     if strategy and strategy != "Balanced":
         st.caption(f"**{strategy}** — {V.STRATEGY_HELP.get(strategy, '')}")
     if not sugg:

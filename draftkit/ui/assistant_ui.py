@@ -43,6 +43,13 @@ def render(ctx) -> None:
             "Strategy", V.STRATEGIES, key=f"{akey}_strategy",
             help="Biases the ★ recommendation and Suggestions toward a plan "
                  "(Hero/Zero/Robust RB, Elite TE, Late-Round QB, or pure value).")
+        st.slider(
+            "My board influence", 0.0, 6.0, 0.0, 0.5, key=f"{akey}_boardedge",
+            help="How much YOUR UDK board sways Suggestions. Your board already "
+                 "decides WHO is eligible and supplies the tier cliffs; this adds "
+                 "its DISAGREEMENT with market ADP as a score nudge, per 10 spots. "
+                 "0 = off (Suggestions stays a pure second opinion). Raise it to "
+                 "let your own tuning pull players up.")
     manual = mode == "Manual entry"
     my_slot = slot_names.index(me)
     if not manual:
