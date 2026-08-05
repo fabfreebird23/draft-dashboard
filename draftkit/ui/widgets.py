@@ -165,6 +165,11 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         return f':{pc}[**{pr}**] {stk}**{C.short_name(r["name"])}**{vchip}'
 
     taken_s = {str(x) for x in (taken or set())}
+    # Survival is measured against the LIVE board (ADP order among the undrafted),
+    # not against market ADP — see components.board_survival_fn. `taken` here is
+    # the full drafted set, which is exactly the input that anchor needs.
+    surv_fn = (C.board_survival_fn(ctx.get("adp_pool"), taken_s, pick, next_pick)
+               if (next_pick and pick) else None)
 
     def emit_row(r, compact=False):
         pm = reg.meta(r["pid"])
@@ -185,7 +190,8 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
                f'background-image:url("{theme.headshot_src(r["pid"])}")}}')
         if next_pick:
             adp = adp_rank(pm.name, pm.position)
-            pct = C.survival_pct(adp, next_pick, pick)
+            pct = (surv_fn(r["pid"], adp) if surv_fn
+                   else C.survival_pct(adp, next_pick, pick))
             sc = C.survival_colors(pct)
             if sc:
                 css += (f'.st-key-{rk} .stButton button::after{{content:"{pct}%";'
@@ -455,11 +461,11 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
 
     avail = [r for r in ranks if r.get("pid") and str(r["pid"]) not in taken_s
              and (pos_f == "All" or reg.meta(r["pid"]).position == pos_f)]
+    # Board-anchored, so a keeper league (where the room runs well ahead of market
+    # ADP) doesn't read every suggestion as ~100% likely to fall back to you.
     sugg = V.top_suggestions(
         avail, ctx["value"], reg, needs, taken_s, next_pick=next_pick,
-        survival_fn=lambda pid: C.survival_pct(
-            ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
-            next_pick, pick_no),
+        survival_fn=C.board_survival_fn(ctx.get("adp_pool"), taken_s, pick_no, next_pick),
         my_pids=my_pids, roster_slots=ctx["roster_slots"], byes=ctx.get("byes"), k=k,
         upside=upside, strategy=strategy, round_no=round_no, juice_map=ctx.get("juice"),
         adp_rank_fn=ctx["adp_rank"],
@@ -725,7 +731,10 @@ def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
         if vm:
             taken_s = {str(x) for x in (taken or [])}
             left = vm.startable_left(pm.position, taken_s)
-            sv = C.survival_pct(adp, next_pick, current_pick) if next_pick else None
+            # NB: no current_pick in this function's scope — the previous line here
+            # passed one anyway and was a latent NameError, unnoticed because
+            # spotlight_panel currently has no callers. ADP fallback until it does.
+            sv = C.survival_pct(adp, next_pick) if next_pick else None
             mult = (V.roster_multiplier(pm.position, my_pids, ctx["roster_slots"], registry)
                     if my_pids is not None else None)
             verdict = V.grab_verdict(sv, left, is_need=(pm.position in (needs or set())),

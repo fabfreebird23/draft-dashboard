@@ -263,6 +263,11 @@ def render(ctx) -> None:
         nxt += 1
     next_user_pick = nxt if nxt <= total else None
 
+    # One board-anchored survival model per render, shared by the cheat sheet, the
+    # suggestion scorer and the rankings rows so every % on screen agrees.
+    surv_fn = C.board_survival_fn(ctx["adp_pool"], taken, pick_no, next_user_pick) \
+        if next_user_pick else (lambda pid, adp=None: None)
+
     if done:
         st.success("Mock complete — review the full board or your recap below. "
                    "Reset to run another.")
@@ -345,9 +350,7 @@ def render(ctx) -> None:
             show_cs_drafted = st.toggle("Show drafted", key=f"{mkey}_cs_showdrafted")
             st.markdown(C.cheat_sheet_html(
                 ranks_active, reg, taken=taken, show_drafted=show_cs_drafted,
-                survival_fn=lambda pid: C.survival_pct(
-                    ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
-                    next_user_pick, pick_no)), unsafe_allow_html=True)
+                survival_fn=surv_fn), unsafe_allow_html=True)
         with ltabs[2]:
             juice_tab(ctx, key_prefix=mkey, taken=taken, queued=queued, on_star=toggle_queue)
         with ltabs[3]:
@@ -400,9 +403,7 @@ def render(ctx) -> None:
     if rec_row is None and board_avail:
         rec_row, _, rec_tag = V.best_pick(
             board_avail, ctx["value"], reg, needs, taken, next_pick=next_user_pick,
-            survival_fn=lambda pid: C.survival_pct(
-                ctx["adp_rank"](reg.meta(pid).name, reg.meta(pid).position),
-                next_user_pick, pick_no),
+            survival_fn=surv_fn,
             my_pids=my_pids, roster_slots=ctx["roster_slots"],
             strategy=strategy, round_no=round_no,
             byes=ctx.get("byes"), juice_map=ctx.get("juice"))

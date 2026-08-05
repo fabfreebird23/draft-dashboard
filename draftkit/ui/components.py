@@ -6,6 +6,7 @@ chips, bye weeks, a readable color-coded draft board, and a roster-needs strip.
 """
 from __future__ import annotations
 
+import functools
 import math
 from typing import Callable, List
 
@@ -35,8 +36,58 @@ def _phi(z):
     return 0.5 * (1 + math.erf(z / math.sqrt(2)))
 
 
-def survival_pct(adp, next_pick, current_pick=None):
-    """Probability (0-100) a player with this ADP is still available at your next
+@functools.lru_cache(maxsize=256)
+def _sigma_for_horizon(h):
+    """The spread of the room's deviation from board order, SOLVED from the
+    conservation identity rather than picked by hand.
+
+    Over a horizon of h picks, sum(1 - survival) across the board must equal h —
+    h picks remove h players, exactly. With the mean pinned at `current + rank`,
+    that sum has a closed form, T*Phi(T/s) + s*phi(T/s) with T = h - 0.5, which is
+    strictly increasing in s. So exactly one sigma satisfies the identity and
+    there is no free parameter left to tune. Bisection converges in ~40 steps.
+
+    The old hand-set `max(4, 0.16 * depth)` scaled with draft DEPTH, which is the
+    wrong variable — it overshot the identity by 28% at round 10 and by 177% at a
+    back-to-back turn. Spread should track how far ahead you're looking, not how
+    deep the draft is."""
+    t = h - 0.5
+    lo, hi = 1e-3, 5.0 * h + 10.0
+
+    def f(s):
+        return t * _phi(t / s) + s * math.exp(-0.5 * (t / s) ** 2) / math.sqrt(2 * math.pi)
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        if f(mid) < h:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
+def survival_pct(adp, next_pick, current_pick=None, avail_rank=None):
+    """Probability (0-100) a player is still available at your next pick.
+
+    `avail_rank` (1-based position in ADP order among UNDRAFTED players) is the
+    accurate anchor and should be supplied wherever the board is known — see
+    `board_survival_fn`. Market ADP is an *absolute* pick number, and it is only
+    a valid anchor in a draft whose board tracks that number. Ours doesn't: with
+    38 keepers locked, the best available player at pick 26 has ADP 46, so the
+    room is running ~20 picks ahead of the market and every ADP-anchored estimate
+    reads a player as "not due for a while" when he is in fact next off the board.
+
+    The conservation identity makes the error exact and unarguable: the H picks
+    between now and your next turn remove exactly H players from the board, so
+    sum(1 - survival) over the available pool MUST equal H. Measured on the real
+    pool at pick 26 with H=12, the ADP anchor accounted for 1.02 of those 12
+    picks — 12x too optimistic, which is why the whole column read 83-100%.
+    Ranking against the board instead gives 13.05, and reduces to the identical
+    ADP answer in a plain redraft where board and market agree.
+
+    The `adp`/`current_pick` path below is the fallback for callers with no board
+    (e.g. a standalone player card) and keeps the older conditioning fix.
+
+    Probability (0-100) a player with this ADP is still available at your next
     pick — models draft position as Normal(adp, sigma) with sigma growing for
     later ADPs.
 
@@ -47,7 +98,21 @@ def survival_pct(adp, next_pick, current_pick=None):
     front of you — which then hands him the maximum 'unlikely to return' urgency
     bonus and a GRAB NOW verdict. The evidence that he lasted this long is
     exactly what should raise his odds of lasting a bit longer."""
-    if not adp or not next_pick:
+    if not next_pick:
+        return None
+    if avail_rank and current_pick:
+        # He is taken at pick `current_pick + avail_rank` if the room drafts the
+        # board in order; sigma carries the room's deviation from that order, and
+        # is solved rather than guessed (see _sigma_for_horizon).
+        # Survives iff he lasts past every pick before yours, i.e. X > next - 0.5.
+        h = int(next_pick) - int(current_pick) - 1
+        if h <= 0:                      # you pick again immediately — nobody moves
+            return 100
+        mu = float(current_pick) + float(avail_rank)
+        sigma = _sigma_for_horizon(h)
+        p = 1 - _phi((float(next_pick) - 0.5 - mu) / sigma)
+        return max(0, min(100, round(p * 100)))
+    if not adp:
         return None
     # Measure from wherever the market actually has him NOW. A player still on the
     # board past his ADP has already falsified the original estimate, so anchoring
@@ -59,6 +124,33 @@ def survival_pct(adp, next_pick, current_pick=None):
     sigma = max(4.0, 0.16 * eff)
     p = 1 - _phi((float(next_pick) - eff) / sigma)
     return max(0, min(100, round(p * 100)))
+
+
+def board_survival_fn(adp_pool, drafted, current_pick, next_pick):
+    """pid -> survival %, anchored to the live board rather than to market ADP.
+
+    Ranks the UNDRAFTED players in ADP order — that ordering is the room's own
+    queue, so the j-th name on it is expected to go j picks from now. This is
+    self-calibrating: keepers, positional runs and a reachy room all shift the
+    board, and ranking against what's actually left absorbs the shift for free.
+
+    Returns a callable so every row shares one pass over the pool. Falls back to
+    the ADP anchor for a player the ADP pool doesn't rank (deep/unranked names),
+    who by definition isn't near the top of the queue anyway."""
+    ranks, j = {}, 0
+    taken = {str(x) for x in (drafted or ())}
+    for p in (adp_pool or ()):
+        pid = str(p.get("pid") or "")
+        if not pid or pid in taken:
+            continue
+        j += 1
+        ranks[pid] = j
+
+    def _fn(pid, adp=None):
+        return survival_pct(adp, next_pick, current_pick,
+                            avail_rank=ranks.get(str(pid)))
+    _fn.ranks = ranks
+    return _fn
 
 
 def survival_colors(pct):
