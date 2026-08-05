@@ -420,7 +420,16 @@ def juice_tab(ctx, *, key_prefix, taken, queued=None, on_star=None, limit=80) ->
     if not show_drafted:
         rows = [r for r in rows if str(r["pid"]) not in taken_s]
     rows = rows[:limit]
-    st.markdown(C.juice_colhead_html(), unsafe_allow_html=True)
+    # The header must go through the SAME column split as the rows. Each row lives in
+    # cols[0] of a [7.6, 0.42] split (the ☆ takes the rest), so a full-width header is
+    # ~5% wider — and because the name column is minmax(0,1fr), every fixed-width
+    # column after it is anchored to the right edge and slides by that whole
+    # difference. ADP/ECR/Δ/LANDMINE then sit right of their numbers. Splitting the
+    # header identically keeps the two grids the same width at any container size,
+    # which a hardcoded padding wouldn't.
+    head = st.columns([7.6, 0.42], gap="small")
+    with head[0]:
+        st.markdown(C.juice_colhead_html(), unsafe_allow_html=True)
     for r in rows:
         pid = str(r["pid"])
         is_taken = pid in taken_s
