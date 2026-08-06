@@ -70,8 +70,10 @@ def render(presets, on_pick, board_age_fn=None) -> None:
         # Same control as the per-league topbar, doing the analogous job: which half
         # of the year am I looking at. On Home it FILTERS rather than switching a
         # view, because Home is the only screen showing more than one league.
-        view = st.radio("view", ["All", "Pre-season", "In-season"], horizontal=True,
-                        key="home_phase", label_visibility="collapsed")
+        st.session_state.setdefault("home_phase", "All")
+        view = st.segmented_control(
+            "view", ["All", "Pre-season", "In-season"], key="home_phase",
+            selection_mode="single", label_visibility="collapsed") or "All"
 
     rows = []
     for p in presets:

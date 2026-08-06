@@ -1181,31 +1181,17 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .tb-hr{ display:flex; align-items:center; gap:7px; font-size:12px; padding:3px 0; }
 .tb-hr b{ margin-left:auto; font-variant-numeric:tabular-nums; }
 .tb-dot{ width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:5px; }
-/* Segmented control, not a radio. Streamlit renders the glyph as label>:first-child;
-   hiding it and styling label:has(input:checked) is the same technique the nav tabs
-   use — without it this rendered as bare radio circles, which is why the topbar
-   didn't match the mock. */
-[class*="st-key-tb_phase"] [role="radiogroup"],
-[class*="st-key-hmphase"] [role="radiogroup"],
-[class*="st-key-phase_"] [role="radiogroup"],
-[class*="st-key-home_phase"] [role="radiogroup"]{ gap:2px; background:var(--panel2);
-  border-radius:9px; padding:3px; width:max-content; }
-/* sits beside the identity, not pinned to the far edge */
-[class*="st-key-tb_phase"] [role="radiogroup"]{ margin-left:0; }
-[class*="st-key-tb_phase"] [role="radiogroup"] label,
-[class*="st-key-hmphase"] [role="radiogroup"] label,
-[class*="st-key-phase_"] [role="radiogroup"] label,
-[class*="st-key-home_phase"] [role="radiogroup"] label{ padding:5px 15px; font-size:11.5px;
-  font-weight:700; border-radius:7px; margin:0; color:var(--mut2); background:transparent; }
-[class*="st-key-tb_phase"] [role="radiogroup"] label>:first-child,
-[class*="st-key-hmphase"] [role="radiogroup"] label>:first-child,
-[class*="st-key-phase_"] [role="radiogroup"] label>:first-child,
-[class*="st-key-home_phase"] [role="radiogroup"] label>:first-child{ display:none; }
-[class*="st-key-tb_phase"] [role="radiogroup"] label:has(input:checked),
-[class*="st-key-hmphase"] [role="radiogroup"] label:has(input:checked),
-[class*="st-key-phase_"] [role="radiogroup"] label:has(input:checked),
-[class*="st-key-home_phase"] [role="radiogroup"] label:has(input:checked){
-  background:var(--panel); color:var(--ink); box-shadow:0 1px 2px rgba(20,30,40,.13); }
+/* The phase / nav controls are st.segmented_control now, not styled radios —
+   see app.py for why. Streamlit ships it already looking like a segment, so this
+   is only sizing and brand colour, no DOM archaeology. */
+[class*="st-key-tb_phase"] [data-testid="stButtonGroup"],
+[class*="st-key-hmphase"] [data-testid="stButtonGroup"],
+[class*="navbar"] [data-testid="stButtonGroup"]{ gap:2px; }
+[class*="st-key-tb_phase"] [data-testid="stButtonGroup"] button,
+[class*="st-key-hmphase"] [data-testid="stButtonGroup"] button{
+  font-size:11.5px; font-weight:700; padding:5px 15px; border-radius:7px; }
+[class*="navbar"] [data-testid="stButtonGroup"] button{
+  font-size:13.5px; font-weight:700; padding:8px 15px; }
 [class*="st-key-tb_more"] button{ padding:4px 0; font-weight:800; }
 
 /* ---- tone scale: one place, both themes. Anything that was inline hex could not

@@ -601,8 +601,15 @@ def main():
                         f'<span class="tb-name">{meta.name}</span></div>',
                         unsafe_allow_html=True)
         with head[1], st.container(key="tb_phase"):
-            ph_sel = st.radio("phase", ["Pre-season", "In-season"], horizontal=True,
-                              key=pkey, label_visibility="collapsed")
+            # st.segmented_control, NOT a styled radio. Hiding a radio's glyph means
+            # selecting on Streamlit's internal DOM, and that DOM is not stable: on
+            # 1.50 the glyph is label>div, on the newer build Cloud resolves to it's a
+            # nested div behind a visually-hidden a11y span. Two attempts to pin it
+            # with CSS both worked locally and failed on Cloud. This widget IS a
+            # segmented control, so there is nothing to hide.
+            ph_sel = st.segmented_control(
+                "phase", ["Pre-season", "In-season"], key=pkey,
+                selection_mode="single", label_visibility="collapsed") or st.session_state[pkey]
         with head[2]:
             st.markdown(f'<div class="tb-row tb-pills">{pills}{cluster}</div>',
                         unsafe_allow_html=True)
@@ -627,18 +634,25 @@ def main():
 
     if ph_sel == "In-season":
         nav = ["This Week"]
+        st.session_state.setdefault(f"nav_in_{ctx['league_key']}", nav[0])
         with st.container(key="navbar"):
-            st.radio("nav", nav, horizontal=True, key=f"nav_in_{ctx['league_key']}",
-                     label_visibility="collapsed")
+            st.segmented_control("nav", nav, key=f"nav_in_{ctx['league_key']}",
+                                 selection_mode="single",
+                                 label_visibility="collapsed")
         in_season_ui.render(ctx, summary=lg_sum)
         return
 
     # Persisted nav (st.tabs resets to the first tab on every rerun — drafting
     # triggers reruns, so we use a keyed radio styled as tabs instead).
     nav = ["Overview", "My Rankings", "Mock Draft", "Live Draft", "Report Card"]
+    st.session_state.setdefault("nav_section", nav[0])
     with st.container(key="navbar"):
-        section = st.radio("nav", nav, horizontal=True, key="nav_section",
-                           label_visibility="collapsed")
+        # Same reasoning as the phase control. `or` guards the deselect case:
+        # segmented_control returns None when you click the active segment, and the
+        # nav must never resolve to nothing mid-draft.
+        section = st.segmented_control("nav", nav, key="nav_section",
+                                       selection_mode="single",
+                                       label_visibility="collapsed") or nav[0]
     if section == nav[0]:
         prep_ui.render(ctx, summary=lg_sum)
     elif section == nav[1]:
