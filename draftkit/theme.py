@@ -1068,6 +1068,20 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .pcd-mv{ text-align:right; font-weight:700; } .pcd-md{ text-align:right; color:var(--mut2); }
 .pcd-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(64px,1fr)); gap:8px;
   font-size:13px; font-weight:700; }
+
+/* ---- Home: every league at once ---- */
+.hm-h{ font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--mut2); margin:6px 0 9px; }
+.hm-card{ background:var(--panel); border:1px solid var(--line); border-top:3px solid var(--mut2);
+  border-radius:11px; padding:13px 14px; margin-bottom:8px; }
+.hm-name{ font-size:15px; font-weight:800; letter-spacing:-.01em; }
+.hm-meta{ font-size:11.5px; color:var(--mut2); margin:1px 0 9px; text-transform:capitalize; }
+.hm-note{ display:flex; gap:7px; align-items:flex-start; font-size:12.5px; line-height:1.45;
+  padding:8px 10px; border-radius:7px; }
+.hm-note i{ width:7px; height:7px; border-radius:50%; flex:none; margin-top:5px; }
+.hm-hub{ display:inline-block; margin-top:6px; font-size:11.5px; font-weight:600;
+  color:var(--muted); text-decoration:none; }
+.hm-hub:hover{ text-decoration:underline; }
 </style>
 
 """

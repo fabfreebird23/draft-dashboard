@@ -14,7 +14,7 @@ from draftkit.adp import consensus
 from draftkit.names import normalize_name
 from draftkit.providers import get_provider, EspnAuthError
 from draftkit import draft_history, keepers as keepers_mod, rankings as rankings_mod
-from draftkit.ui import assistant_ui, mock_ui, rankings_ui, report_card_ui
+from draftkit.ui import assistant_ui, home_ui, mock_ui, rankings_ui, report_card_ui
 from draftkit.ui.components import board_pos_rank, health_html
 
 st.set_page_config(page_title="Draft Room — Mock + Live Draft", layout="wide")
@@ -267,14 +267,12 @@ def _select_league(preset: dict) -> None:
 
 # ------------------------------------------------------------------ league pick
 def league_picker():
-    st.markdown(f'<h1>{theme.logo_html(40)}</h1>', unsafe_allow_html=True)
-
+    """Home. Renders the league cards when there are saved leagues, then the
+    import form underneath for anything new."""
+    if not SAVED_LEAGUES:
+        st.markdown(f'<h1>{theme.logo_html(40)}</h1>', unsafe_allow_html=True)
     if SAVED_LEAGUES:
-        st.markdown("##### Your leagues")
-        cols = st.columns(len(SAVED_LEAGUES))
-        for col, preset in zip(cols, SAVED_LEAGUES):
-            if col.button(preset["label"], use_container_width=True, key=f"saved_{preset['league_id']}"):
-                _select_league(preset)
+        home_ui.render(SAVED_LEAGUES, _select_league, board_age_fn=get_board_age)
         st.divider()
 
     st.caption("…or import another league. Sleeper is public by league ID; ESPN works "
@@ -548,7 +546,7 @@ def main():
                       use_container_width=True, on_click=_toggle_dark,
                       help="Toggle the dark 'war-room' theme for live drafting.")
         with head[2]:
-            if st.button("Switch league", use_container_width=True):
+            if st.button("Home", use_container_width=True):
                 del st.session_state.league
                 st.rerun()
 
