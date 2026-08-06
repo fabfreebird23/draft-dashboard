@@ -1017,12 +1017,13 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   h2{ font-size:1.15rem !important; }
   [class*="navbar"] [role="radiogroup"] label{ padding:8px 11px; font-size:12.5px; }
 }
-</style>
+
 /* ---- Player card (popup) — the click-to-inspect card inside st.dialog ---- */
 .pcd{ font-size:13px; }
 .pcd-top{ display:flex; align-items:center; gap:12px; margin-bottom:10px; }
 .pcd-img{ width:54px; height:54px; border-radius:50%; object-fit:cover;
   background:var(--panel2); flex:none; }
+.pcd-id{ min-width:0; }
 .pcd-nm{ font-size:19px; font-weight:800; line-height:1.15; }
 .pcd-bits{ font-size:12px; color:var(--mut2); margin-top:2px; }
 .pcd-chips{ display:flex; flex-wrap:wrap; gap:5px; }
@@ -1063,6 +1064,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .pcd-mv{ text-align:right; font-weight:700; } .pcd-md{ text-align:right; color:var(--mut2); }
 .pcd-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(64px,1fr)); gap:8px;
   font-size:13px; font-weight:700; }
+</style>
 
 """
 

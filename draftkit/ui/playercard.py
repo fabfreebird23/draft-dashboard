@@ -469,8 +469,8 @@ def player_card_html(pm, *, pid, pos_rank="", overall=None, adp=None, tier=None,
         s = season_stats(pid, season) or {}
         rows = _statline(pm.position, s)
         if rows:
-            g = s.get("gp") or s.get("gms_active")
-            cells = ([("games", _fmt(g))] if g else []) + rows[:4]
+            # _statline already leads with Games — don't prepend a second one.
+            cells = rows[:5]
             prev = (f'<div class="pcd-sec"><div class="pcd-h">{prev_label or season}</div>'
                     f'<div class="pcd-grid">' + "".join(
                         f'<div><div class="pcd-sl">{k}</div>{v}</div>' for k, v in cells)
