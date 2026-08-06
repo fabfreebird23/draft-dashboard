@@ -518,58 +518,66 @@ def main():
 
     meta = ctx["meta"]
     n_keep = len(ctx["keepers"]["kept_pids"])
-    pills = [meta.platform.upper(), f"{meta.num_teams} teams", f"{meta.draft_rounds} rds",
-             meta.scoring.upper()]
-    if n_keep:
-        pills.append(f"{n_keep} keepers")
-    if ctx["tendencies"]:
-        pills.append(f"AI · {len(ctx['tendencies'])} mgrs")
-    pill_html = "".join(f'<span class="tb-pill">{p}</span>' for p in pills)
-    dark_on = st.session_state.get("dark_mode", False)
-    with st.container(key="dr_topbar"):
-        head = st.columns([5.4, 1.3, 1.3])
-        with head[0]:
-            st.markdown(f'<div class="tb-row">{theme.logo_html(20, tag=None)}'
-                        f'<span class="tb-name">{meta.name}</span>{pill_html}'
-                        f'{health_html(ctx.get("health"))}</div>',
-                        unsafe_allow_html=True)
-        with head[1], st.container(key="tb_war"):
-            # a plain button is a far bigger / more reliable click target than a toggle.
-            # Toggle via on_click callback (NOT an inline st.rerun): the button sits in
-            # the topbar, above the nav radio, so an inline st.rerun() would abort the
-            # script before the nav renders and Streamlit would drop its state, kicking
-            # you back to 'My Rankings'. The callback flips state pre-rerun instead.
-            def _toggle_dark():
-                st.session_state["dark_mode"] = not st.session_state.get("dark_mode", False)
-            st.button("Light mode" if dark_on else "War room", key="dark_btn",
-                      use_container_width=True, on_click=_toggle_dark,
-                      help="Toggle the dark 'war-room' theme for live drafting.")
-        with head[2]:
-            if st.button("Home", use_container_width=True):
-                del st.session_state.league
-                st.rerun()
-
-    # ---- phase split: pre-season prep vs in-season lineups ----
-    # The DEFAULT comes from the league's own draft (phase.py), not a global
-    # setting — Kreeper drafts Aug 13 and B&B Sep 7, so for three weeks these two
-    # leagues genuinely belong in different halves. It stays overridable because a
-    # derived default you can't argue with is worse than one you can.
+    # ---- ONE topbar row: identity · pills (health folded in) · phase ----
+    # Previously this spread over three rows — identity+buttons, then the phase
+    # radio on its own line, then the tabs. The health dots also trailed as a
+    # separate strip repeating things the pills already named. Folding the dots
+    # into their own pill and lifting phase into this row gets it to two.
     from draftkit import phase as PH
     lg_sum = get_league_phase(meta.platform, str(meta.league_id), config.current_season())
-    default_phase = 1 if lg_sum.phase in (PH.IN, PH.DONE) else 0
+
+    h = ctx.get("health") or {}
+    def _dot(ok, warn=False):
+        c = "var(--red)" if not ok else ("var(--amber)" if warn else "var(--green)")
+        return f'<i class="tb-dot" style="background:{c}"></i>'
+    pills = [f'<span class="tb-pill">{meta.platform.upper()}</span>',
+             f'<span class="tb-pill">{meta.num_teams} teams</span>',
+             f'<span class="tb-pill">{meta.draft_rounds} rds</span>',
+             f'<span class="tb-pill">{meta.scoring.upper()}</span>']
+    age = h.get("adp_age_h")
+    pills.append(f'<span class="tb-pill">{_dot(age is not None, (age or 0) >= 24)}'
+                 f'ADP {"—" if age is None else (str(int(age)) + "h" if age < 48 else str(int(age/24)) + "d")}</span>')
+    if h.get("keeper_league"):
+        nk = h.get("keepers") or 0
+        pills.append(f'<span class="tb-pill">{_dot(nk > 0)}{nk} keepers</span>')
+    ba = h.get("board_age_h")
+    if ba is not None:
+        pills.append(f'<span class="tb-pill">{_dot(True, ba / 24 >= 7)}'
+                     f'board {int(ba) if ba < 48 else int(ba/24)}{"h" if ba < 48 else "d"}</span>')
+    j = h.get("juice") or 0
+    if j:
+        pills.append(f'<span class="tb-pill">{_dot(j > 0)}Juice {j}</span>')
+
+    dark_on = st.session_state.get("dark_mode", False)
     pkey = f"phase_{ctx['league_key']}"
     if pkey not in st.session_state:
-        st.session_state[pkey] = ["Pre-season", "In-season"][default_phase]
-    with st.container(key="phasebar"):
-        pcols = st.columns([1.4, 4.6])
-        with pcols[0]:
+        # Default derived from THIS league's own draft — Kreeper drafts Aug 13 and
+        # B&B Sep 7, so a single global toggle would be wrong for one of them for
+        # three weeks. Still overridable.
+        st.session_state[pkey] = ("In-season" if lg_sum.phase in (PH.IN, PH.DONE)
+                                  else "Pre-season")
+    with st.container(key="dr_topbar"):
+        head = st.columns([4.9, 1.9, 0.55])
+        with head[0]:
+            st.markdown(f'<div class="tb-row">{theme.logo_html(20, tag=None)}'
+                        f'<span class="tb-name">{meta.name}</span>{"".join(pills)}</div>',
+                        unsafe_allow_html=True)
+        with head[1], st.container(key="tb_phase"):
             ph_sel = st.radio("phase", ["Pre-season", "In-season"], horizontal=True,
                               key=pkey, label_visibility="collapsed")
-        with pcols[1]:
-            st.markdown(f'<div class="ph-note">{lg_sum.note}</div>', unsafe_allow_html=True)
+        with head[2], st.container(key="tb_more"):
+            # War room / Home are rare next to things read every load, so they move
+            # out of the row and into an overflow.
+            with st.popover("⋯", use_container_width=True):
+                def _toggle_dark():
+                    st.session_state["dark_mode"] = not st.session_state.get("dark_mode", False)
+                st.button("Light mode" if dark_on else "War room", key="dark_btn",
+                          use_container_width=True, on_click=_toggle_dark,
+                          help="Toggle the dark 'war-room' theme for live drafting.")
+                if st.button("Home — all leagues", use_container_width=True, key="tb_home"):
+                    del st.session_state.league
+                    st.rerun()
 
-    # Persisted nav (st.tabs resets to the first tab on every rerun — drafting
-    # triggers reruns, so we use a keyed radio styled as tabs instead).
     if ph_sel == "In-season":
         nav = ["This Week"]
         with st.container(key="navbar"):
@@ -578,6 +586,8 @@ def main():
         in_season_ui.render(ctx, summary=lg_sum)
         return
 
+    # Persisted nav (st.tabs resets to the first tab on every rerun — drafting
+    # triggers reruns, so we use a keyed radio styled as tabs instead).
     nav = ["Overview", "My Rankings", "Mock Draft", "Live Draft", "Report Card"]
     with st.container(key="navbar"):
         section = st.radio("nav", nav, horizontal=True, key="nav_section",

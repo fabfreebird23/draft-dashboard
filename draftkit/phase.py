@@ -143,3 +143,40 @@ _ORDER = {"red": 0, "amber": 1, "ok": 2, "nil": 3}
 def sort_key(s: Summary):
     """Most urgent first; within a tone, the sooner draft wins."""
     return (_ORDER.get(s.tone, 9), s.days_to_draft if s.days_to_draft is not None else 9e9)
+
+
+def detail(preset: dict, registry=None) -> dict:
+    """Extra state for ONE league — the hero on Home, and nothing else.
+
+    Kept off `summary()` on purpose: Home renders every league, and keeper +
+    draft-order lookups per league would turn a fast screen into four round trips
+    before anything appeared. Only the league promoted to the hero pays this.
+    """
+    out = {"kept": 0, "expected": 0, "short": "", "slot_names": []}
+    lid = str(preset.get("league_id"))
+    if preset.get("platform") != "sleeper":
+        return out
+    try:
+        from . import keepers as K
+        rules = K.load_keeper_rules(lid)
+        per = (rules.get("max_regular_keepers") or 0) + (rules.get("max_rookie_keepers") or 0)
+        raw = K.load_keepers(lid, int(preset.get("season") or config.current_season())) or {}
+        out["kept"] = sum(len(v or []) for v in raw.values())
+        teams = 0
+        try:
+            lg = api.get_league(lid) or {}
+            teams = int(lg.get("total_rosters") or 0)
+        except Exception:  # noqa: BLE001
+            pass
+        out["expected"] = per * teams if (per and teams) else 0
+        if per and raw:
+            names = K.load_manager_names(lid) or {}
+            short = [(names.get(str(o), "A team"), per - len(v or []))
+                     for o, v in raw.items() if len(v or []) < per]
+            if short:
+                who, n = short[0]
+                out["short"] = (f"{who} still owes {n}" if len(short) == 1
+                                else f"{len(short)} teams still owe keepers")
+    except Exception:  # noqa: BLE001 — the hero must render even if this doesn't
+        pass
+    return out

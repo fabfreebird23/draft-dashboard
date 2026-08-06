@@ -1069,35 +1069,51 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .pcd-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(64px,1fr)); gap:8px;
   font-size:13px; font-weight:700; }
 
-/* ---- Home: every league at once ----
-   The CARD is the st.container, not a markdown div: a wrapper <div> from
-   st.markdown does not enclose a widget, so drawing the box that way left the
-   button and the hub link sitting outside it. */
-[class*="st-key-hmcard_"]{ background:var(--panel); border:1px solid var(--line);
-  border-top:3px solid var(--mut2); border-radius:12px; padding:14px 15px 12px;
-  display:flex; flex-direction:column; gap:0; height:100%; }
+/* ---- Home: hero league up front, the rest quiet ----
+   Cards are the st.container, never a markdown wrapper div — a div from
+   st.markdown does not enclose a widget, which is what left the buttons outside
+   the box. Note also that the container key must not be a PREFIX of any widget
+   key inside it, or [class*=] styles the widget as a second card. */
 .hm-h{ font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
-  color:var(--mut2); margin:6px 0 9px; }
-.hm-name{ font-size:15.5px; font-weight:800; letter-spacing:-.01em; line-height:1.2; }
-.hm-meta{ font-size:11.5px; color:var(--mut2); margin:2px 0 10px; }
-.hm-note{ display:flex; gap:7px; align-items:flex-start; font-size:12.5px; line-height:1.45;
-  padding:9px 10px; border-radius:8px; margin-bottom:11px; min-height:56px; }
+  color:var(--mut2); margin:16px 0 9px; }
+[class*="st-key-hmhero_"]{ background:var(--panel); border:1px solid var(--line);
+  border-top:3px solid var(--mut2); border-radius:12px; padding:16px 18px 14px; }
+.hm-heroline{ display:flex; align-items:center; gap:10px; }
+.hm-heroname{ font-size:19px; font-weight:800; letter-spacing:-.015em; }
+.hm-badge{ font-size:9.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase;
+  padding:3px 8px; border-radius:6px; }
+.hm-meta{ font-size:11.5px; color:var(--mut2); margin:2px 0 12px; }
+.hm-tile{ background:var(--panel2); border-radius:9px; padding:10px 12px; }
+/* These three were used by the prep desk AND Home but never defined — which is why
+   neither screen had any type hierarchy in its tiles. */
+.tl{ font-size:9.5px; font-weight:800; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--mut2); line-height:1.5; }
+.tv{ font-size:20px; font-weight:800; line-height:1.25; letter-spacing:-.01em;
+  font-variant-numeric:tabular-nums; }
+.ts{ font-size:11px; color:var(--mut2); line-height:1.45; }
+.hm-of{ font-size:13px; font-weight:700; color:var(--mut2); }
+.hm-wl{ font-size:9.5px; font-weight:800; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--mut2); margin-bottom:8px; }
+.hm-note{ display:flex; gap:8px; align-items:flex-start; font-size:12.5px; line-height:1.45;
+  padding:9px 11px; border-radius:8px; margin-bottom:7px; }
 .hm-note i{ width:7px; height:7px; border-radius:50%; flex:none; margin-top:5px; }
-/* push the action to the bottom so cards of different text lengths still line up */
-[class*="st-key-hmcard_"] .stButton{ margin-top:auto; }
-[class*="st-key-hmcard_"] .stButton button{ border-radius:8px; font-weight:700; }
-/* equal-height cards: stretch each column so a shorter note still lines up */
-[class*="st-key-hmcard_"]{ min-height:212px; }
-.hm-h + div [data-testid="stColumn"]{ display:flex; }
-.hm-h + div [data-testid="stColumn"] > div{ width:100%; }
-/* Streamlit styles every <a> blue-and-underlined; the card link is meant to be a
-   quiet secondary action, so it needs to out-specify that default. */
-[class*="st-key-hmcard_"] a.hm-hub,
-[class*="st-key-hmcard_"] a.hm-hub:link,
-[class*="st-key-hmcard_"] a.hm-hub:visited{ display:inline-block; margin-top:9px;
-  font-size:11.5px; font-weight:600; color:var(--mut2) !important;
-  text-decoration:none !important; }
-[class*="st-key-hmcard_"] a.hm-hub:hover{ color:var(--blue) !important;
+/* scoped to the what's-left panel: the previous :last-child rule matched the last
+   column of EVERY horizontal block inside the hero, so a divider appeared between
+   the tiles and again between the action buttons. */
+[class*="st-key-hmwl_"]{ border-left:1px solid var(--line2); padding-left:17px;
+  height:100%; }
+/* the action row is its own band, not a fourth thing stacked under the tiles */
+[class*="st-key-hmact_"]{ margin-top:12px; }
+[class*="st-key-hmq_"]{ background:var(--panel); border:1px solid var(--line);
+  border-radius:11px; padding:12px 13px; height:100%; display:flex; flex-direction:column; }
+.hm-qline{ display:flex; align-items:center; gap:8px; }
+.hm-qname{ font-size:14px; font-weight:800; letter-spacing:-.01em; }
+.hm-qnote{ font-size:12px; color:var(--mut2); line-height:1.45; margin-bottom:11px;
+  min-height:52px; }
+[class*="st-key-hmq_"] [data-testid="stHorizontalBlock"]{ margin-top:auto; }
+[class*="st-key-hmhero_"] [data-testid="stLinkButton"] a,
+[class*="st-key-hmq_"] [data-testid="stLinkButton"] a{ border-radius:8px; font-size:12px;
+  font-weight:700; width:100%; }
   text-decoration:underline !important; }
 
 /* ---- phase bar: pre-season vs in-season, above the section nav ---- */
@@ -1126,6 +1142,14 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   margin-bottom:11px; min-height:58px; }
 .pk-ok{ background:#e6f4ec; color:#14603f; } .pk-amb{ background:#fdf3e3; color:#7a4f06; }
 .pk-red{ background:#fdecec; color:#8c2320; } .pk-nil{ background:var(--panel2); color:var(--muted); }
+
+/* ---- topbar: one row, phase on the right, health folded into the pills ---- */
+.tb-dot{ width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:5px; }
+[class*="st-key-tb_phase"] [role="radiogroup"]{ gap:3px; justify-content:flex-end;
+  background:var(--panel2); border-radius:9px; padding:3px; }
+[class*="st-key-tb_phase"] [role="radiogroup"] label{ padding:5px 14px; font-size:11.5px;
+  font-weight:700; border-radius:7px; margin:0; }
+[class*="st-key-tb_more"] button{ padding:4px 0; font-weight:800; }
 </style>
 
 """
