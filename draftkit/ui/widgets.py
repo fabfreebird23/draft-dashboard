@@ -24,7 +24,22 @@ def stack_badge(pm, my_pids, registry) -> str:
     return ""
 
 
-def player_label(ctx, r, pm, *, pick=None, my_pids=None) -> str:
+def reach_for(ctx, r, pm, pick=None, *, survival=None, next_pick=None):
+    """The reach warning for one board row, or None. In a draft this is decided by
+    the board-calibrated survival model; outside one it falls back to the plain
+    ADP-vs-board-rank reading. See components.reach_note for why."""
+    n = len(ctx.get("slot_names") or [])
+    rounds = getattr(ctx.get("meta"), "draft_rounds", 0) or 0
+    return C.reach_note(ctx["adp_rank"](pm.name, pm.position),
+                        pick or r.get("rank"), n,
+                        name=r.get("name") or pm.name,
+                        max_pick=(n * rounds) or None,
+                        survival=survival, board_rank=r.get("rank"),
+                        next_pick=next_pick)
+
+
+def player_label(ctx, r, pm, *, pick=None, my_pids=None, survival=None,
+                 next_pick=None) -> str:
     """The rich markdown row label shared by the board and the queue: overall rank,
     color-coded positional rank, name, team · ADP · bye, and the VORP value chip
     (plus a ▼/▲ ADP-delta chip when a current pick is supplied). When `my_pids` is
@@ -44,8 +59,15 @@ def player_label(ctx, r, pm, *, pick=None, my_pids=None) -> str:
     vchip = ""
     if v is not None:
         vchip = f"  :{'green' if v >= 0 else 'red'}[**V {'+' if v >= 0 else ''}{v:.0f}**]"
+    # Reach warning takes precedence over the raw ▼ delta — same underlying gap, but
+    # once it's a full round it's a real "you can wait" signal rather than noise, and
+    # it deserves the louder chip. Sub-round gaps keep the quiet ▼ they had before.
     vt = ""
-    if pick:
+    reach = reach_for(ctx, r, pm, pick, survival=survival, next_pick=next_pick)
+    if reach:
+        vt = ('  :red[**❗ can wait**]' if reach.get("survival") is not None
+              else f'  :red[**❗{reach["rounds"]:.1f} rds early**]')
+    elif pick:
         d = (adp - pick) if (adp and pick) else 0
         vt = f"  :red[▼+{int(d)}]" if d >= 8 else (f"  :violet[▲{int(d)}]" if d <= -8 else "")
     rook = "  :violet[**R**]" if getattr(pm, "years_exp", None) == 0 else ""
@@ -150,8 +172,9 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
     # the rank / name / meta / value visually distinct instead of one flat string.
     poscol = _POSCOL
 
-    def label(r, pm):
-        return player_label(ctx, r, pm, pick=pick, my_pids=my_pids)
+    def label(r, pm, survival=None):
+        return player_label(ctx, r, pm, pick=pick, my_pids=my_pids,
+                            survival=survival, next_pick=next_pick)
 
     def compact_label(r, pm):
         """Short label for the narrow by-position columns: rank, short name, value."""
@@ -188,24 +211,30 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         # the button in tooltip divs, so a direct-child selector wouldn't match.
         css = (f'.st-key-{rk} .stButton button::before{{'
                f'background-image:url("{theme.headshot_src(r["pid"])}")}}')
+        _sv = None                       # this row's survival %, reused by the reach chip
         if next_pick:
             adp = adp_rank(pm.name, pm.position)
-            pct = (surv_fn(r["pid"], adp) if surv_fn
-                   else C.survival_pct(adp, next_pick, pick))
+            pct = _sv = (surv_fn(r["pid"], adp) if surv_fn
+                         else C.survival_pct(adp, next_pick, pick))
             sc = C.survival_colors(pct)
             if sc:
                 css += (f'.st-key-{rk} .stButton button::after{{content:"{pct}%";'
                         f'background:{sc[0]};color:{sc[1]}}}')
         pid = str(r["pid"])
-        text = compact_label(r, pm) if compact else label(r, pm)
+        text = compact_label(r, pm) if compact else label(r, pm, survival=_sv)
+
+        # Hover explanation for the ❗ chip. Attached ONLY on a reach: a tooltip on
+        # every row would be noise, and the rest of the detail lives in the card.
+        reach_tip = ((reach_for(ctx, r, pm, pick, survival=_sv, next_pick=next_pick)
+                      or {}).get("tip") if not compact else None)
 
         def _player_btn():
             with st.container(key=rk):
                 # always inject the headshot (::before); survival ::after is hidden by
-                # the narrow-column CSS in compact/by-position mode. No help tooltip —
-                # the full detail lives in the player card.
+                # the narrow-column CSS in compact/by-position mode.
                 st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
-                if st.button(text, key=f'{key_prefix}_pick_{pid}', use_container_width=True):
+                if st.button(text, key=f'{key_prefix}_pick_{pid}', use_container_width=True,
+                             help=reach_tip):
                     draft_fn(pid)
 
         def _star_btn():

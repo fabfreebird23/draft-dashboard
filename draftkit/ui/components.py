@@ -153,6 +153,90 @@ def board_survival_fn(adp_pool, drafted, current_pick, next_pick):
     return _fn
 
 
+def reach_note(adp, at_pick, n_teams, *, name=None, min_rounds=1.0, max_pick=None,
+               survival=None, board_rank=None, next_pick=None, min_survival=75):
+    """Warn that taking this player now spends a pick earlier than you need to.
+
+    TWO paths, because raw market ADP is not a safe yardstick in this league.
+
+    1. In a draft (`survival` + `next_pick` given) the question is decided by the
+       board-calibrated survival model: your board wants him now (board_rank at or
+       before the current pick) but he is very likely to still be there at your
+       next turn. That is exactly a reach, and it is immune to the two biases that
+       wreck the ADP comparison here:
+         * 38 keepers are locked, so the board runs ~20 picks AHEAD of market ADP.
+           Comparing ADP to the raw pick number flags nearly everyone at pick 26.
+         * Our board ranks QBs on overall value while a 1-QB market pushes them
+           down for replacement-level reasons. Measured on the real 305-row UDK
+           board, a plain ADP-vs-rank rule flagged 17 of 19 draftable QBs (89%) —
+           a positional-philosophy difference wearing a reach warning's clothes.
+       Survival is board-relative, so both distortions cancel.
+
+    2. Outside a draft there is no next pick to calibrate against, so fall back to
+       the plain ADP-vs-board-rank reading (the FantasyPros-style static one).
+       Same caveat applies, hence the deliberately blunt round threshold.
+    """
+    if survival is not None and next_pick and at_pick:
+        # Only players your board would actually take around now — otherwise every
+        # deep name on a 300-row board has ~100% survival and would light up.
+        if board_rank and float(board_rank) > float(at_pick):
+            return None
+        if survival < min_survival:
+            return None
+        who = name or "This player"
+        rnd = int((int(at_pick) - 1) // int(n_teams) + 1) if n_teams else None
+        adp_s = f" Market ADP has him at {int(adp)}." if adp else ""
+        return {
+            "survival": survival, "at_round": rnd, "rounds": None,
+            "tip": (f"Reach — {who} is ~{int(survival)}% to still be on the board at "
+                    f"your next pick (#{int(next_pick)}), so a"
+                    f"{' round-' + str(rnd) if rnd else ''} pick spent on him here is "
+                    f"a pick you didn't have to spend.{adp_s} Take a need now and "
+                    f"circle back."),
+        }
+    """Warn that spending pick `at_pick` on this player is earlier than the market
+    makes you. Returns a dict of the details, or None when it isn't a reach.
+
+    Measured in ROUNDS rather than raw picks, because raw picks don't mean the
+    same thing twice: a 10-pick gap is a full round in a 10-team league but only
+    two-thirds of one in a 16-teamer, and it costs you far less in round 12 than
+    in round 2. Rounds normalise both.
+
+    `at_pick` is the pick you would actually spend — the live pick when you're on
+    the clock, otherwise the player's own board rank, which gives the static "if
+    you took him where your board has him" reading.
+
+    NB the ADP behind this is our CONSENSUS board (ESPN / FantasyPros /
+    FootballGuys ...), not Sleeper's own draft-room order, so the wording says so
+    rather than naming a platform we didn't measure."""
+    if not adp or not at_pick or not n_teams:
+        return None
+    # Only warn about picks that exist. The Rankings list runs ~300 deep, so without
+    # this every undraftable name whose ADP sits below his board rank lights up red
+    # and the warning stops meaning anything.
+    if max_pick and float(at_pick) > float(max_pick):
+        return None
+    gap = float(adp) - float(at_pick)
+    if gap <= 0:                       # market has him going EARLIER — not a reach
+        return None
+    rounds = gap / float(n_teams)
+    if rounds < min_rounds:
+        return None
+
+    def _rnd(p):
+        return int((int(p) - 1) // int(n_teams) + 1)
+
+    who = name or "This player"
+    return {
+        "rounds": rounds, "picks": int(gap),
+        "at_round": _rnd(at_pick), "adp_round": _rnd(adp),
+        "tip": (f"Reach — taking {who} here spends a round-{_rnd(at_pick)} pick, but "
+                f"consensus ADP has him going around pick {int(adp)} "
+                f"(round {_rnd(adp)}). That's ~{rounds:.1f} rounds early, so you "
+                f"could likely address another need and still get him."),
+    }
+
+
 def survival_colors(pct):
     """(bg, fg) for a shaded availability box — a smooth red→amber→green gradient."""
     if pct is None:
