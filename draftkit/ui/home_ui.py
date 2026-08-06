@@ -24,10 +24,10 @@ import streamlit as st
 
 from .. import phase as PH, theme
 
-_TONE = {"red": ("#fdecec", "#8c2320", "#b3261e"),
-         "amber": ("#fdf3e3", "#7a4f06", "#a8570d"),
-         "ok": ("#e6f4ec", "#14603f", "#1d7a55"),
-         "nil": ("#eef2f6", "#54606d", "#8e9aa7")}
+# Tone is a CLASS, not inline hex — inline colours can't follow the theme, which
+# is exactly how the notes and badges stayed pale-on-dark when dark became the
+# default. The palette for each tone lives in theme.py, once per theme.
+_TONES = ("red", "amber", "ok", "nil")
 
 HUBS = {
     "1310907162930733056": ("Kreeper hub", "https://kreeper-league.streamlit.app"),
@@ -49,9 +49,8 @@ def _meta_line(s):
     return " · ".join(b for b in bits if b)
 
 
-def _note(bg, fg, dot, text):
-    return (f'<div class="hm-note" style="background:{bg};color:{fg}">'
-            f'<i style="background:{dot}"></i><span>{text}</span></div>')
+def _note(tone, text):
+    return (f'<div class="hm-note tone-{tone}"><i></i><span>{text}</span></div>')
 
 
 def _hub_or_platform(s):
@@ -66,7 +65,7 @@ def _hub_or_platform(s):
 def render(presets, on_pick, board_age_fn=None) -> None:
     head = st.columns([3, 2])
     with head[0]:
-        st.markdown(f'<h1>{theme.logo_html(34, tag="Four leagues · one desk")}</h1>', unsafe_allow_html=True)
+        st.markdown(f'<h1>{theme.logo_html(34)}</h1>', unsafe_allow_html=True)
     with head[1], st.container(key="hmphase"):
         # Same control as the per-league topbar, doing the analogous job: which half
         # of the year am I looking at. On Home it FILTERS rather than switching a
@@ -106,17 +105,16 @@ def render(presets, on_pick, board_age_fn=None) -> None:
 
 
 def _render_hero(preset, s, age, on_pick) -> None:
-    bg, fg, dot = _TONE.get(s.tone, _TONE["nil"])
     det = PH.detail(preset)
     key = f"hmhero_{s.platform}_{s.league_id}"
     with st.container(key=key):
-        st.markdown(f'<style>.st-key-{key}{{border-top-color:{dot}}}</style>',
-                    unsafe_allow_html=True)
+        st.markdown(f'<style>.st-key-{key}{{border-top-color:'
+                    f'var(--tone-{s.tone})}}</style>', unsafe_allow_html=True)
         left, right = st.columns([1.5, 1])
         with left:
             st.markdown(
                 f'<div class="hm-heroline"><span class="hm-heroname">{s.name or s.label}</span>'
-                f'<span class="hm-badge" style="background:{bg};color:{fg}">'
+                f'<span class="hm-badge tone-{s.tone}">'
                 f'{_BADGE.get(s.tone, "")}</span></div>'
                 f'<div class="hm-meta">{_meta_line(s)}</div>', unsafe_allow_html=True)
 
@@ -166,8 +164,7 @@ def _render_hero(preset, s, age, on_pick) -> None:
                 items.append(("ok", "All keepers submitted."))
             items.append(("nil", s.note))
             for tone, text in items[:3]:
-                b, f, dt = _TONE[tone]
-                st.markdown(_note(b, f, dt, text), unsafe_allow_html=True)
+                st.markdown(_note(tone, text), unsafe_allow_html=True)
 
 
 def _tile(label, value, sub):
@@ -177,12 +174,11 @@ def _tile(label, value, sub):
 
 
 def _render_quiet(preset, s, on_pick) -> None:
-    bg, fg, dot = _TONE.get(s.tone, _TONE["nil"])
     key = f"hmq_{s.platform}_{s.league_id}"
     with st.container(key=key):
         st.markdown(
             f'<div class="hm-qline"><span class="hm-qname">{s.name or s.label}</span>'
-            f'<span class="hm-badge" style="background:{bg};color:{fg}">'
+            f'<span class="hm-badge tone-{s.tone}">'
             f'{_BADGE.get(s.tone, "")}</span></div>'
             f'<div class="hm-meta">{_meta_line(s)}</div>'
             f'<div class="hm-qnote">{s.note}</div>', unsafe_allow_html=True)

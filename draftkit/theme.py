@@ -1175,6 +1175,15 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="st-key-hmphase"] [role="radiogroup"] label:has(input:checked){
   background:var(--panel); color:var(--ink); box-shadow:0 1px 2px rgba(20,30,40,.13); }
 [class*="st-key-tb_more"] button{ padding:4px 0; font-weight:800; }
+
+/* ---- tone scale: one place, both themes. Anything that was inline hex could not
+   follow the theme, which is how the Home notes and badges stayed pale-on-dark
+   the moment dark became the default. ---- */
+:root{ --tone-red:#b00335; --tone-amber:#a8570d; --tone-ok:#1d7a55; --tone-nil:#8a8085; }
+.tone-red{ background:#fdeaf0; color:#8e0230; } .tone-red > i{ background:var(--tone-red); }
+.tone-amber{ background:#fbf1e2; color:#7a4f06; } .tone-amber > i{ background:var(--tone-amber); }
+.tone-ok{ background:#e7f3ed; color:#155f43; } .tone-ok > i{ background:var(--tone-ok); }
+.tone-nil{ background:var(--panel2); color:var(--muted); } .tone-nil > i{ background:var(--tone-nil); }
 </style>
 
 """
@@ -1210,7 +1219,7 @@ def cherry_svg(size: int = 22) -> str:
             f'fill="none" stroke-linecap="round"/></svg>')
 
 
-def logo_html(size: int = 30, tag: str | None = "Mock + Live Draft") -> str:
+def logo_html(size: int = 30, tag: str | None = None) -> str:
     """Wordmark for the topbar. The BADGE is not used here on purpose — at 16-22px
     the cherry reads as a red smudge, so the mark earns its keep as the favicon
     where it sits alone, and the set wordmark carries the bar."""
@@ -1391,6 +1400,19 @@ DARK = """
 .mk-tag.mk-split{ background:#33280f !important; color:#e7c172 !important; }
 .mk-src{ background:var(--panel2) !important; border-color:var(--line) !important; }
 .cs-head{ color:#fff !important; }
+
+/* tone scale, dark half — same classes, darker grounds, lighter ink */
+:root{ --tone-red:#ff5c85; --tone-amber:#f0b357; --tone-ok:#7fd8b4; --tone-nil:#847a7e; }
+.tone-red{ background:#3a1020 !important; color:#ff8fae !important; }
+.tone-amber{ background:#33280f !important; color:#f5c87d !important; }
+.tone-ok{ background:#12312a !important; color:#7fd8b4 !important; }
+.tone-nil{ background:#2c282a !important; color:#a2989c !important; }
+/* prep-desk note tints predate the tone scale and are hardcoded light */
+.pk-ok{ background:#12312a !important; color:#7fd8b4 !important; }
+.pk-amb{ background:#33280f !important; color:#f5c87d !important; }
+.pk-red{ background:#3a1020 !important; color:#ff8fae !important; }
+.pk-nil{ background:#2c282a !important; color:#a2989c !important; }
+.hm-note i{ }
 </style>
 """
 

@@ -19,7 +19,10 @@ from draftkit.ui import (assistant_ui, home_ui, in_season_ui, mock_ui,
 from draftkit.ui.components import board_pos_rank, health_html
 
 st.set_page_config(page_title="Bloody Sunday", page_icon="🍒", layout="wide")
-theme.inject(st, dark=st.session_state.get("dark_mode", False))   # Night Draft = dark hero
+# Dark is the DEFAULT now, not the alternate. The badge set the identity came
+# from contains the near-black, so the war room is the native look and light is
+# the escape hatch — hence the default flipping to True.
+theme.inject(st, dark=st.session_state.get("dark_mode", True))
 
 
 # ----------------------------------------------------------------- cached data
@@ -548,7 +551,7 @@ def main():
     if j:
         pills.append(f'<span class="tb-pill">{_dot(j > 0)}Juice {j}</span>')
 
-    dark_on = st.session_state.get("dark_mode", False)
+    dark_on = st.session_state.get("dark_mode", True)
     pkey = f"phase_{ctx['league_key']}"
     if pkey not in st.session_state:
         # Default derived from THIS league's own draft — Kreeper drafts Aug 13 and
@@ -570,7 +573,7 @@ def main():
             # out of the row and into an overflow.
             with st.popover("⋯", use_container_width=True):
                 def _toggle_dark():
-                    st.session_state["dark_mode"] = not st.session_state.get("dark_mode", False)
+                    st.session_state["dark_mode"] = not st.session_state.get("dark_mode", True)
                 st.button("Light mode" if dark_on else "War room", key="dark_btn",
                           use_container_width=True, on_click=_toggle_dark,
                           help="Toggle the dark 'war-room' theme for live drafting.")
