@@ -392,14 +392,13 @@ def _ord(n) -> str:
     return f"{n}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th') }".replace(" ", "")
 
 
-def player_card_html(pm, *, pid, pos_rank="", overall=None, adp=None, tier=None,
-                     tier_left=None, byes=None, next_pick=None, survival=None,
-                     vorp=None, verdict=None, reach=None, synergy=None, juice=None,
-                     slate=None, season=None, scoring="ppr", prev_label="",
-                     market=None, bye_clash=None) -> str:
-    """The click-to-open player card. Ordered by the question you actually have when
-    you click a player mid-draft — take him or wait — so the verdict sits at the top
-    and the stats below it are for confirming, not deciding."""
+def card_header_html(pm, *, pid, pos_rank="", overall=None, adp=None, byes=None,
+                     reach=None, juice=None, verdict=None) -> str:
+    """Full-width top of the card: who he is, the chips, and the verdict.
+
+    Split out from the body because the card is laid out in TWO COLUMNS (this app is
+    desktop-only, so the usual worry about st.columns stacking doesn't apply) and
+    Streamlit can only place real columns between separate markdown calls."""
     flag, fcls = injury_flag(pm)
     inj = getattr(pm, "injury_body_part", None)
     flag_full = f"{flag} · {inj}" if (inj and fcls != "ok") else flag
@@ -427,6 +426,18 @@ def player_card_html(pm, *, pid, pos_rank="", overall=None, adp=None, tier=None,
         chips.append(f'<span class="pcd-chip pcd-c-{tone}">landmine {lm:.1f}</span>')
     chips.append(f'<span class="pcd-chip pcd-inj-{fcls}">{flag_full}</span>')
 
+    vtag = ""
+    if verdict:
+        vtag = f'<span class="pcd-vtag pcd-call-{verdict[1]}">{verdict[0]}</span>'
+    return (f'<div class="pcd"><div class="pcd-top">{theme.img_tag(pid, "pcd-img")}'
+            f'<div class="pcd-id"><div class="pcd-nm">{pm.name}</div>'
+            f'<div class="pcd-bits">{" · ".join(bits)}</div></div>{vtag}</div>'
+            f'<div class="pcd-chips pcd-chiprow">{"".join(chips)}</div></div>')
+
+
+def card_left_html(pm, *, next_pick=None, survival=None, vorp=None, tier=None,
+                   tier_left=None, reach=None, slate=None) -> str:
+    """Left column — the decision: value, survival, tier, then the playoff slate."""
     stats = []
     if vorp is not None:
         stats.append(("value over repl.", f'{"+" if vorp >= 0 else ""}{vorp:.0f}',
@@ -440,12 +451,14 @@ def player_card_html(pm, *, pid, pos_rank="", overall=None, adp=None, tier=None,
         f'<div class="pcd-stat"><div class="pcd-sl">{lbl}</div>'
         f'<div class="pcd-sv {"pcd-c-" + tone if tone else ""}">{val}</div></div>'
         for lbl, val, tone in stats)
+    tip = f'<div class="pcd-call pcd-call-wait">{reach["tip"]}</div>' if reach else ""
+    return (f'<div class="pcd"><div class="pcd-stats">{stat_html}</div>{tip}'
+            f'{playoff_block_html(slate, pm.position)}</div>')
 
-    call = ""
-    if verdict:
-        call = (f'<div class="pcd-call pcd-call-{verdict[1]}">{verdict[0]}'
-                f'{" — " + reach["tip"] if reach else ""}</div>')
 
+def card_right_html(pm, *, pid, adp=None, market=None, synergy=None, bye_clash=None,
+                    byes=None, season=None, prev_label="") -> str:
+    """Right column — the context: market read, roster fit, last season."""
     mkt = ""
     if market:
         rows = "".join(
@@ -453,8 +466,9 @@ def player_card_html(pm, *, pid, pos_rank="", overall=None, adp=None, tier=None,
             f'<span class="pcd-md {"pcd-c-red" if d and d < 0 else ""}">'
             f'{("+" if d > 0 else "") + str(int(d)) if d is not None else "—"}</span></div>'
             for src, v, d in market)
-        mkt = f'<div class="pcd-sec"><div class="pcd-h">Market read</div>{rows}</div>'
+        mkt = f'<div class="pcd-sec pcd-sec1"><div class="pcd-h">Market read</div>{rows}</div>'
 
+    bye = (byes or {}).get(pm.team)
     fit = []
     if bye_clash:
         fit.append(f'<span class="pcd-chip pcd-c-pink">bye {bye} clash · '
@@ -469,17 +483,24 @@ def player_card_html(pm, *, pid, pos_rank="", overall=None, adp=None, tier=None,
         s = season_stats(pid, season) or {}
         rows = _statline(pm.position, s)
         if rows:
-            # _statline already leads with Games — don't prepend a second one.
-            cells = rows[:5]
             prev = (f'<div class="pcd-sec"><div class="pcd-h">{prev_label or season}</div>'
                     f'<div class="pcd-grid">' + "".join(
-                        f'<div><div class="pcd-sl">{k}</div>{v}</div>' for k, v in cells)
+                        f'<div><div class="pcd-sl">{k}</div>{v}</div>' for k, v in rows[:5])
                     + '</div></div>')
+    return f'<div class="pcd">{mkt}{fit_html}{prev}</div>'
 
-    return (f'<div class="pcd">'
-            f'<div class="pcd-top">{theme.img_tag(pid, "pcd-img")}'
-            f'<div class="pcd-id"><div class="pcd-nm">{pm.name}</div>'
-            f'<div class="pcd-bits">{" · ".join(bits)}</div></div></div>'
-            f'<div class="pcd-chips pcd-chiprow">{"".join(chips)}</div>'
-            f'<div class="pcd-stats">{stat_html}</div>{call}'
-            f'{playoff_block_html(slate, pm.position)}{mkt}{fit_html}{prev}</div>')
+
+def player_card_html(pm, *, pid, pos_rank="", overall=None, adp=None, tier=None,
+                     tier_left=None, byes=None, next_pick=None, survival=None,
+                     vorp=None, verdict=None, reach=None, synergy=None, juice=None,
+                     slate=None, season=None, scoring="ppr", prev_label="",
+                     market=None, bye_clash=None) -> str:
+    """Single-column composition of the three parts — kept for any caller that wants
+    the whole card as one blob (the dialog renders the parts side by side)."""
+    return (card_header_html(pm, pid=pid, pos_rank=pos_rank, overall=overall, adp=adp,
+                             byes=byes, reach=reach, juice=juice, verdict=verdict)
+            + card_left_html(pm, next_pick=next_pick, survival=survival, vorp=vorp,
+                             tier=tier, tier_left=tier_left, reach=reach, slate=slate)
+            + card_right_html(pm, pid=pid, adp=adp, market=market, synergy=synergy,
+                              bye_clash=bye_clash, byes=byes, season=season,
+                              prev_label=prev_label))

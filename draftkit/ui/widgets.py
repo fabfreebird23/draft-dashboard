@@ -995,14 +995,25 @@ def player_card_dialog(ctx, pid, *, on_draft=None, on_star=None, queued=None, **
 
     @st.dialog(f["pm"].name, width="large")
     def _dlg():
-        st.markdown(PC.player_card_html(
+        # Two columns, not one long scroll: the action bar was overlapping the last
+        # stats row, and halving the height fixes that at the source rather than
+        # padding around it. This app is desktop-only, so the usual caveat about
+        # st.columns stacking on a narrow viewport doesn't apply.
+        st.markdown(PC.card_header_html(
             f["pm"], pid=f["pid"], pos_rank=f["pos_rank"], overall=f["overall"],
-            adp=f["adp"], tier=f["tier"], tier_left=f["tier_left"], byes=f["byes"],
-            next_pick=f["next_pick"], survival=f["survival"], vorp=f["vorp"],
-            verdict=f["verdict"], reach=f["reach"], synergy=f["synergy"],
-            juice=f["juice"], slate=f["slate"], season=f["season"],
-            scoring=f["scoring"], prev_label=f["prev_label"], market=f["market"],
-            bye_clash=f["bye_clash"]), unsafe_allow_html=True)
+            adp=f["adp"], byes=f["byes"], reach=f["reach"], juice=f["juice"],
+            verdict=f["verdict"]), unsafe_allow_html=True)
+        left, right = st.columns(2, gap="medium")
+        with left:
+            st.markdown(PC.card_left_html(
+                f["pm"], next_pick=f["next_pick"], survival=f["survival"],
+                vorp=f["vorp"], tier=f["tier"], tier_left=f["tier_left"],
+                reach=f["reach"], slate=f["slate"]), unsafe_allow_html=True)
+        with right:
+            st.markdown(PC.card_right_html(
+                f["pm"], pid=f["pid"], adp=f["adp"], market=f["market"],
+                synergy=f["synergy"], bye_clash=f["bye_clash"], byes=f["byes"],
+                season=f["season"], prev_label=f["prev_label"]), unsafe_allow_html=True)
         cols = st.columns([2, 1])
         if on_draft and cols[0].button(f'Draft {f["pm"].name}', use_container_width=True,
                                        key=f"pcd_draft_{pid}"):

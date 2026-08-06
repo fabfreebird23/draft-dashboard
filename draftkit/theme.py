@@ -1040,6 +1040,8 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .pcd-sl{ font-size:10px; color:var(--mut2); text-transform:uppercase; letter-spacing:.4px; }
 .pcd-sv{ font-size:20px; font-weight:800; line-height:1.2; }
 .pcd-tn{ font-size:11px; font-weight:600; color:var(--mut2); }
+.pcd-vtag{ margin-left:auto; flex:none; font-size:12px; font-weight:800; padding:5px 11px; border-radius:8px; letter-spacing:.3px; }
+.pcd-sec1{ border-top:none; padding-top:0; margin-top:0; }
 .pcd-call{ border-radius:8px; padding:9px 11px; font-size:12.5px; line-height:1.45;
   margin-bottom:12px; background:var(--panel2); color:var(--muted); }
 .pcd-call-grab{ background:#fdecec; color:#8c2320; } .pcd-call-wait{ background:#fdf3e3; color:#7a4f06; }
