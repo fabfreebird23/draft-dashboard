@@ -14,7 +14,8 @@ from draftkit.adp import consensus
 from draftkit.names import normalize_name
 from draftkit.providers import get_provider, EspnAuthError
 from draftkit import draft_history, keepers as keepers_mod, rankings as rankings_mod
-from draftkit.ui import assistant_ui, home_ui, mock_ui, rankings_ui, report_card_ui
+from draftkit.ui import (assistant_ui, home_ui, in_season_ui, mock_ui,
+                         rankings_ui, report_card_ui)
 from draftkit.ui.components import board_pos_rank, health_html
 
 st.set_page_config(page_title="Draft Room — Mock + Live Draft", layout="wide")
@@ -159,6 +160,15 @@ def get_source_pools(season: int, curve_key, _registry, _adp_df, _curve, _sleepe
             pool = rankings_mod.adp_pool(_registry, _adp_df, source=src)
         pools[src] = rankings_mod.apply_rookie_curve(pool, _registry, _curve)
     return pools
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def get_league_phase(platform: str, league_id: str, season: int):
+    """Where this league is in its year. Cached — it drives the nav default on
+    every rerun and costs two API calls."""
+    from draftkit import phase
+    return phase.summary({"platform": platform, "league_id": league_id,
+                          "season": season, "label": league_id})
 
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -565,8 +575,35 @@ def main():
                 del st.session_state.league
                 st.rerun()
 
+    # ---- phase split: pre-season prep vs in-season lineups ----
+    # The DEFAULT comes from the league's own draft (phase.py), not a global
+    # setting — Kreeper drafts Aug 13 and B&B Sep 7, so for three weeks these two
+    # leagues genuinely belong in different halves. It stays overridable because a
+    # derived default you can't argue with is worse than one you can.
+    from draftkit import phase as PH
+    lg_sum = get_league_phase(meta.platform, str(meta.league_id), config.current_season())
+    default_phase = 1 if lg_sum.phase in (PH.IN, PH.DONE) else 0
+    pkey = f"phase_{ctx['league_key']}"
+    if pkey not in st.session_state:
+        st.session_state[pkey] = ["Pre-season", "In-season"][default_phase]
+    with st.container(key="phasebar"):
+        pcols = st.columns([1.4, 4.6])
+        with pcols[0]:
+            ph_sel = st.radio("phase", ["Pre-season", "In-season"], horizontal=True,
+                              key=pkey, label_visibility="collapsed")
+        with pcols[1]:
+            st.markdown(f'<div class="ph-note">{lg_sum.note}</div>', unsafe_allow_html=True)
+
     # Persisted nav (st.tabs resets to the first tab on every rerun — drafting
     # triggers reruns, so we use a keyed radio styled as tabs instead).
+    if ph_sel == "In-season":
+        nav = ["This Week"]
+        with st.container(key="navbar"):
+            st.radio("nav", nav, horizontal=True, key=f"nav_in_{ctx['league_key']}",
+                     label_visibility="collapsed")
+        in_season_ui.render(ctx, summary=lg_sum)
+        return
+
     nav = ["My Rankings", "Live Draft Assistant", "Mock Draft", "Report Card"]
     with st.container(key="navbar"):
         section = st.radio("nav", nav, horizontal=True, key="nav_section",

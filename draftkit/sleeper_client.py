@@ -138,3 +138,10 @@ def find_league_id(username: str, season: int) -> Optional[str]:
         return None
     leagues = _get(f"user/{user['user_id']}/leagues/nfl/{season}") or []
     return leagues[0]["league_id"] if leagues else None
+
+
+def get_state(sport: str = "nfl") -> dict:
+    """Sleeper's league-year state — {week, season, season_type}. The cheapest
+    source of "what NFL week is it", and correct for ESPN leagues too since the
+    calendar belongs to the NFL, not the host."""
+    return _disk(f"state_{sport}", 900, lambda: _get(f"state/{sport}")) or {}

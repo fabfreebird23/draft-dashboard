@@ -1082,6 +1082,12 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .hm-hub{ display:inline-block; margin-top:6px; font-size:11.5px; font-weight:600;
   color:var(--muted); text-decoration:none; }
 .hm-hub:hover{ text-decoration:underline; }
+
+/* ---- phase bar: pre-season vs in-season, above the section nav ---- */
+.ph-note{ font-size:12px; color:var(--mut2); padding-top:9px; }
+[class*="phasebar"] [role="radiogroup"]{ gap:4px; }
+[class*="phasebar"] [role="radiogroup"] label{ padding:6px 14px; font-size:12px;
+  font-weight:700; border-radius:7px; }
 </style>
 
 """
