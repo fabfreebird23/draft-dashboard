@@ -913,3 +913,91 @@ def queue_manager(ctx, qkey, ranks, taken, registry, widget_key, on_pick=None,
             with row[2], st.container(key=f"{widget_key}_qx_{pid}"):
                 if st.button("✕", key=f"{widget_key}_qrm_{pid}", use_container_width=True):
                     _remove(pid)
+
+
+def _card_facts(ctx, pid, *, next_pick=None, survival=None, my_pids=None,
+                needs=None, taken=None, board_avail=None, pick=None):
+    """Gather everything the player card shows. Kept separate from rendering so the
+    dialog stays a thin shell."""
+    from .. import config, schedule as SCH, value as V
+    reg = ctx["registry"]
+    pm = reg.meta(pid)
+    vm = ctx.get("value")
+    adp = ctx["adp_rank"](pm.name, pm.position)
+    row = next((r for r in (board_avail or []) if str(r["pid"]) == str(pid)), {})
+    tier = row.get("tier")
+
+    tier_left = None
+    if tier is not None and board_avail:
+        tier_left = sum(1 for r in board_avail
+                        if r.get("tier") == tier
+                        and reg.meta(r["pid"]).position == pm.position)
+
+    verdict = None
+    if vm:
+        left = vm.startable_left(pm.position, {str(x) for x in (taken or [])})
+        mult = (V.roster_multiplier(pm.position, my_pids, ctx["roster_slots"], reg)
+                if my_pids is not None else None)
+        verdict = V.grab_verdict(survival, left, is_need=(pm.position in (needs or set())),
+                                 mult=mult)
+
+    # bye-week clash: how many of your CURRENT starters already sit out that week
+    bye = (ctx.get("byes") or {}).get(pm.team)
+    clash = 0
+    if bye and my_pids:
+        clash = sum(1 for p in my_pids
+                    if (ctx.get("byes") or {}).get(reg.meta(p).team) == bye)
+
+    # market read: each source's own board position, and how far it sits from ours
+    market = []
+    for src, pool in (ctx.get("source_pools") or {}).items():
+        hit = next((i + 1 for i, p in enumerate(pool) if str(p["pid"]) == str(pid)), None)
+        if hit:
+            market.append((src, hit, (adp - hit) if adp else None))
+    market.sort(key=lambda m: m[1])
+    if row.get("rank"):
+        market.append(("your board", row["rank"], (adp - row["rank"]) if adp else None))
+
+    return {
+        "pm": pm, "pid": str(pid), "adp": adp, "tier": tier, "tier_left": tier_left,
+        "overall": row.get("rank"), "pos_rank": ctx["pos_rank"].get(str(pid), ""),
+        "vorp": vm.vorp_of(pid) if vm else None,
+        "survival": survival, "verdict": verdict,
+        "reach": reach_for(ctx, row or {"pid": pid, "name": pm.name}, pm, pick,
+                           survival=survival, next_pick=next_pick),
+        "synergy": V.synergy(pm, my_pids, reg) if my_pids else None,
+        "juice": (ctx.get("juice") or {}).get(str(pid)),
+        "slate": SCH.playoff_slate(pm.team, pm.position, ctx.get("dvp"), ctx.get("schedule")),
+        "season": config.current_season() - 1, "scoring": ctx["meta"].scoring,
+        "prev_label": str(config.current_season() - 1),
+        "market": market, "bye_clash": clash, "byes": ctx.get("byes"),
+        "next_pick": next_pick,
+    }
+
+
+def player_card_dialog(ctx, pid, *, on_draft=None, on_star=None, queued=None, **facts_kw):
+    """Open the player card as a real modal. Streamlit closes a dialog on any rerun,
+    so Draft/Queue naturally dismiss it — no close-state to manage."""
+    f = _card_facts(ctx, pid, **facts_kw)
+
+    @st.dialog(f["pm"].name, width="large")
+    def _dlg():
+        st.markdown(PC.player_card_html(
+            f["pm"], pid=f["pid"], pos_rank=f["pos_rank"], overall=f["overall"],
+            adp=f["adp"], tier=f["tier"], tier_left=f["tier_left"], byes=f["byes"],
+            next_pick=f["next_pick"], survival=f["survival"], vorp=f["vorp"],
+            verdict=f["verdict"], reach=f["reach"], synergy=f["synergy"],
+            juice=f["juice"], slate=f["slate"], season=f["season"],
+            scoring=f["scoring"], prev_label=f["prev_label"], market=f["market"],
+            bye_clash=f["bye_clash"]), unsafe_allow_html=True)
+        cols = st.columns([2, 1])
+        if on_draft and cols[0].button(f'Draft {f["pm"].name}', use_container_width=True,
+                                       key=f"pcd_draft_{pid}"):
+            on_draft(pid)
+        if on_star:
+            starred = str(pid) in {str(x) for x in (queued or set())}
+            if cols[1].button("★ Queued" if starred else "☆ Queue", use_container_width=True,
+                              key=f"pcd_star_{pid}"):
+                on_star(pid)
+
+    _dlg()

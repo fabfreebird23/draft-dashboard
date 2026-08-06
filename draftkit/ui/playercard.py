@@ -353,3 +353,133 @@ def spotlight_html(pm, *, pos_rank="", adp=None, tier=None, byes=None, next_pick
         f'  {statblock}'
         f'</div>'
     )
+
+
+# ---- Player card (popup) -----------------------------------------------------
+def _bar(frac, cls) -> str:
+    """A 0-1 hardness bar. Rounded here so float noise never reaches a width."""
+    pct = max(0, min(100, round(float(frac) * 100)))
+    return (f'<div class="pcd-track"><i class="pcd-fill pcd-{cls}" '
+            f'style="width:{pct}%"></i></div>')
+
+
+def playoff_block_html(slate, pos: str) -> str:
+    """Fantasy-playoff schedule hardness, weeks 15-17 — the weeks your season is
+    actually decided in. Shows each opponent with a per-week bar rather than only a
+    verdict, because 'average' hides the case that matters most: two gifts and one
+    brick wall in the week you need him."""
+    if not slate:
+        return ('<div class="pcd-sec"><div class="pcd-h">Playoff schedule</div>'
+                '<div class="pcd-none">No matchup data for weeks 15-17 yet.</div></div>')
+    rows = []
+    for wk, opp, rank, hardness in slate["weeks"]:
+        tone = "hard" if hardness >= 0.60 else ("easy" if hardness <= 0.40 else "avg")
+        rows.append(
+            f'<div class="pcd-wk"><span class="pcd-wkn">Wk {wk}</span>'
+            f'<span class="pcd-opp">{opp}</span>{_bar(hardness, tone)}'
+            f'<span class="pcd-rk" title="{opp} allowed the {_ord(rank)}-most fantasy '
+            f'points to {pos}s last season (1 = stingiest).">{_ord(rank)} vs {pos}</span></div>')
+    return (f'<div class="pcd-sec"><div class="pcd-h">Playoff schedule '
+            f'<span class="pcd-sub">weeks 15-17</span>'
+            f'<span class="pcd-tag pcd-t-{slate["cls"]}">{slate["label"]}</span></div>'
+            f'{"".join(rows)}</div>')
+
+
+def _ord(n) -> str:
+    n = int(n)
+    if 10 <= n % 100 <= 20:
+        return f"{n}th"
+    return f"{n}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th') }".replace(" ", "")
+
+
+def player_card_html(pm, *, pid, pos_rank="", overall=None, adp=None, tier=None,
+                     tier_left=None, byes=None, next_pick=None, survival=None,
+                     vorp=None, verdict=None, reach=None, synergy=None, juice=None,
+                     slate=None, season=None, scoring="ppr", prev_label="",
+                     market=None, bye_clash=None) -> str:
+    """The click-to-open player card. Ordered by the question you actually have when
+    you click a player mid-draft — take him or wait — so the verdict sits at the top
+    and the stats below it are for confirming, not deciding."""
+    flag, fcls = injury_flag(pm)
+    inj = getattr(pm, "injury_body_part", None)
+    flag_full = f"{flag} · {inj}" if (inj and fcls != "ok") else flag
+    bye = (byes or {}).get(pm.team)
+
+    bits = [pm.position, pm.team] + ([f"bye {bye}"] if bye else [])
+    if getattr(pm, "age", None):
+        bits.append(f"{pm.age} yrs")
+    yx = getattr(pm, "years_exp", None)
+    if yx is not None:
+        bits.append("rookie" if yx == 0 else f"{_ord(yx + 1)} season")
+
+    chips = []
+    if overall:
+        chips.append(f'<span class="pcd-chip">board #{overall}'
+                     f'{" · " + pos_rank if pos_rank else ""}</span>')
+    if adp:
+        chips.append(f'<span class="pcd-chip">ADP {int(adp)}</span>')
+    if reach:
+        chips.append('<span class="pcd-chip pcd-c-red" title="'
+                     f'{reach.get("tip", "")}">can wait</span>')
+    if juice and juice.get("landmine") is not None:
+        lm = float(juice["landmine"])
+        tone = "red" if lm >= 7 else ("amber" if lm >= 5 else "green")
+        chips.append(f'<span class="pcd-chip pcd-c-{tone}">landmine {lm:.1f}</span>')
+    chips.append(f'<span class="pcd-chip pcd-inj-{fcls}">{flag_full}</span>')
+
+    stats = []
+    if vorp is not None:
+        stats.append(("value over repl.", f'{"+" if vorp >= 0 else ""}{vorp:.0f}',
+                      "green" if vorp >= 0 else "red"))
+    if survival is not None and next_pick:
+        stats.append((f"there at #{int(next_pick)}", f"{int(survival)}%", ""))
+    if tier is not None:
+        left = f' <span class="pcd-tn">· {tier_left} left</span>' if tier_left else ""
+        stats.append(("tier", f"{tier}{left}", ""))
+    stat_html = "".join(
+        f'<div class="pcd-stat"><div class="pcd-sl">{lbl}</div>'
+        f'<div class="pcd-sv {"pcd-c-" + tone if tone else ""}">{val}</div></div>'
+        for lbl, val, tone in stats)
+
+    call = ""
+    if verdict:
+        call = (f'<div class="pcd-call pcd-call-{verdict[1]}">{verdict[0]}'
+                f'{" — " + reach["tip"] if reach else ""}</div>')
+
+    mkt = ""
+    if market:
+        rows = "".join(
+            f'<div class="pcd-mk"><span>{src}</span><span class="pcd-mv">{int(v)}</span>'
+            f'<span class="pcd-md {"pcd-c-red" if d and d < 0 else ""}">'
+            f'{("+" if d > 0 else "") + str(int(d)) if d is not None else "—"}</span></div>'
+            for src, v, d in market)
+        mkt = f'<div class="pcd-sec"><div class="pcd-h">Market read</div>{rows}</div>'
+
+    fit = []
+    if bye_clash:
+        fit.append(f'<span class="pcd-chip pcd-c-pink">bye {bye} clash · '
+                   f'{bye_clash} starter{"s" if bye_clash != 1 else ""}</span>')
+    for kind, who in (synergy or []):
+        fit.append(f'<span class="pcd-chip">{kind} · {who}</span>')
+    fit_html = (f'<div class="pcd-sec"><div class="pcd-h">Fit with your roster</div>'
+                f'<div class="pcd-chips">{"".join(fit)}</div></div>') if fit else ""
+
+    prev = ""
+    if season:
+        s = season_stats(pid, season) or {}
+        rows = _statline(pm.position, s)
+        if rows:
+            g = s.get("gp") or s.get("gms_active")
+            cells = ([("games", _fmt(g))] if g else []) + rows[:4]
+            prev = (f'<div class="pcd-sec"><div class="pcd-h">{prev_label or season}</div>'
+                    f'<div class="pcd-grid">' + "".join(
+                        f'<div><div class="pcd-sl">{k}</div>{v}</div>' for k, v in cells)
+                    + '</div></div>')
+
+    return (f'<div class="pcd">'
+            f'<div class="pcd-top">{theme.img_tag(pid, "pcd-img")}'
+            f'<div class="pcd-id"><div class="pcd-nm">{pm.name}</div>'
+            f'<div class="pcd-bits">{" · ".join(bits)}</div></div></div>'
+            f'<div class="pcd-chips pcd-chiprow">{"".join(chips)}</div>'
+            f'<div class="pcd-stats">{stat_html}</div>{call}'
+            f'{playoff_block_html(slate, pm.position)}{mkt}{fit_html}{prev}</div>')

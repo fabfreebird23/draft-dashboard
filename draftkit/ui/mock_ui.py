@@ -10,7 +10,8 @@ import streamlit as st
 from .. import draft_history
 from . import components as C
 from .widgets import (juice_tab, predict_upcoming, predictor_widget, queue_manager,
-                      rankings_tab, select_player, spotlight_panel,
+                      player_card_dialog, rankings_tab, select_player,
+                      spotlight_panel,
                       steals_traps_widget, suggestions_tab)
 
 @st.cache_data(ttl=1800, show_spinner="Predicting keepers…")
@@ -299,9 +300,8 @@ def render(ctx) -> None:
         st.rerun()
 
     def show_card(pid):
-        # deep player card removed — the compact rows already carry ADP/bye/value,
-        # so a player-name click is a no-op; the Draft/★ buttons carry the actions.
-        return
+        """Stage the player for the popup card; opened once board_avail exists."""
+        st.session_state[f"{mkey}_cardpid"] = str(pid)
         st.rerun()
 
     def toggle_queue(pid):
@@ -409,6 +409,19 @@ def render(ctx) -> None:
 
     upcoming_slots = ([owner(k) for k in range(pick_no + 1, next_user_pick)]
                       if next_user_pick else [])
+
+    # ---- player card popup ----
+    # pop(), not get(): Streamlit gives no signal when a dialog is dismissed with the
+    # X, so leaving the pid in state would reopen the card on the very next rerun.
+    # Clearing it as we read means Draft / Queue / X all close it, and only a fresh
+    # click re-stages one.
+    _cardpid = st.session_state.pop(f"{mkey}_cardpid", None)
+    if _cardpid:
+        player_card_dialog(
+            ctx, _cardpid, on_draft=(draft if can_draft else None), on_star=toggle_queue,
+            queued=queued, next_pick=next_user_pick, survival=surv_fn(_cardpid),
+            my_pids=my_pids, needs=needs, taken=taken,
+            board_avail=board_avail, pick=pick_no)
 
     # top recommendation (drives the spotlight default + the ★ line)
     queue = [p for p in st.session_state.get(qkey, []) if str(p) not in taken]

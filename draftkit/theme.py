@@ -1018,6 +1018,52 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   [class*="navbar"] [role="radiogroup"] label{ padding:8px 11px; font-size:12.5px; }
 }
 </style>
+/* ---- Player card (popup) — the click-to-inspect card inside st.dialog ---- */
+.pcd{ font-size:13px; }
+.pcd-top{ display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.pcd-img{ width:54px; height:54px; border-radius:50%; object-fit:cover;
+  background:var(--panel2); flex:none; }
+.pcd-nm{ font-size:19px; font-weight:800; line-height:1.15; }
+.pcd-bits{ font-size:12px; color:var(--mut2); margin-top:2px; }
+.pcd-chips{ display:flex; flex-wrap:wrap; gap:5px; }
+.pcd-chiprow{ margin-bottom:12px; }
+.pcd-chip{ font-size:11px; font-weight:700; padding:3px 8px; border-radius:6px;
+  background:var(--panel2); color:var(--muted); }
+.pcd-c-red{ background:#fdecec; color:#b3261e; } .pcd-c-green{ background:#eaf7ef; color:#1c7a44; }
+.pcd-c-amber{ background:#fdf3e3; color:#8a5a06; } .pcd-c-pink{ background:#fbeaf0; color:#8a2b4c; }
+.pcd-inj-ok{ background:#eaf7ef; color:#1c7a44; } .pcd-inj-ques{ background:#fdf3e3; color:#8a5a06; }
+.pcd-inj-out{ background:#fdecec; color:#b3261e; }
+.pcd-stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(90px,1fr)); gap:8px;
+  margin-bottom:10px; }
+.pcd-stat{ background:var(--panel2); border-radius:8px; padding:8px 10px; }
+.pcd-sl{ font-size:10px; color:var(--mut2); text-transform:uppercase; letter-spacing:.4px; }
+.pcd-sv{ font-size:20px; font-weight:800; line-height:1.2; }
+.pcd-tn{ font-size:11px; font-weight:600; color:var(--mut2); }
+.pcd-call{ border-radius:8px; padding:9px 11px; font-size:12.5px; line-height:1.45;
+  margin-bottom:12px; background:var(--panel2); color:var(--muted); }
+.pcd-call-grab{ background:#fdecec; color:#8c2320; } .pcd-call-wait{ background:#fdf3e3; color:#7a4f06; }
+.pcd-sec{ border-top:1px solid var(--line2); padding-top:10px; margin-top:10px; }
+.pcd-h{ font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.5px;
+  color:var(--mut2); margin-bottom:7px; display:flex; align-items:center; gap:7px; }
+.pcd-sub{ font-weight:600; letter-spacing:0; text-transform:none; color:var(--mut2); }
+.pcd-tag{ margin-left:auto; font-size:10.5px; font-weight:800; padding:2px 7px; border-radius:6px; }
+.pcd-t-easy{ background:#eaf7ef; color:#1c7a44; } .pcd-t-hard{ background:#fdecec; color:#b3261e; }
+.pcd-t-avg{ background:#eef1f4; color:#55606b; }
+.pcd-wk{ display:grid; grid-template-columns:38px 38px 1fr 84px; align-items:center; gap:8px;
+  padding:3px 0; }
+.pcd-wkn{ font-size:11px; color:var(--mut2); font-weight:700; }
+.pcd-opp{ font-size:12px; font-weight:800; }
+.pcd-rk{ font-size:10.5px; color:var(--mut2); text-align:right; }
+.pcd-track{ height:6px; border-radius:4px; background:var(--panel2); overflow:hidden; }
+.pcd-fill{ display:block; height:100%; border-radius:4px; }
+.pcd-easy{ background:#3fae72; } .pcd-avg{ background:#9aa6b2; } .pcd-hard{ background:#d9534f; }
+.pcd-none{ font-size:12px; color:var(--mut2); font-style:italic; }
+.pcd-mk{ display:grid; grid-template-columns:1fr 46px 46px; font-size:12px; padding:2px 0; }
+.pcd-mk span:first-child{ color:var(--mut2); }
+.pcd-mv{ text-align:right; font-weight:700; } .pcd-md{ text-align:right; color:var(--mut2); }
+.pcd-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(64px,1fr)); gap:8px;
+  font-size:13px; font-weight:700; }
+
 """
 
 

@@ -96,6 +96,46 @@ def load_dvp(prev_season: int, registry, scoring: str = "ppr") -> Dict[str, Dict
     return dvp
 
 
+def playoff_slate(team: str, pos: str, dvp: dict, schedule: dict):
+    """Full fantasy-playoff picture (weeks 15-17) for the player card, rather than
+    the one-line grade `playoff_sos` returns.
+
+    {label, cls, frac, avg_rank, n_def, weeks: [(wk, opp, rank, hardness)]} or None.
+    `rank` is the opponent's DvP rank against this position (1 = stingiest, 32 =
+    most generous), so `hardness` = 1 - rank/n_def runs 0 (easy) … 1 (hard) and can
+    drive a per-week bar. Beware the direction: a HIGH DvP rank is a GOOD matchup.
+
+    NB DvP is built from LAST season's games — load_dvp's first arg is named
+    prev_season for that reason. Passing the current season yields empty dicts and
+    every slate silently grades as None, which is what made this feature look
+    broken when it is in fact fine."""
+    if not team or not pos or not dvp or not schedule:
+        return None
+    pos_dvp = dvp.get(pos)
+    games = schedule.get(team, {})
+    if not pos_dvp or not games:
+        return None
+    n_def = max(pos_dvp.values()) or 32
+    weeks = []
+    for wk in PLAYOFF_WEEKS:
+        opp = games.get(str(wk))
+        if opp and opp in pos_dvp:
+            rank = pos_dvp[opp]
+            weeks.append((wk, opp, rank, 1.0 - (rank / n_def)))
+    if not weeks:
+        return None
+    avg = sum(w[2] for w in weeks) / len(weeks)
+    frac = avg / n_def                                          # 0 hard … 1 easy
+    if frac >= 0.60:
+        label, cls = "Easy playoff slate", "easy"
+    elif frac <= 0.40:
+        label, cls = "Hard playoff slate", "hard"
+    else:
+        label, cls = "Average playoff slate", "avg"
+    return {"label": label, "cls": cls, "frac": frac, "avg_rank": avg,
+            "n_def": n_def, "weeks": weeks}
+
+
 def playoff_sos(team: str, pos: str, dvp: dict, schedule: dict):
     """Grade a player's fantasy-playoff slate (weeks 15-17). Returns
     (label, css_class, detail) or None. Higher opponent DvP rank = more generous

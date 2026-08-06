@@ -7,7 +7,8 @@ import streamlit as st
 from ..providers.espn import EspnAuthError
 from . import components as C
 from .widgets import (juice_tab, predict_upcoming, predictor_widget, queue_manager,
-                      rankings_tab, select_player, spotlight_panel,
+                      player_card_dialog, rankings_tab, select_player,
+                      spotlight_panel,
                       steals_traps_widget, suggestions_tab)
 
 
@@ -180,8 +181,10 @@ def render(ctx) -> None:
     queued = {str(x) for x in st.session_state.get(qkey, [])}
 
     def _inspect(pid):
-        # deep player card removed — compact rows carry ADP/bye/value; no-op click.
-        return
+        """Clicking a player stages him for the card; the dialog is opened once,
+        further down, after board_avail/needs exist."""
+        st.session_state[f"{akey}_cardpid"] = str(pid)
+        st.rerun()
 
     def toggle_queue(pid):
         q = [str(x) for x in st.session_state.get(qkey, [])]
@@ -267,6 +270,19 @@ def render(ctx) -> None:
                                                ctx["owner_by_slot"], my_slot,
                                                on_clock_slot=on_slot, round_no=round_no),
                         unsafe_allow_html=True)
+
+    # ---- player card popup ----
+    # pop(), not get(): Streamlit gives no signal when a dialog is dismissed with the
+    # X, so leaving the pid in state would reopen the card on the very next rerun.
+    # Clearing it as we read means Draft / Queue / X all close it, and only a fresh
+    # click re-stages one.
+    _cardpid = st.session_state.pop(f"{akey}_cardpid", None)
+    if _cardpid:
+        player_card_dialog(
+            ctx, _cardpid, on_draft=(draft if manual else None), on_star=toggle_queue,
+            queued=queued, next_pick=next_user_pick, survival=surv_fn(_cardpid),
+            my_pids=my_pids, needs=needs, taken=drafted,
+            board_avail=board_avail, pick=pick_no)
 
     upcoming_slots = ([owner(k) for k in range(pick_no + 1, next_user_pick)]
                       if next_user_pick else [])
