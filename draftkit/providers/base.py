@@ -20,8 +20,12 @@ class LeagueMeta:
     name: str
     num_teams: int
     draft_rounds: int
-    scoring: str             # "ppr" | "half" | "std"
+    scoring: str             # "ppr" | "half" | "std" — closest label
     draft_id: Optional[str] = None
+    # Exact per-stat weights when the league isn't one of the three labels.
+    # `scoring` stays a label because ADP boards, DvP and the Juice sheet are only
+    # published in those flavours; only projections can honour exact weights.
+    scoring_weights: Optional[dict] = None
 
 
 @dataclass

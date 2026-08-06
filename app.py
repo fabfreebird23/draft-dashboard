@@ -195,9 +195,12 @@ def get_buzz():
 
 
 @st.cache_data(ttl=86400, show_spinner="Loading projections…")
-def get_projections(season: int, scoring: str):
+def get_projections(season: int, scoring: str, weights: dict | None = None):
+    """`weights` is unhashable, so it rides as a sorted tuple in the cache key —
+    passing the dict straight in would make Streamlit raise on an unhashable arg."""
     from draftkit import projections
-    return projections.load_projections(season, scoring)
+    return projections.load_projections(season, scoring,
+                                        weights=dict(weights) if weights else None)
 
 
 @st.cache_data(ttl=21600, show_spinner="Loading Juice's Value sheet…")
@@ -245,6 +248,11 @@ SAVED_LEAGUES = [
      "league_id": "1310907162930733056", "season": 2026},
     {"label": "Babies and Boomer", "platform": "sleeper",
      "league_id": "1312885282554535936", "season": 2026},
+    {"label": "7\u00bd Men", "platform": "sleeper",
+     "league_id": "1388606375239643136", "season": 2026},
+    # Public league — readable with no espn_s2/SWID, so no credentials are stored.
+    {"label": "Show us your TD's", "platform": "espn",
+     "league_id": "798873", "season": 2026},
 ]
 
 
@@ -408,7 +416,9 @@ def build_context(sel: dict) -> dict:
     # Value engine: projected points → VORP vs league-specific replacement level.
     from draftkit import value as value_mod
     roster_slots = provider.get_roster_slots()
-    proj = get_projections(config.current_season(), meta.scoring)
+    _w = getattr(meta, "scoring_weights", None)
+    proj = get_projections(config.current_season(), meta.scoring,
+                           tuple(sorted(_w.items())) if _w else None)
     value = value_mod.build_value(proj, registry, roster_slots, meta.num_teams)
     # Playoff strength of schedule (weeks 15-17) from real defense-vs-position.
     schedule = get_schedule(config.current_season())

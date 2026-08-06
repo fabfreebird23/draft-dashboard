@@ -85,6 +85,7 @@ class EspnProvider(Provider):
             num_teams=int(s.get("size") or len(d.get("teams") or []) or 10),
             draft_rounds=rounds,
             scoring=_scoring_label(s),
+            scoring_weights=_scoring_weights(s),
             draft_id=self.league_id,   # ESPN has no separate draft id
         )
 
@@ -170,7 +171,18 @@ class EspnProvider(Provider):
                 self.registry.add_espn(str(eid), name, _POS.get(p.get("defaultPositionId"), ""))
 
 
+def _scoring_weights(settings: dict):
+    """Exact weights from the league's own scoring settings, or None."""
+    from .. import scoring as _sc
+    return _sc.from_espn(settings)
+
+
 def _scoring_label(settings: dict) -> str:
+    """Closest ppr/half/std label. Lossy on purpose — see LeagueMeta.scoring."""
+    from .. import scoring as _sc
+    w = _sc.from_espn(settings)
+    if w:
+        return _sc.label_for(w)
     items = (settings.get("scoringSettings", {}) or {}).get("scoringItems", []) or []
     for it in items:
         if it.get("statId") == 53:        # receptions
