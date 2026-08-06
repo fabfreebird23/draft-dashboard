@@ -194,6 +194,14 @@ def get_buzz():
     return out
 
 
+@st.cache_data(ttl=21600, show_spinner="Loading projections…")
+def get_espn_projections(league_id: str, season: int):
+    """ESPN's own season projections, already in that league's scoring."""
+    from draftkit import projections
+    return projections.espn_projections(league_id, season,
+                                        registry=get_registry(season))
+
+
 @st.cache_data(ttl=86400, show_spinner="Loading projections…")
 def get_projections(season: int, scoring: str, weights: dict | None = None):
     """`weights` is unhashable, so it rides as a sorted tuple in the cache key —
@@ -414,9 +422,16 @@ def build_context(sel: dict) -> dict:
     # Value engine: projected points → VORP vs league-specific replacement level.
     from draftkit import value as value_mod
     roster_slots = provider.get_roster_slots()
+    # Projections come from the league's OWN host: Sleeper for Sleeper, ESPN for
+    # ESPN. For the ESPN league that isn't a preference — its 38 scoring items have
+    # no per-yard entries, so our own weights can't reproduce it (Gibbs computed
+    # ~394 vs ESPN's 939.6). ESPN's projection already has the real rules applied.
     _w = getattr(meta, "scoring_weights", None)
-    proj = get_projections(config.current_season(), meta.scoring,
-                           tuple(sorted(_w.items())) if _w else None)
+    if meta.platform == "espn":
+        proj = get_espn_projections(str(meta.league_id), config.current_season())
+    else:
+        proj = get_projections(config.current_season(), meta.scoring,
+                               tuple(sorted(_w.items())) if _w else None)
     value = value_mod.build_value(proj, registry, roster_slots, meta.num_teams)
     # Playoff strength of schedule (weeks 15-17) from real defense-vs-position.
     schedule = get_schedule(config.current_season())

@@ -107,3 +107,114 @@ def load_projections(season: int, scoring: str = "ppr", weights=None) -> Dict[st
         except (TypeError, ValueError):
             continue
     return out
+
+
+# --------------------------------------------------------------- weekly / ESPN
+_ESPN_HOST = ("https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl"
+              "/seasons/{season}/segments/0/leagues/{lid}")
+_ESPN_HEADERS = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
+_ESPN_SLOTS = [0, 2, 4, 6]          # QB / RB / WR / TE
+
+
+def espn_projections(league_id: str, season: int, week=None, registry=None,
+                     limit: int = 400, espn_s2=None, swid=None) -> Dict[str, float]:
+    """`{sleeper_pid: projected_points}` straight from ESPN, in THAT league's own scoring.
+
+    Used instead of scoring Sleeper's components for ESPN leagues, and it is not a
+    convenience — it is the only correct option. "Show us your TD's" declares 38
+    scoring items and NONE of them are per-yard (statIds 3/24/42 are absent); it
+    scores through milestone bonuses that can't be reliably reverse-engineered from
+    the ids alone. Computing points from our own weights gave Jahmyr Gibbs ~394 for
+    the season where ESPN says 939.6 — a board built on that would be confidently
+    wrong. ESPN's own projection already has the league's real rules applied.
+
+    `week=None` gives the season projection; an int gives that week's.
+    """
+    import requests
+    flt = {"players": {"filterSlotIds": {"value": _ESPN_SLOTS}, "limit": int(limit),
+                       "sortDraftRanks": {"sortPriority": 1, "sortAsc": True,
+                                          "value": "STANDARD"}}}
+    params = {"view": "kona_player_info"}
+    if week:
+        params["scoringPeriodId"] = int(week)
+    cookies = {"espn_s2": espn_s2, "SWID": swid} if (espn_s2 and swid) else None
+    try:
+        r = requests.get(_ESPN_HOST.format(season=season, lid=league_id),
+                         headers={**_ESPN_HEADERS, "x-fantasy-filter": json.dumps(flt)},
+                         params=params, cookies=cookies, timeout=25)
+        r.raise_for_status()
+        players = (r.json() or {}).get("players") or []
+    except Exception:  # noqa: BLE001 — projections are best-effort, never fatal
+        return {}
+
+    split = 1 if week else 0
+    out: Dict[str, float] = {}
+    for entry in players:
+        p = entry.get("player") or {}
+        stat = next((s for s in (p.get("stats") or [])
+                     if s.get("statSourceId") == 1
+                     and s.get("statSplitTypeId") == split
+                     and int(s.get("seasonId") or 0) == int(season)
+                     and (not week or int(s.get("scoringPeriodId") or 0) == int(week))), None)
+        if not stat:
+            continue
+        pid = str(p.get("id") or "")
+        if registry is not None:
+            # ESPN ids mean nothing to the rest of the app; everything keys on
+            # Sleeper pids. Drop anyone we can't resolve rather than inventing a key.
+            hit = registry.resolve_espn(pid) if hasattr(registry, "resolve_espn") else None
+            pid = getattr(hit, "sleeper_pid", None) or ""
+        if pid:
+            out[str(pid)] = float(stat.get("appliedTotal") or 0.0)
+    return out
+
+
+def sleeper_week(season: int, week: int, scoring: str = "ppr", weights=None) -> Dict[str, float]:
+    """`{sleeper_pid: projected_points}` for ONE week from Sleeper.
+
+    Same component-scoring path as the season projections, so a Sleeper league with
+    unusual rules is weighted correctly here too. Not disk-cached: a week's numbers
+    move with news right up to kickoff, which is exactly when you'd be looking."""
+    merged: Dict[str, dict] = {}
+    try:
+        for pos in _POSITIONS:
+            url = (f"{_BASE}/{season}/{int(week)}?season_type=regular"
+                   f"&position[]={pos}&order_by=pts_ppr")
+            r = requests.get(url, headers=_HEADERS, timeout=20)
+            r.raise_for_status()
+            for row in (r.json() or []):
+                pid = str(row.get("player_id") or "")
+                st = row.get("stats") or {}
+                if pid and st.get("pts_ppr") is not None:
+                    merged[pid] = st
+    except Exception:  # noqa: BLE001
+        return {}
+    if weights:
+        from . import scoring as _sc
+        return {pid: _sc.points(st, weights) for pid, st in merged.items()}
+    key = _PTS_KEY.get(scoring, "pts_ppr")
+    out: Dict[str, float] = {}
+    for pid, st in merged.items():
+        v = st.get(key)
+        if v is None:
+            v = st.get("pts_ppr")
+        try:
+            out[pid] = float(v)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def for_league(meta, registry, season: int, week=None, espn_s2=None, swid=None):
+    """Projections from the league's OWN host — Sleeper for Sleeper, ESPN for ESPN.
+
+    Keeps the numbers agreeing with the site you actually set your lineup on, and
+    for ESPN it's also the only way to get that league's real scoring (see
+    espn_projections)."""
+    if getattr(meta, "platform", "") == "espn":
+        return espn_projections(str(meta.league_id), season, week=week,
+                                registry=registry, espn_s2=espn_s2, swid=swid)
+    w = getattr(meta, "scoring_weights", None)
+    if week:
+        return sleeper_week(season, week, meta.scoring, weights=w)
+    return load_projections(season, meta.scoring, weights=w)
