@@ -633,13 +633,24 @@ def main():
                             unsafe_allow_html=True)
 
     if ph_sel == "In-season":
-        nav = in_season_ui.TABS
+        # DEFENSIVE against Streamlit Cloud's stale-module behaviour. Cloud reloads
+        # app.py on a new commit but KEEPS already-imported submodules, so a fresh
+        # app.py can meet an old in_season_ui — which is exactly how a deploy turned
+        # into `AttributeError: module has no attribute 'TABS'` on a live app rather
+        # than a quiet visual regression. app.py itself always reloads, so reading
+        # cross-module constants through getattr means a stale submodule degrades to
+        # the old single-tab behaviour instead of crashing the page.
+        nav = getattr(in_season_ui, "TABS", ["This Week"])
         ikey = f"nav_in_{ctx['league_key']}"
         st.session_state.setdefault(ikey, nav[0])
         with st.container(key="navbar"):
             itab = st.segmented_control("nav", nav, key=ikey, selection_mode="single",
                                         label_visibility="collapsed") or nav[0]
-        in_season_ui.render(ctx, summary=lg_sum, tab=itab)
+        try:
+            in_season_ui.render(ctx, summary=lg_sum, tab=itab)
+        except TypeError:
+            # Same cause: an older render() has no `tab` parameter.
+            in_season_ui.render(ctx, summary=lg_sum)
         return
 
     # Persisted nav (st.tabs resets to the first tab on every rerun — drafting
