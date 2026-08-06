@@ -15,7 +15,7 @@ from draftkit.names import normalize_name
 from draftkit.providers import get_provider, EspnAuthError
 from draftkit import draft_history, keepers as keepers_mod, rankings as rankings_mod
 from draftkit.ui import (assistant_ui, home_ui, in_season_ui, mock_ui,
-                         rankings_ui, report_card_ui)
+                         prep_ui, rankings_ui, report_card_ui)
 from draftkit.ui.components import board_pos_rank, health_html
 
 st.set_page_config(page_title="Draft Room — Mock + Live Draft", layout="wide")
@@ -578,15 +578,17 @@ def main():
         in_season_ui.render(ctx, summary=lg_sum)
         return
 
-    nav = ["My Rankings", "Live Draft Assistant", "Mock Draft", "Report Card"]
+    nav = ["Overview", "My Rankings", "Live Draft Assistant", "Mock Draft", "Report Card"]
     with st.container(key="navbar"):
         section = st.radio("nav", nav, horizontal=True, key="nav_section",
                            label_visibility="collapsed")
     if section == nav[0]:
-        rankings_ui.render(ctx)
+        prep_ui.render(ctx, summary=lg_sum)
     elif section == nav[1]:
-        assistant_ui.render(ctx)
+        rankings_ui.render(ctx)
     elif section == nav[2]:
+        assistant_ui.render(ctx)
+    elif section == nav[3]:
         # Leagues that draft in stages (7 1/2 Men: 2-round rookie draft, then the
         # veteran draft) mock one stage at a time. The stage changes the eligible
         # pool AND the round count, so it's applied to ctx before the mock renders

@@ -1105,6 +1105,18 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="phasebar"] [role="radiogroup"]{ gap:4px; }
 [class*="phasebar"] [role="radiogroup"] label{ padding:6px 14px; font-size:12px;
   font-weight:700; border-radius:7px; }
+
+/* ---- Pre-season prep desk ---- */
+[class*="st-key-pk1_"],[class*="st-key-pk2_"],[class*="st-key-pk3_"]{
+  background:var(--panel2); border-radius:10px; padding:11px 13px; }
+[class*="st-key-pc1_"],[class*="st-key-pc2_"],[class*="st-key-pc3_"],
+[class*="st-key-pc4_"]{ background:var(--panel); border:1px solid var(--line);
+  border-radius:11px; padding:12px 13px; height:100%; }
+.pk-t{ font-size:14px; font-weight:800; letter-spacing:-.01em; }
+.pk-m{ font-size:11.5px; color:var(--mut2); margin:1px 0 9px; }
+.pk-n{ font-size:12.5px; line-height:1.45; padding:8px 10px; border-radius:7px; }
+.pk-ok{ background:#e6f4ec; color:#14603f; } .pk-amb{ background:#fdf3e3; color:#7a4f06; }
+.pk-red{ background:#fdecec; color:#8c2320; } .pk-nil{ background:var(--panel2); color:var(--muted); }
 </style>
 
 """

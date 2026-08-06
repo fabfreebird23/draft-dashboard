@@ -56,11 +56,17 @@ def render(ctx, summary=None) -> None:
     if opts:
         # Persisted per league — you shouldn't have to re-pick your own team on
         # every rerun, same mechanism as the saved AI draft boards.
+        # Explicit prompt rather than defaulting to the first manager — a keyed
+        # selectbox writes its default straight into session_state, and silently
+        # optimising SOMEONE ELSE'S roster is far worse than asking.
+        from .prep_ui import PROMPT, team_options
         sk = f"myteam_{ctx['league_key']}"
         labels = [o[0] for o in opts]
-        idx = labels.index(st.session_state[sk]) if st.session_state.get(sk) in labels else 0
-        pick = top[1].selectbox("Your team", labels, index=idx, key=sk)
-        tkey = dict(opts)[pick]
+        choices = team_options(labels)
+        cur = st.session_state.get(sk)
+        pick = top[1].selectbox("Your team", choices,
+                                index=choices.index(cur) if cur in choices else 0, key=sk)
+        tkey = dict(opts).get(pick) if pick != PROMPT else None
 
     drafted = bool(summary and summary.phase in (PH.IN, PH.DONE))
     if not drafted:
