@@ -132,7 +132,7 @@ div[data-testid="stRadio"] label{ font-size:12px; }
    rounds, and a tiny script (current_pick_scroll_html, run via components.html
    right after this markdown) snaps it back to the current pick after every draft
    action, since that's a full script rerun. */
-[class*="dr_board_top"]{ max-height:400px !important; overflow-y:auto !important;
+[class*="dr_board_top"]{ max-height:var(--dr-board) !important; overflow-y:auto !important;
   overflow-x:auto !important; margin-bottom:8px; }
 [class*="dr_board_top"] .dr-grid{ min-width:0; }
 /* compact-ish cells in the pinned board (headshots dropped) — still 6 rounds, but
@@ -156,8 +156,16 @@ div[data-testid="stRadio"] label{ font-size:12px; }
    content height to it (confirmed empirically: height:400px!important computed
    to 1655px anyway). The fix is the `flex` SHORTHAND with grow/shrink pinned to
    0, which stops the flex algorithm from resizing it past the given basis. */
+/* Height is DERIVED from the two things above it rather than guessed. The old
+   `calc(100vh - 800px)` hard-coded a single chrome+board total; measured live it is
+   really 251px of chrome + 400px of board + ~13px of gaps = 664px, so the panels
+   came up 136px short and left a band of dead space under all three columns. Any
+   zoom level or monitor that isn't the one the 800 was tuned on drifts the same
+   way. Now: viewport minus real chrome minus whatever the board actually took. */
+:root{ --dr-chrome:264px; --dr-board:min(400px, 34vh); }
 [class*="dr_panel_board"],[class*="dr_panel_intel"]{
-  flex:0 0 calc(100vh - 800px) !important; height:calc(100vh - 800px) !important;
+  flex:0 0 calc(100vh - var(--dr-chrome) - var(--dr-board)) !important;
+  height:calc(100vh - var(--dr-chrome) - var(--dr-board)) !important;
   min-height:260px !important; overflow-y:auto !important; overflow-x:hidden !important; }
 /* SHORT viewports. The 800px subtrahend above assumes a tall screen; on a 13"
    laptop (~750-800px of viewport) calc() floors to the 260px minimum, so all
@@ -165,15 +173,9 @@ div[data-testid="stRadio"] label{ font-size:12px; }
    still claims its full 400px. The only other media query in this stylesheet is
    a WIDTH query, so nothing rescued this. Rebalance in viewport-relative units
    as the screen shortens — these must stay AFTER the rule above to win. */
-@media (max-height:1000px){
-  [class*="dr_board_top"]{ max-height:32vh !important; }
-  [class*="dr_panel_board"],[class*="dr_panel_intel"]{
-    flex:0 0 48vh !important; height:48vh !important; min-height:300px !important; }
-}
-@media (max-height:800px){
-  [class*="dr_board_top"]{ max-height:30vh !important; }
-  [class*="dr_panel_board"],[class*="dr_panel_intel"]{
-    flex:0 0 54vh !important; height:54vh !important; min-height:260px !important; }
+/* The @media (max-height:1000px / 800px) blocks that used to rebalance this were
+   removed: they existed only because the split was fixed. `min(400px, 34vh)` now
+   shrinks the board on short screens and the panel formula follows it for free. */
 }
 /* the flexbox chain (stHorizontalBlock -> stColumn -> stVerticalBlock*) must be
    allowed to SHRINK (min-height:0) for the panel's own height+overflow-y:auto to
