@@ -1145,10 +1145,22 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 
 /* ---- topbar: one row, phase on the right, health folded into the pills ---- */
 .tb-dot{ width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:5px; }
-[class*="st-key-tb_phase"] [role="radiogroup"]{ gap:3px; justify-content:flex-end;
-  background:var(--panel2); border-radius:9px; padding:3px; }
-[class*="st-key-tb_phase"] [role="radiogroup"] label{ padding:5px 14px; font-size:11.5px;
-  font-weight:700; border-radius:7px; margin:0; }
+/* Segmented control, not a radio. Streamlit renders the glyph as label>div:first-child;
+   hiding it and styling label:has(input:checked) is the same technique the nav tabs
+   use — without it this rendered as bare radio circles, which is why the topbar
+   didn't match the mock. */
+[class*="st-key-tb_phase"] [role="radiogroup"],
+[class*="st-key-hmphase"] [role="radiogroup"]{ gap:2px; background:var(--panel2);
+  border-radius:9px; padding:3px; width:max-content; }
+[class*="st-key-tb_phase"] [role="radiogroup"]{ margin-left:auto; }
+[class*="st-key-tb_phase"] [role="radiogroup"] label,
+[class*="st-key-hmphase"] [role="radiogroup"] label{ padding:5px 15px; font-size:11.5px;
+  font-weight:700; border-radius:7px; margin:0; color:var(--mut2); background:transparent; }
+[class*="st-key-tb_phase"] [role="radiogroup"] label>div:first-child,
+[class*="st-key-hmphase"] [role="radiogroup"] label>div:first-child{ display:none; }
+[class*="st-key-tb_phase"] [role="radiogroup"] label:has(input:checked),
+[class*="st-key-hmphase"] [role="radiogroup"] label:has(input:checked){
+  background:var(--panel); color:var(--ink); box-shadow:0 1px 2px rgba(20,30,40,.13); }
 [class*="st-key-tb_more"] button{ padding:4px 0; font-weight:800; }
 </style>
 

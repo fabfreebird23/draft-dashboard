@@ -64,7 +64,15 @@ def _hub_or_platform(s):
 
 
 def render(presets, on_pick, board_age_fn=None) -> None:
-    st.markdown(f'<h1>{theme.logo_html(40)}</h1>', unsafe_allow_html=True)
+    head = st.columns([3, 2])
+    with head[0]:
+        st.markdown(f'<h1>{theme.logo_html(40)}</h1>', unsafe_allow_html=True)
+    with head[1], st.container(key="hmphase"):
+        # Same control as the per-league topbar, doing the analogous job: which half
+        # of the year am I looking at. On Home it FILTERS rather than switching a
+        # view, because Home is the only screen showing more than one league.
+        view = st.radio("view", ["All", "Pre-season", "In-season"], horizontal=True,
+                        key="home_phase", label_visibility="collapsed")
 
     rows = []
     for p in presets:
@@ -76,6 +84,16 @@ def render(presets, on_pick, board_age_fn=None) -> None:
                 age = None
         rows.append((p, PH.summary(p, age), age))
     rows.sort(key=lambda r: PH.sort_key(r[1]))
+    if view == "Pre-season":
+        rows = [r for r in rows if r[1].phase in (PH.PRE, PH.LIVE)]
+    elif view == "In-season":
+        rows = [r for r in rows if r[1].phase in (PH.IN, PH.DONE)]
+    if not rows:
+        st.info("**Nothing here yet.** No league has drafted, so there are no "
+                "in-season lineups to set. This fills in as each draft finishes."
+                if view == "In-season" else
+                "**No leagues in this phase.**")
+        return
 
     hero, rest = rows[0], rows[1:]
     _render_hero(*hero, on_pick=on_pick)
