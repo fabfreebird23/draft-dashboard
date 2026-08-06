@@ -1069,19 +1069,36 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .pcd-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(64px,1fr)); gap:8px;
   font-size:13px; font-weight:700; }
 
-/* ---- Home: every league at once ---- */
+/* ---- Home: every league at once ----
+   The CARD is the st.container, not a markdown div: a wrapper <div> from
+   st.markdown does not enclose a widget, so drawing the box that way left the
+   button and the hub link sitting outside it. */
+[class*="st-key-hmcard_"]{ background:var(--panel); border:1px solid var(--line);
+  border-top:3px solid var(--mut2); border-radius:12px; padding:14px 15px 12px;
+  display:flex; flex-direction:column; gap:0; height:100%; }
 .hm-h{ font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
   color:var(--mut2); margin:6px 0 9px; }
-.hm-card{ background:var(--panel); border:1px solid var(--line); border-top:3px solid var(--mut2);
-  border-radius:11px; padding:13px 14px; margin-bottom:8px; }
-.hm-name{ font-size:15px; font-weight:800; letter-spacing:-.01em; }
-.hm-meta{ font-size:11.5px; color:var(--mut2); margin:1px 0 9px; text-transform:capitalize; }
+.hm-name{ font-size:15.5px; font-weight:800; letter-spacing:-.01em; line-height:1.2; }
+.hm-meta{ font-size:11.5px; color:var(--mut2); margin:2px 0 10px; }
 .hm-note{ display:flex; gap:7px; align-items:flex-start; font-size:12.5px; line-height:1.45;
-  padding:8px 10px; border-radius:7px; }
+  padding:9px 10px; border-radius:8px; margin-bottom:11px; min-height:56px; }
 .hm-note i{ width:7px; height:7px; border-radius:50%; flex:none; margin-top:5px; }
-.hm-hub{ display:inline-block; margin-top:6px; font-size:11.5px; font-weight:600;
-  color:var(--muted); text-decoration:none; }
-.hm-hub:hover{ text-decoration:underline; }
+/* push the action to the bottom so cards of different text lengths still line up */
+[class*="st-key-hmcard_"] .stButton{ margin-top:auto; }
+[class*="st-key-hmcard_"] .stButton button{ border-radius:8px; font-weight:700; }
+/* equal-height cards: stretch each column so a shorter note still lines up */
+[class*="st-key-hmcard_"]{ min-height:212px; }
+.hm-h + div [data-testid="stColumn"]{ display:flex; }
+.hm-h + div [data-testid="stColumn"] > div{ width:100%; }
+/* Streamlit styles every <a> blue-and-underlined; the card link is meant to be a
+   quiet secondary action, so it needs to out-specify that default. */
+[class*="st-key-hmcard_"] a.hm-hub,
+[class*="st-key-hmcard_"] a.hm-hub:link,
+[class*="st-key-hmcard_"] a.hm-hub:visited{ display:inline-block; margin-top:9px;
+  font-size:11.5px; font-weight:600; color:var(--mut2) !important;
+  text-decoration:none !important; }
+[class*="st-key-hmcard_"] a.hm-hub:hover{ color:var(--blue) !important;
+  text-decoration:underline !important; }
 
 /* ---- phase bar: pre-season vs in-season, above the section nav ---- */
 .ph-note{ font-size:12px; color:var(--mut2); padding-top:9px; }

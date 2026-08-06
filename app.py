@@ -285,37 +285,11 @@ def _select_league(preset: dict) -> None:
 
 # ------------------------------------------------------------------ league pick
 def league_picker():
-    """Home. Renders the league cards when there are saved leagues, then the
-    import form underneath for anything new."""
-    if not SAVED_LEAGUES:
-        st.markdown(f'<h1>{theme.logo_html(40)}</h1>', unsafe_allow_html=True)
-    if SAVED_LEAGUES:
-        home_ui.render(SAVED_LEAGUES, _select_league, board_age_fn=get_board_age)
-        st.divider()
+    """Home. All four leagues are baked into SAVED_LEAGUES, so this is purely the
+    dashboard — the ad-hoc import form is gone. Adding a league is a one-line edit
+    to SAVED_LEAGUES, which is the honest cost given how rarely it happens."""
+    home_ui.render(SAVED_LEAGUES, _select_league, board_age_fn=get_board_age)
 
-    st.caption("…or import another league. Sleeper is public by league ID; ESPN works "
-               "for public leagues by ID, and private leagues with espn_s2 + SWID cookies.")
-    platform = st.radio("Platform", ["Sleeper", "ESPN"], horizontal=True)
-    with st.form("import"):
-        if platform == "Sleeper":
-            league_id = st.text_input("Sleeper league ID",
-                                      help="The number in your league URL: sleeper.com/leagues/<ID>/…")
-            season, s2, swid = config.current_season(), None, None
-        else:
-            league_id = st.text_input("ESPN league ID",
-                                      help="The leagueId in your ESPN URL.")
-            season = st.number_input("Season", min_value=2018, max_value=2100,
-                                     value=config.current_season(), step=1)
-            with st.expander("Private league? Paste your ESPN cookies"):
-                s2 = st.text_input("espn_s2", value=_secret("espn_s2"), type="password")
-                swid = st.text_input("SWID", value=_secret("swid"))
-        go = st.form_submit_button("Import league", type="primary")
-    if go and league_id:
-        st.session_state.league = {
-            "platform": platform.lower(), "league_id": league_id.strip(),
-            "season": int(season), "espn_s2": (s2 or None), "swid": (swid or None),
-        }
-        st.rerun()
 
 
 def build_context(sel: dict) -> dict:
@@ -613,7 +587,33 @@ def main():
     elif section == nav[1]:
         assistant_ui.render(ctx)
     elif section == nav[2]:
-        mock_ui.render(ctx)
+        # Leagues that draft in stages (7 1/2 Men: 2-round rookie draft, then the
+        # veteran draft) mock one stage at a time. The stage changes the eligible
+        # pool AND the round count, so it's applied to ctx before the mock renders
+        # — mocking the veteran draft against the full pool would practise the
+        # wrong draft entirely.
+        from draftkit import draft_stages as DS
+        stages = DS.stages_for(meta.league_id)
+        if stages:
+            skey = f"stage_{ctx['league_key']}"
+            names = [x.name for x in stages]
+            sel = st.radio("Draft stage", names, horizontal=True, key=skey,
+                           help="This league drafts in two stages. Run the rookie "
+                                "draft first — its picks are removed from the "
+                                "veteran pool.")
+            stage = stages[names.index(sel)]
+            # Whatever the earlier stage took is gone from this one. Read from the
+            # rookie mock's own board so the two stages actually connect.
+            taken = []
+            if stage.key != stages[0].key:
+                prev = st.session_state.get(f"mock_{ctx['league_key']}_{stages[0].key}") or {}
+                taken = [pid for pid in (prev.get("made") or {}).values() if pid]
+            st.caption(f"{stage.blurb}"
+                       + (f" · {len(taken)} already taken in the rookie draft."
+                          if taken else ""))
+            mock_ui.render(DS.apply(ctx, stage, taken), state_suffix=stage.key)
+        else:
+            mock_ui.render(ctx)
     else:
         report_card_ui.render(ctx)
 

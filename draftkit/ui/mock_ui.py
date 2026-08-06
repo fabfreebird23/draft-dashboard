@@ -40,7 +40,10 @@ _PICK_DELAY = 0.7  # seconds between AI picks in live-pace mode
 _AI_JITTER = 0.15  # per-pick randomness so every mock draft plays out differently
 
 
-def render(ctx) -> None:
+def render(ctx, state_suffix: str = "") -> None:
+    """`state_suffix` keeps each draft STAGE on its own board — without it the
+    rookie and veteran drafts would share one `made` dict and overwrite each
+    other."""
     reg = ctx["registry"]
     ranks = st.session_state.get(ctx["ranks_key"])
     if not ranks:
@@ -50,7 +53,7 @@ def render(ctx) -> None:
     slot_names = ctx["slot_names"]
     n = len(slot_names)
     rounds = ctx["meta"].draft_rounds
-    mkey = f"mock_{ctx['league_key']}"
+    mkey = f"mock_{ctx['league_key']}" + (f"_{state_suffix}" if state_suffix else "")
     qkey = f"queue_{ctx['league_key']}"
     # Keepers: the dashboard placements, or — when the toggle is on — those PLUS
     # predicted keepers for teams that haven't entered any on the keeper dashboard.
