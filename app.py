@@ -616,6 +616,8 @@ def main():
                 if st.button("Home — all leagues", use_container_width=True, key="tb_home"):
                     del st.session_state.league
                     st.rerun()
+                st.markdown(f'<div class="tb-bf">build {theme.fingerprint()}</div>',
+                            unsafe_allow_html=True)
                 st.markdown('<div class="tb-hh">Data health</div>'
                             + "".join(f'<div class="tb-hr">'
                                       f'<i class="tb-dot" style="background:{_tone(ok, warn)}"></i>'

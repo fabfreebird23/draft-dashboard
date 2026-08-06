@@ -1174,6 +1174,8 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .tb-hc.hc-bad{ background:var(--accent-soft); }
 .tb-hc.hc-bad > span{ color:var(--red); }
 .tb-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tb-bf{ font-size:10px; color:var(--mut2); font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  margin-top:9px; }
 .tb-hh{ font-size:9.5px; font-weight:800; letter-spacing:.11em; text-transform:uppercase;
   color:var(--mut2); margin:10px 0 5px; }
 .tb-hr{ display:flex; align-items:center; gap:7px; font-size:12px; padding:3px 0; }
@@ -1184,17 +1186,25 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
    use — without it this rendered as bare radio circles, which is why the topbar
    didn't match the mock. */
 [class*="st-key-tb_phase"] [role="radiogroup"],
-[class*="st-key-hmphase"] [role="radiogroup"]{ gap:2px; background:var(--panel2);
+[class*="st-key-hmphase"] [role="radiogroup"],
+[class*="st-key-phase_"] [role="radiogroup"],
+[class*="st-key-home_phase"] [role="radiogroup"]{ gap:2px; background:var(--panel2);
   border-radius:9px; padding:3px; width:max-content; }
 /* sits beside the identity, not pinned to the far edge */
 [class*="st-key-tb_phase"] [role="radiogroup"]{ margin-left:0; }
 [class*="st-key-tb_phase"] [role="radiogroup"] label,
-[class*="st-key-hmphase"] [role="radiogroup"] label{ padding:5px 15px; font-size:11.5px;
+[class*="st-key-hmphase"] [role="radiogroup"] label,
+[class*="st-key-phase_"] [role="radiogroup"] label,
+[class*="st-key-home_phase"] [role="radiogroup"] label{ padding:5px 15px; font-size:11.5px;
   font-weight:700; border-radius:7px; margin:0; color:var(--mut2); background:transparent; }
 [class*="st-key-tb_phase"] [role="radiogroup"] label>div:first-child,
-[class*="st-key-hmphase"] [role="radiogroup"] label>div:first-child{ display:none; }
+[class*="st-key-hmphase"] [role="radiogroup"] label>div:first-child,
+[class*="st-key-phase_"] [role="radiogroup"] label>div:first-child,
+[class*="st-key-home_phase"] [role="radiogroup"] label>div:first-child{ display:none; }
 [class*="st-key-tb_phase"] [role="radiogroup"] label:has(input:checked),
-[class*="st-key-hmphase"] [role="radiogroup"] label:has(input:checked){
+[class*="st-key-hmphase"] [role="radiogroup"] label:has(input:checked),
+[class*="st-key-phase_"] [role="radiogroup"] label:has(input:checked),
+[class*="st-key-home_phase"] [role="radiogroup"] label:has(input:checked){
   background:var(--panel); color:var(--ink); box-shadow:0 1px 2px rgba(20,30,40,.13); }
 [class*="st-key-tb_more"] button{ padding:4px 0; font-weight:800; }
 
@@ -1443,3 +1453,18 @@ def inject(st, dark: bool = False) -> None:
     st.markdown(CSS, unsafe_allow_html=True)
     if dark:
         st.markdown(DARK, unsafe_allow_html=True)
+
+
+def fingerprint() -> str:
+    """First 6 chars of a sha1 over the injected stylesheet.
+
+    Streamlit Cloud re-runs app.py on a new commit but KEEPS already-imported
+    modules, so an edited theme.py can go on serving its old CSS indefinitely and
+    the page looks unchanged no matter how many times you push. The fix is Reboot
+    app, not another commit — but the failure is invisible, which is the actual
+    problem. Surfacing this makes it diagnosable: if the page looks wrong and this
+    hasn't moved, it's a stale process rather than a bad stylesheet.
+
+    Ported from seven-half-men, where this exact failure cost real time twice."""
+    import hashlib
+    return hashlib.sha1((CSS + DARK).encode()).hexdigest()[:6]
