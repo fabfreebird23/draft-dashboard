@@ -578,7 +578,7 @@ def main():
         in_season_ui.render(ctx, summary=lg_sum)
         return
 
-    nav = ["Overview", "My Rankings", "Live Draft Assistant", "Mock Draft", "Report Card"]
+    nav = ["Overview", "My Rankings", "Mock Draft", "Live Draft", "Report Card"]
     with st.container(key="navbar"):
         section = st.radio("nav", nav, horizontal=True, key="nav_section",
                            label_visibility="collapsed")
@@ -586,9 +586,9 @@ def main():
         prep_ui.render(ctx, summary=lg_sum)
     elif section == nav[1]:
         rankings_ui.render(ctx)
-    elif section == nav[2]:
-        assistant_ui.render(ctx)
     elif section == nav[3]:
+        assistant_ui.render(ctx)
+    elif section == nav[2]:
         # Leagues that draft in stages (7 1/2 Men: 2-round rookie draft, then the
         # veteran draft) mock one stage at a time. The stage changes the eligible
         # pool AND the round count, so it's applied to ctx before the mock renders

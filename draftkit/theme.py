@@ -1111,10 +1111,19 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   background:var(--panel2); border-radius:10px; padding:11px 13px; }
 [class*="st-key-pc1_"],[class*="st-key-pc2_"],[class*="st-key-pc3_"],
 [class*="st-key-pc4_"]{ background:var(--panel); border:1px solid var(--line);
-  border-radius:11px; padding:12px 13px; height:100%; }
+  border-radius:12px; padding:13px 14px 12px; height:100%;
+  display:flex; flex-direction:column; }
+/* the card's action sits at the bottom so cards of different text length line up */
+[class*="st-key-pc1_"] .stButton,[class*="st-key-pc2_"] .stButton,
+[class*="st-key-pc3_"] .stButton,[class*="st-key-pc4_"] .stButton,
+[class*="st-key-pc2_"] [data-testid="stLinkButton"]{ margin-top:auto; }
+[class*="st-key-pc2_"] [data-testid="stLinkButton"] a{ border-radius:8px;
+  font-size:12.5px; font-weight:700; }
+.pk-of{ font-size:14px; font-weight:700; color:var(--mut2); }
 .pk-t{ font-size:14px; font-weight:800; letter-spacing:-.01em; }
 .pk-m{ font-size:11.5px; color:var(--mut2); margin:1px 0 9px; }
-.pk-n{ font-size:12.5px; line-height:1.45; padding:8px 10px; border-radius:7px; }
+.pk-n{ font-size:12.5px; line-height:1.45; padding:9px 10px; border-radius:8px;
+  margin-bottom:11px; min-height:58px; }
 .pk-ok{ background:#e6f4ec; color:#14603f; } .pk-amb{ background:#fdf3e3; color:#7a4f06; }
 .pk-red{ background:#fdecec; color:#8c2320; } .pk-nil{ background:var(--panel2); color:var(--muted); }
 </style>
