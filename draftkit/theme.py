@@ -105,7 +105,7 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 [class*="navbar"] [role="radiogroup"] label{ padding:9px 18px; font-weight:800; font-size:14px;
   color:var(--muted); cursor:pointer; margin-bottom:-2px; }
 [class*="navbar"] [role="radiogroup"] label:hover{ color:var(--blue); }
-[class*="navbar"] [role="radiogroup"] label>div:first-child{ display:none; }
+[class*="navbar"] [role="radiogroup"] label>:first-child{ display:none; }
 [class*="navbar"] [role="radiogroup"] label:has(input:checked){ color:var(--blue);
   border-bottom:2px solid var(--blue); }
 
@@ -219,7 +219,7 @@ div[data-testid="stRadio"] label{ font-size:12px; }
   background:var(--line2); border:1px solid var(--line); border-radius:9px; display:inline-flex; }
 [class*="dr_panel_board"] [data-testid="stRadio"] [role="radiogroup"] label{ padding:4px 13px;
   margin:0; border-radius:6px; font-size:11.5px; font-weight:700; color:var(--muted); cursor:pointer; }
-[class*="dr_panel_board"] [data-testid="stRadio"] [role="radiogroup"] label>div:first-child{ display:none; }
+[class*="dr_panel_board"] [data-testid="stRadio"] [role="radiogroup"] label>:first-child{ display:none; }
 [class*="dr_panel_board"] [data-testid="stRadio"] [role="radiogroup"] label:hover{ color:var(--ink); }
 [class*="dr_panel_board"] [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked){
   background:#fff; color:var(--ink); box-shadow:var(--shadow); }
@@ -1181,7 +1181,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .tb-hr{ display:flex; align-items:center; gap:7px; font-size:12px; padding:3px 0; }
 .tb-hr b{ margin-left:auto; font-variant-numeric:tabular-nums; }
 .tb-dot{ width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:5px; }
-/* Segmented control, not a radio. Streamlit renders the glyph as label>div:first-child;
+/* Segmented control, not a radio. Streamlit renders the glyph as label>:first-child;
    hiding it and styling label:has(input:checked) is the same technique the nav tabs
    use — without it this rendered as bare radio circles, which is why the topbar
    didn't match the mock. */
@@ -1197,10 +1197,10 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="st-key-phase_"] [role="radiogroup"] label,
 [class*="st-key-home_phase"] [role="radiogroup"] label{ padding:5px 15px; font-size:11.5px;
   font-weight:700; border-radius:7px; margin:0; color:var(--mut2); background:transparent; }
-[class*="st-key-tb_phase"] [role="radiogroup"] label>div:first-child,
-[class*="st-key-hmphase"] [role="radiogroup"] label>div:first-child,
-[class*="st-key-phase_"] [role="radiogroup"] label>div:first-child,
-[class*="st-key-home_phase"] [role="radiogroup"] label>div:first-child{ display:none; }
+[class*="st-key-tb_phase"] [role="radiogroup"] label>:first-child,
+[class*="st-key-hmphase"] [role="radiogroup"] label>:first-child,
+[class*="st-key-phase_"] [role="radiogroup"] label>:first-child,
+[class*="st-key-home_phase"] [role="radiogroup"] label>:first-child{ display:none; }
 [class*="st-key-tb_phase"] [role="radiogroup"] label:has(input:checked),
 [class*="st-key-hmphase"] [role="radiogroup"] label:has(input:checked),
 [class*="st-key-phase_"] [role="radiogroup"] label:has(input:checked),
