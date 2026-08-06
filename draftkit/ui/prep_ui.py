@@ -17,7 +17,7 @@ import time
 
 import streamlit as st
 
-from .. import draft_stages as DS, keepers as K, phase as PH
+from .. import config, draft_stages as DS, keepers as K, phase as PH
 from . import components as C
 
 _HUBS = {
@@ -110,8 +110,8 @@ def render(ctx, summary=None) -> None:
     days = summary.days_to_draft if summary else None
     with tiles[0]:
         if days is not None and days >= 0:
-            when = time.strftime("%a, %b %-d · %-I:%M%p",
-                                 time.localtime(summary.draft_at)).replace("AM", "am").replace("PM", "pm")
+            when = config.fmt_local(summary.draft_at,
+                                    "%a, %b %-d · %-I:%M%p").replace("AM", "am").replace("PM", "pm")
             _tile(f"pk1_{lid}", "draft in", f"{max(1, int(round(days)))} days", when)
         else:
             _tile(f"pk1_{lid}", "draft in", "—", "no date set on the platform yet")

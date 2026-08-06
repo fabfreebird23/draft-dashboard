@@ -127,7 +127,9 @@ def _annotate(s: Summary, board_age_h: Optional[float]) -> None:
         s.note, s.tone = ("Draft date has passed but Sleeper still shows it unstarted.", "amber")
         return
     days = max(1, int(round(d)))
-    when = time.strftime("%a %b %-d", time.localtime(s.draft_at))
+    # DISPLAY_TZ, not the host clock: Cloud runs UTC and was naming the wrong
+    # day for a draft scheduled at 8pm Eastern.
+    when = config.fmt_local(s.draft_at, "%a %b %-d")
     if board_age_h is not None and board_age_h / 24.0 >= 7 and d <= 14:
         s.note = (f"Drafts in {days} day{'s' if days != 1 else ''} ({when}) — "
                   f"your board is {int(board_age_h / 24)} days old.")

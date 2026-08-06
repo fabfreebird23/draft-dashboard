@@ -45,3 +45,30 @@ def adp_sources() -> dict:
 def league() -> dict:
     """Default ADP scoring when an imported league hasn't supplied one."""
     return {"scoring": "ppr"}
+
+
+# ---------------------------------------------------------------- display time
+# Streamlit Cloud runs in UTC, so time.localtime() renders every league date in
+# UTC there while rendering correctly on a local machine. Concretely: the Kreeper
+# draft is Thu Aug 13 8:00pm Eastern, which is Fri Aug 14 00:00 UTC — so the
+# deployed app was naming the WRONG DAY for a draft a week away. Fantasy leagues
+# are scheduled in a human timezone, so pin one.
+DISPLAY_TZ = "America/New_York"        # matches America/Indiana/Indianapolis
+
+
+def to_local(epoch):
+    """`epoch` seconds -> aware datetime in DISPLAY_TZ, falling back to the host's
+    own local time if the tz database isn't present."""
+    import datetime
+    if not epoch:
+        return None
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.datetime.fromtimestamp(float(epoch), ZoneInfo(DISPLAY_TZ))
+    except Exception:  # noqa: BLE001 — missing tzdata must not break a date
+        return datetime.datetime.fromtimestamp(float(epoch))
+
+
+def fmt_local(epoch, fmt="%a %b %-d"):
+    dt = to_local(epoch)
+    return dt.strftime(fmt) if dt else "—"
