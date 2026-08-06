@@ -539,68 +539,74 @@ def main():
 
     h = ctx.get("health") or {}
 
-    def _dot(ok, warn=False):
-        c = "var(--red)" if not ok else ("var(--amber)" if warn else "var(--green)")
-        return f'<i class="tb-dot" style="background:{c}"></i>'
-
     def _age(v):
         if v is None:
             return "—"
         return f"{int(v)}h" if v < 48 else f"{int(v / 24)}d"
 
-    # Only the four facts that never change during a session stay in the bar. The
-    # health readouts (ADP age, keepers, board age, Juice) moved into the overflow:
-    # six pills plus the phase control could not fit one row, and the Overview now
-    # states all four properly anyway — so up here they were both redundant and
-    # the reason the bar kept wrapping onto a second line.
-    pills = [f'<span class="tb-pill">{meta.platform.upper()}</span>',
-             f'<span class="tb-pill">{meta.num_teams} teams</span>',
-             f'<span class="tb-pill">{meta.draft_rounds} rds</span>',
-             f'<span class="tb-pill">{meta.scoring.upper()}</span>']
-    health_rows = [
-        ("ADP", _age(h.get("adp_age_h")), h.get("adp_age_h") is not None,
-         (h.get("adp_age_h") or 0) >= 24),
-        ("Your board", _age(h.get("board_age_h")), h.get("board_age_h") is not None,
-         (h.get("board_age_h") or 0) / 24 >= 7),
-    ]
+    # HEALTH AS A CLUSTER, not four pills. Four readouts cost ~420px to say
+    # "everything is fine" ~95% of the time, and by crowding the row they pushed
+    # the wordmark out entirely. Collapsed to dots it costs ~90px — and the
+    # DEGRADED case gets louder rather than quieter, because the cluster stops
+    # saying "healthy" and names the offender instead of hiding among pills you
+    # have stopped reading. The full readout still lives in the overflow.
+    # (long label for the overflow list, SHORT label for the cluster, value, ok, warn)
+    checks = [("ADP", "ADP", _age(h.get("adp_age_h")),
+               h.get("adp_age_h") is not None, (h.get("adp_age_h") or 0) >= 24),
+              ("Your board", "board", _age(h.get("board_age_h")),
+               h.get("board_age_h") is not None, (h.get("board_age_h") or 0) / 24 >= 7)]
     if h.get("keeper_league"):
         nk = h.get("keepers") or 0
-        health_rows.append(("Keepers", str(nk), nk > 0, False))
+        checks.append(("Keepers", "keepers", str(nk), nk > 0, False))
     jz = h.get("juice") or 0
-    health_rows.append(("Juice sheet", str(jz), jz > 0, False))
+    checks.append(("Juice sheet", "Juice", str(jz), jz > 0, False))
+
+    def _tone(ok, warn):
+        return "var(--red)" if not ok else ("var(--amber)" if warn else "var(--green)")
+
+    # Missing outranks stale: "no board" is a harder failure than "board 9d".
+    worst = (next((c for c in checks if not c[3]), None)
+             or next((c for c in checks if c[4]), None))
+    cl_label = ("healthy" if worst is None
+                else (f"{worst[1]} {worst[2]}" if worst[3] else f"no {worst[1]}"))
+    cl_tone = "" if worst is None else (" hc-warn" if worst[3] else " hc-bad")
+    cluster = (f'<span class="tb-hc{cl_tone}" title="'
+               + " · ".join(f"{lbl} {val}" for lbl, _s, val, _o, _w in checks) + '">'
+               + "".join(f'<i style="background:{_tone(ok, warn)}"></i>'
+                         for _l, _s, _v, ok, warn in checks)
+               + f'<span>{cl_label}</span></span>')
+
+    # Two pills, not four. The mock fit three plus the cluster at 1320px; the real
+    # pane is narrower, and a fourth pushed the group left over the phase control.
+    # Rounds is the least useful of the four and the scoring label is the most —
+    # it's the one that differs per league and changes what the board means.
+    pills = "".join(f'<span class="tb-pill">{p}</span>' for p in
+                    (f"{meta.num_teams} teams", meta.scoring.upper()))
 
     dark_on = st.session_state.get("dark_mode", True)
     pkey = f"phase_{ctx['league_key']}"
     if pkey not in st.session_state:
-        # Default derived from THIS league's own draft — Kreeper drafts Aug 13 and
-        # B&B Sep 7, so a single global toggle would be wrong for one of them for
-        # three weeks. Still overridable.
+        # Derived from THIS league's own draft, never a global setting — Kreeper
+        # drafts Aug 13 and B&B Sep 7, so a shared toggle would be wrong for one of
+        # them for three weeks. Still overridable.
         st.session_state[pkey] = ("In-season" if lg_sum.phase in (PH.IN, PH.DONE)
                                   else "Pre-season")
+
     with st.container(key="dr_topbar"):
-        # Order matters: identity · PHASE · pills · overflow. Phase sits beside the
-        # wordmark because that's where it belongs semantically, and putting the
-        # pills after it means they get the leftover width instead of being
-        # squeezed into wrapping onto a second row — which is what happened when
-        # phase was simply moved left inside a narrow column.
-        head = st.columns([2.75, 1.45, 3.0, 0.4])
+        head = st.columns([3.35, 1.7, 2.15, 0.4])
         with head[0]:
-            # MARK only inside a league, not the full wordmark: "BloodySunday" plus
-            # a league name as long as "The Kreeper League" cannot share one line at
-            # this column width, and the name is the more useful of the two once
-            # you're inside a league. The wordmark still opens Home.
             st.markdown(f'<div class="tb-row tb-id">{theme.cherry_svg(19)}'
+                        f'<span class="bs-word">Bloody<em>Sunday</em></span>'
+                        f'<span class="tb-sep"></span>'
                         f'<span class="tb-name">{meta.name}</span></div>',
                         unsafe_allow_html=True)
         with head[1], st.container(key="tb_phase"):
             ph_sel = st.radio("phase", ["Pre-season", "In-season"], horizontal=True,
                               key=pkey, label_visibility="collapsed")
         with head[2]:
-            st.markdown(f'<div class="tb-row tb-pills">{"".join(pills)}</div>',
+            st.markdown(f'<div class="tb-row tb-pills">{pills}{cluster}</div>',
                         unsafe_allow_html=True)
         with head[3], st.container(key="tb_more"):
-            # War room / Home are rare next to things read every load, so they sit
-            # in an overflow rather than taking topbar width.
             with st.popover("⋯", use_container_width=True):
                 def _toggle_dark():
                     st.session_state["dark_mode"] = not st.session_state.get("dark_mode", True)
@@ -611,9 +617,10 @@ def main():
                     del st.session_state.league
                     st.rerun()
                 st.markdown('<div class="tb-hh">Data health</div>'
-                            + "".join(f'<div class="tb-hr">{_dot(ok, warn)}'
+                            + "".join(f'<div class="tb-hr">'
+                                      f'<i class="tb-dot" style="background:{_tone(ok, warn)}"></i>'
                                       f'<span>{lbl}</span><b>{val}</b></div>'
-                                      for lbl, val, ok, warn in health_rows),
+                                      for lbl, _s, val, ok, warn in checks),
                             unsafe_allow_html=True)
 
     if ph_sel == "In-season":

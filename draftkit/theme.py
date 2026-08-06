@@ -1159,7 +1159,20 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 /* ---- topbar: one row, phase on the right, health folded into the pills ---- */
 /* pills must never wrap the bar onto a second row — clip instead */
 .tb-pills{ flex-wrap:nowrap; overflow:hidden; justify-content:flex-end; }
-.tb-id{ flex-wrap:nowrap; gap:9px; align-items:center; }
+.tb-id{ flex-wrap:nowrap; gap:9px; align-items:center; min-width:0; }
+.tb-id .bs-word{ font-size:15px; flex:none; }
+.tb-sep{ width:1px; height:18px; background:var(--line); flex:none; }
+/* health as ONE cluster of dots, not four pills — see app.py for why */
+.tb-hc{ display:inline-flex; align-items:center; gap:5px; flex:none;
+  padding:4px 9px; border-radius:7px; background:var(--panel2); }
+.tb-hc i{ width:6px; height:6px; border-radius:50%; display:inline-block; }
+.tb-hc > span{ font-size:9.5px; font-weight:700; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--mut2); margin-left:2px; }
+/* degraded states are LOUDER than healthy, not quieter */
+.tb-hc.hc-warn{ background:var(--accent-soft); }
+.tb-hc.hc-warn > span{ color:var(--amber); }
+.tb-hc.hc-bad{ background:var(--accent-soft); }
+.tb-hc.hc-bad > span{ color:var(--red); }
 .tb-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .tb-hh{ font-size:9.5px; font-weight:800; letter-spacing:.11em; text-transform:uppercase;
   color:var(--mut2); margin:10px 0 5px; }
