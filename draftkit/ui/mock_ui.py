@@ -195,7 +195,11 @@ def render(ctx) -> None:
         board feels the slider too, not just the consensus default."""
         src = st.session_state.get(f"aisrc_{ctx['league_key']}_{slot}", "Consensus")
         base = ctx.get("source_pools", {}).get(src) or ctx["adp_pool"]
-        if abs(rookie_aggr - 1.0) < 1e-9:
+        # Your own board is exempt from the rookie slider. The slider exists because
+        # the market's ADP under-rates rookies relative to how THIS league drafts
+        # them; your board already reflects your own rookie lean, so re-tempering it
+        # would apply that correction twice and stop it being your board.
+        if src == "My UDK board" or abs(rookie_aggr - 1.0) < 1e-9:
             return ctx.get("source_pools", {}).get(src) or adp_pool   # prebuilt
         return _rookie_pool(rookie_aggr, _curve_key, src, base, reg)
 

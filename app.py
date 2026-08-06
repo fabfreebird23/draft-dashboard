@@ -127,7 +127,8 @@ def get_rookie_curve(platform: str, league_id: str, season: int, _registry):
 # AI-opponent ranking sources you can assign per team (Scouting tab). ESPN /
 # FantasyPros / Underdog are per-source ADP columns in the consensus board;
 # Sleeper ADP is a scraped data file; "Consensus" is the blended default.
-AI_SOURCES = ["Consensus", "ESPN", "FantasyPros", "Underdog", "Sleeper"]
+MY_BOARD = "My UDK board"
+AI_SOURCES = ["Consensus", "ESPN", "FantasyPros", "Underdog", "Sleeper", MY_BOARD]
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
@@ -148,6 +149,8 @@ def get_source_pools(season: int, curve_key, _registry, _adp_df, _curve, _sleepe
     base = rankings_mod.adp_pool(_registry, _adp_df)
     pools = {}
     for src in AI_SOURCES:
+        if src == MY_BOARD:
+            continue          # built per-run from session_state; see main()
         if src == "Consensus":
             pool = base
         elif src == "Sleeper":
@@ -481,6 +484,14 @@ def main():
     # the selectboxes because the mock tab owns the widgets but the live tab's pick
     # predictor reads the same session keys — seeding centrally means both tabs get
     # your saved boards even if you never open the mock. Once per session per league.
+    # Your own board as an AI source, so a manager known to draft off the same UDK
+    # rankings actually does. Built here, not in get_source_pools, because the board
+    # lives in session_state — it changes on a pull or a hand edit without touching
+    # that cache's key, so a cached pool would silently go stale.
+    _my_board = st.session_state.get(ctx["ranks_key"]) or []
+    ctx["source_pools"][MY_BOARD] = rankings_mod.board_pool(
+        _my_board, ctx["adp_pool"], ctx["registry"])
+
     _ai_seeded = f"aisrc_seeded_{ctx['league_key']}"
     if _ai_seeded not in st.session_state:
         for _slot, _src in (storage.load_ai_sources(ctx["league_key"]) or {}).items():

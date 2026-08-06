@@ -329,3 +329,37 @@ def _is_rookie(registry, pid) -> bool:
         return registry.meta(pid).years_exp == 0
     except Exception:  # noqa: BLE001
         return False
+
+
+def board_pool(board: list, base_pool: list, registry) -> list:
+    """Turn YOUR saved board into an AI draft pool, so a manager can be set to draft
+    off your rankings (e.g. a leaguemate who you know uses the same UDK board).
+
+    Ordered by the board's own rank. Players the board doesn't list keep their
+    consensus order behind the ranked ones, exactly as apply_external_adp does for
+    an external ADP source, so the pool never runs dry late in a draft.
+
+    Deliberately NOT rookie-curved. The other source pools get the league's rookie
+    boost because their ADP is a market figure this league reaches differently; your
+    board is already the order you'd draft in, so boosting it on top would be
+    double-counting a lean it already contains."""
+    if not board:
+        return base_pool
+    ranked = {}
+    for r in board:
+        pid = str(r.get("pid") or "")
+        rank = r.get("rank")
+        if pid and rank is not None:
+            try:
+                ranked[pid] = float(rank)
+            except (TypeError, ValueError):
+                continue
+    if not ranked:
+        return base_pool
+    n = len(base_pool)
+    out = []
+    for i, p in enumerate(base_pool):
+        rk = ranked.get(str(p["pid"]))
+        out.append({**p, "adp": rk if rk is not None else (n + i)})
+    out.sort(key=lambda x: x["adp"])
+    return out
