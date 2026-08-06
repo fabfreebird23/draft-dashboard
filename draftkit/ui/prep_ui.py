@@ -9,7 +9,7 @@ Every number is read from state the app already loads. Where something genuinely
 isn't known it says so rather than showing a plausible placeholder.
 
 Keepers are read-only: each league's keeper and contract logic lives in its own
-standalone hub, and Draft Room owns drafting and in-season.
+standalone hub, and Bloody Sunday owns drafting and in-season.
 """
 from __future__ import annotations
 

@@ -27,16 +27,25 @@ CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Sora:wght@600;700;800;900&display=swap');
 /* ===== Night Draft — light variant (teal accent) ===== */
 :root{
-  --bg:#eef1f6; --panel:#ffffff; --panel2:#f5f7fa; --line:#e3e8ef; --line2:#eef1f6;
-  --ink:#101b2c; --muted:#5d6b7e; --mut2:#93a1b2;
-  --blue:#0d9488; --green:#1c8a4d; --red:#d23b3b; --amber:#e08a1e; --violet:#6248c8;
-  --accent:#0d9488; --accent-soft:#e6f6f3; --accent-line:#bfe6df;
-  --qb:#d23b3b; --rb:#2e9e5b; --wr:#2f72c4; --te:#e08a1e; --k:#7a7f87; --dst:#6248c8;
-  --shadow:0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.05);
-  --shadow-lg:0 4px 14px rgba(16,24,40,.08);
+  /* --- Bloody Sunday. Crimson has exactly TWO jobs: the brand, and genuine
+     urgency. Every other signal moves off red, or the brand stops meaning
+     anything on a screen that already shouts in red (survival %, byes, reaches). --- */
+  --bg:#f6f3f4; --panel:#ffffff; --panel2:#efeaec; --line:#e3dcdf; --line2:#efeaec;
+  --ink:#1f1d1e; --muted:#6c6367; --mut2:#7a7277;
+  --crimson:#e0043f; --crimson-d:#b00335;
+  /* NB --blue is the ACCENT alias, not a hue: it was #0d9488 teal before. It
+     drives buttons, active tabs and focus rings, so it follows the brand. The
+     real blue lives on --wr. */
+  --blue:#e0043f; --green:#1d7a55; --red:#b00335; --amber:#a8570d; --violet:#7a2b6b;
+  --accent:#e0043f; --accent-fill:#e0043f; --accent-soft:#fdeaf0; --accent-line:#f6c2d3;
+  /* QB moves off red — it is the one position colour that collides with the brand,
+     and a QB chip that reads as an alert is worse than an unfamiliar hue. */
+  --qb:#7a2b6b; --rb:#2d836f; --wr:#2f6fb5; --te:#a8570d; --k:#7a7277; --dst:#3273c8;
+  --shadow:0 1px 2px rgba(31,29,30,.06), 0 1px 3px rgba(31,29,30,.06);
+  --shadow-lg:0 4px 14px rgba(31,29,30,.10);
 }
 /* Sora as the display face for brand, section heads, and player names */
-h1,h2,h3,.neon-logo,.dr-h,.dr-status .rd,.tb-name,.pc-name,.pf-nm,.an-nm,.bz-nm,
+h1,h2,h3,.bs-word,.dr-h,.dr-status .rd,.tb-name,.pc-name,.pf-nm,.an-nm,.bz-nm,
 .rh-nm,.dr-rec b,.dr-runban b{ font-family:'Sora',-apple-system,'Segoe UI',sans-serif; }
 .stApp{ background:var(--bg); }
 html,body,[class*="css"],button,input,textarea,select,[data-testid="stMarkdownContainer"]{
@@ -69,8 +78,12 @@ html,body{ font-size:13px; }
 h1,h2,h3{ font-weight:800; letter-spacing:-.2px; }
 h1{ color:var(--blue); line-height:1.3; overflow:visible; padding-top:2px; }
 h2{ color:var(--ink); font-size:1.35rem; } h3{ font-size:1.05rem; }
-.neon-logo{ font-weight:900; font-size:inherit; color:var(--blue); letter-spacing:-.5px;
-  display:inline-block; line-height:1.3; padding-top:.12em; overflow:visible; }
+.bs-logo{ display:inline-flex; align-items:center; gap:9px; line-height:1; }
+.bs-mark{ flex:none; border-radius:5px; }
+.bs-word{ font-style:italic; font-weight:900; letter-spacing:-.04em; color:var(--ink);
+  font-family:"Helvetica Neue",Arial,sans-serif; }
+.bs-word em{ font-style:italic; color:var(--crimson); }
+
 .neon-logo::first-letter{ color:var(--blue); }
 .neon-tag{ font-weight:700; font-size:10px; letter-spacing:2px; color:var(--mut2);
   text-transform:uppercase; }
@@ -1185,20 +1198,42 @@ def img_tag(pid: str, cls: str = "hs") -> str:
     return f'<img class="{cls}" src="{headshot_src(pid)}" loading="lazy">'
 
 
+def cherry_svg(size: int = 22) -> str:
+    """The Bloody Sunday mark. Inline SVG rather than a file so it inherits the
+    theme and never 404s on Cloud; swap in the real asset when you want the exact
+    artwork."""
+    h = int(size * 38 / 34)
+    return (f'<svg class="bs-mark" width="{size}" height="{h}" viewBox="0 0 34 38" '
+            f'aria-hidden="true"><rect width="34" height="38" rx="6" fill="var(--crimson)"/>'
+            f'<circle cx="15" cy="26" r="7" fill="#fff"/>'
+            f'<path d="M16 19 C17 13,20 11,21 10" stroke="#fff" stroke-width="2.2" '
+            f'fill="none" stroke-linecap="round"/></svg>')
+
+
 def logo_html(size: int = 30, tag: str | None = "Mock + Live Draft") -> str:
+    """Wordmark for the topbar. The BADGE is not used here on purpose — at 16-22px
+    the cherry reads as a red smudge, so the mark earns its keep as the favicon
+    where it sits alone, and the set wordmark carries the bar."""
     t = f'<div class="neon-tag">{tag}</div>' if tag else ""
-    return f'<span class="neon-logo" style="font-size:{size}px;">Draft Room</span>{t}'
+    return (f'<span class="bs-logo" style="font-size:{size}px;">'
+            f'{cherry_svg(max(16, int(size * 0.72)))}'
+            f'<span class="bs-word">Bloody<em>Sunday</em></span></span>{t}')
 
 
 DARK = """
 <style>
-/* ===== Night Draft — dark hero (teal accent) ===== */
+/* ===== War room — the dark side of the SAME identity, not an inversion.
+   The badge set already contains this near-black, so dark is first-class. ===== */
 :root{
-  --bg:#0e1424; --panel:#18213a; --panel2:#1f2b48; --line:#2c3a5c; --line2:#222f4a;
-  --ink:#eaf0f9; --muted:#9fb2cc; --mut2:#6f82a0;
-  --blue:#22d3aa; --green:#34d399; --amber:#fbbf24; --red:#f87171; --violet:#a78bfa;
-  --accent:#22d3aa; --accent-soft:#13283a; --accent-line:#1f4a52;
-  --qb:#f87171; --rb:#34d399; --wr:#60a5fa; --te:#fbbf24; --dst:#a78bfa;
+  --bg:#161415; --panel:#232022; --panel2:#2c282a; --line:#332e30; --line2:#2c282a;
+  --ink:#f2eef0; --muted:#a2989c; --mut2:#95898e;
+  /* TWO crimsons on dark, because one colour cannot do both jobs: --accent must
+     read bright ON the dark panel, while a button FILL must be deep enough to
+     carry white text. Chasing one value made one of the two fail AA every time. */
+  --crimson:#ff336c; --crimson-d:#e02557;
+  --blue:#ff336c; --green:#7fd8b4; --amber:#f0b357; --red:#ff8fae; --violet:#c98fbb;
+  --accent:#ff336c; --accent-fill:#e02557; --accent-soft:#3a1020; --accent-line:#5a1b30;
+  --qb:#c98fbb; --rb:#7fd8b4; --wr:#6aa6f0; --te:#f0b357; --dst:#8fb8f5;
   --shadow:0 2px 8px rgba(0,0,0,.4); --shadow-lg:0 8px 22px rgba(0,0,0,.55);
 }
 .stApp{ background:var(--bg); }

@@ -603,7 +603,7 @@ def turn_alert_html(is_my_turn: bool, picks_until: int = 0) -> str:
     to ship and nothing to 404; browsers gate audio behind a prior user gesture,
     which drafting has obviously already provided."""
     import json as _json
-    base = "Draft Room"
+    base = "Bloody Sunday"
     if is_my_turn:
         title = "⏰ YOUR PICK — " + base
     elif picks_until:

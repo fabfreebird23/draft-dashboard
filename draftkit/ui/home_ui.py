@@ -66,7 +66,7 @@ def _hub_or_platform(s):
 def render(presets, on_pick, board_age_fn=None) -> None:
     head = st.columns([3, 2])
     with head[0]:
-        st.markdown(f'<h1>{theme.logo_html(40)}</h1>', unsafe_allow_html=True)
+        st.markdown(f'<h1>{theme.logo_html(34, tag="Four leagues · one desk")}</h1>', unsafe_allow_html=True)
     with head[1], st.container(key="hmphase"):
         # Same control as the per-league topbar, doing the analogous job: which half
         # of the year am I looking at. On Home it FILTERS rather than switching a

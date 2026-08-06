@@ -1,4 +1,4 @@
-"""Draft Room — a standalone multi-platform fantasy mock + live draft dashboard.
+"""Bloody Sunday — one home for four fantasy leagues, both halves of the year.
 
 Import any Sleeper or ESPN league, pull your UDK rankings, and run a mock draft or
 a live draft assistant with a FantasyPros-style war room (tiered best-available
@@ -18,7 +18,7 @@ from draftkit.ui import (assistant_ui, home_ui, in_season_ui, mock_ui,
                          prep_ui, rankings_ui, report_card_ui)
 from draftkit.ui.components import board_pos_rank, health_html
 
-st.set_page_config(page_title="Draft Room — Mock + Live Draft", layout="wide")
+st.set_page_config(page_title="Bloody Sunday", page_icon="🍒", layout="wide")
 theme.inject(st, dark=st.session_state.get("dark_mode", False))   # Night Draft = dark hero
 
 
