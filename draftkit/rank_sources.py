@@ -184,24 +184,46 @@ def _fetch_espn(season: int, scoring: str) -> List[dict]:
 
 
 # --------------------------------------------------------------------- public
-def load(source: str, season: int, scoring: str, registry) -> List[dict]:
-    """Return board rows for ``source`` (FP ECR or ESPN). Cached; stale-then-empty
-    on failure. UDK is handled by the caller via the saved board."""
+def _age_h(p: Path) -> Optional[float]:
+    try:
+        return (time.time() - p.stat().st_mtime) / 3600.0
+    except OSError:
+        return None
+
+
+def load_with_status(source: str, season: int, scoring: str, registry):
+    """(rows, status) for ``source``. `status` is {stale, age_h, failed} so the UI
+    can SAY when it fell back to an old cache.
+
+    The stale-then-empty fallback below is deliberate — mid-draft an old board
+    beats no board. But it used to be invisible: if the upstream was down you were
+    handed a weeks-old board rendered exactly like a fresh one, with the
+    "couldn't load" caption only appearing when there was no cache at all. That is
+    the one place in the app that could silently serve stale data, so it now
+    reports its own age."""
     p = _cache_path(source, season, scoring)
     cached = _read_cache(p)
     if cached is not None:
-        return cached
+        return cached, {"stale": False, "age_h": _age_h(p), "failed": False}
     try:
         if source == FP_ECR:
             ordered = _fetch_fp_ecr(season, scoring)
         elif source == ESPN:
             ordered = _fetch_espn(season, scoring)
         else:
-            return []
+            return [], {"stale": False, "age_h": None, "failed": True}
         rows = _attach(ordered, registry)
         if rows:
             _write_cache(p, rows)
-            return rows
+            return rows, {"stale": False, "age_h": 0.0, "failed": False}
     except Exception:  # noqa: BLE001
         pass
-    return _read_cache_any_age(p) or []
+    old = _read_cache_any_age(p)
+    if old:
+        return old, {"stale": True, "age_h": _age_h(p), "failed": True}
+    return [], {"stale": False, "age_h": None, "failed": True}
+
+
+def load(source: str, season: int, scoring: str, registry) -> List[dict]:
+    """Rows only — see load_with_status when you need the freshness signal."""
+    return load_with_status(source, season, scoring, registry)[0]

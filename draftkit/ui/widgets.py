@@ -342,12 +342,25 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
                           label_visibility="collapsed")
     if source == RS.UDK:
         ranks = st.session_state.get(ctx["ranks_key"]) or []
+        age = ctx.get("board_age_h")
+        st.caption(f"Your saved board · {C.age_phrase(age)}. Nothing refreshes it "
+                   "automatically — pull from UDK on **My Rankings** to update."
+                   if age is not None else
+                   "Your saved board. Pull from UDK on **My Rankings** to refresh it.")
     else:
-        ranks = ctx["get_ranks"](source)
+        ranks, status = ctx["get_ranks"](source)
         if not ranks:
             st.caption(f"Couldn't load {source} right now (the host may block server "
                        "pulls) — showing your UDK board.")
             ranks = st.session_state.get(ctx["ranks_key"]) or []
+        elif status.get("stale"):
+            # The fallback that used to be invisible: upstream is down, so these
+            # rows came off an old cache. Say so rather than render it as live.
+            st.warning(f"{source} is unreachable — showing a cached board from "
+                       f"{C.age_phrase(status.get('age_h'))}. It may not reflect "
+                       "recent news.", icon="⚠️")
+        elif status.get("age_h") is not None and status["age_h"] >= 24:
+            st.caption(f"{source} · cached {C.age_phrase(status['age_h'])}.")
 
     # Positional rank labels follow THIS source's overall order (so RB## never
     # contradicts the #overall when a non-UDK source is active).

@@ -1367,6 +1367,21 @@ def cheat_sheet_html(board_rows, registry, survival_fn=None, *, per_pos=14,
             'next pick</div><div class="cs-cols">' + "".join(cols) + "</div></div>")
 
 
+def age_phrase(hours) -> str:
+    """'12 minutes ago' / '3 hours ago' / '9 days ago' — one way to say age so the
+    board chip, the stale-source warning and the ADP chip can't disagree."""
+    if hours is None:
+        return "age unknown"
+    h = float(hours)
+    if h < 1:
+        m = max(1, int(round(h * 60)))
+        return f"{m} minute{'s' if m != 1 else ''} ago"
+    if h < 48:
+        n = int(round(h))
+        return f"{n} hour{'s' if n != 1 else ''} ago"
+    return f"{int(h / 24)} days ago"
+
+
 def health_html(h: dict) -> str:
     """A one-line data-health strip for the topbar.
 
@@ -1393,6 +1408,15 @@ def health_html(h: dict) -> str:
         bits.append(chip(f"{n} keepers", n > 0))
         bits.append(chip("draft order" if h.get("order_scraped") else "order: Sleeper fallback",
                         bool(h.get("order_scraped")), warn=not h.get("order_scraped")))
+    # Your UDK board never auto-refreshes (by design — it's hand-tuned), so its age
+    # is the one number nothing else in this strip would ever reveal.
+    ba = h.get("board_age_h")
+    if ba is not None:
+        if ba < 48:
+            bits.append(chip(f"board {int(max(1, round(ba)))}h", True))
+        else:
+            d = int(ba / 24)
+            bits.append(chip(f"board {d}d old", d < 30, warn=d >= 7))
     j = h.get("juice") or 0
     bits.append(chip(f"Juice {j}", j > 0, warn=j == 0))
     return f'<div class="dr-health">{"".join(bits)}</div>'

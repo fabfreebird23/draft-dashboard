@@ -15,6 +15,7 @@ import json
 import os
 import re
 import threading
+import time
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
@@ -106,7 +107,13 @@ def _gh_write(path: str, obj, message: str) -> None:
 
 # ------------------------------------------------------------------- public API
 def save_rankings(key: str, rankings: List[dict]) -> None:
-    """Persist a personal rankings list (repo-backed when configured, else local)."""
+    """Persist a personal rankings list (repo-backed when configured, else local).
+
+    Also stamps when it was saved. Nothing auto-refreshes your UDK board — by
+    design, it is hand-tuned and must never be overwritten — which means it can
+    quietly drift weeks out of date with no signal anywhere in the UI. The stamp
+    is what lets the topbar show its age."""
+    _save_doc("ranksmeta", key, {"saved_at": time.time(), "n": len(rankings or [])})
     if _gh_config() is not None:
         try:
             _gh_write(_gh_path(key), rankings, f"rankings ({key})")
@@ -211,3 +218,55 @@ def save_ai_sources(key: str, sources: dict) -> None:
 
 def load_ai_sources(key: str) -> dict:
     return _load_doc("aisrc", key, {})
+
+
+def _gh_last_commit_hours(path: str) -> Optional[float]:
+    """Hours since the repo backend last committed `path`, or None.
+
+    Needed because boards saved before stamping existed have no saved_at, and the
+    repo backend has no mtime — without this the age reads "unknown" on exactly
+    the league that matters until the next pull. One extra API call, so callers
+    should cache it (app.get_board_age does)."""
+    cfg = _gh_config()
+    if not cfg:
+        return None
+    tok, repo, branch = cfg
+    try:
+        r = requests.get(f"{_API}/repos/{repo}/commits", headers=_headers(tok),
+                         params={"path": path, "sha": branch, "per_page": 1}, timeout=15)
+        if r.status_code != 200:
+            return None
+        js = r.json()
+        if not js:
+            return None
+        iso = js[0]["commit"]["committer"]["date"]          # e.g. 2026-06-10T04:11:02Z
+        from datetime import datetime, timezone
+        dt = datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        return max(0.0, (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def rankings_age_hours(key: str) -> Optional[float]:
+    """How old the saved board is, in hours, or None if we genuinely can't tell.
+
+    Three fallbacks, because the board can live in either backend and may predate
+    stamping: the saved_at stamp, then the repo file's last commit date, then the
+    local file's mtime."""
+    meta = _load_doc("ranksmeta", key, {})
+    ts = meta.get("saved_at") if isinstance(meta, dict) else None
+    if ts:
+        try:
+            return max(0.0, (time.time() - float(ts)) / 3600.0)
+        except (TypeError, ValueError):
+            pass
+    gh = _gh_last_commit_hours(_gh_path(key))
+    if gh is not None:
+        return gh
+    p = _local_path(key)
+    try:
+        if p.exists():
+            return max(0.0, (time.time() - p.stat().st_mtime) / 3600.0)
+    except OSError:
+        pass
+    return None

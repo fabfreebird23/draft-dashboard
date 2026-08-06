@@ -158,6 +158,14 @@ def get_source_pools(season: int, curve_key, _registry, _adp_df, _curve, _sleepe
     return pools
 
 
+@st.cache_data(ttl=600, show_spinner=False)
+def get_board_age(league_key: str):
+    """Hours since the saved board was last written. Cached — the repo-backend
+    path costs a GitHub API call and build_context runs on every rerun."""
+    from draftkit import storage
+    return storage.rankings_age_hours(league_key)
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_byes(season: int):
     from draftkit import udk
@@ -215,8 +223,10 @@ def get_dvp(prev_season: int, _registry, scoring: str):
 
 @st.cache_data(ttl=3600 * 12, show_spinner="Loading rankings…")
 def get_ranks_source(source: str, season: int, scoring: str, _registry):
+    """(rows, status). The status rides along so the Rankings tab can say when a
+    source fell back to an old cache instead of rendering it as if it were live."""
     from draftkit import rank_sources
-    return rank_sources.load(source, season, scoring, _registry)
+    return rank_sources.load_with_status(source, season, scoring, _registry)
 
 
 def _secret(name: str) -> str:
@@ -402,11 +412,13 @@ def build_context(sel: dict) -> dict:
     dvp = get_dvp(config.current_season() - 1, registry, meta.scoring)
 
     def get_ranks(source: str):
-        """Board rows for an alternate ranking source (FantasyPros ECR / ESPN),
+        """(rows, status) for an alternate ranking source (FantasyPros ECR / ESPN),
         cached. UDK is the league's saved board, handled by the caller."""
         return get_ranks_source(source, config.current_season(), meta.scoring, registry)
 
     league_key = f"{meta.platform}_{meta.league_id}"
+    from draftkit import storage as storage_mod
+    board_age_h = get_board_age(league_key)
     return {
         "registry": registry, "provider": provider, "meta": meta,
         "get_ranks": get_ranks,
@@ -428,10 +440,12 @@ def build_context(sel: dict) -> dict:
             "adp_age_h": adp_age, "keepers": len(placements["kept_pids"]),
             "keeper_league": keepers_mod.league_has_keepers(meta.league_id),
             "order_scraped": bool(scraped), "juice": len(juice_map or {}),
+            "board_age_h": board_age_h,
             "names_scraped": bool(mgr_names),
         },
         "pick_owner_slot": pick_owner_slot, "traded_picks": traded,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
+        "board_age_h": board_age_h,
     }
 
 
