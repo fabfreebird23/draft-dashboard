@@ -1157,6 +1157,14 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .pk-red{ background:#fdecec; color:#8c2320; } .pk-nil{ background:var(--panel2); color:var(--muted); }
 
 /* ---- topbar: one row, phase on the right, health folded into the pills ---- */
+/* pills must never wrap the bar onto a second row — clip instead */
+.tb-pills{ flex-wrap:nowrap; overflow:hidden; justify-content:flex-end; }
+.tb-id{ flex-wrap:nowrap; gap:9px; align-items:center; }
+.tb-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tb-hh{ font-size:9.5px; font-weight:800; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--mut2); margin:10px 0 5px; }
+.tb-hr{ display:flex; align-items:center; gap:7px; font-size:12px; padding:3px 0; }
+.tb-hr b{ margin-left:auto; font-variant-numeric:tabular-nums; }
 .tb-dot{ width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:5px; }
 /* Segmented control, not a radio. Streamlit renders the glyph as label>div:first-child;
    hiding it and styling label:has(input:checked) is the same technique the nav tabs
@@ -1165,7 +1173,8 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="st-key-tb_phase"] [role="radiogroup"],
 [class*="st-key-hmphase"] [role="radiogroup"]{ gap:2px; background:var(--panel2);
   border-radius:9px; padding:3px; width:max-content; }
-[class*="st-key-tb_phase"] [role="radiogroup"]{ margin-left:auto; }
+/* sits beside the identity, not pinned to the far edge */
+[class*="st-key-tb_phase"] [role="radiogroup"]{ margin-left:0; }
 [class*="st-key-tb_phase"] [role="radiogroup"] label,
 [class*="st-key-hmphase"] [role="radiogroup"] label{ padding:5px 15px; font-size:11.5px;
   font-weight:700; border-radius:7px; margin:0; color:var(--mut2); background:transparent; }

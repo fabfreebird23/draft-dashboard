@@ -26,21 +26,15 @@ _HUBS = {
     "1388606375239643136": ("7½ Men hub", "https://seven-half-men.streamlit.app"),
 }
 
-# A keyed selectbox writes its default into session_state on first render, so a
-# plain list would silently make the FIRST manager "your team" and then show his
-# picks as yours. An explicit prompt means unselected stays unselected.
-PROMPT = "Select your team…"
-
-
-def team_options(names):
-    return [PROMPT] + list(names)
-
-
 def _my_slot(ctx):
+    """(label, slot) for the configured team. No picker — every league here is his,
+    so the team is configured on the league and can't drift to someone else's."""
     names = ctx.get("slot_names") or []
-    sel = st.session_state.get(f"myteam_{ctx['league_key']}")
-    if sel and sel != PROMPT and sel in names:
-        return sel, names.index(sel)
+    owners = ctx.get("owner_by_slot") or {}
+    mine = ctx.get("my_team")
+    for slot, key in owners.items():
+        if mine and str(key) == str(mine) and slot < len(names):
+            return names[slot], slot
     return None, None
 
 
@@ -107,15 +101,9 @@ def render(ctx, summary=None) -> None:
     names = ctx.get("slot_names") or []
     lid = str(meta.league_id)
 
-    head = st.columns([2.4, 1.6, 2])
-    head[0].markdown('<div class="dr-h dr-title">Draft prep</div>', unsafe_allow_html=True)
-    if names:
-        sk = f"myteam_{ctx['league_key']}"
-        opts = team_options(names)
-        cur = st.session_state.get(sk)
-        head[1].selectbox("Your team", opts,
-                          index=opts.index(cur) if cur in opts else 0, key=sk)
     _label, slot = _my_slot(ctx)
+    st.markdown(f'<div class="dr-h dr-title">Draft prep'
+                f'{" · " + _label if _label else ""}</div>', unsafe_allow_html=True)
 
     # ---- the three numbers that decide what you do next ----
     tiles = st.columns(3)
@@ -130,7 +118,8 @@ def render(ctx, summary=None) -> None:
     with tiles[1]:
         picks = _picks_for_slot(ctx, slot)
         _tile(f"pk2_{lid}", "your slot", picks[0] if picks else "—",
-              ("then " + " · ".join(picks[1:])) if len(picks) > 1 else "choose your team above")
+              ("then " + " · ".join(picks[1:])) if len(picks) > 1
+              else "draft order not published yet")
     with tiles[2]:
         kept, expected, note = _keeper_progress(ctx)
         val = (f'{kept}<span class="pk-of"> / {expected}</span>') if expected else str(kept)

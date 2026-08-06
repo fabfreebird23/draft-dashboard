@@ -29,18 +29,14 @@ def _current_week() -> int:
         return _START_WEEK
 
 
-def _team_options(ctx):
-    """[(label, team_key)] — a Sleeper owner_id or an ESPN teamId."""
-    meta = ctx["meta"]
+def _team_label(ctx, team_key):
+    """Display name for the configured team, or '' if the roster map doesn't
+    resolve it (a league whose draft order hasn't published yet)."""
     names, owners = ctx.get("slot_names") or [], ctx.get("owner_by_slot") or {}
-    out = []
-    for slot, name in enumerate(names):
-        key = owners.get(slot)
-        if key:
-            out.append((name, str(key)))
-    if not out and meta.platform == "espn":
-        out = [(f"Team {i}", str(i)) for i in range(1, (meta.num_teams or 12) + 1)]
-    return out
+    for slot, key in owners.items():
+        if str(key) == str(team_key) and slot < len(names):
+            return names[slot]
+    return ""
 
 
 def render(ctx, summary=None) -> None:
@@ -48,25 +44,13 @@ def render(ctx, summary=None) -> None:
     season, week = config.current_season(), _current_week()
     host = "ESPN" if meta.platform == "espn" else "Sleeper"
 
-    top = st.columns([2, 2, 3])
-    top[0].markdown(f'<div class="dr-h dr-title">Week {week}</div>', unsafe_allow_html=True)
-
-    opts = _team_options(ctx)
-    tkey = None
-    if opts:
-        # Persisted per league — you shouldn't have to re-pick your own team on
-        # every rerun, same mechanism as the saved AI draft boards.
-        # Explicit prompt rather than defaulting to the first manager — a keyed
-        # selectbox writes its default straight into session_state, and silently
-        # optimising SOMEONE ELSE'S roster is far worse than asking.
-        from .prep_ui import PROMPT, team_options
-        sk = f"myteam_{ctx['league_key']}"
-        labels = [o[0] for o in opts]
-        choices = team_options(labels)
-        cur = st.session_state.get(sk)
-        pick = top[1].selectbox("Your team", choices,
-                                index=choices.index(cur) if cur in choices else 0, key=sk)
-        tkey = dict(opts).get(pick) if pick != PROMPT else None
+    # No team picker: every league here is his, so the team is configured on the
+    # league itself. A dropdown that defaults to the first manager was a live
+    # hazard — it would have optimised someone else's roster.
+    tkey = ctx.get("my_team")
+    me = _team_label(ctx, tkey)
+    st.markdown(f'<div class="dr-h dr-title">Week {week}'
+                f'{" · " + me if me else ""}</div>', unsafe_allow_html=True)
 
     drafted = bool(summary and summary.phase in (PH.IN, PH.DONE))
     if not drafted:

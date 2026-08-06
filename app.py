@@ -264,16 +264,22 @@ def _secret(name: str) -> str:
 
 
 # Your saved leagues — one-click import (edit this list to add/remove).
+# Brandon's own team in each league. Hardcoded rather than picked from a dropdown:
+# these four leagues are his, the answer never changes, and a selectbox that
+# defaults to the first manager is a live hazard — In-season would optimise
+# someone else's roster. `my_team` is a Sleeper owner_id or an ESPN teamId.
+MY_SLEEPER_ID = "964703051971887104"          # same account in all three leagues
+
 SAVED_LEAGUES = [
     {"label": "The Kreeper League", "platform": "sleeper",
-     "league_id": "1310907162930733056", "season": 2026},
+     "league_id": "1310907162930733056", "season": 2026, "my_team": MY_SLEEPER_ID},
     {"label": "Babies and Boomer", "platform": "sleeper",
-     "league_id": "1312885282554535936", "season": 2026},
+     "league_id": "1312885282554535936", "season": 2026, "my_team": MY_SLEEPER_ID},
     {"label": "7\u00bd Men", "platform": "sleeper",
-     "league_id": "1388606375239643136", "season": 2026},
+     "league_id": "1388606375239643136", "season": 2026, "my_team": MY_SLEEPER_ID},
     # Public league — readable with no espn_s2/SWID, so no credentials are stored.
     {"label": "Show us your TD's", "platform": "espn",
-     "league_id": "798873", "season": 2026},
+     "league_id": "798873", "season": 2026, "my_team": "12"},
 ]
 
 
@@ -282,6 +288,7 @@ def _select_league(preset: dict) -> None:
         "platform": preset["platform"], "league_id": preset["league_id"],
         "season": int(preset.get("season") or config.current_season()),
         "espn_s2": preset.get("espn_s2"), "swid": preset.get("swid"),
+        "my_team": preset.get("my_team"),
     }
     st.rerun()
 
@@ -458,6 +465,7 @@ def build_context(sel: dict) -> dict:
         },
         "pick_owner_slot": pick_owner_slot, "traded_picks": traded,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
+        "my_team": sel.get("my_team"),
         "board_age_h": board_age_h,
     }
 
@@ -530,26 +538,36 @@ def main():
     lg_sum = get_league_phase(meta.platform, str(meta.league_id), config.current_season())
 
     h = ctx.get("health") or {}
+
     def _dot(ok, warn=False):
         c = "var(--red)" if not ok else ("var(--amber)" if warn else "var(--green)")
         return f'<i class="tb-dot" style="background:{c}"></i>'
+
+    def _age(v):
+        if v is None:
+            return "—"
+        return f"{int(v)}h" if v < 48 else f"{int(v / 24)}d"
+
+    # Only the four facts that never change during a session stay in the bar. The
+    # health readouts (ADP age, keepers, board age, Juice) moved into the overflow:
+    # six pills plus the phase control could not fit one row, and the Overview now
+    # states all four properly anyway — so up here they were both redundant and
+    # the reason the bar kept wrapping onto a second line.
     pills = [f'<span class="tb-pill">{meta.platform.upper()}</span>',
              f'<span class="tb-pill">{meta.num_teams} teams</span>',
              f'<span class="tb-pill">{meta.draft_rounds} rds</span>',
              f'<span class="tb-pill">{meta.scoring.upper()}</span>']
-    age = h.get("adp_age_h")
-    pills.append(f'<span class="tb-pill">{_dot(age is not None, (age or 0) >= 24)}'
-                 f'ADP {"—" if age is None else (str(int(age)) + "h" if age < 48 else str(int(age/24)) + "d")}</span>')
+    health_rows = [
+        ("ADP", _age(h.get("adp_age_h")), h.get("adp_age_h") is not None,
+         (h.get("adp_age_h") or 0) >= 24),
+        ("Your board", _age(h.get("board_age_h")), h.get("board_age_h") is not None,
+         (h.get("board_age_h") or 0) / 24 >= 7),
+    ]
     if h.get("keeper_league"):
         nk = h.get("keepers") or 0
-        pills.append(f'<span class="tb-pill">{_dot(nk > 0)}{nk} keepers</span>')
-    ba = h.get("board_age_h")
-    if ba is not None:
-        pills.append(f'<span class="tb-pill">{_dot(True, ba / 24 >= 7)}'
-                     f'board {int(ba) if ba < 48 else int(ba/24)}{"h" if ba < 48 else "d"}</span>')
-    j = h.get("juice") or 0
-    if j:
-        pills.append(f'<span class="tb-pill">{_dot(j > 0)}Juice {j}</span>')
+        health_rows.append(("Keepers", str(nk), nk > 0, False))
+    jz = h.get("juice") or 0
+    health_rows.append(("Juice sheet", str(jz), jz > 0, False))
 
     dark_on = st.session_state.get("dark_mode", True)
     pkey = f"phase_{ctx['league_key']}"
@@ -560,26 +578,43 @@ def main():
         st.session_state[pkey] = ("In-season" if lg_sum.phase in (PH.IN, PH.DONE)
                                   else "Pre-season")
     with st.container(key="dr_topbar"):
-        head = st.columns([4.9, 1.9, 0.55])
+        # Order matters: identity · PHASE · pills · overflow. Phase sits beside the
+        # wordmark because that's where it belongs semantically, and putting the
+        # pills after it means they get the leftover width instead of being
+        # squeezed into wrapping onto a second row — which is what happened when
+        # phase was simply moved left inside a narrow column.
+        head = st.columns([2.75, 1.45, 3.0, 0.4])
         with head[0]:
-            st.markdown(f'<div class="tb-row">{theme.logo_html(20, tag=None)}'
-                        f'<span class="tb-name">{meta.name}</span>{"".join(pills)}</div>',
+            # MARK only inside a league, not the full wordmark: "BloodySunday" plus
+            # a league name as long as "The Kreeper League" cannot share one line at
+            # this column width, and the name is the more useful of the two once
+            # you're inside a league. The wordmark still opens Home.
+            st.markdown(f'<div class="tb-row tb-id">{theme.cherry_svg(19)}'
+                        f'<span class="tb-name">{meta.name}</span></div>',
                         unsafe_allow_html=True)
         with head[1], st.container(key="tb_phase"):
             ph_sel = st.radio("phase", ["Pre-season", "In-season"], horizontal=True,
                               key=pkey, label_visibility="collapsed")
-        with head[2], st.container(key="tb_more"):
-            # War room / Home are rare next to things read every load, so they move
-            # out of the row and into an overflow.
+        with head[2]:
+            st.markdown(f'<div class="tb-row tb-pills">{"".join(pills)}</div>',
+                        unsafe_allow_html=True)
+        with head[3], st.container(key="tb_more"):
+            # War room / Home are rare next to things read every load, so they sit
+            # in an overflow rather than taking topbar width.
             with st.popover("⋯", use_container_width=True):
                 def _toggle_dark():
                     st.session_state["dark_mode"] = not st.session_state.get("dark_mode", True)
                 st.button("Light mode" if dark_on else "War room", key="dark_btn",
                           use_container_width=True, on_click=_toggle_dark,
-                          help="Toggle the dark 'war-room' theme for live drafting.")
+                          help="Toggle the light theme.")
                 if st.button("Home — all leagues", use_container_width=True, key="tb_home"):
                     del st.session_state.league
                     st.rerun()
+                st.markdown('<div class="tb-hh">Data health</div>'
+                            + "".join(f'<div class="tb-hr">{_dot(ok, warn)}'
+                                      f'<span>{lbl}</span><b>{val}</b></div>'
+                                      for lbl, val, ok, warn in health_rows),
+                            unsafe_allow_html=True)
 
     if ph_sel == "In-season":
         nav = ["This Week"]
