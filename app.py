@@ -633,13 +633,13 @@ def main():
                             unsafe_allow_html=True)
 
     if ph_sel == "In-season":
-        nav = ["This Week"]
-        st.session_state.setdefault(f"nav_in_{ctx['league_key']}", nav[0])
+        nav = in_season_ui.TABS
+        ikey = f"nav_in_{ctx['league_key']}"
+        st.session_state.setdefault(ikey, nav[0])
         with st.container(key="navbar"):
-            st.segmented_control("nav", nav, key=f"nav_in_{ctx['league_key']}",
-                                 selection_mode="single",
-                                 label_visibility="collapsed")
-        in_season_ui.render(ctx, summary=lg_sum)
+            itab = st.segmented_control("nav", nav, key=ikey, selection_mode="single",
+                                        label_visibility="collapsed") or nav[0]
+        in_season_ui.render(ctx, summary=lg_sum, tab=itab)
         return
 
     # Persisted nav (st.tabs resets to the first tab on every rerun — drafting

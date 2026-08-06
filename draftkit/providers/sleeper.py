@@ -45,6 +45,10 @@ class SleeperProvider(Provider):
             draft_rounds=rounds,
             scoring=_scoring_label(lg),
             draft_id=draft_id,
+            playoff_settings={
+                "start": (lg.get("settings") or {}).get("playoff_week_start"),
+                "teams": (lg.get("settings") or {}).get("playoff_teams"),
+            },
         )
 
     def get_draft_order(self) -> List[Team]:

@@ -145,3 +145,9 @@ def get_state(sport: str = "nfl") -> dict:
     source of "what NFL week is it", and correct for ESPN leagues too since the
     calendar belongs to the NFL, not the host."""
     return _disk(f"state_{sport}", 900, lambda: _get(f"state/{sport}")) or {}
+
+
+def get_matchups(league_id: str, week: int) -> list:
+    """[{roster_id, matchup_id, starters, players, points}] for one week."""
+    return _disk(f"matchups_{league_id}_{week}", 300,
+                 lambda: _get(f"league/{league_id}/matchups/{week}")) or []

@@ -22,7 +22,7 @@ from . import config
 _HEADERS = {"User-Agent": "draft-dashboard/1.0 (personal fantasy tool)"}
 _SKILL = ("QB", "RB", "WR", "TE")
 _PTS_KEY = {"ppr": "pts_ppr", "half": "pts_half_ppr", "std": "pts_std"}
-PLAYOFF_WEEKS = (15, 16, 17)
+PLAYOFF_WEEKS = (15, 16, 17)   # fallback only — see playoff_weeks()
 _SCHED_TTL = 60 * 60 * 24 * 7
 _DVP_TTL = 60 * 60 * 24 * 30          # prior season is final — refresh rarely
 
@@ -96,7 +96,38 @@ def load_dvp(prev_season: int, registry, scoring: str = "ppr") -> Dict[str, Dict
     return dvp
 
 
-def playoff_slate(team: str, pos: str, dvp: dict, schedule: dict):
+def playoff_weeks(meta=None, settings=None) -> tuple:
+    """The weeks THIS league actually plays its fantasy playoffs.
+
+    Was hardcoded to (15, 16, 17), which is wrong for three of the four leagues
+    here — Kreeper starts week 13 and B&B and 7 1/2 Men start week 14. Rating a
+    player's "playoff schedule" against weeks he will not be playing is worse than
+    not rating it, because it reads as information.
+
+        Kreeper   start 13, 4 teams  -> 13, 14
+        B&B       start 14, 4 teams  -> 14, 15
+        7 1/2 Men start 14, 4 teams  -> 14, 15
+        ESPN      reg season 14 wks, 6 teams -> 15, 16, 17
+
+    Rounds are ceil(log2(playoff_teams)) — 4 teams is semis + final, 6 teams adds a
+    wildcard round. ASSUMPTION: one week per round. Sleeper exposes
+    `playoff_round_type` but its enum isn't documented reliably, and a window that
+    is one week short beats one that is three weeks wrong.
+    """
+    import math
+    st = settings or {}
+    if meta is not None and not settings:
+        st = getattr(meta, "playoff_settings", None) or {}
+    start = st.get("start")
+    teams = int(st.get("teams") or 0)
+    if not start:
+        return PLAYOFF_WEEKS
+    rounds = max(1, math.ceil(math.log2(teams))) if teams > 1 else 1
+    end = min(18, int(start) + rounds - 1)
+    return tuple(range(int(start), end + 1))
+
+
+def playoff_slate(team: str, pos: str, dvp: dict, schedule: dict, weeks=None):
     """Full fantasy-playoff picture (weeks 15-17) for the player card, rather than
     the one-line grade `playoff_sos` returns.
 
@@ -116,8 +147,9 @@ def playoff_slate(team: str, pos: str, dvp: dict, schedule: dict):
     if not pos_dvp or not games:
         return None
     n_def = max(pos_dvp.values()) or 32
+    wk_list = weeks or PLAYOFF_WEEKS
     weeks = []
-    for wk in PLAYOFF_WEEKS:
+    for wk in wk_list:
         opp = games.get(str(wk))
         if opp and opp in pos_dvp:
             rank = pos_dvp[opp]
@@ -136,7 +168,7 @@ def playoff_slate(team: str, pos: str, dvp: dict, schedule: dict):
             "n_def": n_def, "weeks": weeks}
 
 
-def playoff_sos(team: str, pos: str, dvp: dict, schedule: dict):
+def playoff_sos(team: str, pos: str, dvp: dict, schedule: dict, weeks=None):
     """Grade a player's fantasy-playoff slate (weeks 15-17). Returns
     (label, css_class, detail) or None. Higher opponent DvP rank = more generous
     defense = easier."""
@@ -148,7 +180,7 @@ def playoff_sos(team: str, pos: str, dvp: dict, schedule: dict):
         return None
     n_def = max(pos_dvp.values()) or 32
     ranks, opps = [], []
-    for wk in PLAYOFF_WEEKS:
+    for wk in (weeks or PLAYOFF_WEEKS):
         opp = games.get(str(wk))
         if opp and opp in pos_dvp:
             ranks.append(pos_dvp[opp])
@@ -164,4 +196,5 @@ def playoff_sos(team: str, pos: str, dvp: dict, schedule: dict):
     else:
         label, cls = "Avg playoff slate", "avg"
     detail = " · ".join(f"Wk{wk} {opp}" for wk, opp, _ in opps)
-    return (label, cls, f"Wks 15-17: {detail}")
+    span = f"Wks {opps[0][0]}-{opps[-1][0]}" if opps else "Playoffs"
+    return (label, cls, f"{span}: {detail}")

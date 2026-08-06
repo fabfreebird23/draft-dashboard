@@ -26,6 +26,9 @@ class LeagueMeta:
     # `scoring` stays a label because ADP boards, DvP and the Juice sheet are only
     # published in those flavours; only projections can honour exact weights.
     scoring_weights: Optional[dict] = None
+    # {"start": int, "teams": int} — this league's own fantasy-playoff window.
+    # Hardcoding weeks 15-17 was wrong for three of the four leagues here.
+    playoff_settings: Optional[dict] = None
 
 
 @dataclass

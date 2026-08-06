@@ -86,6 +86,11 @@ class EspnProvider(Provider):
             draft_rounds=rounds,
             scoring=_scoring_label(s),
             scoring_weights=_scoring_weights(s),
+            playoff_settings={
+                # ESPN gives the regular-season length, so playoffs start after it.
+                "start": int((s.get("scheduleSettings") or {}).get("matchupPeriodCount") or 0) + 1,
+                "teams": (s.get("scheduleSettings") or {}).get("playoffTeamCount"),
+            },
             draft_id=self.league_id,   # ESPN has no separate draft id
         )
 
