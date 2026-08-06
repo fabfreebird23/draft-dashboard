@@ -348,9 +348,17 @@ def build_context(sel: dict) -> dict:
     # Per-source AI pools (ESPN / FantasyPros / Underdog) for per-team scouting
     # assignments; "Consensus" maps to ai_pool. Curve key makes the cache curve-aware.
     curve = rookie_curve.get("curve", {})
+    # Juice's Value sheet, loaded HERE rather than further down because it now also
+    # supplies the live Sleeper draft-room rank behind the "Sleeper" AI board. The
+    # committed data_seed scrape is a static file (June 15) and had drifted ~7 weeks;
+    # the sheet is fetched fresh and still backfills from the scrape for the tail it
+    # doesn't cover. See juice.sleeper_rank_map.
+    juice_map = get_juice_value(config.current_season(), meta.scoring, registry)
+    from draftkit import juice as juice_mod
     source_pools = get_source_pools(config.current_season(),
                                     tuple(sorted(curve.items())), registry, adp_df, curve,
-                                    get_sleeper_adp(config.current_season()))
+                                    juice_mod.sleeper_rank_map(
+                                        juice_map, get_sleeper_adp(config.current_season())))
     source_pools["Consensus"] = ai_pool
     # Positional rank (RB5, WR7…) + per-position tiers (talent cliffs by ADP gap).
     pos_rank, counts = {}, {}
@@ -392,10 +400,6 @@ def build_context(sel: dict) -> dict:
     # Playoff strength of schedule (weeks 15-17) from real defense-vs-position.
     schedule = get_schedule(config.current_season())
     dvp = get_dvp(config.current_season() - 1, registry, meta.scoring)
-    # Juice's Value: Sleeper's in-draft-room rank vs FantasyPros ECR, scoped to
-    # this league's own scoring format so the skew lines up with what you'll
-    # actually see in the Sleeper draft room.
-    juice_map = get_juice_value(config.current_season(), meta.scoring, registry)
 
     def get_ranks(source: str):
         """Board rows for an alternate ranking source (FantasyPros ECR / ESPN),

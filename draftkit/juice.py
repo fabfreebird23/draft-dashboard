@@ -18,6 +18,8 @@ from typing import Dict
 import pandas as pd
 import requests
 
+from .names import normalize_name
+
 SHEET_ID = "1HTixsrRtIIpnUafVkOIhET83vCFjKXSUGiG24-5jTHY"
 # One tab per scoring format — same "ppr"/"half"/"std" convention used across the
 # app (see providers/*.py _scoring_label and udk._ADP_FIELD).
@@ -55,4 +57,31 @@ def load(registry, scoring: str = "ppr") -> Dict[str, dict]:
         if not p or not p.sleeper_pid:
             continue
         out[p.sleeper_pid] = row
+    return out
+
+
+def sleeper_rank_map(juice_map: Dict[str, dict],
+                     fallback: Dict[str, float] | None = None) -> Dict[str, float]:
+    """{normalized_name: Sleeper draft-room rank} for `rankings.apply_external_adp`.
+
+    The sheet carries Sleeper's LIVE in-draft-room rank, which is the thing we
+    actually want and had no other source for: Sleeper publishes no ADP endpoint
+    (/v1/players/nfl/adp and /v1/adp/nfl/<season> both 404), and the `search_rank`
+    field in their player blob is not a substitute — 3224 of 3884 players share a
+    value with someone else, and its disagreements with real Sleeper ADP are
+    systematically QBs (Jayden Daniels 9 vs 58, Herbert 25 vs 76, Mahomes 26 vs
+    94). That is a value ranking, not a draft-position one.
+
+    `fallback` is the committed data_seed scrape. The sheet covers ~200 players and
+    the scrape ~287, so the scrape still supplies the tail; the live sheet wins
+    wherever both have a name. Interleaving the two vintages is safe — they measure
+    the same thing and rank-correlate at rho 0.984."""
+    out = dict(fallback or {})
+    for row in (juice_map or {}).values():
+        rank, name = row.get("sleeper_rank"), row.get("name")
+        if rank is not None and name:
+            try:
+                out[normalize_name(name)] = float(rank)
+            except (TypeError, ValueError):
+                continue
     return out
