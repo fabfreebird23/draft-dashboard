@@ -222,7 +222,34 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 [class*="dr_panel_board"] [data-testid="stRadio"] [role="radiogroup"] label>:first-child{ display:none; }
 [class*="dr_panel_board"] [data-testid="stRadio"] [role="radiogroup"] label:hover{ color:var(--ink); }
 [class*="dr_panel_board"] [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked){
-  background:#fff; color:var(--ink); box-shadow:var(--shadow); }
+  background:var(--panel); color:var(--ink); box-shadow:var(--shadow); }
+
+/* ---- three things these pill radios need, all easy to miss ----
+   1. Hiding Streamlit's styled circle (above) leaves the RAW <input> visible, so
+      every "pill" grew a native radio dot. Hide it without display:none, which
+      would cost the click target and keyboard focus.
+   2. Streamlit's inner <p> carries its own colour, so colouring the LABEL does
+      nothing — selected and unselected both rendered at the theme text colour and
+      the only surviving cue was the background.
+   3. Which is why the selected pill went invisible: near-white text on a pale
+      selected background. Both now come from theme tokens, so they move together.
+*/
+[class*="dr_panel_board"] [role="radiogroup"] label>input,
+[class*="_posf"] [role="radiogroup"] label>input{
+  position:absolute !important; opacity:0 !important; width:1px !important;
+  height:1px !important; margin:0 !important; pointer-events:none; }
+/* Colour the TEXT node directly rather than the label. `color:inherit` on the
+   markdown container loses to Streamlit's own rule, so the accent never reached
+   the glyphs and every option rendered at the theme text colour — selected and
+   unselected alike. Explicit beats clever here. */
+[class*="dr_panel_board"] [data-testid="stRadio"] [role="radiogroup"] label
+  [data-testid="stMarkdownContainer"] p,
+[class*="_posf"] [data-testid="stRadio"] [role="radiogroup"] label
+  [data-testid="stMarkdownContainer"] p{ color:var(--muted) !important; }
+[class*="dr_panel_board"] [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked)
+  [data-testid="stMarkdownContainer"] p{ color:var(--ink) !important; }
+[class*="_posf"] [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked)
+  [data-testid="stMarkdownContainer"] p{ color:var(--accent) !important; }
 
 /* ---- left-panel tabs: Rankings / Teams / Queue ---- */
 [class*="dr_panel_board"] [data-baseweb="tab-list"]{ gap:6px; margin-bottom:10px;
@@ -242,7 +269,8 @@ div[data-testid="stRadio"] label{ font-size:12px; }
   border-radius:14px; font-weight:800 !important; font-size:12.5px !important; color:var(--muted); }
 [class*="_posf"] [data-testid="stRadio"] [role="radiogroup"] label:hover{ color:var(--ink); }
 [class*="_posf"] [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked){
-  background:#eaf1fb !important; color:var(--blue) !important; box-shadow:none !important; }
+  background:var(--accent-soft) !important; color:var(--accent) !important;
+  box-shadow:inset 0 0 0 1px var(--accent-line) !important; }
 
 /* ---- ranking source dropdown (prominent, like the cheat-sheet picker) ---- */
 [class*="dr_panel_board"] [data-testid="stSelectbox"] > div > div{ border-radius:9px;
