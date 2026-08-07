@@ -7,6 +7,22 @@ from .. import draft_history, theme
 from . import components as C
 from . import playercard as PC
 
+
+def rerun_here() -> None:
+    """Repaint the current fragment, or the page when we aren't inside one.
+
+    st.rerun(scope="fragment") is ONLY legal during a fragment rerun. The first
+    full script run that happens to render the fragment is not one, so a bare
+    scope="fragment" raises there — i.e. on the very first pick of the night,
+    which is precisely when it must not. Try the cheap repaint, fall back to the
+    page. StreamlitAPIException only: st.rerun signals by raising RerunException,
+    and swallowing that would turn every rerun into a no-op."""
+    from streamlit.errors import StreamlitAPIException
+    try:
+        st.rerun(scope="fragment")
+    except StreamlitAPIException:
+        rerun_here()
+
 _POSCOL = {"QB": "red", "RB": "green", "WR": "blue", "TE": "orange"}
 
 
@@ -699,7 +715,7 @@ def _ai_section(pm, pid, facts, widget_key) -> None:
                         st.session_state[ok] = AI.outlook(pm, facts)
                     except Exception as e:
                         st.session_state[ok] = f"AI unavailable: {e}"
-                st.rerun()
+                rerun_here()
         else:
             st.markdown(f'<div class="dr-ai">{st.session_state[ok]}</div>',
                         unsafe_allow_html=True)
@@ -725,7 +741,7 @@ def _ai_section(pm, pid, facts, widget_key) -> None:
             hist = hist + [{"role": "user", "content": q.strip()},
                            {"role": "assistant", "content": ans}]
             st.session_state[qhist] = hist
-            st.rerun()
+            rerun_here()
 
 
 def spotlight_panel(ctx, board_avail, registry, widget_key, *, default_pid=None,
@@ -894,7 +910,7 @@ def queue_manager(ctx, qkey, ranks, taken, registry, widget_key, on_pick=None,
         if str(pid) in q:
             q.remove(str(pid))
         st.session_state[qkey] = q
-        st.rerun()
+        rerun_here()
 
     # Reconcile the widget value FROM the queue (so the ★ toggles show up here)
     # without clobbering a fresh edit (the callback already synced those).

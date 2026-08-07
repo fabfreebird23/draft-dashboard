@@ -9,6 +9,7 @@ from . import components as C
 from .widgets import (juice_tab, predict_upcoming, predictor_widget, queue_manager,
                       player_card_dialog, rankings_tab, select_player,
                       spotlight_panel,
+                      rerun_here,
                       steals_traps_widget, suggestions_tab)
 
 
@@ -30,7 +31,6 @@ def render(ctx) -> None:
     total = n * rounds
     mankey = f"livemade_{ctx['league_key']}"
 
-    auto = reset = undo = False
     from .. import value as V
     # ---- setup/config tucked into a gear dropdown; only actions stay on top ----
     ctrl = st.columns([0.5, 2.4, 1.2, 1, 1])
@@ -53,12 +53,51 @@ def render(ctx) -> None:
                  "let your own tuning pull players up.")
     manual = mode == "Manual entry"
     my_slot = slot_names.index(me)
+    auto = False
     if not manual:
         auto = ctrl[2].checkbox("Auto-refresh", key=f"{akey}_auto")
         ctrl[3].button("Refresh", key=f"{akey}_refresh")
     else:
-        reset = ctrl[3].button("Reset", key=f"{akey}_mreset", use_container_width=True)
-        undo = ctrl[4].button("Undo", key=f"{akey}_mundo", use_container_width=True)
+        # Reset/Undo mutate the board HERE, outside the fragment, deliberately: a
+        # fragment re-executes with the SAME arguments on every auto-refresh, so
+        # handling them inside would re-fire the reset every 12 seconds and eat
+        # the board.
+        if ctrl[3].button("Reset", key=f"{akey}_mreset", use_container_width=True):
+            st.session_state[mankey] = {}
+        if ctrl[4].button("Undo", key=f"{akey}_mundo", use_container_width=True):
+            _made = st.session_state.get(mankey) or {}
+            if _made:
+                del _made[max(_made)]                 # drop the most recent entry
+                st.session_state[mankey] = _made
+
+    # ---- one fragment owns the clock, the entry controls and the whole board ----
+    # A pick used to re-run the entire script — masthead, nav, league chrome, every
+    # panel — which is the flash and scroll-jump between picks. Scoped to a
+    # fragment, a pick repaints only this block and nothing above it moves.
+    #
+    # run_every replaces streamlit-autorefresh for the same reason: the autorefresh
+    # component re-runs the PAGE on every tick, run_every re-runs the fragment. It
+    # is read from the checkbox above (outside the fragment) so toggling it takes
+    # effect immediately; a checkbox inside would only reach a fragment rerun and
+    # the cadence would never change.
+    st.fragment(run_every=(12 if auto else None))(_live)(
+        ctx, manual=manual, my_slot=my_slot, strategy=strategy)
+
+
+def _live(ctx, *, manual: bool, my_slot: int, strategy: str) -> None:
+    """Clock, pick entry and board. Everything here repaints together, alone."""
+    from .. import value as V
+    reg = ctx["registry"]
+    slot_names = ctx["slot_names"]
+    n = len(slot_names)
+    rounds = ctx["meta"].draft_rounds
+    total = n * rounds
+    akey = f"live_{ctx['league_key']}"
+    mankey = f"livemade_{ctx['league_key']}"
+    kept_overall = ctx["keepers"]["by_overall"]
+    kept_pids = ctx["keepers"]["kept_pids"]
+    owner = ctx["pick_owner_slot"]            # traded-pick-aware ownership
+    ranks = st.session_state.get(ctx["ranks_key"])
 
     # ----- gather picks from the chosen source into a common {overall: pid} map -----
     if manual:
@@ -73,21 +112,10 @@ def render(ctx) -> None:
             if synced:
                 made.update(synced)
                 st.session_state[mankey] = made
-        if reset:
-            made = {}
-            st.session_state[mankey] = made
-        if undo and made:
-            del made[max(made)]                       # remove the most recent entry
         pick_pids = {ov: pid for ov, pid in made.items()}
         filled = {ov for ov, pid in made.items() if pid}
         picks_exist = bool(made)
     else:
-        if auto:
-            try:
-                from streamlit_autorefresh import st_autorefresh
-                st_autorefresh(interval=12000, key=f"{akey}_tick")
-            except Exception:  # noqa: BLE001
-                st.caption("(install streamlit-autorefresh for auto; use Refresh for now)")
         try:
             picks = ctx["provider"].get_live_picks()
         except EspnAuthError as e:
@@ -184,20 +212,20 @@ def render(ctx) -> None:
         """Clicking a player stages him for the card; the dialog is opened once,
         further down, after board_avail/needs exist."""
         st.session_state[f"{akey}_cardpid"] = str(pid)
-        st.rerun()
+        rerun_here()
 
     def toggle_queue(pid):
         q = [str(x) for x in st.session_state.get(qkey, [])]
         pid = str(pid)
         q.remove(pid) if pid in q else q.append(pid)
         st.session_state[qkey] = q
-        st.rerun()
+        rerun_here()
 
     def draft(pid):
         """Manual mode: record this player at the pick on the clock and advance."""
         made[pick_no] = str(pid)
         st.session_state[mankey] = made
-        st.rerun()
+        rerun_here()
 
     round_no = (pick_no - 1) // n + 1
     need_map = C.needs_by_slot(pids_by_slot, slot_names, ctx["roster_slots"], reg)
