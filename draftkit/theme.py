@@ -1356,6 +1356,12 @@ DARK = """
 .dr-ai-a{ background:#171c24 !important; border-color:#2a313c !important; color:#dbe4f0 !important; }
 .dr-runban{ background:#33231a !important; border-color:#6a4127 !important; color:#f0b48a !important; }
 .dr-runban.grab{ background:#3a1d22 !important; border-color:#7a2e2e !important; color:#f0a3a3 !important; }
+/* The star recommendation was the one banner in this family that never got a
+   dark counterpart, so it stayed a white card with dark-green text — the
+   brightest thing on the panel, sitting directly under the war-room board. */
+.dr-rec{ background:linear-gradient(180deg,#14332a,#112c25) !important;
+  border-color:#1f5a46 !important; box-shadow:none !important; color:var(--ink) !important; }
+.dr-rec b{ color:var(--green) !important; }
 .dr-actnow,.dr-buzzlist{ background:#161b22 !important; border-color:#2a313c !important; }
 .an-h,.bz-h{ color:#9aa4b0 !important; }
 .an-row,.bz-row{ border-top-color:#222831 !important; }

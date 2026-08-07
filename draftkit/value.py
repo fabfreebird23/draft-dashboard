@@ -379,7 +379,10 @@ def best_pick(board_avail, model: "ValueModel", registry, needs, taken,
         return (None, 0, "")
     s = sugg[0]
     pm, mult, raw = s["pm"], s["mult"], s["raw"]
-    reasons = [f"+{raw:.0f} value"]
+    # {:+} rather than a literal "+": raw VORP is routinely NEGATIVE in a rookie
+    # draft, where every pick sits below the veteran replacement level, and the
+    # hardcoded sign rendered that as "+-32 value".
+    reasons = [f"{raw:+.0f} value"]
     if mult >= 0.999:
         reasons.append(f"fills {pm.position} starter")
     elif mult >= 0.55:
