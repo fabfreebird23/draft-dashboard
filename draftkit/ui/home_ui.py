@@ -145,7 +145,9 @@ def _render_hero(preset, s, age, on_pick) -> None:
                 on_pick(preset)
             if a[1].button("Run a mock", key=f"hmmock_{s.league_id}",
                            use_container_width=True):
-                st.session_state["nav_section"] = "Mock Draft"
+                # via the pending key — see _goto in prep_ui. Home renders before
+                # the league nav exists, but routing both the same way keeps it safe.
+                st.session_state["nav_goto"] = "Mock Draft"
                 on_pick(preset)
             link = _hub_or_platform(s)
             if link:

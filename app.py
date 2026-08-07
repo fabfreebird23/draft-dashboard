@@ -656,6 +656,15 @@ def main():
     # Persisted nav (st.tabs resets to the first tab on every rerun — drafting
     # triggers reruns, so we use a keyed radio styled as tabs instead).
     nav = ["Overview", "My Rankings", "Mock Draft", "Live Draft", "Report Card"]
+    # A button inside a section can ask to jump to another one ("Open war room").
+    # It cannot write to "nav_section" directly: that is the segmented control's
+    # own widget key, and by the time any section renders the widget already
+    # exists for this run, so Streamlit raises. The request is parked under a
+    # plain key and applied HERE — before the widget is created — which is the
+    # only point in the run where writing to it is legal.
+    _goto = st.session_state.pop("nav_goto", None)
+    if _goto in nav:
+        st.session_state["nav_section"] = _goto
     st.session_state.setdefault("nav_section", nav[0])
     with st.container(key="navbar"):
         # Same reasoning as the phase control. `or` guards the deselect case:

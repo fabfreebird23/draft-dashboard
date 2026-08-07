@@ -86,7 +86,13 @@ def _keeper_progress(ctx):
 
 
 def _goto(section: str):
-    st.session_state["nav_section"] = section
+    """Ask app.py to switch sections on the NEXT run.
+
+    Writing st.session_state["nav_section"] here raises StreamlitAPIException:
+    the nav is a segmented_control keyed on that name and it is instantiated
+    before any section body renders. app.py drains "nav_goto" at the top of the
+    run, ahead of the widget."""
+    st.session_state["nav_goto"] = section
     st.rerun()
 
 
