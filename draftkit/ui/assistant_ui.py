@@ -14,24 +14,46 @@ from .widgets import (juice_tab, predict_upcoming, predictor_widget, queue_manag
 
 
 def render(ctx) -> None:
-    reg = ctx["registry"]
-    ranks = st.session_state.get(ctx["ranks_key"])
-    if not ranks:
+    """Bind the auto-refresh cadence, then hand the whole screen to one fragment.
+
+    Only the cadence lives out here. run_every is fixed when the fragment object
+    is built, so it can only change on a full script run — everything else,
+    controls included, belongs inside where it repaints without touching the page.
+    """
+    if not st.session_state.get(ctx["ranks_key"]):
         st.info("Add your rankings on the **My Rankings** tab first.")
         return
+    akey = f"live_{ctx['league_key']}"
+    auto = bool(st.session_state.get(f"{akey}_auto"))
+    st.fragment(run_every=(12 if auto else None))(_live)(ctx, bound_auto=auto)
 
+
+def _live(ctx, *, bound_auto: bool) -> None:
+    """Controls, clock, pick entry and board — the whole war room, repainting as
+    one block.
+
+    Everything a pick touches is in here, so a pick redraws this and nothing
+    else: the masthead, nav and league chrome above never re-run. That is what
+    removes the flash and the scroll jump between picks.
+
+    Buttons are safe in here. A fragment re-executes with the same ARGUMENTS on
+    an auto-rerun, but widget state is not replayed — a button reports True only
+    on the run following its click, so Reset cannot re-fire on a tick. (Measured,
+    not assumed: 6 consecutive ticks after one click, still one fire.)
+    """
+    from .. import value as V
+    reg = ctx["registry"]
     slot_names = ctx["slot_names"]
     n = len(slot_names)
     rounds = ctx["meta"].draft_rounds
+    total = n * rounds
     akey = f"live_{ctx['league_key']}"
+    mankey = f"livemade_{ctx['league_key']}"
     kept_overall = ctx["keepers"]["by_overall"]
     kept_pids = ctx["keepers"]["kept_pids"]
-
     owner = ctx["pick_owner_slot"]            # traded-pick-aware ownership
-    total = n * rounds
-    mankey = f"livemade_{ctx['league_key']}"
+    ranks = st.session_state.get(ctx["ranks_key"])
 
-    from .. import value as V
     # ---- setup/config tucked into a gear dropdown; only actions stay on top ----
     ctrl = st.columns([0.5, 2.4, 1.2, 1, 1])
     with ctrl[0].popover("⚙", use_container_width=True):
@@ -56,12 +78,10 @@ def render(ctx) -> None:
     auto = False
     if not manual:
         auto = ctrl[2].checkbox("Auto-refresh", key=f"{akey}_auto")
+        # Refresh needs no body: reaching here IS the re-poll. Inside the fragment
+        # that costs a fragment rerun rather than a page rerun.
         ctrl[3].button("Refresh", key=f"{akey}_refresh")
     else:
-        # Reset/Undo mutate the board HERE, outside the fragment, deliberately: a
-        # fragment re-executes with the SAME arguments on every auto-refresh, so
-        # handling them inside would re-fire the reset every 12 seconds and eat
-        # the board.
         if ctrl[3].button("Reset", key=f"{akey}_mreset", use_container_width=True):
             st.session_state[mankey] = {}
         if ctrl[4].button("Undo", key=f"{akey}_mundo", use_container_width=True):
@@ -69,35 +89,11 @@ def render(ctx) -> None:
             if _made:
                 del _made[max(_made)]                 # drop the most recent entry
                 st.session_state[mankey] = _made
-
-    # ---- one fragment owns the clock, the entry controls and the whole board ----
-    # A pick used to re-run the entire script — masthead, nav, league chrome, every
-    # panel — which is the flash and scroll-jump between picks. Scoped to a
-    # fragment, a pick repaints only this block and nothing above it moves.
-    #
-    # run_every replaces streamlit-autorefresh for the same reason: the autorefresh
-    # component re-runs the PAGE on every tick, run_every re-runs the fragment. It
-    # is read from the checkbox above (outside the fragment) so toggling it takes
-    # effect immediately; a checkbox inside would only reach a fragment rerun and
-    # the cadence would never change.
-    st.fragment(run_every=(12 if auto else None))(_live)(
-        ctx, manual=manual, my_slot=my_slot, strategy=strategy)
-
-
-def _live(ctx, *, manual: bool, my_slot: int, strategy: str) -> None:
-    """Clock, pick entry and board. Everything here repaints together, alone."""
-    from .. import value as V
-    reg = ctx["registry"]
-    slot_names = ctx["slot_names"]
-    n = len(slot_names)
-    rounds = ctx["meta"].draft_rounds
-    total = n * rounds
-    akey = f"live_{ctx['league_key']}"
-    mankey = f"livemade_{ctx['league_key']}"
-    kept_overall = ctx["keepers"]["by_overall"]
-    kept_pids = ctx["keepers"]["kept_pids"]
-    owner = ctx["pick_owner_slot"]            # traded-pick-aware ownership
-    ranks = st.session_state.get(ctx["ranks_key"])
+    if auto != bound_auto:
+        # The cadence changed. run_every was fixed when this fragment was built, so
+        # only a full run can rebind it — otherwise ticking would never start or,
+        # worse, never stop. The one place a page rerun is still correct.
+        st.rerun()
 
     # ----- gather picks from the chosen source into a common {overall: pid} map -----
     if manual:
