@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bloody Sunday — draft on Sleeper
 // @namespace    https://github.com/fabfreebird23/draft-dashboard
-// @version      1.5.0
+// @version      1.5.1
 // @description  Take the player you picked in Bloody Sunday and stage him in the Sleeper draft room, so you never type a name mid-draft.
 // @match        https://sleeper.com/*
 // @match        https://sleeper.app/*
@@ -150,7 +150,10 @@
       if (!t || (!t.includes(target) && !(last.length > 3 && t.includes(last)))) continue;
       let el = n.parentElement, hops = 0;
       while (el && hops < 6 && el.getBoundingClientRect().height < 24) { el = el.parentElement; hops++; }
-      if (!el || !vis(el)) continue;
+      // The panel prints the staged name in its own header, so from the second
+      // pick onward the closest text match on the page can be US — and then we
+      // highlight, click and hunt for a Draft button inside our own widget.
+      if (!el || !vis(el) || mine(el)) continue;
       const len = (el.innerText || '').length;
       if (len < bestLen) { best = el; bestLen = len; }
     }
