@@ -6,6 +6,7 @@ import streamlit as st
 
 from ..providers.espn import EspnAuthError
 from . import components as C
+from . import sleeper_handoff as SH
 from .widgets import (juice_tab, predict_upcoming, predictor_widget, queue_manager,
                       player_card_dialog, rankings_tab, select_player,
                       spotlight_panel,
@@ -331,9 +332,14 @@ def _live(ctx, *, bound_auto: bool) -> None:
                     unsafe_allow_html=True)
         if rec_row:
             tpm = reg.meta(rec_row["pid"])
-            st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({tpm.position} · {tpm.team}) '
-                        f'— <span class="why">{why}</span></div>',
-                        unsafe_allow_html=True)
+            _rc = st.columns([3.4, 1])
+            with _rc[0]:
+                st.markdown(f'<div class="dr-rec">★ <b>{rec_row["name"]}</b> ({tpm.position} · {tpm.team}) '
+                            f'— <span class="why">{why}</span></div>',
+                            unsafe_allow_html=True)
+            with _rc[1]:
+                # The pick you take most often, one click from the Sleeper draft room.
+                SH.copy_button(rec_row["name"], key=f"rec_sl_{ctx['league_key']}", height=46)
         if strategy and strategy != "Balanced":
             _sg = V.top_suggestions(board_avail, ctx["value"], reg, needs, drafted,
                                     my_pids=my_pids, roster_slots=ctx["roster_slots"], k=3,
@@ -383,6 +389,9 @@ def _live(ctx, *, bound_auto: bool) -> None:
                                              profiles=ctx.get("profiles"),
                                              owner_by_slot=ctx["owner_by_slot"], round_no=round_no),
                             unsafe_allow_html=True)
+
+    if not manual:
+        SH.setup_note()
 
     kept_note = (f" {len(kept_pids)} keepers are pre-marked." if kept_pids else "")
     if manual:

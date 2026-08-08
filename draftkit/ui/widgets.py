@@ -6,6 +6,7 @@ import streamlit as st
 from .. import draft_history, theme
 from . import components as C
 from . import playercard as PC
+from . import sleeper_handoff as SH
 
 
 def rerun_here() -> None:
@@ -1031,13 +1032,19 @@ def player_card_dialog(ctx, pid, *, on_draft=None, on_star=None, queued=None, **
                 f["pm"], pid=f["pid"], adp=f["adp"], market=f["market"],
                 synergy=f["synergy"], bye_clash=f["bye_clash"], byes=f["byes"],
                 season=f["season"], prev_label=f["prev_label"]), unsafe_allow_html=True)
-        cols = st.columns([2, 1])
+        # Three actions, and they mean different things: "Draft" records the pick on
+        # OUR board (manual mode only), "Draft on Sleeper" hands the name to the real
+        # draft room. Keeping them side by side and separately labelled matters —
+        # one is bookkeeping, the other spends a pick.
+        cols = st.columns([2, 1.5, 1])
         if on_draft and cols[0].button(f'Draft {f["pm"].name}', use_container_width=True,
                                        key=f"pcd_draft_{pid}"):
             on_draft(pid)
+        with cols[1]:
+            SH.copy_button(f["pm"].name, key=f"pcd_sl_{pid}")
         if on_star:
             starred = str(pid) in {str(x) for x in (queued or set())}
-            if cols[1].button("★ Queued" if starred else "☆ Queue", use_container_width=True,
+            if cols[2].button("★ Queued" if starred else "☆ Queue", use_container_width=True,
                               key=f"pcd_star_{pid}"):
                 on_star(pid)
 
