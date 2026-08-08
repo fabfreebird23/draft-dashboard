@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bloody Sunday — draft on Sleeper
 // @namespace    https://github.com/fabfreebird23/draft-dashboard
-// @version      1.5.1
+// @version      1.5.2
 // @description  Take the player you picked in Bloody Sunday and stage him in the Sleeper draft room, so you never type a name mid-draft.
 // @match        https://sleeper.com/*
 // @match        https://sleeper.app/*
@@ -98,8 +98,23 @@
     (el.tagName === 'TEXTAREA' ||
      (el.tagName === 'INPUT' && /^(text|search|)$/i.test(el.type || '')));
 
-  const clickableEl = (el) => !!el && vis(el) && !mine(el) &&
-    el instanceof HTMLElement && typeof el.click === 'function';
+  /* `el instanceof HTMLElement` is wrong across realms: an element belonging to a
+     different document (an iframe, a portal) is a perfectly good HTMLElement in ITS
+     window and fails the check in ours. Ask the element's own window instead. It
+     also means a real button could be rejected for reasons that have nothing to do
+     with the button, which is the hardest kind of failure to read from outside. */
+  const isEl = (el) => {
+    const w = el && el.ownerDocument && el.ownerDocument.defaultView;
+    return !!(w && (el instanceof w.HTMLElement || el instanceof w.Element)) &&
+           typeof el.click === 'function';
+  };
+
+  /* Visible enough to click. Strict vis() demands a non-zero box, but a control
+     mid-transition (Sleeper animates the Draft button in when you go on the clock)
+     can measure zero for a frame while being entirely real. offsetParent is the
+     cheaper truth: null means display:none or detached. */
+  const clickableEl = (el) => !!el && !mine(el) && isEl(el) &&
+    (vis(el) || el.offsetParent !== null);
 
   /* The search box. A learned selector is only trusted if it still resolves to
      something you can actually type into — a stale or mistaught one is worse than
@@ -369,6 +384,7 @@
        stale highlight is exactly how you end up with the wrong player. */
     function waitForClock(name, fromWatch) {
       stopWaiting();
+      waitForClock._snapped = false;      // one snapshot per wait, not per session
       const started = Date.now();
       cd.style.display = '';
       const tick = () => {
@@ -388,6 +404,20 @@
         const b = findDraftButton(row);
         if (!b) {
           const s = Math.round(waited / 1000);
+          /* One automatic snapshot a few seconds in. If the button IS on screen and
+             we still can't see it, this is the moment that proves it — and it can't
+             depend on someone clicking Debug during the seconds it's on the clock. */
+          if (s >= 4 && !waitForClock._snapped) {
+            waitForClock._snapped = true;
+            const near = [...document.querySelectorAll('*')].filter(e =>
+              /draft/i.test(String(e.className || '')) && !mine(e)).slice(0, 25)
+              .map(e => ({ tag: e.tagName, cls: String(e.className).slice(0, 70),
+                           txt: (e.innerText || '').trim().slice(0, 24),
+                           box: (r => `${Math.round(r.width)}x${Math.round(r.height)}`)(e.getBoundingClientRect()),
+                           offsetParent: e.offsetParent !== null, clickFn: typeof e.click === 'function' }));
+            say('WAITING SNAPSHOT — elements with "draft" in the class:', near.length);
+            console.table(near);
+          }
           cd.innerHTML = `Staged <b>${name}</b> — waiting for your pick (${s}s)`
                        + '<button id="bs-x">Cancel</button>';
           cd.querySelector('#bs-x').onclick = () => {
