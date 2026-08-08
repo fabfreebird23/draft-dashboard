@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Bloody Sunday — draft on Sleeper
 // @namespace    https://github.com/fabfreebird23/draft-dashboard
-// @version      1.0.0
+// @version      1.1.0
 // @description  Take the player you picked in Bloody Sunday and stage him in the Sleeper draft room, so you never type a name mid-draft.
-// @match        https://sleeper.com/draft/*
-// @match        https://sleeper.app/draft/*
-// @match        https://www.sleeper.com/draft/*
+// @match        https://sleeper.com/*
+// @match        https://sleeper.app/*
+// @match        https://www.sleeper.com/*
 // @run-at       document-idle
 // @grant        none
 // ==/UserScript==
@@ -284,9 +284,40 @@
     say('ready — ⌥⇧V pastes the staged pick');
   }
 
-  // The draft room is a SPA; the body it mounts may arrive after this script does.
-  const boot = () => document.body ? panel() : setTimeout(boot, 400);
+  /* Match all of sleeper.com and decide HERE whether we are in a draft room.
+     Matching /draft/* looked tidier but is a guess about their routing — mock
+     drafts in particular may live somewhere else entirely, and a wrong @match
+     fails as "nothing happens", which is the worst way for this to fail. So:
+     broad match, narrow mount. */
+  function inDraftRoom() {
+    if (/draft|mock/i.test(location.pathname + location.hash)) return true;
+    // Fallback for a route that says nothing: a player search plus something that
+    // looks like a draft control on the same screen.
+    return !!(findSearch() && findDraftButton(document));
+  }
+
+  function sync() {
+    const here = inDraftRoom();
+    const panelEl = document.getElementById('bs-panel');
+    if (here && !panelEl) panel();
+    if (!here && panelEl) panelEl.remove();
+  }
+
+  const boot = () => document.body ? sync() : setTimeout(boot, 400);
   boot();
-  new MutationObserver(() => { if (!document.getElementById('bs-panel')) panel(); })
+
+  // SPA navigation changes the route without a reload, so re-check on both the
+  // history calls and the DOM settling.
+  for (const m of ['pushState', 'replaceState']) {
+    const orig = history[m];
+    history[m] = function () { const r = orig.apply(this, arguments); setTimeout(sync, 250); return r; };
+  }
+  addEventListener('popstate', () => setTimeout(sync, 250));
+  let t = 0;
+  new MutationObserver(() => { clearTimeout(t); t = setTimeout(sync, 300); })
     .observe(document.documentElement, { childList: true, subtree: true });
+
+  // Escape hatch: if detection is wrong, run __bs() in the console to force it.
+  window.__bs = panel;
+  say('loaded on', location.pathname, '— draft room detected:', inDraftRoom());
 })();
