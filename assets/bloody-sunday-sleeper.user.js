@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bloody Sunday — draft on Sleeper
 // @namespace    https://github.com/fabfreebird23/draft-dashboard
-// @version      2.0.2
+// @version      2.0.3
 // @description  Take the player you picked in Bloody Sunday and stage him in the Sleeper draft room, so you never type a name mid-draft.
 // @match        https://sleeper.com/*
 // @match        https://sleeper.app/*
@@ -222,7 +222,20 @@
      own coordinates, so whichever event the handler is bound to actually arrives. */
   function realClick(el) {
     if (!el) return false;
-    const r = el.getBoundingClientRect();
+    let r = el.getBoundingClientRect();
+
+    /* Aim at the element a real mouse would actually hit. Verified in the draft
+       room: the ⊕ is div.draft-button-wrapper > div.draft-button > svg > path, and
+       dispatching on the WRAPPER reaches only the wrapper — events travel up to
+       ancestors, never down to children — so the handler on the inner node never
+       runs. elementFromPoint gives the topmost node at those coordinates, which is
+       what a click really lands on. If that node is outside our target, something
+       is covering it (a modal underlay was, at one point) and clicking would hit
+       the wrong thing entirely; say so instead. */
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const top = document.elementFromPoint(cx, cy);
+    if (top && (top === el || el.contains(top))) { el = top; r = el.getBoundingClientRect(); }
+    else if (top && !mine(top)) { say('something is covering the target:', top); }
     const base = { bubbles: true, cancelable: true, composed: true, view: window,
                    clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
                    button: 0, buttons: 1 };
