@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bloody Sunday — draft on Sleeper
 // @namespace    https://github.com/fabfreebird23/draft-dashboard
-// @version      1.2.0
+// @version      1.3.0
 // @description  Take the player you picked in Bloody Sunday and stage him in the Sleeper draft room, so you never type a name mid-draft.
 // @match        https://sleeper.com/*
 // @match        https://sleeper.app/*
@@ -136,11 +136,57 @@
     return best;
   }
 
+  /* Everything that could plausibly be a clickable control. Sleeper does not use
+     <button> for all of them, and a div with an onclick looks identical to a user. */
+  const CLICKABLE = 'button, [role="button"], a[href="#"], div[class*="button" i], div[class*="btn" i]';
+
+  /* Labels that contain "draft" but are navigation, not the act of drafting.
+     Clicking "Draft Board" instead of "Draft" is a harmless mis-click; clicking
+     "Draft Recap" while auto-confirm is armed just wastes the countdown. Either
+     way it means the real button never gets pressed, so exclude them explicitly. */
+  const NOT_DRAFT = /board|order|recap|result|history|settings|mock|queue|log|pick ?em|grade/i;
+
+  function draftish(el) {
+    const t = ((el.innerText || el.getAttribute('aria-label') || '').trim());
+    if (!t || t.length > 24 || NOT_DRAFT.test(t)) return false;
+    return /^(draft|select|pick|draft player|draft now)$/i.test(t) || /^draft\b/i.test(t);
+  }
+
+  /* Search outward, not globally. The right button is the one attached to the
+     player you just staged — a page-wide scan can find a "Draft" control belonging
+     to someone else entirely, which is the one mistake that actually costs a pick. */
   function findDraftButton(scope) {
     const s = load().draft;
     if (s) { const el = document.querySelector(s); if (vis(el)) return el; }
-    const all = [...(scope || document).querySelectorAll('button, [role="button"], div[class*="button" i]')];
-    return all.filter(vis).find(b => /^(draft|select|pick|draft player)$/i.test((b.innerText || '').trim())) || null;
+    const scopes = [];
+    if (scope && scope !== document) {
+      scopes.push(scope);
+      for (let n = scope.parentElement, i = 0; n && i < 4; n = n.parentElement, i++) scopes.push(n);
+    }
+    // a modal/sheet, if one opened over the board
+    document.querySelectorAll('[role="dialog"], [class*="modal" i], [class*="sheet" i]')
+      .forEach(d => vis(d) && scopes.push(d));
+    scopes.push(document);
+    for (const sc of scopes) {
+      const hit = [...sc.querySelectorAll(CLICKABLE)].filter(vis).find(draftish);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  /* Every visible control on screen, for when the guesses above come up empty and
+     I need to see what this page actually calls things. */
+  function dumpControls() {
+    const rows = [...document.querySelectorAll(CLICKABLE)].filter(vis)
+      .map(b => ({ tag: b.tagName.toLowerCase(), text: (b.innerText || '').trim().slice(0, 40),
+                   aria: b.getAttribute('aria-label') || '' }))
+      .filter(r => r.text || r.aria);
+    say('visible controls:', rows.length); console.table(rows);
+    const blob = rows.map(r => `${r.tag}: "${r.text}"${r.aria ? ' [' + r.aria + ']' : ''}`).join('\n');
+    navigator.clipboard.writeText(blob).then(
+      () => say('copied to clipboard — paste it to Claude'),
+      () => say('copy failed; select from the table above'));
+    return rows.length;
   }
 
   // ------------------------------------------------------------------ the panel
@@ -187,6 +233,7 @@
         <div class="row">
           <button id="bs-again">Re-find</button>
           <button id="bs-learn">Teach it</button>
+          <button id="bs-dbg">Debug</button>
         </div>
         <label class="tog"><input type="checkbox" id="bs-watch"> watch clipboard (no keypress)</label>
         <label class="tog"><input type="checkbox" id="bs-auto"> auto-click Draft
@@ -288,13 +335,25 @@
         }
         row.classList.add('bs-hit');
         row.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        if (autoOn()) {
-          const b = findDraftButton(row) || findDraftButton(document);
-          if (b) { fire(b, name, !fromWatch); return; }
-          sub.innerHTML = 'Found him — <b>no Draft button</b>. Click it yourself.';
-          return;
-        }
-        sub.innerHTML = 'Found and highlighted. <b>You</b> press Draft.';
+
+        /* On Sleeper the Draft button usually does not exist until the player is
+           opened — the board shows rows, and the control lives in the detail sheet
+           that appears when you tap one. So a first pass that finds nothing is
+           expected, not a failure: open the row and look again. Selecting a player
+           is reversible; only the button we are hunting for is not. */
+        const proceed = (b) => {
+          if (b) { autoOn() ? fire(b, name, !fromWatch) : (sub.innerHTML =
+            'Found him. <b>Draft</b> is ready — press it.'); return true; }
+          return false;
+        };
+        if (proceed(findDraftButton(row))) return;
+
+        row.click();
+        setTimeout(() => {
+          if (proceed(findDraftButton(row))) return;
+          sub.innerHTML = 'Found him, <b>no Draft button</b> even after opening him. '
+                        + 'Hit <b>Teach it</b>, or <b>Debug</b> and send me the list.';
+        }, 450);
       }, 420);
     }
 
@@ -339,6 +398,12 @@
       lastSeen = t;
       if (t && t !== staged && plausibleName(t)) stage(t, true);
     }, 700);
+
+    p.querySelector('#bs-dbg').onclick = () => {
+      const n = dumpControls();
+      sub.innerHTML = `Copied <b>${n}</b> controls to your clipboard — paste them to Claude. `
+                    + '(Also in the console.)';
+    };
 
     /* Learn mode. The selectors above are guesses about markup I cannot see —
        Sleeper's draft room is behind a login. Three clicks record the real ones. */
