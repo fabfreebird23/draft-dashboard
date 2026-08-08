@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bloody Sunday — draft on Sleeper
 // @namespace    https://github.com/fabfreebird23/draft-dashboard
-// @version      2.0.3
+// @version      2.1.0
 // @description  Take the player you picked in Bloody Sunday and stage him in the Sleeper draft room, so you never type a name mid-draft.
 // @match        https://sleeper.com/*
 // @match        https://sleeper.app/*
@@ -154,11 +154,17 @@
   /* The smallest element whose text contains the name — the row, not the page.
      Walking up from the deepest match avoids matching a container that happens to
      hold every player on the board. */
-  function findRow(name) {
+  /* Every place the name appears, smallest first — not just the smallest one.
+     A player's name is on screen in several places at once: the picker row, the
+     draft board once he is taken, the queue, a roster panel. Only the picker row
+     has a ⊕ next to it, so committing to the single smallest match and then
+     failing to find a control was reporting "waiting for your pick" when the real
+     problem was having looked at the wrong copy of his name. */
+  function findRows(name, limit) {
     const target = norm(name);
-    if (!target) return null;
+    if (!target) return [];
     const last = target.split(' ').slice(-1)[0];
-    let best = null, bestLen = Infinity;
+    const out = [];
     const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n = walk.nextNode(); n; n = walk.nextNode()) {
       const t = norm(n.nodeValue);
@@ -169,11 +175,13 @@
       // pick onward the closest text match on the page can be US — and then we
       // highlight, click and hunt for a Draft button inside our own widget.
       if (!el || !vis(el) || mine(el)) continue;
-      const len = (el.innerText || '').length;
-      if (len < bestLen) { best = el; bestLen = len; }
+      if (!out.includes(el)) out.push(el);
     }
-    return best;
+    out.sort((a, b) => (a.innerText || '').length - (b.innerText || '').length);
+    return out.slice(0, limit || 8);
   }
+
+  const findRow = (name) => findRows(name, 1)[0] || null;
 
   /* Everything that could plausibly be a clickable control. Sleeper does not use
      <button> for all of them, and a div with an onclick looks identical to a user. */
@@ -549,7 +557,26 @@
       setTimeout(() => {
         document.querySelectorAll('.bs-hit').forEach(e => e.classList.remove('bs-hit'));
         document.querySelectorAll('.bs-plus').forEach(e => e.classList.remove('bs-plus'));
-        const row = findRow(name);
+
+        /* His name is on screen in several places at once — the picker row, the
+           draft board once someone takes him, the queue. Only the picker row
+           carries a ⊕, so try them all and keep the one that has a control. */
+        const rows = findRows(name, 8);
+        let row = null, plus = null;
+        for (const r of rows) { const p = findRowPlus(r); if (p) { row = r; plus = p; break; } }
+
+        if (rows.length && !plus) {
+          /* Found him, no ⊕ anywhere. That is what a DRAFTED player looks like:
+             the name still renders on the board and in the struck-through list row,
+             but the control is gone. Previously this fell through to "waiting for
+             your pick", which described a clock problem that did not exist. */
+          rows[0].classList.add('bs-hit');
+          rows[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+          cancelCountdown();
+          sub.innerHTML = `<b>${name}</b> has already been drafted — pick someone else.`;
+          who.textContent = name + ' (gone)';
+          return;
+        }
         if (!row) {
           sub.innerHTML = box
             ? 'Search filled — <b>could not spot the row</b>. Pick him in the list.'
@@ -573,8 +600,7 @@
         /* The ⊕ on HIS row is the whole job. Do NOT click the row first: that opens
            the player card, which is what happened last time and is why a countdown
            ended in a profile page instead of a pick. */
-        const plus = findRowPlus(row);
-        if (plus) {
+        {
           plus.classList.add('bs-plus');
           const pr = plus.getBoundingClientRect();
           const desc = `${plus.tagName.toLowerCase()}${plus.className ? '.' + String(plus.className).trim().split(/\s+/)[0] : ''}`
