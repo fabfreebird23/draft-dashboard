@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bloody Sunday — draft on Sleeper
 // @namespace    https://github.com/fabfreebird23/draft-dashboard
-// @version      1.6.0
+// @version      2.0.0
 // @description  Take the player you picked in Bloody Sunday and stage him in the Sleeper draft room, so you never type a name mid-draft.
 // @match        https://sleeper.com/*
 // @match        https://sleeper.app/*
@@ -199,6 +199,42 @@
      on the clock. Worth checking by name before falling back to label-guessing. */
   const KNOWN_DRAFT = '.draft-button-wrapper .draft-button, .draft-button, [class*="draft-button"]';
 
+  /* The name cell is not the row. findRow returns the SMALLEST element holding the
+     name, which is usually just the name text; the ⊕ lives at the far left of the
+     full-width row, several parents up. */
+  function rowContainer(el) {
+    let n = el;
+    for (let i = 0; n && i < 7; i++, n = n.parentElement) {
+      if (n.getBoundingClientRect().width >= 320) return n;
+    }
+    return el;
+  }
+
+  /* THE draft control on Sleeper is the green ⊕ at the left of each player row —
+     there is no page-level Draft button, which is why three rounds of dumps found
+     nothing and why clicking around opened a player card instead of drafting.
+     Identify it by shape and position rather than class: a small square control at
+     the far-left edge of the row. The ☆ watchlist and the queue icon sit to the
+     RIGHT of the name, so leftmost wins. */
+  function findRowPlus(rowEl) {
+    const row = rowContainer(rowEl);
+    const left = row.getBoundingClientRect().left;
+    const cands = [...row.querySelectorAll('*')].filter(e => {
+      if (mine(e) || !vis(e)) return false;
+      const r = e.getBoundingClientRect();
+      const squarish = r.width >= 14 && r.width <= 52 && r.height >= 14 && r.height <= 52
+                    && Math.abs(r.width - r.height) <= 12;
+      if (!squarish || r.left > left + 90) return false;   // far-left only
+      return getComputedStyle(e).cursor === 'pointer' || e.matches(CLICKABLE)
+          || e.tagName.toLowerCase() === 'svg';
+    });
+    cands.sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+    const hit = cands[0];
+    if (!hit) return null;
+    // an <svg> has no click(); walk up to the element that actually handles it
+    return (isEl(hit) ? hit : hit.parentElement) || null;
+  }
+
   function findDraftButton(scope) {
     const s = load().draft;
     // A learned selector that resolves to an SVG <path> — which is what you get by
@@ -224,12 +260,27 @@
 
   /* Every visible control on screen, for when the guesses above come up empty and
      I need to see what this page actually calls things. */
+  /* Sleeper builds its UI from plain divs with no "button" in the class, so a
+     class/tag-based sweep sees almost nothing — two dumps in a row returned the
+     team columns and three filters and missed every real control on the page.
+     cursor:pointer is what the site actually uses to mean "clickable". */
   function dumpControls() {
-    const rows = [...document.querySelectorAll(CLICKABLE)].filter(vis)
-      .filter(b => !b.closest('#bs-panel'))          // our own buttons are noise
+    const seen = new Set();
+    const rows = [...document.querySelectorAll('body *')]
+      .filter(e => !e.closest('#bs-panel') && vis(e))
+      .filter(e => e.matches(CLICKABLE) || getComputedStyle(e).cursor === 'pointer')
+      .filter(e => {                                  // keep the innermost only
+        const t = (e.innerText || '').trim();
+        if (!t && !e.getAttribute('aria-label')) return false;
+        if (t.length > 40) return false;
+        const k = t + '|' + e.tagName;
+        if (seen.has(k)) return false;
+        seen.add(k); return true;
+      })
+      .slice(0, 60)
       .map(b => ({ tag: b.tagName.toLowerCase(), text: (b.innerText || '').trim().slice(0, 40),
-                   aria: b.getAttribute('aria-label') || '' }))
-      .filter(r => r.text || r.aria);
+                   cls: String(b.className || '').slice(0, 46),
+                   aria: b.getAttribute('aria-label') || '' }));
     say('visible controls:', rows.length); console.table(rows);
     const blob = rows.map(r => `${r.tag}: "${r.text}"${r.aria ? ' [' + r.aria + ']' : ''}`).join('\n');
     navigator.clipboard.writeText(blob).then(
@@ -266,7 +317,9 @@
   #bs-cd b{color:#ff8fae}
   #bs-cd button{margin:7px 0 0;background:#232022;border-color:#5a1b30}
   .bs-hit{outline:3px solid #ff336c !important;outline-offset:2px;
-    border-radius:6px;scroll-margin:120px}`;
+    border-radius:6px;scroll-margin:120px}
+  .bs-plus{outline:3px solid #7fd8b4 !important;outline-offset:3px;border-radius:50%;
+    box-shadow:0 0 0 6px rgba(127,216,180,.22) !important}`;
 
   function panel() {
     if (document.getElementById('bs-panel')) return;
@@ -443,6 +496,7 @@
       // Sleeper filters asynchronously; give the list a beat to re-render.
       setTimeout(() => {
         document.querySelectorAll('.bs-hit').forEach(e => e.classList.remove('bs-hit'));
+        document.querySelectorAll('.bs-plus').forEach(e => e.classList.remove('bs-plus'));
         const row = findRow(name);
         if (!row) {
           sub.innerHTML = box
@@ -464,14 +518,16 @@
           return false;
         };
 
-        /* SELECT, THEN DRAFT — in that order, always.
-           The previous version hunted for the Draft button and pressed it without
-           opening the player first. Watching it run: the countdown fired, it
-           clicked, and Sleeper opened a player card instead of drafting. That is
-           what pressing Draft with nothing selected does. A human clicks the
-           player, then Draft, so do that — clicking a row is harmless either way,
-           and the button that matters often only appears once he is open. */
-        clickThrough(row);
+        /* The ⊕ on HIS row is the whole job. Do NOT click the row first: that opens
+           the player card, which is what happened last time and is why a countdown
+           ended in a profile page instead of a pick. */
+        const plus = findRowPlus(row);
+        if (plus) {
+          plus.classList.add('bs-plus');
+          if (autoOn()) { fire(plus, name, !fromWatch); return; }
+          sub.innerHTML = 'Found him — the <b>⊕</b> is ringed. Click it to draft.';
+          return;
+        }
         setTimeout(() => {
           if (proceed(findDraftButton(row))) return;
           /* No Draft control anywhere. On Sleeper that is the NORMAL state when it
