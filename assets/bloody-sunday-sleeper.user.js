@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bloody Sunday — draft on Sleeper
 // @namespace    https://github.com/fabfreebird23/draft-dashboard
-// @version      1.3.0
+// @version      1.4.0
 // @description  Take the player you picked in Bloody Sunday and stage him in the Sleeper draft room, so you never type a name mid-draft.
 // @match        https://sleeper.com/*
 // @match        https://sleeper.app/*
@@ -178,6 +178,7 @@
      I need to see what this page actually calls things. */
   function dumpControls() {
     const rows = [...document.querySelectorAll(CLICKABLE)].filter(vis)
+      .filter(b => !b.closest('#bs-panel'))          // our own buttons are noise
       .map(b => ({ tag: b.tagName.toLowerCase(), text: (b.innerText || '').trim().slice(0, 40),
                    aria: b.getAttribute('aria-label') || '' }))
       .filter(r => r.text || r.aria);
@@ -317,7 +318,60 @@
       }, 1000);
     }
 
+    /* Sleeper's rows are divs, not buttons, and the handler may sit on a parent or
+       a child of whatever the text walker landed on. Try the nearest real control,
+       then the element itself. */
+    function clickThrough(el) {
+      const t = el.closest(CLICKABLE) || el.querySelector(CLICKABLE) || el;
+      t.click();
+    }
+
+    const WAIT_MS = 15 * 60 * 1000;    // long enough for a slow room, short enough
+    let waitTimer = null;              // that it never lurks for a 24h clock
+    function stopWaiting() { clearInterval(waitTimer); waitTimer = null; }
+
+    /* Hold the staged player until the Draft button appears — i.e. until you are on
+       the clock. Re-checks that he is still on the board before firing: between
+       staging and your turn, somebody else may have taken him, and drafting into a
+       stale highlight is exactly how you end up with the wrong player. */
+    function waitForClock(name, fromWatch) {
+      stopWaiting();
+      const started = Date.now();
+      cd.style.display = '';
+      const tick = () => {
+        const waited = Date.now() - started;
+        if (waited > WAIT_MS) {
+          stopWaiting(); cd.style.display = 'none';
+          sub.innerHTML = 'Gave up waiting. Hit <b>Re-find</b> when you are on the clock.';
+          return;
+        }
+        const row = findRow(name);
+        if (!row) {
+          stopWaiting(); cd.style.display = 'none';
+          sub.innerHTML = `<b>${name}</b> is off the board — someone took him. Pick again.`;
+          who.textContent = 'Nothing staged'; staged = '';
+          return;
+        }
+        const b = findDraftButton(row);
+        if (!b) {
+          const s = Math.round(waited / 1000);
+          cd.innerHTML = `Staged <b>${name}</b> — waiting for your pick (${s}s)`
+                       + '<button id="bs-x">Cancel</button>';
+          cd.querySelector('#bs-x').onclick = () => {
+            stopWaiting(); cd.style.display = 'none'; sub.textContent = 'Stopped waiting.';
+          };
+          return;
+        }
+        stopWaiting(); cd.style.display = 'none';
+        if (autoOn()) { fire(b, name, false); return; }   // never instant off a wait
+        sub.innerHTML = `You are on the clock — <b>Draft</b> is live for ${name}.`;
+      };
+      tick();
+      waitTimer = setInterval(tick, 900);
+    }
+
     function stage(name, fromWatch) {
+      stopWaiting();
       cancelCountdown();
       staged = name;
       who.textContent = name || 'Nothing staged';
@@ -348,11 +402,15 @@
         };
         if (proceed(findDraftButton(row))) return;
 
-        row.click();
+        clickThrough(row);
         setTimeout(() => {
           if (proceed(findDraftButton(row))) return;
-          sub.innerHTML = 'Found him, <b>no Draft button</b> even after opening him. '
-                        + 'Hit <b>Teach it</b>, or <b>Debug</b> and send me the list.';
+          /* No Draft control anywhere. On Sleeper that is the NORMAL state when it
+             is not your pick — the button only exists while you are on the clock,
+             which a control dump from a mock confirmed: filters and team columns,
+             nothing draft-like. So this is not a failure to report, it is a clock
+             to wait for. */
+          waitForClock(name, fromWatch);
         }, 450);
       }, 420);
     }
