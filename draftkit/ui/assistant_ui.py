@@ -67,6 +67,25 @@ def _live(ctx, *, bound_auto: bool) -> None:
             "Strategy", V.STRATEGIES, key=f"{akey}_strategy",
             help="Biases the ★ recommendation and Suggestions toward a plan "
                  "(Hero/Zero/Robust RB, Elite TE, Late-Round QB, or pure value).")
+        _mkey = f"mockid_{ctx['meta'].platform}_{ctx['meta'].league_id}"
+        if ctx["meta"].platform == "sleeper":
+            _raw = st.text_input(
+                "Follow a Sleeper mock", key=f"{akey}_mockin",
+                value=st.session_state.get(_mkey) or "",
+                placeholder="paste the mock draft URL or ID",
+                help="Point the war room at a standalone Sleeper mock instead of "
+                     "this league's draft. Mocks are readable on the same public "
+                     "API. Your scoring and roster slots stay THIS league's — the "
+                     "mock only supplies the picks, team count and rounds.")
+            # accept a full URL: .../draft/nfl/<id>
+            _id = "".join(ch for ch in (_raw or "").strip().split("/")[-1] if ch.isdigit())
+            if (_id or None) != (st.session_state.get(_mkey) or None):
+                if _id:
+                    st.session_state[_mkey] = _id
+                else:
+                    st.session_state.pop(_mkey, None)
+                # A full rerun, not a fragment one: the whole context is rebuilt.
+                st.rerun()
         st.slider(
             "My board influence", 0.0, 6.0, 0.0, 0.5, key=f"{akey}_boardedge",
             help="How much YOUR UDK board sways Suggestions. Your board already "

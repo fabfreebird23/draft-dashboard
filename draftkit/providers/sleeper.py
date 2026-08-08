@@ -22,18 +22,30 @@ def _scoring_label(lg: dict) -> str:
 class SleeperProvider(Provider):
     platform = "sleeper"
 
+    # A Sleeper MOCK draft, when one is being followed instead of the league's own.
+    # Mocks are readable over the same public API (league_id comes back null) but
+    # have their own team count and round count, so they cannot simply reuse the
+    # league's. Everything else — scoring, roster slots — deliberately stays the
+    # league's, because the point of the mock is rehearsing THAT league.
+    mock_draft_id = None
+
     def _league(self) -> dict:
         return api.get_league(self.league_id) or {}
+
+    def _draft_id(self):
+        return self.mock_draft_id or (self._league() or {}).get("draft_id")
 
     def get_league_meta(self) -> LeagueMeta:
         lg = self._league()
         roster_pos = lg.get("roster_positions") or []
         n_teams = int(lg.get("total_rosters") or lg.get("settings", {}).get("num_teams") or 0)
-        draft_id = lg.get("draft_id")
+        draft_id = self._draft_id()
         rounds = 0
         if draft_id:
             d = api.get_draft(draft_id) or {}
             rounds = int((d.get("settings") or {}).get("rounds") or 0)
+            if self.mock_draft_id:
+                n_teams = int((d.get("settings") or {}).get("teams") or n_teams)
         if not rounds:
             rounds = len([p for p in roster_pos if p not in _BENCH]) or 15
         return LeagueMeta(
@@ -52,6 +64,13 @@ class SleeperProvider(Provider):
         )
 
     def get_draft_order(self) -> List[Team]:
+        if self.mock_draft_id:
+            # A mock has no members — slot_to_roster_id is all there is, and the
+            # seats are anonymous. Name them the way Sleeper's own board does.
+            d = api.get_draft(self.mock_draft_id) or {}
+            slots = (d.get("slot_to_roster_id") or {})
+            n = int((d.get("settings") or {}).get("teams") or len(slots) or 10)
+            return [Team(slot=i, team_id=f"mock{i+1}", name=f"Team {i + 1}") for i in range(n)]
         lg = self._league()
         users = {u["user_id"]: u for u in (api.get_users(self.league_id) or [])}
         draft_id = lg.get("draft_id")
@@ -82,8 +101,8 @@ class SleeperProvider(Provider):
         traded picks by roster_id, so we translate to the user_id space the rest of
         the app keys teams on."""
         lg = self._league()
-        draft_id = lg.get("draft_id")
-        if not draft_id:
+        draft_id = self._draft_id()
+        if self.mock_draft_id or not draft_id:
             return {}
         rosters = api.get_rosters(self.league_id) or []
         rid_to_uid = {r.get("roster_id"): str(r.get("owner_id")) for r in rosters}
@@ -108,8 +127,7 @@ class SleeperProvider(Provider):
         return starters or list(_DEFAULT_SLOTS)
 
     def get_live_picks(self) -> List[Pick]:
-        lg = self._league()
-        draft_id = lg.get("draft_id")
+        draft_id = self._draft_id()
         if not draft_id:
             return []
         n = self.get_league_meta().num_teams or 12

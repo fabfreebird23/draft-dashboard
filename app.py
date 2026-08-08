@@ -305,7 +305,8 @@ def league_picker():
 def build_context(sel: dict) -> dict:
     registry = get_registry(sel["season"])
     provider = get_provider(sel["platform"], sel["league_id"], sel["season"], registry,
-                            espn_s2=sel.get("espn_s2"), swid=sel.get("swid"))
+                            espn_s2=sel.get("espn_s2"), swid=sel.get("swid"),
+                            mock_draft_id=sel.get("mock_draft_id"))
     meta = provider.get_league_meta()
     order = provider.get_draft_order()
     # Real manager names + draft-slot order from the league's keeper dashboard.
@@ -476,6 +477,11 @@ def main():
         return
 
     sel = st.session_state.league
+    # Following a Sleeper mock instead of the league's own draft changes the team
+    # count and round count, so it has to be part of CONTEXT, not a live toggle —
+    # the board, the pick clock and every survival % are built from those numbers.
+    _mock = st.session_state.get(f"mockid_{sel['platform']}_{sel['league_id']}")
+    sel = dict(sel, mock_draft_id=_mock) if _mock else sel
     try:
         ctx = build_context(sel)
     except EspnAuthError as e:
