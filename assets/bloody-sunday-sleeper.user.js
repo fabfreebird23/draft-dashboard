@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bloody Sunday — draft on Sleeper
 // @namespace    https://github.com/fabfreebird23/draft-dashboard
-// @version      2.0.0
+// @version      2.0.1
 // @description  Take the player you picked in Bloody Sunday and stage him in the Sleeper draft room, so you never type a name mid-draft.
 // @match        https://sleeper.com/*
 // @match        https://sleeper.app/*
@@ -199,15 +199,14 @@
      on the clock. Worth checking by name before falling back to label-guessing. */
   const KNOWN_DRAFT = '.draft-button-wrapper .draft-button, .draft-button, [class*="draft-button"]';
 
-  /* The name cell is not the row. findRow returns the SMALLEST element holding the
-     name, which is usually just the name text; the ⊕ lives at the far left of the
-     full-width row, several parents up. */
-  function rowContainer(el) {
-    let n = el;
-    for (let i = 0; n && i < 7; i++, n = n.parentElement) {
-      if (n.getBoundingClientRect().width >= 320) return n;
-    }
-    return el;
+  /* Two elements are on the same visual row if their nearest shared ancestor is
+     row-sized. Climbing by WIDTH was wrong: the first ancestor ≥320px wide sailed
+     past the list row into a container holding the entire draft room, and the
+     "leftmost control" in that was the → arrow on board pick 1.1. */
+  function sameRow(a, b) {
+    let n = a;
+    while (n && !n.contains(b)) n = n.parentElement;
+    return !!n && n.getBoundingClientRect().height <= 90;
   }
 
   /* THE draft control on Sleeper is the green ⊕ at the left of each player row —
@@ -216,20 +215,35 @@
      Identify it by shape and position rather than class: a small square control at
      the far-left edge of the row. The ☆ watchlist and the queue icon sit to the
      RIGHT of the name, so leftmost wins. */
-  function findRowPlus(rowEl) {
-    const row = rowContainer(rowEl);
-    const left = row.getBoundingClientRect().left;
-    const cands = [...row.querySelectorAll('*')].filter(e => {
+  function findRowPlus(nameEl) {
+    /* Find it by GEOMETRY relative to the name, not by walking the DOM. The ⊕ is a
+       small square control sitting on the same line as the player, immediately to
+       his left. Anything on another line — the board above, another player's row —
+       is excluded by the vertical band, which is what ancestry failed to do. */
+    const nr = nameEl.getBoundingClientRect();
+    const cy = nr.top + nr.height / 2;
+    const band = Math.max(18, nr.height * 0.9);
+
+    const cands = [...document.querySelectorAll('body *')].filter(e => {
       if (mine(e) || !vis(e)) return false;
       const r = e.getBoundingClientRect();
+      if (Math.abs((r.top + r.height / 2) - cy) > band) return false;   // same line
+      if (r.right > nr.left + 4) return false;                          // left of him
+      if (nr.left - r.right > 320) return false;                        // still his row
       const squarish = r.width >= 14 && r.width <= 52 && r.height >= 14 && r.height <= 52
                     && Math.abs(r.width - r.height) <= 12;
-      if (!squarish || r.left > left + 90) return false;   // far-left only
+      if (!squarish) return false;
       return getComputedStyle(e).cursor === 'pointer' || e.matches(CLICKABLE)
           || e.tagName.toLowerCase() === 'svg';
-    });
-    cands.sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
-    const hit = cands[0];
+    }).filter(e => sameRow(e, nameEl));
+
+    /* Prefer an icon, then the leftmost. "Nearest to the name" would pick the rank
+       number — it is the same size and, if the row carries cursor:pointer, passes
+       the clickable test too. The ⊕ is drawn as an <svg> and sits furthest left. */
+    const icons = cands.filter(e => e.tagName.toLowerCase() === 'svg' || e.querySelector('svg'));
+    const pool = icons.length ? icons : cands;
+    pool.sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+    const hit = pool[0];
     if (!hit) return null;
     // an <svg> has no click(); walk up to the element that actually handles it
     return (isEl(hit) ? hit : hit.parentElement) || null;
