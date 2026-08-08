@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bloody Sunday — draft on Sleeper
 // @namespace    https://github.com/fabfreebird23/draft-dashboard
-// @version      1.4.0
+// @version      1.5.0
 // @description  Take the player you picked in Bloody Sunday and stage him in the Sleeper draft room, so you never type a name mid-draft.
 // @match        https://sleeper.com/*
 // @match        https://sleeper.app/*
@@ -88,26 +88,47 @@
     return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
   };
 
-  /* The search box. Learned selector first, then heuristics, because a draft room
-     usually has exactly one visible text input and it is the player filter. */
+  /* Our own panel is part of the page, and every search below would happily match
+     it. Teaching once recorded "#bs-dbg" — the Debug button — as the player search
+     box, and from then on staging called an <input> value setter on a <button>,
+     threw, and silently did nothing. Everything that looks at the page excludes us. */
+  const mine = (el) => !!(el && el.closest && el.closest('#bs-panel'));
+
+  const usableInput = (el) => !!el && vis(el) && !mine(el) &&
+    (el.tagName === 'TEXTAREA' ||
+     (el.tagName === 'INPUT' && /^(text|search|)$/i.test(el.type || '')));
+
+  const clickableEl = (el) => !!el && vis(el) && !mine(el) &&
+    el instanceof HTMLElement && typeof el.click === 'function';
+
+  /* The search box. A learned selector is only trusted if it still resolves to
+     something you can actually type into — a stale or mistaught one is worse than
+     none, because it silently beats the heuristic that would have worked.
+     Confirmed live: Sleeper's is placeholder="Find player ⌘ U". */
   function findSearch() {
     const s = load().search;
-    if (s) { const el = document.querySelector(s); if (vis(el)) return el; }
-    const cands = [...document.querySelectorAll('input[type="text"], input:not([type]), input[type="search"]')]
-      .filter(vis)
-      .filter(i => /search|player|find/i.test((i.placeholder || '') + ' ' + (i.getAttribute('aria-label') || '')));
-    return cands[0] || [...document.querySelectorAll('input')].filter(vis)[0] || null;
+    if (s) { const el = document.querySelector(s); if (usableInput(el)) return el; }
+    const all = [...document.querySelectorAll('input[type="text"], input:not([type]), input[type="search"], textarea')]
+      .filter(usableInput);
+    return all.find(i => /search|player|find/i.test((i.placeholder || '') + ' ' + (i.getAttribute('aria-label') || '')))
+        || all[0] || null;
   }
 
   /* React inputs ignore `el.value = x` — the framework owns the value and will
      overwrite it on the next render. Set through the native setter and dispatch
      a bubbling input event so React's onChange actually runs. */
   function setInput(el, text) {
+    // Guard the illegal-invocation that the mistaught "#bs-dbg" selector caused:
+    // an input value setter applied to a <button> throws and takes staging with it.
+    if (!(el instanceof HTMLInputElement) && !(el instanceof HTMLTextAreaElement)) {
+      say('refusing to type into', el && el.tagName); return false;
+    }
     const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
     const setter = Object.getOwnPropertyDescriptor(proto.prototype, 'value').set;
     setter.call(el, text);
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
   }
 
   const norm = (s) => (s || '')
@@ -155,9 +176,18 @@
   /* Search outward, not globally. The right button is the one attached to the
      player you just staged — a page-wide scan can find a "Draft" control belonging
      to someone else entirely, which is the one mistake that actually costs a pick. */
+  /* Sleeper's real markup, read off the live draft room: the control is
+     .draft-button inside .draft-button-wrapper, and it only exists while you are
+     on the clock. Worth checking by name before falling back to label-guessing. */
+  const KNOWN_DRAFT = '.draft-button-wrapper .draft-button, .draft-button, [class*="draft-button"]';
+
   function findDraftButton(scope) {
     const s = load().draft;
-    if (s) { const el = document.querySelector(s); if (vis(el)) return el; }
+    // A learned selector that resolves to an SVG <path> — which is what you get by
+    // clicking the icon inside the button — has no .click() and would throw.
+    if (s) { const el = document.querySelector(s); if (clickableEl(el)) return el; }
+    const known = [...document.querySelectorAll(KNOWN_DRAFT)].filter(clickableEl)[0];
+    if (known) return known;
     const scopes = [];
     if (scope && scope !== document) {
       scopes.push(scope);
@@ -168,7 +198,7 @@
       .forEach(d => vis(d) && scopes.push(d));
     scopes.push(document);
     for (const sc of scopes) {
-      const hit = [...sc.querySelectorAll(CLICKABLE)].filter(vis).find(draftish);
+      const hit = [...sc.querySelectorAll(CLICKABLE)].filter(clickableEl).find(draftish);
       if (hit) return hit;
     }
     return null;
@@ -233,7 +263,7 @@
         <button class="pri" id="bs-paste">Paste pick from clipboard</button>
         <div class="row">
           <button id="bs-again">Re-find</button>
-          <button id="bs-learn">Teach it</button>
+          <button id="bs-learn" title="right-click to forget">Teach it</button>
           <button id="bs-dbg">Debug</button>
         </div>
         <label class="tog"><input type="checkbox" id="bs-watch"> watch clipboard (no keypress)</label>
@@ -457,6 +487,14 @@
       if (t && t !== staged && plausibleName(t)) stage(t, true);
     }, 700);
 
+    // A bad learned selector beats a good heuristic and fails silently, so there
+    // has to be a way back without opening devtools.
+    p.querySelector('#bs-learn').oncontextmenu = (e) => {
+      e.preventDefault();
+      localStorage.removeItem(LS);
+      sub.innerHTML = '<b>Forgot</b> the taught selectors — back to auto-detect.';
+    };
+
     p.querySelector('#bs-dbg').onclick = () => {
       const n = dumpControls();
       sub.innerHTML = `Copied <b>${n}</b> controls to your clipboard — paste them to Claude. `
@@ -474,9 +512,31 @@
       const sel = load();
       sub.textContent = steps[0][1];
       const grab = (e) => {
+        // Never learn our own UI. Clicking Debug during step 1 is exactly how
+        // "#bs-dbg" got saved as the player search box and broke staging outright.
+        if (mine(e.target)) return;
         e.preventDefault(); e.stopPropagation();
-        sel[steps[i][0]] = pathOf(e.target);
-        say('learned', steps[i][0], sel[steps[i][0]]);
+
+        /* Resolve what was clicked to something usable. You aim at a button and hit
+           the <svg><path> inside it; you aim at a search field and hit its wrapper.
+           Record the working element, not the pixel you happened to land on. */
+        const kind = steps[i][0];
+        let t = null;
+        if (kind === 'search') {
+          t = e.target.closest('input,textarea')
+            || (e.target.closest('div,form,label') || document).querySelector('input,textarea');
+          if (!usableInput(t)) { sub.innerHTML = '<b>That is not a text field.</b> Click the box you type player names into.'; return; }
+        } else {
+          t = e.target.closest(KNOWN_DRAFT) || e.target.closest(CLICKABLE)
+            || (e.target.parentElement && e.target.parentElement.closest(CLICKABLE));
+          if (!clickableEl(t)) { sub.innerHTML = '<b>That is not clickable.</b> Click the Draft button itself.'; return; }
+        }
+
+        sel[kind] = pathOf(t);
+        // Only keep it if the saved path still finds the same element back.
+        const back = document.querySelector(sel[kind]);
+        if (back !== t) { delete sel[kind]; sub.innerHTML = '<b>Could not pin that down</b> — the heuristics will handle it.'; }
+        say('learned', kind, sel[kind], '->', t.tagName);
         if (++i < steps.length) { sub.textContent = steps[i][1]; return; }
         removeEventListener('click', grab, true);
         save(sel); sub.innerHTML = '<b>Learned.</b> Paste a pick to try it.';
