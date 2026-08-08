@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bloody Sunday — draft on Sleeper
 // @namespace    https://github.com/fabfreebird23/draft-dashboard
-// @version      2.0.1
+// @version      2.0.2
 // @description  Take the player you picked in Bloody Sunday and stage him in the Sleeper draft room, so you never type a name mid-draft.
 // @match        https://sleeper.com/*
 // @match        https://sleeper.app/*
@@ -215,6 +215,31 @@
      Identify it by shape and position rather than class: a small square control at
      the far-left edge of the row. The ☆ watchlist and the queue icon sit to the
      RIGHT of the name, so leftmost wins. */
+  /* A bare el.click() dispatches ONE click event and nothing else. React UIs like
+     this one frequently commit on pointerdown/mousedown, so that click does nothing
+     on the ⊕ and then BUBBLES to the row, whose handler opens the player card —
+     exactly the symptom. Send the whole sequence a mouse would, at the element's
+     own coordinates, so whichever event the handler is bound to actually arrives. */
+  function realClick(el) {
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    const base = { bubbles: true, cancelable: true, composed: true, view: window,
+                   clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+                   button: 0, buttons: 1 };
+    const pointer = { ...base, pointerId: 1, pointerType: 'mouse', isPrimary: true };
+    const seq = [['pointerover', 'Pointer'], ['pointerenter', 'Pointer'],
+                 ['mouseover', 'Mouse'], ['pointerdown', 'Pointer'], ['mousedown', 'Mouse'],
+                 ['pointerup', 'Pointer'], ['mouseup', 'Mouse'], ['click', 'Mouse']];
+    for (const [type, kind] of seq) {
+      try {
+        const Ctor = kind === 'Pointer' && window.PointerEvent ? PointerEvent : MouseEvent;
+        el.dispatchEvent(new Ctor(type, kind === 'Pointer' ? pointer : base));
+      } catch (e) { /* a missing event type must not abort the rest */ }
+    }
+    if (typeof el.click === 'function') { try { el.click(); } catch (e) {} }
+    return true;
+  }
+
   function findRowPlus(nameEl) {
     /* Find it by GEOMETRY relative to the name, not by walking the DOM. The ⊕ is a
        small square control sitting on the same line as the player, immediately to
@@ -417,7 +442,7 @@
        guess spends a real pick. Three seconds is the difference between "it
        drafted for me" and "it drafted someone else for me". */
     function fire(btn, name, immediate) {
-      if (immediate) { sub.innerHTML = 'Drafting…'; btn.click(); return; }
+      if (immediate) { sub.innerHTML = 'Drafting…'; realClick(btn); return; }
       let left = 3;
       cd.style.display = '';
       const paint = () => {
@@ -429,7 +454,7 @@
         if (--left > 0) return paint();
         cancelCountdown();
         sub.innerHTML = 'Drafting…';
-        btn.click();
+        realClick(btn);
       }, 1000);
     }
 
@@ -438,7 +463,7 @@
        then the element itself. */
     function clickThrough(el) {
       const t = el.closest(CLICKABLE) || el.querySelector(CLICKABLE) || el;
-      t.click();
+      realClick(t);
     }
 
     const WAIT_MS = 15 * 60 * 1000;    // long enough for a slow room, short enough
@@ -538,8 +563,12 @@
         const plus = findRowPlus(row);
         if (plus) {
           plus.classList.add('bs-plus');
+          const pr = plus.getBoundingClientRect();
+          const desc = `${plus.tagName.toLowerCase()}${plus.className ? '.' + String(plus.className).trim().split(/\s+/)[0] : ''}`
+                     + ` ${Math.round(pr.width)}\u00d7${Math.round(pr.height)} @x${Math.round(pr.left)}`;
+          say('ringed control:', desc, plus);
           if (autoOn()) { fire(plus, name, !fromWatch); return; }
-          sub.innerHTML = 'Found him — the <b>⊕</b> is ringed. Click it to draft.';
+          sub.innerHTML = `Ringed <b>${desc}</b> — is that the \u2295 next to <b>${name}</b>?`;
           return;
         }
         setTimeout(() => {
