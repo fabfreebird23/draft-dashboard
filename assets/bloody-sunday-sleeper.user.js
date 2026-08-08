@@ -40,11 +40,24 @@
 
   const LS = 'bs_sleeper_selectors';
   const LS_AUTO = 'bs_sleeper_autoconfirm';
+  const LS_WATCH = 'bs_sleeper_watch';
   const say = (...a) => console.log('%c[Bloody Sunday]', 'color:#ff336c;font-weight:700', ...a);
 
   const load = () => { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch (e) { return {}; } };
   const save = (s) => localStorage.setItem(LS, JSON.stringify(s));
   const autoOn = () => localStorage.getItem(LS_AUTO) === '1';
+  const watchOn = () => localStorage.getItem(LS_WATCH) === '1';
+
+  /* Does this look like a player somebody copied, or is it just whatever else was
+     on the clipboard? The watcher acts with no keypress behind it, so the bar for
+     touching a string has to be higher than for a deliberate paste. */
+  function plausibleName(t) {
+    if (!t) return false;
+    t = t.trim();
+    if (t.length < 3 || t.length > 40) return false;
+    const words = t.split(/\s+/);
+    return words.length >= 2 && words.length <= 4 && /^[A-Za-z' .-]+$/.test(t);
+  }
 
   // ---------------------------------------------------------------- utilities
 
@@ -151,6 +164,10 @@
   #bs-panel .warn{color:#f0b357}
   #bs-panel .min{padding:0;width:auto;border:none;background:transparent;margin:0 0 0 auto;
     color:#a2989c;font-size:15px;line-height:1}
+  #bs-cd{margin-top:9px;padding:9px 10px;border-radius:8px;background:#3a1020;
+    border:1px solid #5a1b30;font-size:12px;line-height:1.4}
+  #bs-cd b{color:#ff8fae}
+  #bs-cd button{margin:7px 0 0;background:#232022;border-color:#5a1b30}
   .bs-hit{outline:3px solid #ff336c !important;outline-offset:2px;
     border-radius:6px;scroll-margin:120px}`;
 
@@ -169,8 +186,10 @@
           <button id="bs-again">Re-find</button>
           <button id="bs-learn">Teach it</button>
         </div>
+        <label class="tog"><input type="checkbox" id="bs-watch"> watch clipboard (no keypress)</label>
         <label class="tog"><input type="checkbox" id="bs-auto"> auto-click Draft
           <span class="warn" id="bs-autow"></span></label>
+        <div id="bs-cd" style="display:none"></div>
       </div>`;
     document.body.appendChild(p);
 
@@ -218,7 +237,39 @@
       catch (e) { return prompt('Clipboard is blocked here — paste the player name:') || ''; }
     }
 
-    function stage(name) {
+    const cd = p.querySelector('#bs-cd');
+    let cdTimer = null;
+
+    function cancelCountdown(why) {
+      clearInterval(cdTimer); cdTimer = null;
+      cd.style.display = 'none'; cd.innerHTML = '';
+      if (why) sub.textContent = why;
+    }
+
+    /* Fire the Draft click, but only after a visible countdown when nothing the
+       user did directly caused it. An explicit ⌥⇧V is a decision and goes
+       immediately; the clipboard watcher is a guess about intent, and a wrong
+       guess spends a real pick. Three seconds is the difference between "it
+       drafted for me" and "it drafted someone else for me". */
+    function fire(btn, name, immediate) {
+      if (immediate) { sub.innerHTML = 'Drafting…'; btn.click(); return; }
+      let left = 3;
+      cd.style.display = '';
+      const paint = () => {
+        cd.innerHTML = `Drafting <b>${name}</b> in ${left}…<button id="bs-x">Cancel</button>`;
+        cd.querySelector('#bs-x').onclick = () => cancelCountdown('Cancelled — draft him yourself.');
+      };
+      paint();
+      cdTimer = setInterval(() => {
+        if (--left > 0) return paint();
+        cancelCountdown();
+        sub.innerHTML = 'Drafting…';
+        btn.click();
+      }, 1000);
+    }
+
+    function stage(name, fromWatch) {
+      cancelCountdown();
       staged = name;
       who.textContent = name || 'Nothing staged';
       const box = findSearch();
@@ -237,7 +288,7 @@
         row.scrollIntoView({ block: 'center', behavior: 'smooth' });
         if (autoOn()) {
           const b = findDraftButton(row) || findDraftButton(document);
-          if (b) { sub.innerHTML = 'Auto-drafting…'; b.click(); return; }
+          if (b) { fire(b, name, !fromWatch); return; }
           sub.innerHTML = 'Found him — <b>no Draft button</b>. Click it yourself.';
           return;
         }
@@ -252,6 +303,40 @@
       stage(t);
     };
     p.querySelector('#bs-again').onclick = () => staged ? stage(staged) : (sub.textContent = 'Nothing staged yet.');
+
+    /* The clipboard watcher — this is what removes the keypress.
+       Two hard constraints from the browser, both load-bearing:
+         - readText() throws unless the document is FOCUSED, so this can only work
+           while the Sleeper tab is the one you are looking at. That is fine: it
+           means copy in the dashboard, switch tabs, and it stages on arrival.
+         - the first read needs a user gesture to raise Chrome's permission prompt,
+           which is why arming it is a checkbox and not something on by default.
+       Seeded with whatever is already on the clipboard so enabling it does not
+       immediately act on a name left over from ten minutes ago. */
+    const watch = p.querySelector('#bs-watch');
+    let lastSeen = null;
+    watch.checked = watchOn();
+    watch.onchange = async () => {
+      if (watch.checked) {
+        try { lastSeen = (await navigator.clipboard.readText() || '').trim(); }
+        catch (e) {
+          watch.checked = false;
+          sub.innerHTML = '<b>Clipboard read refused.</b> Allow clipboard for sleeper.com, or use ⌥⇧V.';
+          return;
+        }
+        sub.textContent = 'Watching. Copy in the dashboard, then come back to this tab.';
+      }
+      localStorage.setItem(LS_WATCH, watch.checked ? '1' : '0');
+    };
+
+    setInterval(async () => {
+      if (!watchOn() || cdTimer || !document.hasFocus()) return;
+      let t;
+      try { t = (await navigator.clipboard.readText() || '').trim(); } catch (e) { return; }
+      if (t === lastSeen) return;
+      lastSeen = t;
+      if (t && t !== staged && plausibleName(t)) stage(t, true);
+    }, 700);
 
     /* Learn mode. The selectors above are guesses about markup I cannot see —
        Sleeper's draft room is behind a login. Three clicks record the real ones. */
