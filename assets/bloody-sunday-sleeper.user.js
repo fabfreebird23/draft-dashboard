@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bloody Sunday — draft on Sleeper
 // @namespace    https://github.com/fabfreebird23/draft-dashboard
-// @version      1.5.2
+// @version      1.6.0
 // @description  Take the player you picked in Bloody Sunday and stage him in the Sleeper draft room, so you never type a name mid-draft.
 // @match        https://sleeper.com/*
 // @match        https://sleeper.app/*
@@ -463,8 +463,14 @@
             'Found him. <b>Draft</b> is ready — press it.'); return true; }
           return false;
         };
-        if (proceed(findDraftButton(row))) return;
 
+        /* SELECT, THEN DRAFT — in that order, always.
+           The previous version hunted for the Draft button and pressed it without
+           opening the player first. Watching it run: the countdown fired, it
+           clicked, and Sleeper opened a player card instead of drafting. That is
+           what pressing Draft with nothing selected does. A human clicks the
+           player, then Draft, so do that — clicking a row is harmless either way,
+           and the button that matters often only appears once he is open. */
         clickThrough(row);
         setTimeout(() => {
           if (proceed(findDraftButton(row))) return;
