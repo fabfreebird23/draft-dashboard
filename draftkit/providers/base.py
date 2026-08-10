@@ -72,6 +72,12 @@ class Provider(ABC):
     def get_live_picks(self) -> List[Pick]:
         """Fresh (uncached) normalized picks. Empty list before a draft starts."""
 
+    def get_bench_count(self) -> int:
+        """Bench slots. Needed to show the roster you are actually filling: the
+        starters alone are 9 of Kreeper's 14, so a starters-only view hides a third
+        of the draft. Providers that cannot report it fall back below."""
+        return 0
+
     def get_traded_picks(self) -> dict:
         """Draft picks swapped via trades, keyed by (round, original_team_id) ->
         current_owner_team_id (team_id is the same id space as Team.team_id). Default

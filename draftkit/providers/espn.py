@@ -123,6 +123,17 @@ class EspnProvider(Provider):
             slots.extend([_SLOT_LABEL.get(sid, "FLEX")] * int(v))
         return slots or ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX"]
 
+    def get_bench_count(self) -> int:
+        # ESPN's lineupSlotCounts has bench under slot 20; fall back to the gap
+        # between draft rounds and starters when it is missing.
+        d = self._read(["mSettings"])
+        counts = ((d.get("settings", {}).get("rosterSettings") or {})
+                  .get("lineupSlotCounts", {})) or {}
+        bn = int(counts.get("20", 0) or 0)
+        if bn:
+            return bn
+        return max(0, self.get_league_meta().draft_rounds - len(self.get_roster_slots()))
+
     def get_live_picks(self) -> List[Pick]:
         d = self._read(["mDraftDetail"], fresh=True)
         dd = d.get("draftDetail", {}) or {}

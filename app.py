@@ -416,6 +416,15 @@ def build_context(sel: dict) -> dict:
             prev = adp
             pos_tier[str(p["pid"])] = tier
 
+    try:
+        bench_slots = provider.get_bench_count()
+    except Exception:  # noqa: BLE001
+        bench_slots = 0
+    # Sanity: starters + bench should equal the draft length. When a provider can't
+    # report the bench, derive it so the roster panel still shows every pick.
+    if not bench_slots:
+        bench_slots = max(0, meta.draft_rounds - len(roster_slots))
+
     # Keepers (from the league's companion keeper dashboard) + placements.
     keepers_raw = get_keepers(meta.platform, meta.league_id, config.current_season())
     placements = keepers_mod.build_placements(
@@ -461,6 +470,7 @@ def build_context(sel: dict) -> dict:
         "registry": registry, "provider": provider, "meta": meta,
         "get_ranks": get_ranks,
         "slot_names": slot_names, "roster_slots": roster_slots,
+        "bench_slots": bench_slots,
         "owner_by_slot": owner_by_slot, "owner_slot": owner_slot,
         "adp_df": adp_df, "adp_rank": adp_rank, "adp_pool": adp_pool,
         "ai_pool": ai_pool, "rookie_curve": rookie_curve,

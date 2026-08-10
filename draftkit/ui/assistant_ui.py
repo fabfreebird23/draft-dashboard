@@ -409,7 +409,9 @@ def _live(ctx, *, bound_auto: bool) -> None:
                                  key=f"{akey}_teamview", label_visibility="collapsed")
             _vslot = _labels.index(_pick)
             _vpids = pids_by_slot.get(_vslot, [])
-            st.markdown(C.lineup_html(_vpids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+            st.markdown(C.full_roster_html(_vpids, ctx["roster_slots"],
+                                           ctx.get("bench_slots", 0), reg,
+                                           byes=ctx.get("byes")), unsafe_allow_html=True)
             st.markdown(C.roster_balance_html(_vpids, ctx["roster_slots"], reg), unsafe_allow_html=True)
             st.markdown(C.roster_needs_html(_vpids, ctx["roster_slots"], reg), unsafe_allow_html=True)
             if _vslot == my_slot:

@@ -351,6 +351,55 @@ def lineup_html(pids: list, roster_slots: List[str], registry, bench_cap: int = 
     return '<div class="dr-lineup">' + "".join(rows) + "</div>"
 
 
+def full_roster_html(pids: list, roster_slots: List[str], bench_n: int, registry,
+                     byes=None) -> str:
+    """The whole roster you are actually drafting — every starter slot AND every
+    bench slot, filled or empty.
+
+    lineup_html shows starters plus whatever overflowed to the bench, which hides
+    how much of the draft is left: Kreeper starts 9 and rosters 14, so a
+    starters-only view is missing five picks. Empty slots are the point of this
+    panel, so they are drawn as slots rather than omitted.
+    """
+    slots, filled, bench = fill_lineup(pids, roster_slots, registry)
+    open_starters = [s for s, pid in zip(slots, filled) if not pid]
+    total = len(roster_slots) + bench_n
+    have = len([p for p in pids if p])
+
+    def row(slot_label, pid, cls=""):
+        if pid:
+            pm = registry.meta(pid)
+            bye = (byes or {}).get(pm.team) if byes else None
+            meta = " · ".join(x for x in (pm.position, pm.team, f"bye {bye}" if bye else "") if x)
+            body = (f'<span class="nm">{pm.name}</span>'
+                    f'<span class="fr-meta">{meta}</span>')
+        else:
+            body = '<span class="nm"><span class="empty-pill">Empty</span></span>'
+            cls += " empty"
+        return f'<div class="slot{cls}"><span class="pos {slot_label}">{slot_label}</span>{body}</div>'
+
+    rows = [row(s, pid) for s, pid in zip(slots, filled)]
+    if bench_n:
+        rows.append('<div class="fr-div">Bench</div>')
+        for i in range(bench_n):
+            rows.append(row("BN", bench[i] if i < len(bench) else None))
+    # anything beyond the league's bench size — over-drafted, or IR-bound
+    for pid in bench[bench_n:]:
+        rows.append(row("BN", pid, cls=" extra"))
+
+    # "14 of 14 filled — still need TE" reads as a contradiction. You can draft a
+    # full roster and still have an empty starting slot, because the count is of
+    # PLAYERS and the need is of SLOTS. Say "drafted" and the two agree.
+    from collections import Counter
+    cnt = Counter(open_starters)
+    need = (", ".join(f"{pos}\u00d7{k}" if k > 1 else pos
+                      for pos, k in sorted(cnt.items(), key=lambda kv: open_starters.index(kv[0])))
+            if open_starters else "starters complete \u2014 bench from here")
+    head = (f'<div class="fr-head"><b>{have}</b> of <b>{total}</b> drafted'
+            f'<span class="fr-need">still need: {need}</span></div>')
+    return '<div class="dr-lineup fr">' + head + "".join(rows) + "</div>"
+
+
 def roster_needs_html(my_pids: list, roster_slots: List[str], registry) -> str:
     """A 'needs' strip: how many of each starting slot are still open."""
     need = {}

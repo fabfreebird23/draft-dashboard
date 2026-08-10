@@ -138,6 +138,10 @@ class SleeperProvider(Provider):
         starters = [("DST" if p == "DEF" else p) for p in starters]
         return starters or list(_DEFAULT_SLOTS)
 
+    def get_bench_count(self) -> int:
+        rp = self._league().get("roster_positions") or []
+        return len([x for x in rp if x in _BENCH])
+
     def get_live_picks(self) -> List[Pick]:
         draft_id = self._draft_id()
         if not draft_id:

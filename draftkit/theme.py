@@ -351,6 +351,19 @@ div[data-testid="stRadio"] label{ font-size:12px; }
   font-size:13px; box-shadow:0 1px 3px rgba(28,138,77,.10); }
 .dr-rec b{ color:#15703d; font-weight:800; } .dr-rec .why{ color:var(--muted); }
 
+/* ---- full roster panel: every slot, filled or not ---- */
+.dr-lineup.fr .fr-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
+  font-size:12px; color:var(--muted); padding:2px 0 7px; border-bottom:1px solid var(--line);
+  margin-bottom:5px; }
+.dr-lineup.fr .fr-head b{ color:var(--ink); font-size:13.5px; }
+.dr-lineup.fr .fr-need{ margin-left:auto; font-weight:700; color:var(--accent); }
+.dr-lineup.fr .fr-div{ font-size:9.5px; font-weight:800; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--faint,var(--muted)); margin:9px 0 3px; }
+.dr-lineup.fr .fr-meta{ margin-left:auto; font-size:10.5px; color:var(--muted);
+  white-space:nowrap; }
+.dr-lineup.fr .slot.empty{ opacity:.85; }
+.dr-lineup.fr .slot.extra .pos{ opacity:.5; }
+
 /* ---- pick predictor ---- */
 .dr-predict{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 10px;
   margin-bottom:9px; }
