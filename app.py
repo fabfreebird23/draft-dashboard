@@ -332,10 +332,19 @@ def build_context(sel: dict) -> dict:
     # slot, but leagues trade picks (you can hold 2 in a round, 0 in another). Build
     # pick_owner_slot(overall) so turn order, my-picks, and AI ownership are correct.
     from draftkit.ui import components as _C
+    traded_failed = False
     try:
         traded = provider.get_traded_picks()
     except Exception:  # noqa: BLE001 — never break the draft over a trade fetch
-        traded = {}
+        traded, traded_failed = {}, True
+    # STICKY, like every other fetch here. Falling back to {} does not degrade the
+    # board gracefully — it renders a clean, confident, WRONG snake in which every
+    # traded pick silently returns to its original owner. Kreeper has 33 traded
+    # picks; losing them moves six of his own picks to other managers and hands him
+    # five he does not own. A blank board announces a problem; a plausible one does
+    # not, which is why this specific fetch must never be allowed to fail quietly.
+    traded = _sticky(f"traded:{meta.platform}:{meta.league_id}", traded)
+    traded_failed = traded_failed and not traded
     _n = len(slot_names)
     _snake = _C.snake(_n)
 
@@ -465,6 +474,7 @@ def build_context(sel: dict) -> dict:
             "names_scraped": bool(mgr_names),
         },
         "pick_owner_slot": pick_owner_slot, "traded_picks": traded,
+        "traded_failed": traded_failed,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
         "my_team": sel.get("my_team"),
         "board_age_h": board_age_h,

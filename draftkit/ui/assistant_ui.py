@@ -247,6 +247,11 @@ def _live(ctx, *, bound_auto: bool) -> None:
     need_map = C.needs_by_slot(pids_by_slot, slot_names, ctx["roster_slots"], reg)
 
     # ---- draft board: static, full width, pinned on top ----
+    if ctx.get("traded_failed"):
+        # Say it out loud. A board drawn as a plain snake looks entirely normal.
+        st.warning("Couldn't read traded picks just now — the board below is showing "
+                   "the plain snake order, so any pick you traded for or away is in "
+                   "the wrong column. Hit Refresh before trusting it.", icon="⚠️")
     with st.container(key="dr_board_top"):
         st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
         st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,
