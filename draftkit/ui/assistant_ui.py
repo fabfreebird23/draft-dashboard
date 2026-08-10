@@ -247,6 +247,16 @@ def _live(ctx, *, bound_auto: bool) -> None:
     need_map = C.needs_by_slot(pids_by_slot, slot_names, ctx["roster_slots"], reg)
 
     # ---- draft board: static, full width, pinned on top ----
+    if ctx.get("mock_draft_id"):
+        mm = ctx.get("mock_mismatch")
+        if mm:
+            st.error(f"That mock has **{mm[0]} teams** and this league has **{mm[1]}** — "
+                     "picks are placed by draft slot, so they would land on the wrong "
+                     "managers. Use a mock with the same number of teams.", icon="⚠️")
+        else:
+            st.caption(f"Following Sleeper mock `{ctx['mock_draft_id']}` — picks come from "
+                       "the mock; your league's draft order, manager names and traded "
+                       "picks are unchanged. Clear the field in ⚙ to go back.")
     if ctx.get("traded_failed"):
         # Say it out loud. A board drawn as a plain snake looks entirely normal.
         st.warning("Couldn't read traded picks just now — the board below is showing "

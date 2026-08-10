@@ -22,11 +22,15 @@ def _scoring_label(lg: dict) -> str:
 class SleeperProvider(Provider):
     platform = "sleeper"
 
-    # A Sleeper MOCK draft, when one is being followed instead of the league's own.
-    # Mocks are readable over the same public API (league_id comes back null) but
-    # have their own team count and round count, so they cannot simply reuse the
-    # league's. Everything else — scoring, roster slots — deliberately stays the
-    # league's, because the point of the mock is rehearsing THAT league.
+    # A Sleeper MOCK draft, when one is being followed for practice.
+    #
+    # It supplies the PICKS and nothing else. The first cut of this also took the
+    # mock's seats and dropped traded picks — "a mock has no members" — which threw
+    # away the league identity that makes the rehearsal worth doing: the board
+    # reverted to anonymous Team 1..N and every traded pick went back to its
+    # original owner. You follow a mock to rehearse a SPECIFIC league, so the
+    # league's draft order, manager names, traded picks, scoring and roster slots
+    # all stay exactly as they are. Only the picks come from elsewhere.
     mock_draft_id = None
 
     def _league(self) -> dict:
@@ -44,8 +48,10 @@ class SleeperProvider(Provider):
         if draft_id:
             d = api.get_draft(draft_id) or {}
             rounds = int((d.get("settings") or {}).get("rounds") or 0)
-            if self.mock_draft_id:
-                n_teams = int((d.get("settings") or {}).get("teams") or n_teams)
+            # num_teams stays the LEAGUE's. Picks are mapped onto league slots by
+            # draft_slot, so a different seat count would silently scatter them
+            # across the wrong managers — mock_teams_mismatch() reports that
+            # instead of quietly producing a wrong board.
         if not rounds:
             rounds = len([p for p in roster_pos if p not in _BENCH]) or 15
         return LeagueMeta(
@@ -63,14 +69,20 @@ class SleeperProvider(Provider):
             },
         )
 
+    def mock_teams_mismatch(self):
+        """(mock_teams, league_teams) when a followed mock has a different seat
+        count, else None. Picks map by draft_slot, so mismatched counts cannot be
+        placed correctly and the caller should say so rather than guess."""
+        if not self.mock_draft_id:
+            return None
+        d = api.get_draft(self.mock_draft_id) or {}
+        mt = int((d.get("settings") or {}).get("teams") or 0)
+        lt = int((self._league().get("total_rosters") or 0))
+        return (mt, lt) if mt and lt and mt != lt else None
+
     def get_draft_order(self) -> List[Team]:
-        if self.mock_draft_id:
-            # A mock has no members — slot_to_roster_id is all there is, and the
-            # seats are anonymous. Name them the way Sleeper's own board does.
-            d = api.get_draft(self.mock_draft_id) or {}
-            slots = (d.get("slot_to_roster_id") or {})
-            n = int((d.get("settings") or {}).get("teams") or len(slots) or 10)
-            return [Team(slot=i, team_id=f"mock{i+1}", name=f"Team {i + 1}") for i in range(n)]
+        # Deliberately NOT mock-aware: the league's seats and manager names are the
+        # whole point of rehearsing this league.
         lg = self._league()
         users = {u["user_id"]: u for u in (api.get_users(self.league_id) or [])}
         draft_id = lg.get("draft_id")
@@ -101,8 +113,8 @@ class SleeperProvider(Provider):
         traded picks by roster_id, so we translate to the user_id space the rest of
         the app keys teams on."""
         lg = self._league()
-        draft_id = self._draft_id()
-        if self.mock_draft_id or not draft_id:
+        draft_id = lg.get("draft_id")     # the LEAGUE's trades, never the mock's
+        if not draft_id:
             return {}
         rosters = api.get_rosters(self.league_id) or []
         rid_to_uid = {r.get("roster_id"): str(r.get("owner_id")) for r in rosters}

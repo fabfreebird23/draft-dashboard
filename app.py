@@ -345,6 +345,14 @@ def build_context(sel: dict) -> dict:
     # not, which is why this specific fetch must never be allowed to fail quietly.
     traded = _sticky(f"traded:{meta.platform}:{meta.league_id}", traded)
     traded_failed = traded_failed and not traded
+    # Following a mock with a different seat count cannot work: picks are placed by
+    # draft_slot onto LEAGUE slots, so a 12-seat mock in a 10-team league puts two
+    # managers' picks on nobody. Report it rather than draw it.
+    mock_mismatch = None
+    try:
+        mock_mismatch = provider.mock_teams_mismatch()
+    except AttributeError:
+        pass
     _n = len(slot_names)
     _snake = _C.snake(_n)
 
@@ -474,7 +482,8 @@ def build_context(sel: dict) -> dict:
             "names_scraped": bool(mgr_names),
         },
         "pick_owner_slot": pick_owner_slot, "traded_picks": traded,
-        "traded_failed": traded_failed,
+        "traded_failed": traded_failed, "mock_draft_id": sel.get("mock_draft_id"),
+        "mock_mismatch": mock_mismatch,
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
         "my_team": sel.get("my_team"),
         "board_age_h": board_age_h,
