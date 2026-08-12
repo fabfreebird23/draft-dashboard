@@ -48,7 +48,9 @@ def _assemble_rosters(ctx, source: str):
         rosters.setdefault(owner(int(ov)), []).append(pid)
     picks_made = len([ov for ov in board if ov not in keeper_overalls])
     total = ctx["meta"].num_teams * ctx["meta"].draft_rounds - len(keeper_overalls)
-    return rosters, picks_made, max(0, total)
+    # the board itself goes back too: the recap needs to know WHEN each player went,
+    # not just who ended up where.
+    return rosters, picks_made, max(0, total), board, keeper_overalls
 
 
 @st.cache_data(show_spinner=False)
@@ -84,7 +86,7 @@ def render(ctx) -> None:
                    index=["Mock draft", "Live draft"].index(default_src),
                    horizontal=True, key=f"rc_src_{ctx['league_key']}")
 
-    rosters, made, total = _assemble_rosters(ctx, src)
+    rosters, made, total, board, keeper_ovs = _assemble_rosters(ctx, src)
     if made == 0:
         st.info("No picks yet for this source. Run a **Mock Draft** (or sync a **Live "
                 "Draft**), then come back for the report card." if src == "Mock draft"
@@ -177,6 +179,64 @@ def render(ctx) -> None:
                        f"(VORP {r['starter_vorp']:+d}) · {r['n_players']} players rostered"
                        + (f" · past win% {round(100*r['hist_winpct'])}%"
                           if r["hist_winpct"] is not None else ""))
+
+    # ---- what you left on the board ----
+    if my_slot is not None:
+        _mine = next((r for r in rows if r["slot"] == my_slot), None)
+        _pts = [r["proj_points"] for r in rows]
+        _mu = sum(_pts) / len(_pts)
+        _sd = (sum((x - _mu) ** 2 for x in _pts) / len(_pts)) ** 0.5 or 1.0
+        st.markdown('<div class="dr-h" style="margin-top:14px;">What you left on the '
+                    'board</div>', unsafe_allow_html=True)
+        with st.spinner("Replaying your picks…"):
+            regs = grades.pick_regrets(board, my_slot, ctx, keeper_overalls=keeper_ovs,
+                                       limit=6, mu=_mu, sd=_sd)
+        if not regs:
+            st.success("Nothing available at any of your picks would have scored higher. "
+                       "That is the best board you could have drafted.")
+        else:
+            n = ctx["meta"].num_teams
+            rws = []
+            for r in regs:
+                took, alt = reg.meta(r["took"]), reg.meta(r["pid"])
+                rnd, pk = (r["overall"] - 1) // n + 1, (r["overall"] - 1) % n + 1
+                if r["cand_taken_at"]:
+                    ta = (r["cand_taken_at"] - 1) // n + 1, (r["cand_taken_at"] - 1) % n + 1
+                    where = f'went {ta[0]}.{ta[1]:02d}'
+                else:
+                    where = '<b style="color:#f59e0b;">went undrafted</b>'
+                both = ('<span style="color:#22d3aa;"> · you could have had both</span>'
+                        if r["both"] else "")
+                rws.append(
+                    f'<tr><td style="color:#64748b;">{rnd}.{pk:02d}</td>'
+                    f'<td>{took.name} <span style="color:#64748b;">{took.position}</span></td>'
+                    f'<td style="color:#22d3aa;font-weight:600;">{alt.name} '
+                    f'<span style="color:#64748b;font-weight:400;">{alt.position}</span></td>'
+                    f'<td style="text-align:right;color:#22d3aa;">+{r["gain"]:.0f}</td>'
+                    f'<td style="font-size:.86em;color:#94a3b8;">{where}{both}</td></tr>')
+            st.markdown(
+                '<table style="width:100%;border-collapse:collapse;font-size:.92rem;">'
+                '<thead style="color:#94a3b8;text-align:left;font-size:.8rem;'
+                'text-transform:uppercase;letter-spacing:.04em;"><tr><th>Pick</th>'
+                '<th>You took</th><th>Better option</th><th style="text-align:right;">'
+                '+pts/wk</th><th>Notes</th></tr></thead><tbody>'
+                + "".join(rws) + '</tbody></table>', unsafe_allow_html=True)
+            _best, _end = regs[0], regs[-1]
+            _from = _mine["grade"] if _mine else "?"
+            st.caption(
+                f"All {len(regs)} swaps together would have taken you from "
+                f"**{_from}** to **{_end['grade_if'] or '?'}** "
+                f"({_end['total_pts']:.0f} pts/wk). Each row is measured against the "
+                f"roster *after* the rows above it, so the gains do not double-count "
+                f"two fixes to the same hole — and no player is offered twice, since "
+                f"you can only draft him once.")
+            st.caption(
+                "⚠️ Every other team's picks are held fixed. Taking a different player "
+                "would really have changed what everyone after you did, so treat these "
+                "as an upper bound on what the swap was worth. The rows marked *you "
+                "could have had both* are the solid ones: the player you actually took "
+                "was still on the board at your next pick, so it was never a choice "
+                "between them.")
 
     st.caption("How it works: each team's **best legal starting lineup** projects its "
                "weekly points; the **grade** curves that across the league. Records & "

@@ -278,3 +278,91 @@ def league_report(rosters: Dict[int, list], ctx, n_sims: int = 4000) -> List[dic
     for seed, r in enumerate(rows, 1):
         r["proj_seed"] = seed
     return rows
+
+
+def pick_regrets(board: Dict[int, str], my_slot: int, ctx, *, keeper_overalls=None,
+                 limit: int = 6, pool_cap: int = 140, mu=None, sd=None) -> List[dict]:
+    """The swaps that would most have raised your Report Card, one player each.
+
+    Scored on the SAME number the Report Card grades — projected starter points
+    from ``optimal_lineup`` — because a recap that optimises a different quantity
+    than the grade it claims to improve is just a second opinion in the grade's
+    clothing.
+
+    Greedy and NON-OVERLAPPING. Scoring every pick independently is the obvious
+    implementation and it produces nonsense: the same star comes back as the answer
+    to all fourteen picks, because he improves every one of them and nothing stops
+    him being spent twice. You can only draft a man once. So: take the single best
+    (pick, player) pair, retire both, recompute, repeat.
+
+    Recompute is the operative word — after a swap lands, the roster has changed,
+    and the next swap is measured against the NEW lineup. Otherwise the gains are
+    counted against a roster that no longer exists and adding them up overstates
+    the total, usually badly, since two swaps at the same position mostly overlap.
+
+    ONE ASSUMPTION, load-bearing: every other team's picks are held fixed. Taking
+    Chase at 3.05 would really have changed what everyone after you did, so these
+    are an upper bound on what a swap was worth, not a replay.
+
+    That assumption is weakest where it matters most, so each row reports ``both``:
+    whether the player you actually took was STILL on the board at your next pick.
+    When true, it was never either/or — you could have had both, and the regret is
+    real rather than hypothetical.
+    """
+    value, registry = ctx["value"], ctx["registry"]
+    slots = ctx["roster_slots"]
+    owner = ctx["pick_owner_slot"]
+    keeper_overalls = set(int(o) for o in (keeper_overalls or ()))
+
+    mine = sorted((int(ov), str(pid)) for ov, pid in board.items()
+                  if owner(int(ov)) == my_slot and int(ov) not in keeper_overalls)
+    if not mine:
+        return []
+    # the whole roster, keepers included — the grade is graded on all of it
+    my_pids = [str(pid) for ov, pid in board.items() if owner(int(ov)) == my_slot]
+    my_next = {ov: nxt for (ov, _), (nxt, _) in zip(mine, mine[1:])}
+    drafted_at = {}
+    for ov, pid in board.items():
+        drafted_at.setdefault(str(pid), int(ov))
+
+    # adp_pool is [{pid, name, pos, adp}, ...] already in draft order.
+    universe = [str(r["pid"]) for r in (ctx.get("adp_pool") or []) if r.get("pid")]
+
+    roster = list(my_pids)
+    out, used_picks, used_cands = [], set(), set()
+    for _ in range(max(1, limit)):
+        base_pts = optimal_lineup(roster, slots, registry, value)[1]
+        best = None                      # (gain, overall, took, candidate)
+        for ov, took in mine:
+            if ov in used_picks or took not in roster:
+                continue
+            gone = {str(p) for o, p in board.items() if int(o) < ov}
+            without = [p for p in roster if p != took]
+            held = set(without)
+            n_seen = 0
+            for c in universe:
+                if c in gone or c in held or c in used_cands:
+                    continue
+                n_seen += 1
+                if n_seen > pool_cap:
+                    break
+                gain = optimal_lineup(without + [c], slots, registry, value)[1] - base_pts
+                if gain > 0.05 and (best is None or gain > best[0]):
+                    best = (gain, ov, took, c)
+        if best is None:
+            break
+        gain, ov, took, cand = best
+        roster = [p for p in roster if p != took] + [cand]
+        used_picks.add(ov)
+        used_cands.add(cand)
+        nxt = my_next.get(ov)
+        still_there = bool(nxt) and drafted_at.get(took, 10 ** 6) >= nxt
+        new_pts = optimal_lineup(roster, slots, registry, value)[1]
+        out.append({
+            "overall": ov, "took": took, "pid": cand, "gain": round(gain, 1),
+            "both": still_there, "next_pick": nxt,
+            "cand_taken_at": drafted_at.get(cand),      # None => went undrafted
+            "grade_if": _letter((new_pts - mu) / sd) if (mu is not None and sd) else None,
+            "total_pts": round(new_pts, 1),
+        })
+    return out
