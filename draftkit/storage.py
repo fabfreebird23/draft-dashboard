@@ -106,6 +106,19 @@ def _gh_write(path: str, obj, message: str) -> None:
 
 
 # ------------------------------------------------------------------- public API
+# When THIS process saved each board. The persisted stamp is the durable record;
+# this is the immediate one, and it exists because the age is read through a cached
+# wrapper — without something that changes the moment you save, a fresh pull kept
+# reporting the old age until the cache expired.
+_SAVED_AT: dict = {}
+
+
+def save_epoch(key: str) -> float:
+    """When this process last saved `key`, or 0. Free — no I/O. Callers pass it as
+    a cache key so a save invalidates their cached age."""
+    return float(_SAVED_AT.get(key, 0.0))
+
+
 def save_rankings(key: str, rankings: List[dict]) -> None:
     """Persist a personal rankings list (repo-backed when configured, else local).
 
@@ -113,6 +126,7 @@ def save_rankings(key: str, rankings: List[dict]) -> None:
     design, it is hand-tuned and must never be overwritten — which means it can
     quietly drift weeks out of date with no signal anywhere in the UI. The stamp
     is what lets the topbar show its age."""
+    _SAVED_AT[key] = time.time()
     _save_doc("ranksmeta", key, {"saved_at": time.time(), "n": len(rankings or [])})
     if _gh_config() is not None:
         try:
@@ -253,6 +267,10 @@ def rankings_age_hours(key: str) -> Optional[float]:
     Three fallbacks, because the board can live in either backend and may predate
     stamping: the saved_at stamp, then the repo file's last commit date, then the
     local file's mtime."""
+    # This process just wrote it — more authoritative than any backend read, and it
+    # cannot be stale.
+    if _SAVED_AT.get(key):
+        return max(0.0, (time.time() - _SAVED_AT[key]) / 3600.0)
     meta = _load_doc("ranksmeta", key, {})
     ts = meta.get("saved_at") if isinstance(meta, dict) else None
     if ts:

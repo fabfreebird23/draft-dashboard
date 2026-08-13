@@ -175,11 +175,20 @@ def get_league_phase(platform: str, league_id: str, season: int):
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def get_board_age(league_key: str):
-    """Hours since the saved board was last written. Cached — the repo-backend
-    path costs a GitHub API call and build_context runs on every rerun."""
+def get_board_age(league_key: str, _saved_at: float = 0.0):
+    """Hours since the saved board was last written. Cached — the repo-backend path
+    costs a GitHub API call and build_context runs on every rerun.
+
+    `_saved_at` is unused inside and is the whole point: it puts the last save into
+    the CACHE KEY. Without it, pulling a fresh board left the age reporting the old
+    value for the full TTL — "loaded new rankings, board still says 7 days old"."""
     from draftkit import storage
     return storage.rankings_age_hours(league_key)
+
+
+def board_age(league_key: str):
+    from draftkit import storage
+    return get_board_age(league_key, storage.save_epoch(league_key))
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
@@ -298,7 +307,7 @@ def league_picker():
     """Home. All four leagues are baked into SAVED_LEAGUES, so this is purely the
     dashboard — the ad-hoc import form is gone. Adding a league is a one-line edit
     to SAVED_LEAGUES, which is the honest cost given how rarely it happens."""
-    home_ui.render(SAVED_LEAGUES, _select_league, board_age_fn=get_board_age)
+    home_ui.render(SAVED_LEAGUES, _select_league, board_age_fn=board_age)
 
 
 
@@ -465,7 +474,7 @@ def build_context(sel: dict) -> dict:
 
     league_key = f"{meta.platform}_{meta.league_id}"
     from draftkit import storage as storage_mod
-    board_age_h = get_board_age(league_key)
+    board_age_h = board_age(league_key)
     return {
         "registry": registry, "provider": provider, "meta": meta,
         "get_ranks": get_ranks,
