@@ -118,7 +118,8 @@ def render(ctx, summary=None) -> None:
         if days is not None and days >= 0:
             when = config.fmt_local(summary.draft_at,
                                     "%a, %b %-d · %-I:%M%p").replace("AM", "am").replace("PM", "pm")
-            _tile(f"pk1_{lid}", "draft in", f"{max(1, int(round(days)))} days", when)
+            _n = max(1, int(round(days)))
+            _tile(f"pk1_{lid}", "draft in", f"{_n} day" if _n == 1 else f"{_n} days", when)
         else:
             _tile(f"pk1_{lid}", "draft in", "—", "no date set on the platform yet")
     with tiles[1]:

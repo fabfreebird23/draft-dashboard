@@ -62,6 +62,13 @@ def _hub_or_platform(s):
     return None
 
 
+def _days_label(d) -> str:
+    """"1 days" on the tile the night before a draft is a small thing that makes the
+    whole screen look unattended."""
+    n = max(1, int(round(d)))
+    return f"{n} day" if n == 1 else f"{n} days"
+
+
 def render(presets, on_pick, board_age_fn=None) -> None:
     head = st.columns([3, 2])
     with head[0]:
@@ -124,7 +131,7 @@ def _render_hero(preset, s, age, on_pick) -> None:
             d = s.days_to_draft
             with t[0]:
                 _tile("drafts in",
-                      f"{max(1, int(round(d)))} days" if (d is not None and d >= 0) else "—",
+                      _days_label(d) if (d is not None and d >= 0) else "—",
                       s.note.split("·")[-1].strip().rstrip(".") if (d is not None and d >= 0)
                       else "no date set yet")
             with t[1]:
