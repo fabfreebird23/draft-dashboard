@@ -325,8 +325,17 @@ def pick_regrets(board: Dict[int, str], my_slot: int, ctx, *, keeper_overalls=No
     for ov, pid in board.items():
         drafted_at.setdefault(str(pid), int(ov))
 
+    # KEEPERS WERE NEVER AVAILABLE. They sit on the board at their keeper-cost slot
+    # — a kept Gibbs shows up at 14.01 — so "not picked before this overall" reads
+    # him as free for thirteen rounds. He was on someone's roster the whole time.
+    # This produced a recap whose every suggestion was a player nobody could have
+    # drafted: Gibbs, Bijan, Chase and Bowers, all "went" in round 14.
+    kept_by_others = {str(board[o]) for o in keeper_overalls
+                      if o in board and owner(int(o)) != my_slot}
+
     # adp_pool is [{pid, name, pos, adp}, ...] already in draft order.
-    universe = [str(r["pid"]) for r in (ctx.get("adp_pool") or []) if r.get("pid")]
+    universe = [str(r["pid"]) for r in (ctx.get("adp_pool") or []) if r.get("pid")
+                and str(r["pid"]) not in kept_by_others]
 
     roster = list(my_pids)
     out, used_picks, used_cands = [], set(), set()
