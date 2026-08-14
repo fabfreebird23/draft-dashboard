@@ -326,18 +326,21 @@ def _waivers(ctx, g) -> None:
         st.markdown('<div class="ws-h">Drop candidates — keeper aware</div>', unsafe_allow_html=True)
         started = {str(p) for _, p in W.lineup_check(g["mine"], g["slots"], g["proj"], reg,
                                                      g["byes"], g["week"])["spots"] if p}
-        rules = K.load_keeper_rules(str(meta.league_id)) if meta.platform == "sleeper" else {}
+        krows = {r["pid"]: r for r in _keeper_rows(ctx, g)}
         rws = []
         for p in sorted(g["mine"], key=lambda x: float(g["proj"].get(x, 0) or 0)):
             if p in started:
                 continue
-            kp = inseason.keeper_price(meta, p, reg, rules) or {}
-            cheap = (kp.get("round") or 99) >= max(1, int(meta.draft_rounds) - 2)
+            r = krows.get(str(p))
             pm = reg.meta(p)
+            if r and r["verdict"] == "keep":
+                verdict = _chip(f'keeper +{r["surplus"]} — hold', "bad")
+            elif r and (r["surplus"] or -99) > -10:
+                verdict = _chip(f'next keeper up (R{r["cost_round"]})', "warn")
+            else:
+                verdict = _chip("safe drop", "ok")
             rws.append([f'{pm.name} {_pos_pill(pm.position)}',
-                        f'{float(g["proj"].get(p,0) or 0):.1f}',
-                        _chip("safe drop", "ok") if cheap else
-                        _chip(f'keeper R{kp.get("round","?")}', "warn")])
+                        f'{float(g["proj"].get(p,0) or 0):.1f}', verdict])
             if len(rws) >= 5:
                 break
         st.markdown(_tbl(["Player", "~Proj", "Verdict"], rws), unsafe_allow_html=True)
@@ -401,6 +404,34 @@ def _matchup(ctx, g) -> None:
 
 
 # -------------------------------------------------------------------- 4 trades
+def _keeper_rows(ctx, g) -> list:
+    """The keeper table, priced properly — the ONE place that answers "what does
+    this player cost to keep".
+
+    inseason.keeper_price answers a narrower question (what a WAIVER ADD costs) and
+    returns the last round for everybody. Three screens were calling it: Keepers
+    (fixed), the Trades keeper lens and the Waivers drop warnings — both of which
+    were therefore telling him every player on his roster was an R14 keeper, which
+    is exactly the failure the Keepers tab already had.
+    """
+    meta, reg = ctx["meta"], ctx["registry"]
+    if meta.platform != "sleeper":
+        return []
+    try:
+        rules = dict(K.load_keeper_rules(str(meta.league_id)) or {})
+        if not ((rules.get("max_regular_keepers") or 0) + (rules.get("max_rookie_keepers") or 0)):
+            return []
+        rules["_last_round"] = meta.draft_rounds
+        raw = K.load_keepers(str(meta.league_id), g["season"]) or {}
+        existing = {str(k.get("player_id")): k for k in (raw.get(str(g["me"])) or [])}
+        return W.keeper_outlook(
+            g["mine"], drafted_round=_draft_rounds(str(meta.league_id), str(g["me"])),
+            existing=existing, rules=rules, n_teams=meta.num_teams,
+            adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"])
+    except Exception:  # noqa: BLE001 — a missing keeper config must not break a tab
+        return []
+
+
 def _keep_list(ctx, g) -> dict:
     """{pid: surplus} for the players keeper_outlook says to keep.
 
@@ -409,24 +440,8 @@ def _keep_list(ctx, g) -> dict:
     costs a last-round pick and is worth an early one. Marking those keeps the
     "both win" verdict honest — it is a verdict about THIS WEEK.
     """
-    meta, reg = ctx["meta"], ctx["registry"]
-    if meta.platform != "sleeper":
-        return {}
-    try:
-        rules = dict(K.load_keeper_rules(str(meta.league_id)) or {})
-        if not ((rules.get("max_regular_keepers") or 0) + (rules.get("max_rookie_keepers") or 0)):
-            return {}
-        rules["_last_round"] = meta.draft_rounds
-        raw = K.load_keepers(str(meta.league_id), g["season"]) or {}
-        existing = {str(k.get("player_id")): k for k in (raw.get(str(g["me"])) or [])}
-        rows = W.keeper_outlook(
-            g["mine"], drafted_round=_draft_rounds(str(meta.league_id), str(g["me"])),
-            existing=existing, rules=rules, n_teams=meta.num_teams,
-            adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"])
-        return {r["pid"]: r["surplus"] for r in rows
-                if r["verdict"] == "keep" and r["surplus"] is not None}
-    except Exception:  # noqa: BLE001 — a missing keeper config must not break trades
-        return {}
+    return {r["pid"]: r["surplus"] for r in _keeper_rows(ctx, g)
+            if r["verdict"] == "keep" and r["surplus"] is not None}
 
 
 def _trades(ctx, g) -> None:
@@ -546,14 +561,24 @@ def _trades(ctx, g) -> None:
     if ctx["meta"].platform == "sleeper":
         st.markdown('<div class="ws-h" style="margin-top:12px">Keeper-cost lens</div>',
                     unsafe_allow_html=True)
-        rules = K.load_keeper_rules(str(ctx["meta"].league_id))
+        krows = {r["pid"]: r for r in _keeper_rows(ctx, g)}
         rws = []
         for i in ideas[:3]:
             for pids, who in ((i["send"], "you send"), (i["get"], "you get")):
                 for pid in pids:
-                    kp = inseason.keeper_price(ctx["meta"], pid, reg, rules) or {}
-                    rws.append([f'{reg.meta(pid).name}', who, kp.get("note", "—")])
-        st.markdown(_tbl(["Player", "Side", "Keeper cost next year"], rws), unsafe_allow_html=True)
+                    r = krows.get(str(pid))
+                    if r:
+                        sur = (f'<b class="ws-up">+{r["surplus"]}</b>' if (r["surplus"] or 0) > 0
+                               else f'<span class="ws-dn">{r["surplus"]}</span>')
+                        cost = f'R{r["cost_round"]} <span class="ws-fnt">{r["note"]}</span>'
+                    else:
+                        # not on your roster — you cannot know his history, only what
+                        # he would cost you as a new addition
+                        sur = '<span class="ws-fnt">—</span>'
+                        cost = f'R{ctx["meta"].draft_rounds} <span class="ws-fnt">if added</span>'
+                    rws.append([f'{reg.meta(pid).name}', who, cost, sur])
+        st.markdown(_tbl(["Player", "Side", "Keeper cost next year", "~Surplus"], rws),
+                    unsafe_allow_html=True)
         st.caption("In a keeper league every trade is two trades: this season's points and next "
                    "season's price.")
 
