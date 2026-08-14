@@ -364,6 +364,44 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 .dr-lineup.fr .slot.empty{ opacity:.85; }
 .dr-lineup.fr .slot.extra .pos{ opacity:.5; }
 
+/* ================= in-season screens =================
+   Everything here is prefixed .ws- and used only by in_season_ui, so the draft
+   surfaces cannot be disturbed by a change made for a weekly view. */
+.ws-h{ font-size:10px; font-weight:800; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--muted); margin:14px 0 7px; }
+.ws-tile{ background:var(--panel); border:1px solid var(--line); border-radius:11px;
+  padding:11px 12px; }
+.ws-tl{ font-size:9.5px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--mut2,var(--muted)); }
+.ws-tv{ font-size:24px; font-weight:800; line-height:1.15; font-variant-numeric:tabular-nums; }
+.ws-ts{ font-size:11.5px; color:var(--muted); margin-top:1px; }
+table.ws-t{ width:100%; border-collapse:collapse; font-size:12.8px; }
+table.ws-t th{ font-size:9.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--mut2,var(--muted)); padding:0 8px 6px; border-bottom:1px solid var(--line); }
+table.ws-t td{ padding:7px 8px; border-bottom:1px solid var(--line2); vertical-align:middle; }
+table.ws-t tr:last-child td{ border-bottom:none; }
+table.ws-t th:not(:first-child):not(:nth-child(2)),
+table.ws-t td:not(:first-child):not(:nth-child(2)){ font-variant-numeric:tabular-nums; }
+.ws-sl{ font-size:9.5px; font-weight:800; letter-spacing:.08em; color:var(--mut2,var(--muted)); }
+.ws-dim{ color:var(--muted); } .ws-fnt{ color:var(--mut2,var(--muted)); }
+.ws-up{ color:var(--green); } .ws-dn{ color:var(--red); }
+.ws-al{ display:flex; gap:9px; align-items:flex-start; font-size:12.5px; padding:8px 11px;
+  border-radius:8px; margin-bottom:7px; line-height:1.45; }
+.ws-ok{ background:var(--green-bg,#12312a); color:#a8e8cd; border:1px solid #1f5a46; }
+.ws-amb{ background:var(--amber-bg,#33231a); color:#ffd9a8; border:1px solid #6a4127; }
+.ws-red{ background:var(--red-bg,#3a1d22); color:#ffc4d2; border:1px solid #7a2e2e; }
+.ws-al b{ color:#fff; }
+.ws-vs{ display:flex; align-items:center; justify-content:space-between; gap:14px;
+  font-size:15px; margin-bottom:8px; }
+.ws-mid{ font-size:11px; font-weight:800; color:var(--mut2,var(--muted)); letter-spacing:.1em; }
+.ws-wp{ position:relative; height:26px; border-radius:7px; overflow:hidden;
+  background:var(--red-bg,#3a1d22); display:flex; align-items:center; }
+.ws-wp>i{ position:absolute; left:0; top:0; bottom:0; background:var(--green-bg,#12312a);
+  border-right:2px solid var(--green); }
+.ws-wp span{ position:relative; font-size:11.5px; font-weight:800; padding:0 9px; }
+.ws-bar{ height:7px; border-radius:4px; background:var(--panel2); overflow:hidden; }
+.ws-bar>i{ display:block; height:100%; border-radius:4px; }
+
 /* ---- pick predictor ---- */
 .dr-predict{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 10px;
   margin-bottom:9px; }
@@ -1301,7 +1339,8 @@ DARK = """
   --crimson:#ff336c; --crimson-d:#e02557;
   --blue:#ff336c; --green:#7fd8b4; --amber:#f0b357; --red:#ff8fae; --violet:#c98fbb;
   --accent:#ff336c; --accent-fill:#e02557; --accent-soft:#3a1020; --accent-line:#5a1b30;
-  --qb:#c98fbb; --rb:#7fd8b4; --wr:#6aa6f0; --te:#f0b357; --dst:#8fb8f5;
+  --qb:#c98fbb; --rb:#7fd8b4; --wr:#6aa6f0; --te:#f0b357; --dst:#8fb8f5; --k:#95898e;
+  --green-bg:#12312a; --amber-bg:#33231a; --red-bg:#3a1d22;
   --shadow:0 2px 8px rgba(0,0,0,.4); --shadow-lg:0 8px 22px rgba(0,0,0,.55);
 }
 .stApp{ background:var(--bg); }
