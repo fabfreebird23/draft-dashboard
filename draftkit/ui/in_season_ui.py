@@ -109,13 +109,15 @@ def _gather(ctx, week):
     rosters = _rosters(meta.platform, str(meta.league_id), season)
     me = str(ctx.get("my_team") or "")
     mine = (rosters.get(me) or {}).get("players") or []
+    # the lineup he ACTUALLY has set, not the one we would pick for him
+    starters = (rosters.get(me) or {}).get("starters") or []
     try:
         proj = PJ.for_league(meta, reg, season, week=week) or {}
     except Exception:  # noqa: BLE001
         proj = {}
-    return {"rosters": rosters, "me": me, "mine": mine, "proj": proj,
-            "slots": ctx["roster_slots"], "byes": ctx.get("byes"), "week": week,
-            "season": season}
+    return {"rosters": rosters, "me": me, "mine": mine, "starters": starters,
+            "proj": proj, "slots": ctx["roster_slots"], "byes": ctx.get("byes"),
+            "week": week, "season": season}
 
 
 def _owner_name(ctx, owner_id) -> str:
@@ -187,20 +189,28 @@ def render(ctx, summary=None, tab="Command Center") -> None:
 # ------------------------------------------------------------- 1 command centre
 def _command(ctx, g) -> None:
     reg = ctx["registry"]
-    lc = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"])
+    lc = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"],
+                        current=g.get("starters"))
     oid, opp = _opponent(ctx, g)
     om, os_ = W.team_distribution(opp, g["slots"], g["proj"], reg, g["byes"], g["week"]) if opp else (0, 1)
-    wp = W.win_prob(lc["mean"], lc["sd"], om, os_) if opp else None
-    wp_fixed = (W.win_prob(lc["mean"] + lc["gain"], lc["sd"], om, os_) if (opp and lc["gain"]) else wp)
+    # the lineup he has, not the one we would pick — that is what will actually score
+    _now = lc["current_total"] if lc["have_current"] else lc["mean"]
+    wp = W.win_prob(_now, lc["sd"], om, os_) if opp else None
+    wp_fixed = (W.win_prob(_now + lc["gain"], lc["sd"], om, os_) if (opp and lc["gain"]) else wp)
 
     _tiles([
-        ("Lineup", f"{len(lc['fixes'])} fixes" if lc["fixes"] else "Optimal",
-         f"worth +{lc['gain']} pts" if lc["fixes"] else "nothing to change",
-         "var(--amber)" if lc["fixes"] else "var(--green)"),
-        ("Projected", f"{lc['mean']:.1f}",
+        ("Lineup", (f"{len(lc['moves'])} change{'s' if len(lc['moves']) != 1 else ''}"
+                    if lc["moves"] else ("Optimal" if lc["have_current"] else "Unknown")),
+         (f"worth +{lc['gain']} pts" if lc["moves"] else
+          ("your lineup is the best available" if lc["have_current"]
+           else "couldn't read your lineup")),
+         "var(--amber)" if lc["moves"] else
+         ("var(--green)" if lc["have_current"] else "var(--muted)")),
+        ("Projected", f"{lc['current_total']:.1f}" if lc["have_current"] else f"{lc['mean']:.1f}",
          f"vs {_owner_name(ctx, oid)} · {om:.1f}" if opp else "no opponent yet", "var(--ink)"),
         ("Win prob", f"{100*wp:.0f}%" if wp is not None else "—",
-         (f"{100*wp_fixed:.0f}% if you make the fixes" if lc["fixes"] else "lineup already set"),
+         (f"{100*wp_fixed:.0f}% if you make the change{'s' if len(lc['moves']) != 1 else ''}"
+          if lc["moves"] else "lineup already set"),
          "var(--green)" if (wp or 0) >= .5 else "var(--red)"),
         ("Bench points", f"{sum(float(g['proj'].get(p,0) or 0) for p in lc['bench']):.0f}",
          f"{len(lc['bench'])} players sitting", "var(--muted)"),
@@ -208,39 +218,58 @@ def _command(ctx, g) -> None:
 
     left, right = st.columns([1.5, 1])
     with left:
-        st.markdown('<div class="ws-h">Start / sit — every slot, with the cost of being wrong</div>',
-                    unsafe_allow_html=True)
-        fix_by_out = {f["out"]: f for f in lc["fixes"]}
+        hdr = ("Your lineup on Sleeper — and what to change" if lc["have_current"]
+               else "Best available lineup (couldn't read your set lineup)")
+        st.markdown(f'<div class="ws-h">{hdr}</div>', unsafe_allow_html=True)
+        bench_now = {m["out"]: m for m in lc["moves"]}
         rows = []
-        for slot, pid in lc["spots"]:
+        for slot, pid in lc["current"]:
             if not pid:
-                rows.append([f'<b class="ws-sl">{slot}</b>', '<span class="ws-dim">(empty)</span>',
-                             "—", "—", "—", _chip("no one eligible", "bad")])
+                rows.append([f'<b class="ws-sl">{slot}</b>',
+                             '<span class="ws-dim">(empty)</span>', "—", "—", "—",
+                             _chip("nobody set", "bad")])
                 continue
             pm = reg.meta(pid)
-            f = fix_by_out.get(str(pid))
-            better = (f'{reg.meta(f["in"]).name} <span class="ws-fnt">'
-                      f'{reg.meta(f["in"]).team}</span>') if f else '<span class="ws-fnt">—</span>'
-            delta = f'<b class="ws-up">+{f["gain"]}</b>' if f else '<span class="ws-fnt">—</span>'
-            verdict = _chip(f'start {reg.meta(f["in"]).name.split()[-1]}', "ok") if f else _chip("optimal", "nil")
+            mv = bench_now.get(str(pid))
+            if mv:
+                inm = reg.meta(mv["in"])
+                better = (f'<b>{inm.name}</b> {_pos_pill(inm.position)} '
+                          f'<span class="ws-fnt">{inm.team}</span>')
+                delta = f'<b class="ws-up">+{mv["gain"]}</b>'
+                verdict = _chip(f'start {inm.name.split()[-1]}', "ok")
+            else:
+                better = '<span class="ws-fnt">—</span>'
+                delta = '<span class="ws-fnt">—</span>'
+                verdict = _chip("keep", "nil")
             rows.append([f'<b class="ws-sl">{slot}</b>',
-                         f'<b>{pm.name}</b> {_pos_pill(pm.position)} <span class="ws-fnt">{pm.team}</span>',
+                         f'<b>{pm.name}</b> {_pos_pill(pm.position)} '
+                         f'<span class="ws-fnt">{pm.team}</span>',
                          f'{float(g["proj"].get(str(pid), 0) or 0):.1f}', better, delta, verdict])
-        st.markdown(_tbl(["", "Starter", "~Proj", "Better on your bench", "~Δ", ""], rows,
+        st.markdown(_tbl(["", "You are starting", "~Proj", "Start instead", "~Δ", ""], rows,
                          widths=["46px", "30%", "68px", "30%", "62px", "128px"], wide=True),
                     unsafe_allow_html=True)
-        st.caption("Δ is the change to your **projected team total**, not the two players' raw "
-                   "projections — swapping a WR you would flex anyway moves nothing.")
+        if lc["have_current"]:
+            st.caption(f"Read from Sleeper: your lineup projects **{lc['current_total']:.1f}**, "
+                       f"the best available is **{lc['optimal_total']:.1f}**. Only changes that "
+                       f"alter *who plays* are listed — Sleeper labelling a man RB where the "
+                       f"optimiser calls him FLEX is not a move.")
+        else:
+            st.caption("Couldn't read the lineup you have set, so this shows the best available "
+                       "one instead. Everything else on this screen is unaffected.")
 
     with right:
         st.markdown('<div class="ws-h">Needs a decision</div>', unsafe_allow_html=True)
-        if lc["fixes"]:
-            for f in lc["fixes"][:3]:
-                _alert("amb", "↑", f'<b>{reg.meta(f["in"]).name} over {reg.meta(f["out"]).name}</b> '
-                                   f'at {f["slot"]} — worth <b>+{f["gain"]}</b> to your total.')
+        if lc["moves"]:
+            for m in lc["moves"][:3]:
+                _alert("amb", "↑", f'<b>Start {reg.meta(m["in"]).name}, bench '
+                                   f'{reg.meta(m["out"]).name}</b> — worth <b>+{m["gain"]}</b> '
+                                   f'to your total this week.')
+        elif lc["have_current"]:
+            _alert("ok", "✓", "<b>The lineup you have set is the best available.</b> Nothing on "
+                              "your bench beats a starter this week.")
         else:
-            _alert("ok", "✓", "<b>Your lineup is already optimal</b> for this week's projections. "
-                              "Nothing on your bench beats a starter.")
+            _alert("amb", "?", "<b>Couldn't read your set lineup</b> from the platform, so there "
+                               "is nothing to compare against.")
         byes = ctx.get("byes") or {}
         on_bye = [p for p in g["mine"] if byes.get(reg.meta(p).team) == g["week"]]
         if on_bye:

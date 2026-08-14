@@ -106,36 +106,61 @@ def fast_score(pids, slots, proj, registry) -> float:
 
 
 # ---------------------------------------------------------------- lineup check
-def lineup_check(pids, slots, proj: dict, registry, byes=None, week=None) -> dict:
-    """Current best lineup, and what each slot costs if it is wrong.
+def lineup_check(pids, slots, proj: dict, registry, byes=None, week=None,
+                 current=None) -> dict:
+    """Your ACTUAL lineup, the best available one, and the moves between them.
 
-    Returns {spots: [...], mean, sd, gain, fixes: [...]}. A "fix" is only reported
-    when swapping actually raises the TEAM total — swapping a WR you would flex
-    anyway moves nothing, and saying otherwise is how a tool loses trust.
+    The first version took no `current` at all: it optimised the roster, called the
+    result "your lineup", and then looked for improvements to it. Comparing a lineup
+    to itself can only ever return "optimal, nothing to change", which is what it
+    told him while he had a different lineup set on Sleeper leaving 0.7 points on
+    the bench. A screen whose headline answer is structurally fixed is worse than no
+    screen.
+
+    `current` is the platform's own starter list, in slot order ("0" for an empty
+    slot). When it is missing — a platform that does not expose it — that is stated
+    rather than papered over by substituting the optimal.
+
+    Moves are computed on the SET of starters, not slot by slot. Sleeper reports
+    Love at RB and Brown at FLEX where the optimiser says the reverse; nobody's week
+    changes, and telling him to make five moves when only one alters who plays would
+    burn the screen's credibility on noise.
     """
     lu = LU.optimize(list(pids or []), None, slots, proj, registry, byes=byes, week=week)
-    best = [(getattr(s, "slot", ""), getattr(s, "pid", None)) for s in (getattr(lu, "spots", []) or [])]
-    base_mean, base_sd = team_distribution(pids, slots, proj, registry, byes, week)
-    started = {str(p) for _, p in best if p}
-    bench = [str(p) for p in (pids or []) if str(p) not in started]
+    opt = [(getattr(s, "slot", ""), getattr(s, "pid", None)) for s in (getattr(lu, "spots", []) or [])]
+    opt_total, opt_sd = team_distribution(pids, slots, proj, registry, byes, week)
 
-    fixes = []
-    for i, (slot, pid) in enumerate(best):
-        if not pid:
-            continue
-        for b in bench:
-            if not LU.slot_accepts(slot, _pos(registry, b)):
-                continue
-            swapped = [p for p in pids if str(p) != str(pid)] + [b]
-            m, _ = team_distribution(swapped, slots, proj, registry, byes, week)
-            gain = m - base_mean
-            if gain > 0.05:
-                fixes.append({"slot": slot, "out": str(pid), "in": b, "gain": round(gain, 1)})
-                break
-    fixes.sort(key=lambda f: -f["gain"])
-    return {"spots": best, "mean": base_mean, "sd": base_sd,
-            "bench": bench, "fixes": fixes,
-            "gain": round(sum(f["gain"] for f in fixes), 1)}
+    have_current = bool(current)
+    cur = [(sl, (str(p) if str(p) not in ("0", "None", "") else None))
+           for sl, p in zip(slots, list(current or []))] if have_current else list(opt)
+    cur_total = sum(float(proj.get(str(p)) or 0.0) for _s, p in cur if p)
+
+    cur_set = {p for _s, p in cur if p}
+    opt_set = {str(p) for _s, p in opt if p}
+    to_start = [p for p in (str(x) for _s, x in opt if x) if p not in cur_set]
+    to_bench = [p for _s, p in cur if p and p not in opt_set]
+
+    # Pair each benching with the start it pays for, cheapest pairing first, so the
+    # per-move gain adds up to the total instead of double counting.
+    moves, running = [], list(cur_set)
+    for out_p, in_p in zip(to_bench, to_start):
+        before = fast_score(running, slots, proj, registry)
+        after_set = [x for x in running if x != out_p] + [in_p]
+        gain = fast_score(after_set, slots, proj, registry) - before
+        moves.append({"out": out_p, "in": in_p, "gain": round(gain, 1),
+                      "out_pos": _pos(registry, out_p), "in_pos": _pos(registry, in_p)})
+        running = after_set
+    moves.sort(key=lambda m: -m["gain"])
+
+    started = {str(p) for _s, p in (cur if have_current else opt) if p}
+    bench = [str(p) for p in (pids or []) if str(p) not in started]
+    return {"spots": opt, "current": cur, "optimal": opt,
+            "have_current": have_current,
+            "mean": opt_total, "sd": opt_sd,
+            "current_total": round(cur_total, 1), "optimal_total": round(opt_total, 1),
+            "bench": bench, "fixes": moves, "moves": moves,
+            "gain": round(opt_total - cur_total, 1) if have_current else 0.0,
+            "is_optimal": have_current and not moves}
 
 
 # ---------------------------------------------------------------- waivers
