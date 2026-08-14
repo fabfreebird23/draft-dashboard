@@ -607,6 +607,99 @@ def _trades(ctx, g) -> None:
         _tables.caption("A 2-for-1 also costs you a roster spot, which this does not price — the freed "
                    "slot is only worth something if there is a waiver add worth making.")
 
+    _analyzer(ctx, g, oid, opp)
+
+
+def _analyzer(ctx, g, oid, opp) -> None:
+    """Judge a SPECIFIC offer — the one in your inbox.
+
+    The finder answers "what deals exist". This answers "should I accept this",
+    which is the question you actually get asked, and the two want opposite inputs.
+    """
+    reg = ctx["registry"]
+    them = _owner_name(ctx, oid)
+    st.markdown('<div class="ws-h" style="margin-top:18px">Analyze a specific offer</div>',
+                unsafe_allow_html=True)
+    st.caption(f"Paste in a real proposal — yours or one **{them}** sent you — and see what it "
+               "does to your week, your rest of season, and your keepers.")
+
+    mine_names = {reg.meta(p).name: p for p in g["mine"]}
+    opp_names = {reg.meta(p).name: p for p in opp}
+    c1, c2 = st.columns(2, gap="medium")
+    send = c1.multiselect("You send", sorted(mine_names),
+                          key=f"ws_an_send_{ctx['league_key']}",
+                          placeholder="pick from your roster")
+    get = c2.multiselect(f"You get from {them}", sorted(opp_names),
+                         key=f"ws_an_get_{ctx['league_key']}",
+                         placeholder="pick from theirs")
+    if not send or not get:
+        st.caption("Pick at least one player on each side.")
+        return
+
+    weeks_left = max(1, 14 - g["week"])
+    r = W.analyze_trade(g["mine"], opp, [mine_names[n] for n in send], [opp_names[n] for n in get],
+                        g["slots"], g["proj"], reg, byes=g["byes"], week=g["week"],
+                        keeper_rows=_keeper_rows(ctx, g), weeks_left=weeks_left)
+
+    tone = {"accept": "var(--green)", "reject": "var(--red)",
+            "marginal": "var(--amber)"}.get(r["verdict"], "var(--amber)")
+    _tiles([
+        ("This week", f'{r["week"]:+.1f}', f'{r["mine_before"]:.0f} → {r["mine_after"]:.0f} pts',
+         "var(--green)" if r["week"] > 0 else "var(--red)"),
+        ("Rest of season", f'{r["rest"]:+.0f}', f"over {weeks_left} weeks",
+         "var(--green)" if r["rest"] > 0 else "var(--red)"),
+        ("Keeper surplus", "—" if r["keeper"] is None else f'{r["keeper"]:+d}',
+         "in draft picks, next year" if r["keeper"] is not None else "no keepers involved",
+         "var(--green)" if (r["keeper"] or 0) > 0 else
+         ("var(--red)" if r["keeper"] is not None else "var(--muted)")),
+        ("For them", f'{r["them"]:+.1f}',
+         "they accept" if r["them"] > 0.05 else "they have no reason to",
+         "var(--green)" if r["them"] > 0.05 else "var(--muted)"),
+    ])
+    st.markdown(f'<div class="ws-verdict" style="border-color:{tone}">'
+                f'<b style="color:{tone}">{r["verdict"].upper()}</b> — {r["why"]}</div>',
+                unsafe_allow_html=True)
+
+    a, b = st.columns([1, 1], gap="medium")
+    with a:
+        st.markdown('<div class="ws-h">Your lineup, before and after</div>', unsafe_allow_html=True)
+        rows = []
+        for (s1, p1), (_s2, p2) in zip(r["before"], r["after"]):
+            changed = str(p1) != str(p2)
+            n1 = reg.meta(p1).name if p1 else "—"
+            n2 = reg.meta(p2).name if p2 else "—"
+            rows.append([f'<b class="ws-sl">{s1}</b>',
+                         f'<span class="{"ws-dn" if changed else "ws-dim"}">{n1}</span>',
+                         f'<b class="ws-up">{n2}</b>' if changed else
+                         f'<span class="ws-fnt">unchanged</span>'])
+        st.markdown(_tbl(["", "Now", "After the trade"], rows,
+                         widths=["46px", "42%", "42%"], wide=True), unsafe_allow_html=True)
+    with b:
+        if r["out_keepers"]:
+            st.markdown('<div class="ws-h">Keepers you would be shipping</div>',
+                        unsafe_allow_html=True)
+            st.markdown(_tbl(["Player", "Costs", "~Surplus"],
+                             [[n, f'R{k["cost_round"]} <span class="ws-fnt">{k["note"]}</span>',
+                               f'<b class="ws-up">+{k["surplus"]}</b>']
+                              for n, k in r["out_keepers"]],
+                             widths=["auto", "44%", "84px"], wide=True), unsafe_allow_html=True)
+            st.caption("These cost a late pick and are worth an early one. Giving one up is a "
+                       "next-season decision, and the week number above does not price it.")
+        if r["roster"]:
+            _alert("amb", "!", f'This changes your roster size by <b>{r["roster"]:+d}</b>. '
+                               f'{"A freed spot is only worth something if there is a waiver add worth making." if r["roster"] < 0 else "You will need to drop someone to fit them."}')
+        counters = W.counter_offers(g["mine"], opp, [mine_names[n] for n in send],
+                                    [opp_names[n] for n in get], g["slots"], g["proj"], reg,
+                                    byes=g["byes"], week=g["week"], limit=3)
+        if counters and r["them"] <= 0.05:
+            st.markdown('<div class="ws-h">Counters that might actually clear</div>',
+                        unsafe_allow_html=True)
+            st.caption("Same ask, different player from you — the realistic negotiation.")
+            st.markdown(_tbl(["Send instead", "~You", "~Them"],
+                             [[c["send_names"][0], f'<b class="ws-up">+{c["you"]}</b>',
+                               f'<span class="ws-up">+{c["them"]}</span>'] for c in counters],
+                             widths=["auto", "78px", "78px"], wide=True), unsafe_allow_html=True)
+
 
 # ------------------------------------------------------------------ 5 playoffs
 def _playoffs(ctx, g) -> None:

@@ -410,6 +410,9 @@ table.ws-t td:not(:first-child):not(:nth-child(2)){ font-variant-numeric:tabular
 .ws-wp>i{ position:absolute; left:0; top:0; bottom:0; background:var(--green-bg,#12312a);
   border-right:2px solid var(--green); }
 .ws-wp span{ position:relative; font-size:11.5px; font-weight:800; padding:0 9px; }
+.ws-verdict{ margin:10px 0 4px; padding:10px 13px; border-radius:9px; background:var(--panel);
+  border:1px solid var(--line); border-left-width:4px; font-size:13px; max-width:1080px; }
+.ws-verdict b{ letter-spacing:.05em; }
 .ws-bar{ height:7px; border-radius:4px; background:var(--panel2); overflow:hidden; }
 .ws-bar>i{ display:block; height:100%; border-radius:4px; }
 

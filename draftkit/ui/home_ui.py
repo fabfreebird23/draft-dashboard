@@ -62,6 +62,23 @@ def _hub_or_platform(s):
     return None
 
 
+def _nfl_week() -> int:
+    from .. import sleeper_client as api
+    try:
+        st_ = api.get_state("nfl") or {}
+        return max(1, int(st_.get("week") or 1))
+    except Exception:  # noqa: BLE001
+        return 1
+
+
+def _nfl_pre() -> bool:
+    from .. import sleeper_client as api
+    try:
+        return (api.get_state("nfl") or {}).get("season_type") != "regular"
+    except Exception:  # noqa: BLE001
+        return True
+
+
 def _days_label(d) -> str:
     """"1 days" on the tile the night before a draft is a small thing that makes the
     whole screen look unattended."""
@@ -129,11 +146,18 @@ def _render_hero(preset, s, age, on_pick) -> None:
 
             t = st.columns(3)
             d = s.days_to_draft
+            in_season = s.phase in (PH.IN, PH.DONE)
             with t[0]:
-                _tile("drafts in",
-                      _days_label(d) if (d is not None and d >= 0) else "—",
-                      s.note.split("·")[-1].strip().rstrip(".") if (d is not None and d >= 0)
-                      else "no date set yet")
+                if in_season:
+                    # A drafted league counting down to a draft that already happened
+                    # is the tile telling you the wrong thing about the wrong half of
+                    # the year. Once it drafts, the number that matters is the week.
+                    _tile("week", str(_nfl_week()), "regular season" if not _nfl_pre() else "preseason")
+                else:
+                    _tile("drafts in",
+                          _days_label(d) if (d is not None and d >= 0) else "—",
+                          s.note.split("·")[-1].strip().rstrip(".") if (d is not None and d >= 0)
+                          else "no date set yet")
             with t[1]:
                 _tile("keepers",
                       (f'{det["kept"]}<span class="hm-of"> / {det["expected"]}</span>'
@@ -147,15 +171,30 @@ def _render_hero(preset, s, age, on_pick) -> None:
 
             with st.container(key=f"hmact_{s.league_id}"):
                 a = st.columns([1.1, 1, 1])
-            if a[0].button("Draft prep", key=f"hmgo_{s.league_id}", type="primary",
-                           use_container_width=True):
-                on_pick(preset)
-            if a[1].button("Run a mock", key=f"hmmock_{s.league_id}",
-                           use_container_width=True):
-                # via the pending key — see _goto in prep_ui. Home renders before
-                # the league nav exists, but routing both the same way keeps it safe.
-                st.session_state["nav_goto"] = "Mock Draft"
-                on_pick(preset)
+            # The actions have to match the half of the year the league is in. Sending
+            # a drafted league to "Draft prep" is how the in-season screens ended up
+            # behind a button that reads like it goes somewhere else entirely.
+            lkey = f"{s.platform}_{s.league_id}"
+            if in_season:
+                if a[0].button(f"Open week {_nfl_week()}", key=f"hmgo_{s.league_id}",
+                               type="primary", use_container_width=True):
+                    st.session_state[f"nav_in_{lkey}"] = "Command Center"
+                    on_pick(preset)
+                if a[1].button("Waivers", key=f"hmmock_{s.league_id}", use_container_width=True):
+                    # app.py setdefaults this key, so writing it BEFORE the league page
+                    # exists lands you on the tab you asked for.
+                    st.session_state[f"nav_in_{lkey}"] = "Waivers"
+                    on_pick(preset)
+            else:
+                if a[0].button("Draft prep", key=f"hmgo_{s.league_id}", type="primary",
+                               use_container_width=True):
+                    on_pick(preset)
+                if a[1].button("Run a mock", key=f"hmmock_{s.league_id}",
+                               use_container_width=True):
+                    # via the pending key — see _goto in prep_ui. Home renders before
+                    # the league nav exists, but routing both the same way keeps it safe.
+                    st.session_state["nav_goto"] = "Mock Draft"
+                    on_pick(preset)
             link = _hub_or_platform(s)
             if link:
                 a[2].link_button(f"{link[0]} ↗", link[1], use_container_width=True)

@@ -554,3 +554,110 @@ def trade_packages(my_pids, their_pids, slots, proj, registry, *, byes=None, wee
         if len(uniq) >= max_ideas:
             break
     return uniq
+
+
+# ---------------------------------------------------------------- analyzer
+def analyze_trade(my_pids, their_pids, send, get, slots, proj, registry, *,
+                  byes=None, week=None, keeper_rows=None, weeks_left: int = 11) -> dict:
+    """Judge a SPECIFIC proposal — the one sitting in your inbox.
+
+    The finder answers "what deals exist"; this answers "should I accept this one",
+    which is the question you actually get asked. Same engine, opposite direction.
+
+    Four things are reported and deliberately kept separate, because they can point
+    different ways and averaging them into a single score would hide exactly the
+    disagreement you need to see:
+
+      week      what it does to your lineup THIS week
+      rest      the same, multiplied out over the weeks left — a small weekly edge
+                compounds, and a 2-point gain for eleven weeks is a real haul
+      keeper    surplus handed over vs surplus received, in draft picks
+      roster    spots gained or lost, which a 2-for-1 quietly costs you
+
+    `verdict` is a recommendation, not a score, and it says which of the four drove
+    it. A deal that wins the week and loses a +76 keeper is not "slightly positive",
+    it is two facts in tension.
+    """
+    send, get = [str(p) for p in send], [str(p) for p in get]
+    mine_after = [p for p in my_pids if str(p) not in send] + get
+    theirs_after = [p for p in their_pids if str(p) not in get] + send
+
+    m0, s0 = team_distribution(my_pids, slots, proj, registry, byes, week)
+    m1, s1 = team_distribution(mine_after, slots, proj, registry, byes, week)
+    t0, _ = team_distribution(their_pids, slots, proj, registry, byes, week)
+    t1, _ = team_distribution(theirs_after, slots, proj, registry, byes, week)
+
+    # Only players the model would actually KEEP count as keeper value. Counting
+    # every rostered player's surplus made shipping a -30 player look like a keeper
+    # cost, and listed him under "shipping keepers" as though he were an asset. A
+    # negative-surplus player is one you were never going to keep; losing him costs
+    # nothing next year.
+    krows = {r["pid"]: r for r in (keeper_rows or []) if r.get("verdict") == "keep"}
+    out_k = [(p, krows[p]) for p in send if p in krows]
+    in_k = [(p, krows[p]) for p in get if p in krows]
+    k_out = sum(max(0, r["surplus"] or 0) for _p, r in out_k)
+    k_in = sum(max(0, r["surplus"] or 0) for _p, r in in_k)
+
+    week_delta = round(m1 - m0, 1)
+    rest_delta = round(week_delta * max(1, weeks_left), 1)
+    their_delta = round(t1 - t0, 1)
+    keeper_delta = round(k_in - k_out) if (out_k or in_k) else None
+    # incoming players are not on your roster, so their keeper cost to YOU is the
+    # league's last round — priced by the UI, not guessed at here
+    roster_delta = len(get) - len(send)
+
+    # The verdict names its own driver rather than blending everything into a number.
+    if week_delta <= 0.05:
+        verdict, why = "reject", "it does not improve your lineup this week"
+    elif keeper_delta is not None and keeper_delta <= -40 and week_delta < 4:
+        verdict, why = ("reject",
+                        f"a {week_delta:+.1f}/wk lineup gain does not pay for "
+                        f"{abs(keeper_delta)} picks of keeper surplus")
+    elif their_delta <= 0.05:
+        verdict, why = ("send it, but expect a no",
+                        "you gain and they do not — they have no reason to accept")
+    elif week_delta >= 3:
+        verdict, why = "accept", f"a clear {week_delta:+.1f}/wk upgrade that also helps them"
+    else:
+        verdict, why = ("marginal",
+                        f"{week_delta:+.1f}/wk is inside the projections' own error bars")
+
+    return {
+        "week": week_delta, "rest": rest_delta, "them": their_delta,
+        "keeper": keeper_delta, "roster": roster_delta,
+        "mine_before": round(m0, 1), "mine_after": round(m1, 1),
+        "theirs_before": round(t0, 1), "theirs_after": round(t1, 1),
+        "out_keepers": [(_name(registry, p), r) for p, r in out_k],
+        "in_keepers": [(_name(registry, p), r) for p, r in in_k],
+        "verdict": verdict, "why": why,
+        # lineup effect, slot by slot — where the change actually lands
+        "before": lineup_check(my_pids, slots, proj, registry, byes, week)["spots"],
+        "after": lineup_check(mine_after, slots, proj, registry, byes, week)["spots"],
+    }
+
+
+def counter_offers(my_pids, their_pids, send, get, slots, proj, registry, *,
+                   byes=None, week=None, limit: int = 3) -> List[dict]:
+    """If the proposal is close, what small change would make it work.
+
+    Holds their ask fixed and varies what you send: the realistic negotiation is
+    "not him, but I'll do this instead", not a different trade entirely.
+    """
+    get = [str(p) for p in get]
+    base = team_distribution(my_pids, slots, proj, registry, byes, week)[0]
+    th_base = team_distribution(their_pids, slots, proj, registry, byes, week)[0]
+    out = []
+    for cand in my_pids:
+        cand = str(cand)
+        if cand in get:
+            continue
+        mine_after = [p for p in my_pids if str(p) != cand] + get
+        theirs_after = [p for p in their_pids if str(p) not in get] + [cand]
+        mg = fast_score(mine_after, slots, proj, registry) - base
+        tg = fast_score(theirs_after, slots, proj, registry) - th_base
+        if mg <= 0.05 or tg <= 0.05:
+            continue
+        out.append({"send": [cand], "send_names": [_name(registry, cand)],
+                    "get": get, "you": round(mg, 1), "them": round(tg, 1)})
+    out.sort(key=lambda r: -(r["you"] + r["them"]))
+    return out[:limit]
