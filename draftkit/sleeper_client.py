@@ -98,8 +98,27 @@ def get_traded_picks(draft_id: str) -> List[Dict[str, Any]]:
 
 
 def get_draft_picks(draft_id: str) -> List[Dict[str, Any]]:
-    """Cached past-draft picks (for history/tendency analysis, not live use)."""
-    return _disk(f"picks_{draft_id}", 86400, lambda: _get(f"draft/{draft_id}/picks") or [])
+    """Cached draft picks, keyed on the draft's STATUS.
+
+    A flat 24h TTL cached whatever the board looked like when first read and then
+    served it for a day. That is fine for a five-year-old draft and wrong for one
+    that finishes tonight: Kreeper's pre-draft snapshot was 38 keeper placements,
+    and after the real draft completed with 112 picks, every caller — keeper
+    pricing, the Report Card, the regret recap — still saw 38 and concluded the
+    draft had not happened.
+
+    Putting the status in the KEY fixes it without giving up caching. pre_draft,
+    drafting and complete are three different files, so a transition always misses
+    the cache and refetches, while a finished draft stays cached under a key that
+    can no longer change. `drafting` also gets a short TTL, since a live board
+    changes every pick — though live callers should use get_draft_picks_fresh."""
+    try:
+        status = ((get_draft(draft_id) or {}).get("status") or "unknown")
+    except Exception:  # noqa: BLE001
+        status = "unknown"
+    ttl = 60 if status == "drafting" else 86400
+    return _disk(f"picks_{draft_id}_{status}", ttl,
+                 lambda: _get(f"draft/{draft_id}/picks") or [])
 
 
 def league_chain(league_id: str) -> List[Dict[str, Any]]:

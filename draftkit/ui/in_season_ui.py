@@ -599,47 +599,109 @@ def _league(ctx, g) -> None:
 
 
 # ------------------------------------------------------------------- 7 keepers
+@st.cache_data(ttl=900, show_spinner=False)
+def _draft_rounds(league_id: str, owner: str):
+    """{pid: round} for the picks THIS owner made in the league's own draft."""
+    try:
+        did = (api.get_league(league_id) or {}).get("draft_id")
+        return {str(q["player_id"]): int(q["round"])
+                for q in (api.get_draft_picks(did) or [])
+                if q.get("player_id") and q.get("round") and str(q.get("picked_by")) == owner}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _keepers(ctx, g) -> None:
     meta, reg = ctx["meta"], ctx["registry"]
     if meta.platform != "sleeper":
         st.info("Keeper tracking is Sleeper-only for now.")
         return
-    rules = K.load_keeper_rules(str(meta.league_id)) or {}
-    per = (rules.get("max_regular_keepers") or 0) + (rules.get("max_rookie_keepers") or 0)
-    if not per:
+    rules = dict(K.load_keeper_rules(str(meta.league_id)) or {})
+    reg_max = int(rules.get("max_regular_keepers") or 0)
+    rook_max = int(rules.get("max_rookie_keepers") or 0)
+    if not (reg_max or rook_max):
         st.info(f"**{meta.name}** isn't configured as a keeper league in its hub, so there is "
                 "nothing to price. Set the keeper rules there and this fills in.")
         return
-    used = inseason.keeper_slots_used(meta, g["mine"], reg, rules) or {}
+    rules["_last_round"] = meta.draft_rounds
 
+    raw = K.load_keepers(str(meta.league_id), g["season"]) or {}
+    existing = {str(k.get("player_id")): k for k in (raw.get(str(g["me"])) or [])}
+    rows = W.keeper_outlook(
+        g["mine"], drafted_round=_draft_rounds(str(meta.league_id), str(g["me"])),
+        existing=existing, rules=rules, n_teams=meta.num_teams,
+        adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"])
+
+    keeps = [r for r in rows if r["verdict"] == "keep"]
+    blocked = [r for r in rows if r["verdict"] == "blocked"]
+    best = keeps[0] if keeps else None
     _tiles([
-        ("Keeper slots", f"{per}", "per team next year", "var(--ink)"),
-        ("Rookie slots used", f'{used.get("rookie_used", 0)} of {used.get("rookie_max", 0)}',
-         "rookies on your roster", "var(--muted)"),
-        ("Roster", f'{len(g["mine"])}', "candidates to price", "var(--muted)"),
-        ("Draft rounds", f"{meta.draft_rounds}", "a waiver add costs the last round", "var(--muted)"),
+        ("Keeper slots", f"{reg_max + rook_max}",
+         f"{reg_max} regular + {rook_max} rookie", "var(--ink)"),
+        ("Your best value", best["name"].split()[-1] if best else "—",
+         f"+{best['surplus']} picks of surplus" if best else "—", "var(--green)"),
+        ("Blocked", f"{len(blocked)}",
+         blocked[0]["blocked"] if blocked else "none aged out", 
+         "var(--red)" if blocked else "var(--muted)"),
+        ("Escalation", f"−{rules.get('year2_bump_rounds', 0)} rds/yr",
+         f"max {rules.get('max_keep_years', '—')} keep years", "var(--muted)"),
     ])
 
     st.markdown('<div class="ws-h">Your roster, priced for next year</div>', unsafe_allow_html=True)
-    rws = []
-    for pid in sorted(g["mine"], key=lambda p: -float(g["proj"].get(p, 0) or 0)):
-        pm = reg.meta(pid)
-        kp = inseason.keeper_price(meta, pid, reg, rules) or {}
-        rnd = kp.get("round")
-        proj = float(g["proj"].get(pid, 0) or 0)
-        # cheap = late round for a player you actually start
-        if rnd and rnd >= max(1, int(meta.draft_rounds) - 3) and proj >= 10:
-            verdict = _chip("bargain — lock it in", "ok")
-        elif rnd and rnd <= 3 and proj < 14:
-            verdict = _chip("expensive for the output", "bad")
-        elif proj >= 10:
-            verdict = _chip("fair", "nil")
+    body = []
+    for r in rows:
+        worth = f"pick {r['worth']:.0f}" if r["worth"] else '<span class="ws-fnt">unranked</span>'
+        if r["surplus"] is None:
+            sur = '<span class="ws-fnt">—</span>'
+        elif r["surplus"] > 0:
+            sur = f'<b class="ws-up">+{r["surplus"]}</b>'
         else:
-            verdict = _chip("not worth a slot", "nil")
-        rws.append([f'<b>{pm.name}</b> {_pos_pill(pm.position)} <span class="ws-fnt">{pm.team}</span>',
-                    kp.get("note", "—"), f"{proj:.1f}", verdict])
-    st.markdown(_tbl(["Player", "Keeper cost", "~Proj", "Verdict"], rws), unsafe_allow_html=True)
-    st.caption("A waiver add inherits the **last round** as its keeper cost in most leagues — which "
-               "makes a mid-season breakout the cheapest keeper you can get. Bid accordingly.")
-    _alert("ok", "$", "Every add from here competes with the players above for a keeper slot, "
-                      "not with your bench.")
+            sur = f'<span class="ws-dn">{r["surplus"]}</span>'
+        if r["verdict"] == "keep":
+            v = _chip(f'keep · {r.get("slot_used", "")} slot', "ok")
+        elif r["verdict"] == "blocked":
+            v = _chip(r["blocked"] or "can't keep", "bad")
+        else:
+            v = _chip("cut", "nil")
+        body.append([
+            f'<b>{r["name"]}</b> {_pos_pill(r["pos"])} <span class="ws-fnt">{r["team"]}</span>',
+            f'R{r["cost_round"]} <span class="ws-fnt">≈ pick {r["cost_pick"]}</span>',
+            worth, sur, v, f'<span class="ws-fnt">{r["note"]}</span>'])
+    st.markdown(_tbl(["Player", "Costs", "~Worth", "~Surplus", "Verdict", ""], body),
+                unsafe_allow_html=True)
+    st.caption("**Surplus is in draft picks**: a player who would go at pick 27 costing a "
+               "round-14 pick (≈105th) is +78. Cost comes from where he actually came from — "
+               "an existing keeper's round plus this league's "
+               f"−{rules.get('year2_bump_rounds', 0)}-round-per-year escalation, the round you "
+               "drafted him, the fixed rookie round, or the last round for a waiver add.")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown('<div class="ws-h">What this changes now</div>', unsafe_allow_html=True)
+        if blocked:
+            b = blocked[0]
+            _alert("red", "⊘", f'<b>{b["name"]} has aged out</b> — {b["blocked"]}. He is a rental '
+                               f'from here, so his trade value only falls. If you are selling, sell early.')
+        cheap = [r for r in keeps if (r["surplus"] or 0) > 40]
+        if cheap:
+            _alert("ok", "◎", "<b>" + ", ".join(r["name"] for r in cheap[:3]) + "</b> "
+                              "cost a late pick and are worth an early one. Those are the players "
+                              "an in-season trade should be built around, not the ones you sell.")
+        edge = [r for r in rows if r["verdict"] == "cut" and (r["surplus"] or -99) > -10]
+        if edge:
+            _alert("amb", "!", f'<b>{edge[0]["name"]}</b> is the first man out — '
+                               f'{edge[0]["surplus"]} picks. If anyone above him gets hurt or '
+                               f'traded, he is your replacement keeper.')
+        _alert("ok", "$", f'A waiver add costs <b>round {meta.draft_rounds}</b> to keep, so a '
+                          f'mid-season breakout is the cheapest keeper available. Every claim '
+                          f'from here competes with the list above, not with your bench.')
+    with c2:
+        st.markdown('<div class="ws-h">Slots, filled</div>', unsafe_allow_html=True)
+        used_r = sum(1 for r in keeps if r.get("slot_used") == "regular")
+        used_k = sum(1 for r in keeps if r.get("slot_used") == "rookie")
+        st.markdown(_tbl(["Slot type", "~Used", "~Max"],
+                         [["Regular", str(used_r), str(reg_max)],
+                          ["Rookie", str(used_k), str(rook_max)]]), unsafe_allow_html=True)
+        st.caption("A rookie who misses the rookie allowance falls back to a regular slot rather "
+                   "than being cut — otherwise a +64 rookie loses his place to a −19 veteran. "
+                   "**If this league forbids that**, the rookie rows are the ones to check.")

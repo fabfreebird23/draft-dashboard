@@ -350,10 +350,18 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, int], existing: Dict[str
     who would go at pick 25 costing a round-14 pick (≈105th) is +80 picks of
     surplus, and that is a number you can rank a roster by.
     """
-    bump = int(rules.get("year2_bump_rounds") or 0)
-    max_years = int(rules.get("max_keep_years") or 99)
+    def _int(v, default=0):
+        """Keeper records are hand-maintained in the hub, so a field that is an int
+        for one player is the string "Rookie" for another. Coerce, never crash."""
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return default
+
+    bump = _int(rules.get("year2_bump_rounds"))
+    max_years = _int(rules.get("max_keep_years"), 99)
     rookie_round = rules.get("rookie_fixed_round")
-    last_round = int(rules.get("_last_round") or 0)
+    last_round = _int(rules.get("_last_round"))
     out = []
     for pid in my_pids:
         pid = str(pid)
@@ -363,20 +371,25 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, int], existing: Dict[str
             continue
         is_rookie = getattr(pm, "years_exp", None) == 0
         prev = existing.get(pid) or {}
-        years_kept = int(prev.get("keep_year") or 0)
+        rookie_slot = False
+        # "Rookie" appears here as a keep_year for rookie-slot keepers.
+        raw_year = prev.get("keep_year")
+        rookie_slot = str(raw_year).strip().lower() == "rookie" or bool(prev.get("is_rookie_keeper"))
+        years_kept = _int(raw_year, 1 if rookie_slot else 0)
         note, cost, blocked = "", None, None
 
         if prev:
-            cost = int(prev.get("cost_round") or 0) - bump
+            cost = _int(prev.get("cost_round")) - (0 if rookie_slot else bump)
             years_kept += 1
             note = f"kept {years_kept}x · was R{prev.get('cost_round')}"
             if years_kept > max_years:
                 blocked = f"max {max_years} keeper years reached"
         elif is_rookie and rookie_round:
-            cost = int(rookie_round)
+            cost = _int(rookie_round)
+            rookie_slot = True
             note = "rookie slot"
         elif pid in drafted_round:
-            cost = int(drafted_round[pid])
+            cost = _int(drafted_round[pid])
             note = f"drafted R{drafted_round[pid]}"
         elif last_round:
             cost = last_round
@@ -388,6 +401,8 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, int], existing: Dict[str
             cost = max(1, cost or 1)
 
         cost_pick = (cost - 1) * max(1, n_teams) + 1
+        # a rookie-slot keeper occupies a rookie slot, not a regular one
+        rookie_slotted = bool(rookie_slot)
         worth = None
         try:
             worth = adp_rank(pm.name, pm.position)
@@ -397,7 +412,8 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, int], existing: Dict[str
         out.append({"pid": pid, "name": pm.name, "pos": pm.position, "team": pm.team,
                     "cost_round": cost, "cost_pick": cost_pick, "worth": worth,
                     "surplus": round(surplus) if surplus is not None else None,
-                    "rookie": bool(is_rookie), "note": note, "blocked": blocked,
+                    "rookie": bool(rookie_slotted or is_rookie), "note": note,
+                    "blocked": blocked,
                     "proj": round(float(proj.get(pid) or 0.0), 1)})
 
     # Fill the league's actual slots, best surplus first, rookies against their own
@@ -410,9 +426,14 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, int], existing: Dict[str
     r_used = k_used = 0
     for r in ranked:
         if r["rookie"] and rookie_round and k_used < rook_max:
-            r["verdict"], k_used = "keep", k_used + 1
-        elif not r["rookie"] and r_used < reg_max:
-            r["verdict"], r_used = "keep", r_used + 1
+            r["verdict"], r["slot_used"], k_used = "keep", "rookie", k_used + 1
+        elif r_used < reg_max:
+            # A rookie who misses the rookie allowance falls back to a REGULAR slot
+            # rather than being cut. Barring him produced the obviously wrong call
+            # of keeping a −19 player over a +64 one purely because the +64 happened
+            # to be a rookie. ASSUMPTION: a rookie may be kept as a regular keeper.
+            # If this league forbids that, the rookie rows are the ones to check.
+            r["verdict"], r["slot_used"], r_used = "keep", "regular", r_used + 1
         else:
             r["verdict"] = "cut"
     for r in out:
