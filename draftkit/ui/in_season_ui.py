@@ -401,6 +401,34 @@ def _matchup(ctx, g) -> None:
 
 
 # -------------------------------------------------------------------- 4 trades
+def _keep_list(ctx, g) -> dict:
+    """{pid: surplus} for the players keeper_outlook says to keep.
+
+    The trade screen scores lineups. In a keeper league that is only half the
+    ledger: a deal can raise your week by 2 points while handing away a player who
+    costs a last-round pick and is worth an early one. Marking those keeps the
+    "both win" verdict honest — it is a verdict about THIS WEEK.
+    """
+    meta, reg = ctx["meta"], ctx["registry"]
+    if meta.platform != "sleeper":
+        return {}
+    try:
+        rules = dict(K.load_keeper_rules(str(meta.league_id)) or {})
+        if not ((rules.get("max_regular_keepers") or 0) + (rules.get("max_rookie_keepers") or 0)):
+            return {}
+        rules["_last_round"] = meta.draft_rounds
+        raw = K.load_keepers(str(meta.league_id), g["season"]) or {}
+        existing = {str(k.get("player_id")): k for k in (raw.get(str(g["me"])) or [])}
+        rows = W.keeper_outlook(
+            g["mine"], drafted_round=_draft_rounds(str(meta.league_id), str(g["me"])),
+            existing=existing, rules=rules, n_teams=meta.num_teams,
+            adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"])
+        return {r["pid"]: r["surplus"] for r in rows
+                if r["verdict"] == "keep" and r["surplus"] is not None}
+    except Exception:  # noqa: BLE001 — a missing keeper config must not break trades
+        return {}
+
+
 def _trades(ctx, g) -> None:
     reg = ctx["registry"]
     partners = [(o, r["players"]) for o, r in g["rosters"].items()
@@ -408,9 +436,33 @@ def _trades(ctx, g) -> None:
     if not partners:
         st.info("No other rosters found.")
         return
-    names = [_owner_name(ctx, o) for o, _ in partners]
-    pick = st.selectbox("Trade partner", names, key=f"ws_tp_{ctx['league_key']}")
-    oid, opp = partners[names.index(pick)]
+    # Which partners are actually worth talking to. Clicking through seven teams to
+    # discover that three of them have a deal is a search the app should do.
+    @st.cache_data(ttl=600, show_spinner=False)
+    def _scan(sig, _mine, _slots, _proj):
+        out = {}
+        for o, pids in sig:
+            n = len([1 for i in W.trade_ideas(_mine, list(pids), _slots, _proj, reg,
+                                              max_ideas=4) if i["mutual"]])
+            n += len([1 for i in W.trade_packages(_mine, list(pids), _slots, _proj, reg,
+                                                  max_ideas=5) if i["mutual"]])
+            out[o] = n
+        return out
+
+    with st.spinner("Scanning the league for deals that clear…"):
+        counts = _scan(tuple((o, tuple(pl)) for o, pl in partners),
+                       g["mine"], g["slots"], g["proj"])
+    labels, order = [], sorted(partners, key=lambda kv: -counts.get(kv[0], 0))
+    for o, _pl in order:
+        n = counts.get(o, 0)
+        labels.append(f"{_owner_name(ctx, o)}" + (f"  ·  {n} deal{'s' if n != 1 else ''}" if n else ""))
+    pick = st.selectbox("Trade partner — sorted by deals that help both sides", labels,
+                        key=f"ws_tp_{ctx['league_key']}")
+    oid, opp = order[labels.index(pick)]
+    if not any(counts.values()):
+        st.caption("No team in the league has a deal that improves both lineups right now. "
+                   "That is common with freshly drafted rosters — it changes as byes and "
+                   "injuries create real holes.")
 
     base_mine, _ = W.team_distribution(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"])
     ml = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"])
@@ -431,31 +483,76 @@ def _trades(ctx, g) -> None:
         ("Your lineup", f"{base_mine:.1f}", "projected this week", "var(--muted)"),
     ])
 
-    ideas = W.trade_ideas(g["mine"], opp, g["slots"], g["proj"], reg,
-                          byes=g["byes"], week=g["week"], max_ideas=6)
+    with st.spinner("Searching one-for-ones and packages…"):
+        ones = W.trade_ideas(g["mine"], opp, g["slots"], g["proj"], reg,
+                             byes=g["byes"], week=g["week"], max_ideas=4)
+        pkgs = W.trade_packages(g["mine"], opp, g["slots"], g["proj"], reg,
+                                byes=g["byes"], week=g["week"], max_ideas=5)
+    ideas = []
+    for i in ones:
+        ideas.append({"shape": "1-for-1", "send_names": [i["send_name"]],
+                      "get_names": [i["get_name"]], "send": [i["send"]], "get": [i["get"]],
+                      "you": i["you"], "them": i["them"], "mutual": i["mutual"],
+                      "roster_delta": 0})
+    ideas += pkgs
+    ideas.sort(key=lambda i: (not i["mutual"], -(i["you"] + max(0.0, i["them"]))))
+
+    mutual = [i for i in ideas if i["mutual"]]
     st.markdown('<div class="ws-h">Proposals, scored for both sides</div>', unsafe_allow_html=True)
     if not ideas:
-        st.caption("No one-for-one swap with this team improves your lineup this week.")
+        st.caption("Nothing with this team improves your lineup this week — one-for-one or packaged.")
     else:
-        st.markdown(_tbl(["You send", "You get", "~You", "~Them", ""],
-                         [[f'{i["send_name"]}', f'<b>{i["get_name"]}</b>',
-                           f'<b class="ws-up">+{i["you"]}</b>',
-                           (f'<span class="ws-up">+{i["them"]}</span>' if i["them"] > 0
-                            else f'<span class="ws-dn">{i["them"]}</span>'),
-                           _chip("both win", "ok") if i["mutual"] else _chip("they'll refuse", "bad")]
-                          for i in ideas]), unsafe_allow_html=True)
-        st.caption("Deals that only help you are listed as such. A proposal your opponent loses on "
-                   "is not a trade idea, it is a wish.")
+        keeps = _keep_list(ctx, g)
+        rows = []
+        for i in ideas[:8]:
+            slot_note = ("" if not i["roster_delta"] else
+                         f' <span class="ws-fnt">({i["roster_delta"]:+d} roster spot)</span>')
+            shipped = [(p, keeps[p]) for p in i["send"] if p in keeps]
+            send_html = " + ".join(
+                (f'{n} {_chip("keeper", "warn")}' if p in keeps else n)
+                for p, n in zip(i["send"], i["send_names"]))
+            i["_ships_keeper"] = shipped
+            rows.append([
+                _chip(i["shape"], "acc" if i["shape"] != "1-for-1" else "nil"),
+                send_html,
+                "<b>" + " + ".join(i["get_names"]) + "</b>" + slot_note,
+                f'<b class="ws-up">+{i["you"]}</b>',
+                (f'<span class="ws-up">+{i["them"]}</span>' if i["them"] > 0
+                 else f'<span class="ws-dn">{i["them"]}</span>'),
+                _chip("both win", "ok") if i["mutual"] else _chip("they'll refuse", "bad")])
+        st.markdown(_tbl(["", "You send", "You get", "~You", "~Them", ""], rows),
+                    unsafe_allow_html=True)
+        if mutual:
+            st.caption(f"**{len(mutual)} of these actually clear** — both lineups improve. Those are "
+                       "the ones to send. The rest are listed so you can see they were considered "
+                       "and rejected, not overlooked.")
+            risky = [i for i in mutual if i.get("_ships_keeper")]
+            if risky:
+                worst = max((s_ for i in risky for _p, s_ in i["_ships_keeper"]))
+                who = next(n for i in risky for p, n in zip(i["send"], i["send_names"])
+                           if any(p == q for q, _s in i["_ships_keeper"]))
+                _alert("amb", "!", f'<b>These verdicts are about this week only.</b> The deal above '
+                                   f'ships <b>{who}</b>, who the Keepers tab rates at <b>+{worst} '
+                                   f'picks of surplus</b> next year. A couple of points a week is '
+                                   f'rarely worth a keeper that cheap — check the Keepers tab before '
+                                   f'you send it.')
+        else:
+            st.caption("**None of these help both sides.** One-for-ones only work when two managers "
+                       "have mirrored holes, which is rare; packages are where most real trades "
+                       "live, and none clears here either. Try another partner.")
+        st.caption("A 2-for-1 also costs you a roster spot, which this does not price — the freed "
+                   "slot is only worth something if there is a waiver add worth making.")
 
     if ctx["meta"].platform == "sleeper":
         st.markdown('<div class="ws-h" style="margin-top:12px">Keeper-cost lens</div>',
                     unsafe_allow_html=True)
         rules = K.load_keeper_rules(str(ctx["meta"].league_id))
         rws = []
-        for i in ideas[:4]:
-            for pid, who in ((i["send"], "you send"), (i["get"], "you get")):
-                kp = inseason.keeper_price(ctx["meta"], pid, reg, rules) or {}
-                rws.append([f'{reg.meta(pid).name}', who, kp.get("note", "—")])
+        for i in ideas[:3]:
+            for pids, who in ((i["send"], "you send"), (i["get"], "you get")):
+                for pid in pids:
+                    kp = inseason.keeper_price(ctx["meta"], pid, reg, rules) or {}
+                    rws.append([f'{reg.meta(pid).name}', who, kp.get("note", "—")])
         st.markdown(_tbl(["Player", "Side", "Keeper cost next year"], rws), unsafe_allow_html=True)
         st.caption("In a keeper league every trade is two trades: this season's points and next "
                    "season's price.")
