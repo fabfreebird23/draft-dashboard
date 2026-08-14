@@ -375,7 +375,18 @@ div[data-testid="stRadio"] label{ font-size:12px; }
   color:var(--mut2,var(--muted)); }
 .ws-tv{ font-size:24px; font-weight:800; line-height:1.15; font-variant-numeric:tabular-nums; }
 .ws-ts{ font-size:11.5px; color:var(--muted); margin-top:1px; }
-table.ws-t{ width:100%; border-collapse:collapse; font-size:12.8px; }
+/* A — CAP THE MEASURE. The sprawl was never padding: a five-column table told to
+   fill 2000px hands its leftover width to the two text columns, so a number ends
+   up ~500px from the name it belongs to and the eye has to cross the screen to
+   connect them. Capping the table lets columns sit at their natural width.
+   Inside st.columns a table is already narrower than this, so the cap is a no-op
+   there — it only bites in the full-width sections where the problem lives. */
+table.ws-t{ width:100%; max-width:1080px; border-collapse:collapse; font-size:12.8px; }
+/* B — when a table declares column widths, stop the browser negotiating them. */
+table.ws-t.ws-fixed{ table-layout:fixed; max-width:1180px; }
+table.ws-t.ws-fixed td{ overflow:hidden; text-overflow:ellipsis; }
+/* a table that genuinely wants the whole pane (inside a column, or a board) */
+table.ws-t.ws-wide{ max-width:none; }
 table.ws-t th{ font-size:9.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
   color:var(--mut2,var(--muted)); padding:0 8px 6px; border-bottom:1px solid var(--line); }
 table.ws-t td{ padding:7px 8px; border-bottom:1px solid var(--line2); vertical-align:middle; }

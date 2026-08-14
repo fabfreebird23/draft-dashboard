@@ -56,10 +56,16 @@ def _chip(text: str, kind: str = "nil") -> str:
             f'text-transform:uppercase;padding:2px 7px;border-radius:5px;background:{bg}">{text}</span>')
 
 
-def _tbl(head, rows) -> str:
+def _tbl(head, rows, widths=None, wide: bool = False) -> str:
+    """A table. `widths` declares column widths and switches on fixed layout, so
+    the slack goes to the columns that can use it instead of being split evenly
+    among columns that cannot — a number column needs ~72px and no more."""
     th = "".join(f'<th style="text-align:{"right" if h.startswith("~") else "left"}">'
                  f'{h.lstrip("~")}</th>' for h in head)
-    return ('<table class="ws-t"><thead><tr>' + th + '</tr></thead><tbody>'
+    cls = "ws-t" + (" ws-fixed" if widths else "") + (" ws-wide" if wide else "")
+    cols = ("<colgroup>" + "".join(f'<col style="width:{w}">' for w in widths) + "</colgroup>"
+            if widths else "")
+    return (f'<table class="{cls}">' + cols + '<thead><tr>' + th + '</tr></thead><tbody>'
             + "".join("<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>" for r in rows)
             + "</tbody></table>")
 
@@ -220,7 +226,8 @@ def _command(ctx, g) -> None:
             rows.append([f'<b class="ws-sl">{slot}</b>',
                          f'<b>{pm.name}</b> {_pos_pill(pm.position)} <span class="ws-fnt">{pm.team}</span>',
                          f'{float(g["proj"].get(str(pid), 0) or 0):.1f}', better, delta, verdict])
-        st.markdown(_tbl(["", "Starter", "~Proj", "Better on your bench", "~Δ", ""], rows),
+        st.markdown(_tbl(["", "Starter", "~Proj", "Better on your bench", "~Δ", ""], rows,
+                         widths=["46px", "30%", "68px", "30%", "62px", "128px"], wide=True),
                     unsafe_allow_html=True)
         st.caption("Δ is the change to your **projected team total**, not the two players' raw "
                    "projections — swapping a WR you would flex anyway moves nothing.")
@@ -296,7 +303,8 @@ def _waivers(ctx, g) -> None:
              else '<span class="ws-fnt">+0.0</span>'),
             _chip(verdict, kind),
         ])
-    st.markdown(_tbl(["Player", "~Proj", "~Adds to lineup", "Bid"], rows), unsafe_allow_html=True)
+    st.markdown(_tbl(["Player", "~Proj", "~Adds to lineup", "Bid"], rows,
+                     widths=["auto", "72px", "118px", "132px"]), unsafe_allow_html=True)
     st.caption("A player who would not crack your starting lineup is worth **$0 to you**, however "
                "highly he is ranked elsewhere — that is what this column is for.")
 
@@ -384,7 +392,8 @@ def _matchup(ctx, g) -> None:
                          f'{reg.meta(a).name if a else "—"} <span class="ws-fnt">{pa:.1f}</span>',
                          (f'<b class="ws-up">+{d:.1f}</b>' if d > 0 else f'<b class="ws-dn">{d:.1f}</b>'),
                          f'<span class="ws-dim">{reg.meta(b).name if b else "—"} {pb:.1f}</span>'])
-        st.markdown(_tbl(["", "You", "~Edge", "Them"], rows), unsafe_allow_html=True)
+        st.markdown(_tbl(["", "You", "~Edge", "Them"], rows,
+                         widths=["46px", "38%", "70px", "38%"], wide=True), unsafe_allow_html=True)
     with c2:
         st.markdown('<div class="ws-h">Swing players — whose week decides it</div>',
                     unsafe_allow_html=True)
@@ -513,9 +522,48 @@ def _trades(ctx, g) -> None:
     ideas.sort(key=lambda i: (not i["mutual"], -(i["you"] + max(0.0, i["them"]))))
 
     mutual = [i for i in ideas if i["mutual"]]
-    st.markdown('<div class="ws-h">Proposals, scored for both sides</div>', unsafe_allow_html=True)
+    deal_col, keep_col = st.columns([1.35, 1], gap="medium")
+    _tables = deal_col
+    with keep_col:
+        # C — the keeper lens sits BESIDE the deals, not 400px below them. These are
+        # the two facts you have to weigh against each other, and having to scroll
+        # between them was the real reason this screen felt wrong.
+        st.markdown('<div class="ws-h">Keeper cost — the other half of every trade</div>',
+                    unsafe_allow_html=True)
+        krows = {r["pid"]: r for r in _keeper_rows(ctx, g)}
+        seen, rws = set(), []
+        for i in ideas[:4]:
+            for pids, who in ((i["send"], "send"), (i["get"], "get")):
+                for pid in pids:
+                    if pid in seen:
+                        continue
+                    seen.add(pid)
+                    r = krows.get(str(pid))
+                    if r:
+                        sur = (f'<b class="ws-up">+{r["surplus"]}</b>' if (r["surplus"] or 0) > 0
+                               else f'<span class="ws-dn">{r["surplus"]}</span>')
+                        cost = f'R{r["cost_round"]} <span class="ws-fnt">{r["note"]}</span>'
+                    else:
+                        sur = '<span class="ws-fnt">—</span>'
+                        cost = (f'R{ctx["meta"].draft_rounds} '
+                                f'<span class="ws-fnt">if added</span>')
+                    rws.append([f'<span class="{"" if who == "send" else "ws-dim"}">'
+                                f'{reg.meta(pid).name}</span>', who, cost, sur])
+        if rws:
+            st.markdown(_tbl(["Player", "", "Costs", "~Surplus"], rws,
+                             widths=["auto", "48px", "38%", "76px"], wide=True),
+                        unsafe_allow_html=True)
+            st.caption("In a keeper league every trade is two trades: this season's points and "
+                       "next season's price. A player who costs a last-round pick and is worth "
+                       "an early one is rarely worth a couple of points a week.")
+        else:
+            st.caption("No keeper rules configured for this league.")
+
+    with _tables:
+        st.markdown('<div class="ws-h">Proposals, scored for both sides</div>',
+                    unsafe_allow_html=True)
     if not ideas:
-        st.caption("Nothing with this team improves your lineup this week — one-for-one or packaged.")
+        _tables.caption("Nothing with this team improves your lineup this week — one-for-one or packaged.")
     else:
         keeps = _keep_list(ctx, g)
         rows = []
@@ -535,10 +583,11 @@ def _trades(ctx, g) -> None:
                 (f'<span class="ws-up">+{i["them"]}</span>' if i["them"] > 0
                  else f'<span class="ws-dn">{i["them"]}</span>'),
                 _chip("both win", "ok") if i["mutual"] else _chip("they'll refuse", "bad")])
-        st.markdown(_tbl(["", "You send", "You get", "~You", "~Them", ""], rows),
-                    unsafe_allow_html=True)
+        _tables.markdown(_tbl(["", "You send", "You get", "~You", "~Them", ""], rows,
+                              widths=["84px", "31%", "31%", "68px", "68px", "126px"], wide=True),
+                         unsafe_allow_html=True)
         if mutual:
-            st.caption(f"**{len(mutual)} of these actually clear** — both lineups improve. Those are "
+            _tables.caption(f"**{len(mutual)} of these actually clear** — both lineups improve. Those are "
                        "the ones to send. The rest are listed so you can see they were considered "
                        "and rejected, not overlooked.")
             risky = [i for i in mutual if i.get("_ships_keeper")]
@@ -552,35 +601,11 @@ def _trades(ctx, g) -> None:
                                    f'rarely worth a keeper that cheap — check the Keepers tab before '
                                    f'you send it.')
         else:
-            st.caption("**None of these help both sides.** One-for-ones only work when two managers "
+            _tables.caption("**None of these help both sides.** One-for-ones only work when two managers "
                        "have mirrored holes, which is rare; packages are where most real trades "
                        "live, and none clears here either. Try another partner.")
-        st.caption("A 2-for-1 also costs you a roster spot, which this does not price — the freed "
+        _tables.caption("A 2-for-1 also costs you a roster spot, which this does not price — the freed "
                    "slot is only worth something if there is a waiver add worth making.")
-
-    if ctx["meta"].platform == "sleeper":
-        st.markdown('<div class="ws-h" style="margin-top:12px">Keeper-cost lens</div>',
-                    unsafe_allow_html=True)
-        krows = {r["pid"]: r for r in _keeper_rows(ctx, g)}
-        rws = []
-        for i in ideas[:3]:
-            for pids, who in ((i["send"], "you send"), (i["get"], "you get")):
-                for pid in pids:
-                    r = krows.get(str(pid))
-                    if r:
-                        sur = (f'<b class="ws-up">+{r["surplus"]}</b>' if (r["surplus"] or 0) > 0
-                               else f'<span class="ws-dn">{r["surplus"]}</span>')
-                        cost = f'R{r["cost_round"]} <span class="ws-fnt">{r["note"]}</span>'
-                    else:
-                        # not on your roster — you cannot know his history, only what
-                        # he would cost you as a new addition
-                        sur = '<span class="ws-fnt">—</span>'
-                        cost = f'R{ctx["meta"].draft_rounds} <span class="ws-fnt">if added</span>'
-                    rws.append([f'{reg.meta(pid).name}', who, cost, sur])
-        st.markdown(_tbl(["Player", "Side", "Keeper cost next year", "~Surplus"], rws),
-                    unsafe_allow_html=True)
-        st.caption("In a keeper league every trade is two trades: this season's points and next "
-                   "season's price.")
 
 
 # ------------------------------------------------------------------ 5 playoffs
@@ -621,8 +646,8 @@ def _playoffs(ctx, g) -> None:
                         f'{recs.get(oid,(0,0))[0]}–{recs.get(oid,(0,0))[1]}',
                         f'{means.get(oid,0):.0f}',
                         f'{o["playoff_pct"]}%', f'{o["avg_seed"]:.1f}'])
-        st.markdown(_tbl(["Team", "Record", "~Proj/wk", "~Playoffs", "~Seed"], rws),
-                    unsafe_allow_html=True)
+        st.markdown(_tbl(["Team", "Record", "~Proj/wk", "~Playoffs", "~Seed"], rws,
+                         widths=["auto", "76px", "84px", "84px", "68px"]), unsafe_allow_html=True)
     with c2:
         st.markdown('<div class="ws-h">Your players in the playoff weeks</div>',
                     unsafe_allow_html=True)
@@ -670,7 +695,8 @@ def _league(ctx, g) -> None:
                 if lk and lk["label"] != "—" else _chip("no games yet", "nil"))
         rws.append([str(i), f'<b>{r["name"]}</b>' if r["oid"] == g["me"] else r["name"],
                     f'{r["w"]}–{r["l"]}', f'{r["proj"]:.0f}', f'{r["pf"]:.0f}', chip])
-    st.markdown(_tbl(["#", "Team", "Record", "~Proj/wk", "~Points for", "Luck"], rws),
+    st.markdown(_tbl(["#", "Team", "Record", "~Proj/wk", "~Points for", "Luck"], rws,
+                     widths=["34px", "auto", "76px", "84px", "94px", "120px"]),
                 unsafe_allow_html=True)
     st.caption("Luck compares wins to an all-play record — how often this team's scoring would have "
                "beaten the rest of the league. A 2–0 team scoring bottom-third regresses, and that is "
@@ -789,7 +815,8 @@ def _keepers(ctx, g) -> None:
             f'<b>{r["name"]}</b> {_pos_pill(r["pos"])} <span class="ws-fnt">{r["team"]}</span>',
             f'R{r["cost_round"]} <span class="ws-fnt">≈ pick {r["cost_pick"]}</span>',
             worth, sur, v, f'<span class="ws-fnt">{r["note"]}</span>'])
-    st.markdown(_tbl(["Player", "Costs", "~Worth", "~Surplus", "Verdict", ""], body),
+    st.markdown(_tbl(["Player", "Costs", "~Worth", "~Surplus", "Verdict", ""], body,
+                     widths=["26%", "22%", "88px", "82px", "168px", "auto"], wide=True),
                 unsafe_allow_html=True)
     st.caption("**Surplus is in draft picks**: a player who would go at pick 27 costing a "
                "round-14 pick (≈105th) is +78. Cost comes from where he actually came from — "
