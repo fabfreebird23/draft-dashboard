@@ -55,6 +55,22 @@ def _ecr_cell(row) -> str:
             f'<div class="ws-fnt{" ws-dn" if wide else ""}">{b}</div>')
 
 
+def _ecr_missing(g) -> str:
+    """A caption when the expert panel is unreachable, or "" when it is fine.
+
+    A column of em-dashes reads as "nobody ranks these players", which is a claim
+    about the players. The truth would be a claim about US — FantasyPros is public
+    but their host can refuse a datacenter, and Streamlit Cloud is a datacenter.
+    Whichever it turns out to be, the screen should say which.
+    """
+    if g.get("ecr") or g.get("ros"):
+        return ""
+    return ("**Expert consensus is unavailable right now** — the Experts and Rostered "
+            "columns are blank because FantasyPros didn't answer, not because these "
+            "players are unranked. Everything else on this screen is our own numbers "
+            "and is unaffected.")
+
+
 def _owned_cell(row) -> str:
     """Percent of leagues everywhere that already roster him.
 
@@ -333,6 +349,8 @@ def _command(ctx, g) -> None:
         else:
             st.caption("Couldn't read the lineup you have set, so this shows the best available "
                        "one instead. Everything else on this screen is unaffected.")
+        if _ecr_missing(g):
+            st.caption(_ecr_missing(g))
 
     with right:
         st.markdown('<div class="ws-h">Needs a decision</div>', unsafe_allow_html=True)
@@ -449,6 +467,8 @@ def _waivers(ctx, g) -> None:
                "the percentage of leagues everywhere that already have him: under ~40% and he is "
                "probably a quiet add, over that and you are in a bidding war whether you like it "
                "or not.")
+    if _ecr_missing(g):
+        st.caption(_ecr_missing(g))
 
     c1, c2 = st.columns(2)
     with c1:
