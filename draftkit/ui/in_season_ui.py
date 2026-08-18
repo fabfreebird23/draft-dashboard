@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import streamlit as st
 
-from .. import (config, inseason, keepers as K, phase as PH, projections as PJ,
-                schedule as SCH, sleeper_client as api, weekly as W)
+from .. import (config, ecr as ECR, inseason, keepers as K, phase as PH,
+                projections as PJ, schedule as SCH, sleeper_client as api, weekly as W)
 from . import components as C
 
 TABS = ["Command Center", "Waivers", "Matchup", "Trades", "Playoffs", "League", "Keepers"]
@@ -39,6 +39,33 @@ def _preseason() -> bool:
         return (api.get_state("nfl") or {}).get("season_type") != "regular"
     except Exception:  # noqa: BLE001
         return True
+
+
+def _ecr_cell(row) -> str:
+    """One cell of expert consensus: where the panel has him, and how much they
+    argued about it. The band is printed raw — a 54-96 spread explains itself, and
+    every attempt to compress it into a single "controversy" score got the top of
+    the board wrong (see ecr.spread)."""
+    if not row or row.get("ecr") is None:
+        return '<span class="ws-fnt">—</span>'
+    b = ECR.band(row)
+    wide = ECR.spread(row) >= max(8.0, 0.4 * (row.get("ecr") or 0))
+    grade = (f' <span class="ws-fnt">{row["grade"]}</span>') if row.get("grade") else ""
+    return (f'<b>{row.get("pos_rank") or int(row["ecr"])}</b>{grade}'
+            f'<div class="ws-fnt{" ws-dn" if wide else ""}">{b}</div>')
+
+
+def _owned_cell(row) -> str:
+    """Percent of leagues everywhere that already roster him.
+
+    This is the only market signal on the board. Our own "adds to lineup" number
+    says whether he helps YOU; this says how long he will be sitting there.
+    """
+    if not row or row.get("owned") is None:
+        return '<span class="ws-fnt">—</span>'
+    o = float(row["owned"])
+    cls = "ws-up" if o < 40 else ("ws-dn" if o > 75 else "")
+    return f'<b class="{cls}">{o:.0f}%</b>'
 
 
 def _pos_pill(pos: str) -> str:
@@ -102,6 +129,22 @@ def _rosters(platform: str, league_id: str, season: int):
     return out
 
 
+@st.cache_data(ttl=900, show_spinner=False, hash_funcs={"builtins.object": id})
+def _ecr(season: int, week: int, scoring: str, _registry):
+    """Expert consensus for this week and for the rest of the season.
+
+    Both, because they answer different questions and the screens ask both: weekly
+    for start/sit, rest-of-season for whether a waiver add or a trade is worth
+    anything past Sunday. Empty dicts if FantasyPros hasn't ranked the week yet —
+    every caller treats a missing player as "no opinion" rather than as rank 0.
+    """
+    try:
+        return {"wk": ECR.weekly(season, week, scoring, _registry),
+                "ros": ECR.ros(season, scoring, _registry)}
+    except Exception:  # noqa: BLE001 — a third party must not be able to blank the tab
+        return {"wk": {}, "ros": {}}
+
+
 def _gather(ctx, week):
     """Everything the tabs share, fetched once."""
     meta, reg = ctx["meta"], ctx["registry"]
@@ -115,9 +158,11 @@ def _gather(ctx, week):
         proj = PJ.for_league(meta, reg, season, week=week) or {}
     except Exception:  # noqa: BLE001
         proj = {}
+    ecr = _ecr(season, week, getattr(meta, "scoring", "ppr") or "ppr", reg)
     return {"rosters": rosters, "me": me, "mine": mine, "starters": starters,
             "proj": proj, "slots": ctx["roster_slots"], "byes": ctx.get("byes"),
-            "week": week, "season": season}
+            "week": week, "season": season,
+            "ecr": ecr["wk"], "ros": ecr["ros"]}
 
 
 def _owner_name(ctx, owner_id) -> str:
@@ -239,11 +284,12 @@ def _command(ctx, g) -> None:
                else "Best available lineup (couldn't read your set lineup)")
         st.markdown(f'<div class="ws-h">{hdr}</div>', unsafe_allow_html=True)
         bench_now = {m["out"]: m for m in lc["moves"]}
+        ecr = g.get("ecr") or {}
         rows = []
         for slot, pid in lc["current"]:
             if not pid:
                 rows.append([f'<b class="ws-sl">{slot}</b>',
-                             '<span class="ws-dim">(empty)</span>', "—", "—", "—",
+                             '<span class="ws-dim">(empty)</span>', "—", "—", "—", "—",
                              _chip("nobody set", "bad")])
                 continue
             pm = reg.meta(pid)
@@ -253,7 +299,16 @@ def _command(ctx, g) -> None:
                 better = (f'<b>{inm.name}</b> {_pos_pill(inm.position)} '
                           f'<span class="ws-fnt">{inm.team}</span>')
                 delta = f'<b class="ws-up">+{mv["gain"]}</b>'
-                verdict = _chip(f'start {inm.name.split()[-1]}', "ok")
+                # Our projection says swap; the panel is a second opinion on how far
+                # out on a limb that is. "against" is not a veto — it is the fact
+                # that eight people who do this for a living see it the other way.
+                v = ECR.verdict(ecr.get(str(pid)), ecr.get(str(mv["in"])))
+                verdict = _chip(f'start {inm.name.split()[-1]}',
+                                {"against": "warn", "split": "warn"}.get(v, "ok"))
+                if v == "against":
+                    verdict += ' ' + _chip("panel disagrees", "bad")
+                elif v == "split":
+                    verdict += ' ' + _chip("coin flip", "warn")
             else:
                 better = '<span class="ws-fnt">—</span>'
                 delta = '<span class="ws-fnt">—</span>'
@@ -264,10 +319,12 @@ def _command(ctx, g) -> None:
             rows.append([f'<b class="ws-sl">{slot}</b>',
                          f'<b>{pm.name}</b> {_pos_pill(pm.position)} '
                          f'<span class="ws-fnt">{pm.team}</span>{flag}',
-                         f'{float(g["proj"].get(str(pid), 0) or 0):.1f}', better, delta, verdict])
-        st.markdown(_tbl(["", "You are starting", "~Proj", "Start instead", "~Δ", ""], rows,
-                         widths=["46px", "30%", "68px", "30%", "62px", "128px"], wide=True),
-                    unsafe_allow_html=True)
+                         f'{float(g["proj"].get(str(pid), 0) or 0):.1f}',
+                         _ecr_cell(ecr.get(str(pid))), better, delta, verdict])
+        st.markdown(_tbl(["", "You are starting", "~Proj", "Experts", "Start instead", "~Δ", ""],
+                         rows,
+                         widths=["44px", "31%", "56px", "92px", "22%", "54px", "146px"],
+                         wide=True), unsafe_allow_html=True)
         if lc["have_current"]:
             st.caption(f"Read from Sleeper: your lineup projects **{lc['current_total']:.1f}**, "
                        f"the best available is **{lc['optimal_total']:.1f}**. Only changes that "
@@ -335,9 +392,17 @@ def _command(ctx, g) -> None:
 def _waivers(ctx, g) -> None:
     meta, reg = ctx["meta"], ctx["registry"]
     taken = {p for r in g["rosters"].values() for p in r["players"]}
-    fas = inseason.free_agents(meta, reg, g["proj"], taken, limit=60)
+    # ROS consensus picks the candidate pool, weekly consensus breaks ties on the
+    # board: who is worth rostering is a rest-of-season question, who helps you on
+    # Sunday is a weekly one.
+    fas = inseason.free_agents(meta, reg, g["proj"], taken, limit=60,
+                               ecr=g.get("ros"))
+    # ROS for the tiebreak too, NOT the weekly map: rest-of-season is one list
+    # covering every position, so its ranks can be compared to each other. The
+    # weekly ranks cannot — see ecr._row's "scale".
     board = W.waiver_board(g["mine"], g["slots"], g["proj"], reg, fas,
-                           byes=g["byes"], week=g["week"], limit=14)
+                           byes=g["byes"], week=g["week"], limit=14,
+                           ecr=g.get("ros"))
     fa = inseason.faab(meta) or {}
     budget = int(fa.get("budget") or 0)
     spent = int((fa.get("by_owner") or {}).get(str(g["me"]), 0) or 0)
@@ -357,6 +422,7 @@ def _waivers(ctx, g) -> None:
     st.markdown('<div class="ws-h">Ranked by what they add to YOUR starting lineup</div>',
                 unsafe_allow_html=True)
     rows = []
+    ecr, ros = g.get("ecr") or {}, g.get("ros") or {}
     for r in board[:12]:
         bid = W.bid_guidance(r["gain"], left, weeks_left)
         if r["gain"] > 0.05:
@@ -369,14 +435,20 @@ def _waivers(ctx, g) -> None:
         rows.append([
             f'<b>{r["name"]}</b> {_pos_pill(r["pos"])}{_fl}',
             f'{r["proj"]:.1f}',
+            _ecr_cell(ecr.get(str(r["pid"]))),
+            _owned_cell(ros.get(str(r["pid"])) or ecr.get(str(r["pid"]))),
             (f'<b class="ws-up">+{r["gain"]}</b>' if r["gain"] > 0.05
              else '<span class="ws-fnt">+0.0</span>'),
             _chip(verdict, kind),
         ])
-    st.markdown(_tbl(["Player", "~Proj", "~Adds to lineup", "Bid"], rows,
-                     widths=["auto", "72px", "118px", "132px"]), unsafe_allow_html=True)
+    st.markdown(_tbl(["Player", "~Proj", "Experts", "~Rostered", "~Adds to lineup", "Bid"], rows,
+                     widths=["auto", "62px", "92px", "92px", "112px", "126px"], wide=True),
+                unsafe_allow_html=True)
     st.caption("A player who would not crack your starting lineup is worth **$0 to you**, however "
-               "highly he is ranked elsewhere — that is what this column is for.")
+               "highly he is ranked elsewhere — that is what this column is for. **Rostered** is "
+               "the percentage of leagues everywhere that already have him: under ~40% and he is "
+               "probably a quiet add, over that and you are in a bidding war whether you like it "
+               "or not.")
 
     c1, c2 = st.columns(2)
     with c1:

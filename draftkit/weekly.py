@@ -175,7 +175,7 @@ def lineup_check(pids, slots, proj: dict, registry, byes=None, week=None,
 
 # ---------------------------------------------------------------- waivers
 def waiver_board(my_pids, slots, proj: dict, registry, free_agents: List[dict],
-                 *, byes=None, week=None, limit: int = 12) -> List[dict]:
+                 *, byes=None, week=None, limit: int = 12, ecr: dict = None) -> List[dict]:
     """Free agents ranked by what they add to YOUR starting lineup.
 
     This is the whole reason the tab exists. The top add in fantasy is worth
@@ -192,8 +192,13 @@ def waiver_board(my_pids, slots, proj: dict, registry, free_agents: List[dict],
         gain = m - base
         rows.append({"pid": pid, "name": _name(registry, pid), "pos": _pos(registry, pid),
                      "proj": round(float(proj.get(pid) or 0.0), 1),
+                     "ecr": ((ecr or {}).get(pid) or {}).get("ecr"),
                      "gain": round(gain, 1), "starts": gain > 0.05})
-    rows.sort(key=lambda r: (-r["gain"], -r["proj"]))
+    # Most weeks nothing on the wire cracks the lineup, so every gain ties at 0.0
+    # and the TIEBREAK is what the reader actually sees. Projected points is the
+    # wrong one: it is not comparable across positions and buries the wire's best
+    # running back under a dozen replacement-level quarterbacks.
+    rows.sort(key=lambda r: (-r["gain"], r["ecr"] is None, r["ecr"] or 0.0, -r["proj"]))
     return rows[:limit]
 
 

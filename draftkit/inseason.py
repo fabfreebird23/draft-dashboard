@@ -27,12 +27,20 @@ def rostered_pids(meta, registry=None, espn_s2=None, swid=None) -> set:
     return out
 
 
-def free_agents(meta, registry, projections: dict, taken: set, limit: int = 40) -> List[dict]:
-    """Unrostered players with a projection, best first.
+def free_agents(meta, registry, projections: dict, taken: set, limit: int = 40,
+                ecr: Optional[dict] = None) -> List[dict]:
+    """Unrostered players worth a look, best first.
 
-    Ranked on projected points rather than ADP: in-season, what a player is
-    expected to score this week is the only thing that matters, and ADP has been
-    meaningless since the draft."""
+    Ordered by expert consensus rank when we have it, and by projected points only
+    as a fallback. That is not a preference for ECR over our own numbers — it is
+    that raw projected points are NOT comparable across positions. Sorting the
+    waiver pool by points puts every startable quarterback above every running
+    back on earth, so the top 60 candidates came back all-QB and the actual
+    waiver-wire running back never entered the list to be considered. ECR ranks
+    the whole board against itself, which is the comparison this needs.
+
+    ADP is not used either way: it has been meaningless since the draft."""
+    ecr = ecr or {}
     out = []
     for pid, pts in (projections or {}).items():
         if str(pid) in taken:
@@ -44,8 +52,11 @@ def free_agents(meta, registry, projections: dict, taken: set, limit: int = 40) 
         if pm.position not in ("QB", "RB", "WR", "TE"):
             continue
         out.append({"pid": str(pid), "name": pm.name, "pos": pm.position,
-                    "team": pm.team, "proj": float(pts or 0.0)})
-    out.sort(key=lambda r: -r["proj"])
+                    "team": pm.team, "proj": float(pts or 0.0),
+                    "ecr": (ecr.get(str(pid)) or {}).get("ecr")})
+    # Unranked men sort behind every ranked one rather than ahead of them — an
+    # absent consensus means "nobody rates him", not "rank 0".
+    out.sort(key=lambda r: (r["ecr"] is None, r["ecr"] or 0.0, -r["proj"]))
     return out[:limit]
 
 
