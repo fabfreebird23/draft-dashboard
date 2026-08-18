@@ -107,7 +107,15 @@ def render(presets, on_pick, board_age_fn=None) -> None:
                 age = board_age_fn(f"{p['platform']}_{p['league_id']}")
             except Exception:  # noqa: BLE001 — a slow age lookup must not blank Home
                 age = None
-        rows.append((p, PH.summary(p, age), age))
+        summ = PH.summary(p, age)
+        # A drafted league whose note reads "check your lineup" every week is a
+        # note nobody reads. If a starter might not play, say WHO — and let that
+        # raise the league's urgency so it sorts up instead of sitting third.
+        if summ.phase in (PH.IN, PH.DONE):
+            alert = _injury_alert(p)
+            if alert:
+                summ.tone, summ.note = alert
+        rows.append((p, summ, age))
     rows.sort(key=lambda r: PH.sort_key(r[1]))
     if view == "Pre-season":
         rows = [r for r in rows if r[1].phase in (PH.PRE, PH.LIVE)]
@@ -202,6 +210,9 @@ def _render_hero(preset, s, age, on_pick) -> None:
         with right, st.container(key=f"hmwl_{s.league_id}"):
             st.markdown('<div class="hm-wl">What\'s left</div>', unsafe_allow_html=True)
             items = []
+            # In-season, the thing most likely to need him is a starter who might
+            # not play. It leads, because a stale board matters less on a Tuesday
+            # than a Questionable WR does on a Sunday.
             if age is None:
                 items.append(("nil", "No board saved for this league yet."))
             elif age / 24 >= 7:
@@ -215,6 +226,38 @@ def _render_hero(preset, s, age, on_pick) -> None:
             items.append(("nil", s.note))
             for tone, text in items[:3]:
                 st.markdown(_note(tone, text), unsafe_allow_html=True)
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _injury_alert(preset: dict):
+    """(tone, text) when this league has questionable starters, else None.
+
+    Cheap on purpose — it runs for every league card on Home, so it reads the
+    roster and the player payload we already cache and does no lineup maths.
+    """
+    if preset.get("platform") != "sleeper" or not preset.get("my_team"):
+        return None
+    try:
+        from .. import players as PL, sleeper_client as api, weekly as W, config
+        reg = PL.build_registry(int(preset.get("season") or config.current_season()))
+        r = next((x for x in (api.get_rosters(str(preset["league_id"])) or [])
+                  if str(x.get("owner_id")) == str(preset["my_team"])), None)
+        if not r:
+            return None
+        starters = [str(x) for x in (r.get("starters") or []) if str(x) not in ("0", "")]
+        flagged = []
+        for pid in starters:
+            av = W.availability(reg.meta(pid))
+            if av["risky"]:
+                flagged.append((reg.meta(pid).name, av["status"]))
+        if not flagged:
+            return None
+        who = ", ".join(n for n, _s in flagged[:3])
+        tone = "red" if any(s and s.upper().startswith(("OUT", "DOUB")) for _n, s in flagged) else "amber"
+        return (tone, f"{len(flagged)} starter{'s' if len(flagged) != 1 else ''} "
+                      f"questionable — {who}.")
+    except Exception:  # noqa: BLE001 — Home must render even if a league is unreachable
+        return None
 
 
 def _tile(label, value, sub):

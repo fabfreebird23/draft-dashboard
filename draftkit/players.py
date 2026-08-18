@@ -40,6 +40,10 @@ class Player:
     years_exp: Optional[int] = None
     injury_status: Optional[str] = None
     injury_body_part: Optional[str] = None
+    injury_notes: Optional[str] = None
+    practice_participation: Optional[str] = None
+    practice_description: Optional[str] = None
+    news_updated: Optional[int] = None
     status: Optional[str] = None
     depth_chart_order: Optional[int] = None
     number: Optional[int] = None
@@ -115,6 +119,10 @@ def build_registry(season: int) -> PlayerRegistry:
                      age=p.get("age"), years_exp=p.get("years_exp"),
                      injury_status=p.get("injury_status"),
                      injury_body_part=p.get("injury_body_part"),
+                     injury_notes=p.get("injury_notes"),
+                     practice_participation=p.get("practice_participation"),
+                     practice_description=p.get("practice_description"),
+                     news_updated=p.get("news_updated"),
                      status=p.get("status"),
                      depth_chart_order=p.get("depth_chart_order"),
                      number=p.get("number"), college=p.get("college"))

@@ -686,3 +686,128 @@ def counter_offers(my_pids, their_pids, send, get, slots, proj, registry, *,
                     "get": get, "you": round(mg, 1), "them": round(tg, 1)})
     out.sort(key=lambda r: -(r["you"] + r["them"]))
     return out[:limit]
+
+
+# ---------------------------------------------------------------- availability
+#
+# Sleeper ships injury_status, injury_body_part, injury_notes, practice_participation
+# and practice_description on the player payload we ALREADY download for the
+# registry — and until now nothing in-season read any of it. Four of his sixteen
+# players were Questionable, three of them in the lineup the Command Center called
+# fine. Availability is the single thing most likely to change a lineup, and it was
+# the one thing the lineup screen could not see.
+_SEV = {"OUT": 4, "IR": 4, "PUP": 4, "SUS": 4, "NA": 4,
+        "DOUBTFUL": 3, "QUESTIONABLE": 2, "PROBABLE": 1, "DTD": 2}
+_PRACTICE_RISK = {"DNP": 1, "LIMITED": 0, "FULL": -1}
+
+
+def availability(pm) -> dict:
+    """What we know about whether he plays, and how loudly to say it.
+
+    Deliberately does NOT discount the projection. The host's projection already
+    prices known absences, and quietly shaving points would make every number on
+    every screen disagree with Sleeper for reasons the user cannot see. Flag it,
+    show the evidence, offer the contingency — let him decide.
+    """
+    status = (getattr(pm, "injury_status", None) or "").strip()
+    key = status.upper().replace(" ", "")
+    sev = _SEV.get(key, 0)
+    practice = (getattr(pm, "practice_participation", None) or "").strip()
+    pkey = practice.upper().replace(" ", "").replace("PARTICIPATION", "")
+    # Practice participation is the tell that moves a Questionable either way: a
+    # DNP Friday is a different player from a full participant with the same tag.
+    sev += _PRACTICE_RISK.get(pkey, 0) if sev else 0
+
+    parts = [x for x in (getattr(pm, "injury_body_part", None),
+                         getattr(pm, "injury_notes", None),
+                         getattr(pm, "practice_description", None)) if x]
+    return {
+        "status": status or None,
+        "severity": max(0, sev),
+        "practice": practice or None,
+        "detail": " · ".join(dict.fromkeys(parts)) or None,
+        "playing": sev < 3,               # OUT/DOUBTFUL are effectively not playing
+        "risky": sev >= 2,                # worth a flag on a starter
+    }
+
+
+def availability_report(pids, slots, proj, registry, *, byes=None, week=None,
+                        starters=None) -> dict:
+    """Roster-wide availability, and what it costs if the doubtful ones sit.
+
+    The contingency is the useful half: knowing Nabers is Questionable is a fact,
+    knowing your week drops 12.7 points and who replaces him is a decision.
+    """
+    rows, at_risk = [], []
+    start_set = {str(p) for p in (starters or []) if str(p) not in ("0", "")}
+    for pid in pids or []:
+        pid = str(pid)
+        try:
+            pm = registry.meta(pid)
+        except Exception:  # noqa: BLE001
+            continue
+        av = availability(pm)
+        if not av["status"] and not av["practice"]:
+            continue
+        av.update({"pid": pid, "name": pm.name, "pos": pm.position, "team": pm.team,
+                   "starting": pid in start_set,
+                   "proj": round(float(proj.get(pid) or 0.0), 1)})
+        rows.append(av)
+        if av["starting"] and av["risky"]:
+            at_risk.append(av)
+
+    # Contingency, measured against the lineup he ACTUALLY has set — not the
+    # optimal one. Measured against optimal, a starter the optimiser would have
+    # benched anyway "costs 0.0 if he sits", which is true of a lineup he is not
+    # using and useless to a man deciding whether to bench him.
+    start_list = [str(p) for p in (starters or []) if str(p) not in ("0", "")]
+    cur_total = sum(float(proj.get(p) or 0.0) for p in start_list)
+    risky_ids = {r["pid"] for r in at_risk}
+
+    def _best_replacement(out_pid):
+        """Best eligible bench player, preferring one who is himself healthy.
+
+        The first cut happily nominated another Questionable player as the cover
+        for a Questionable starter — advice that solves nothing."""
+        out_pos = _pos(registry, out_pid)
+        cands = []
+        for b in pids:
+            b = str(b)
+            if b in start_list or b == out_pid:
+                continue
+            if not any(LU.slot_accepts(sl, _pos(registry, b)) for sl, sp in
+                       zip(slots, start_list + [None] * len(slots)) if sp == out_pid or True):
+                continue
+            if _pos(registry, b) != out_pos and not any(
+                    LU.slot_accepts("FLEX", _pos(registry, b)) for _ in (1,)):
+                continue
+            av_b = availability(registry.meta(b))
+            cands.append((av_b["severity"] >= 2, -float(proj.get(b) or 0.0), b))
+        cands.sort()
+        return cands[0][2] if cands else None
+
+    for r in at_risk:
+        rep_pid = _best_replacement(r["pid"])
+        r["replacement"] = _name(registry, rep_pid) if rep_pid else None
+        r["replacement_risky"] = bool(rep_pid) and availability(
+            registry.meta(rep_pid))["severity"] >= 2
+        repl_pts = float(proj.get(rep_pid) or 0.0) if rep_pid else 0.0
+        r["cost_if_out"] = round(r["proj"] - repl_pts, 1)
+
+    # Several risky starters often nominate the SAME healthy body — he can only
+    # cover one of them. Per-player "if he sits" is still the right question (they
+    # rarely all sit), but the sharing has to be visible.
+    from collections import Counter
+    _rc = Counter(r.get("replacement") for r in at_risk if r.get("replacement"))
+    for r in at_risk:
+        r["replacement_shared"] = _rc.get(r.get("replacement"), 0) > 1
+
+    all_out_total = cur_total
+    for r in at_risk:
+        all_out_total -= max(0.0, r["cost_if_out"])
+
+    rows.sort(key=lambda r: (-r["severity"], -r["proj"]))
+    return {"rows": rows, "at_risk": at_risk,
+            "current_total": round(cur_total, 1),
+            "cost_if_all_out": round(cur_total - all_out_total, 1),
+            "n_risky_starters": len(at_risk)}

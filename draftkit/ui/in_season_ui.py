@@ -191,6 +191,8 @@ def _command(ctx, g) -> None:
     reg = ctx["registry"]
     lc = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"],
                         current=g.get("starters"))
+    avail = W.availability_report(g["mine"], g["slots"], g["proj"], reg,
+                                  byes=g["byes"], week=g["week"], starters=g["starters"])
     oid, opp = _opponent(ctx, g)
     om, os_ = W.team_distribution(opp, g["slots"], g["proj"], reg, g["byes"], g["week"]) if opp else (0, 1)
     # the lineup he has, not the one we would pick — that is what will actually score
@@ -212,8 +214,10 @@ def _command(ctx, g) -> None:
          (f"{100*wp_fixed:.0f}% if you make the change{'s' if len(lc['moves']) != 1 else ''}"
           if lc["moves"] else "lineup already set"),
          "var(--green)" if (wp or 0) >= .5 else "var(--red)"),
-        ("Bench points", f"{sum(float(g['proj'].get(p,0) or 0) for p in lc['bench']):.0f}",
-         f"{len(lc['bench'])} players sitting", "var(--muted)"),
+        ("Injury risk", f'{avail["n_risky_starters"]}' if avail["n_risky_starters"] else "clear",
+         (f'starters flagged · {avail["cost_if_all_out"]:+.1f} worst case'
+          if avail["n_risky_starters"] else "nobody flagged"),
+         "var(--red)" if avail["n_risky_starters"] else "var(--green)"),
     ])
 
     left, right = st.columns([1.5, 1])
@@ -241,9 +245,12 @@ def _command(ctx, g) -> None:
                 better = '<span class="ws-fnt">—</span>'
                 delta = '<span class="ws-fnt">—</span>'
                 verdict = _chip("keep", "nil")
+            av = W.availability(pm)
+            flag = (" " + _chip(av["status"][:4], "bad" if av["severity"] >= 3 else "warn")
+                    ) if av["status"] else ""
             rows.append([f'<b class="ws-sl">{slot}</b>',
                          f'<b>{pm.name}</b> {_pos_pill(pm.position)} '
-                         f'<span class="ws-fnt">{pm.team}</span>',
+                         f'<span class="ws-fnt">{pm.team}</span>{flag}',
                          f'{float(g["proj"].get(str(pid), 0) or 0):.1f}', better, delta, verdict])
         st.markdown(_tbl(["", "You are starting", "~Proj", "Start instead", "~Δ", ""], rows,
                          widths=["46px", "30%", "68px", "30%", "62px", "128px"], wide=True),
@@ -259,6 +266,24 @@ def _command(ctx, g) -> None:
 
     with right:
         st.markdown('<div class="ws-h">Needs a decision</div>', unsafe_allow_html=True)
+        # Availability first: it is the thing most likely to change a lineup, and
+        # until now the screen could not see it at all.
+        for a in avail["at_risk"][:3]:
+            cost = a.get("cost_if_out")
+            if cost is None:
+                body = ""
+            elif cost > 0.05:
+                body = (f'If he sits you lose <b>{cost:.1f}</b> and '
+                        f'<b>{a["replacement"] or "nobody"}</b> covers.')
+            else:
+                body = (f'<b>You would gain {abs(cost):.1f}</b> by starting '
+                        f'{a["replacement"]} regardless.')
+            extra = (" That same body is covering another questionable starter — "
+                     "only one of them can.") if a.get("replacement_shared") else ""
+            _alert("red" if a["severity"] >= 3 else "amb", "\u2695",
+                   f'<b>{a["name"]} — {a["status"]}</b>'
+                   + (f' <span class="ws-fnt">({a["detail"]})</span>' if a["detail"] else "")
+                   + f'. {body}{extra}')
         if lc["moves"]:
             for m in lc["moves"][:3]:
                 _alert("amb", "↑", f'<b>Start {reg.meta(m["in"]).name}, bench '
@@ -325,8 +350,11 @@ def _waivers(ctx, g) -> None:
             verdict, kind = f"${bid['low']}–{bid['high']}", "ok"
         else:
             verdict, kind = "$0 — no upgrade", "nil"
+        _av = W.availability(reg.meta(r["pid"]))
+        _fl = (" " + _chip(_av["status"][:4], "bad" if _av["severity"] >= 3 else "warn")
+               ) if _av["status"] else ""
         rows.append([
-            f'<b>{r["name"]}</b> {_pos_pill(r["pos"])}',
+            f'<b>{r["name"]}</b> {_pos_pill(r["pos"])}{_fl}',
             f'{r["proj"]:.1f}',
             (f'<b class="ws-up">+{r["gain"]}</b>' if r["gain"] > 0.05
              else '<span class="ws-fnt">+0.0</span>'),
