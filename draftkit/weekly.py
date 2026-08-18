@@ -35,17 +35,27 @@ def player_sd(pos: str, mean: float) -> float:
     return max(_FLOOR_SD, float(mean or 0.0) * _CV.get((pos or "").upper(), _CV_DEFAULT))
 
 
-def team_distribution(pids, slots, proj: dict, registry, byes=None, week=None):
-    """(mean, sd) of a roster's BEST legal lineup — not of the roster.
+def team_distribution(pids, slots, proj: dict, registry, byes=None, week=None,
+                      current=None):
+    """(mean, sd) of a lineup — the one that is SET if we know it, else the best legal one.
 
-    Uses the optimiser, so it answers "what will this team actually score" rather
-    than "what do its best players project", which differ whenever someone is
-    forced to start a bench body.
+    `current` is the platform's starters. Pass it and you get what this team will
+    actually score if nobody touches anything; leave it off and you get the team's
+    ceiling. The distinction is the whole matchup screen: two rosters at the same
+    strength are not the same opponent if one of them left a bye week in at RB.
+
+    Without `current` this uses the optimiser, so it still answers "what will this
+    team score" rather than "what do its best players project" — a roster forced to
+    start a bench body is weaker than its names suggest.
     """
-    lu = LU.optimize(list(pids or []), None, slots, proj, registry, byes=byes, week=week)
+    cur = [str(x) for x in (current or []) if str(x) not in ("0", "")]
+    if cur:
+        used = cur
+    else:
+        lu = LU.optimize(list(pids or []), None, slots, proj, registry, byes=byes, week=week)
+        used = [getattr(sp, "pid", None) for sp in (getattr(lu, "spots", []) or [])]
     mean, var = 0.0, 0.0
-    for sp in getattr(lu, "spots", []) or []:
-        pid = getattr(sp, "pid", None)
+    for pid in used:
         if not pid:
             continue
         p = float(proj.get(str(pid)) or 0.0)

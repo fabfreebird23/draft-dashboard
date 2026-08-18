@@ -63,12 +63,14 @@ def _hub_or_platform(s):
 
 
 def _nfl_week() -> int:
-    from .. import sleeper_client as api
-    try:
-        st_ = api.get_state("nfl") or {}
-        return max(1, int(st_.get("week") or 1))
-    except Exception:  # noqa: BLE001
-        return 1
+    """The week the in-season screens will open on — the SAME function they use.
+
+    Sleeper's state counts preseason weeks, so in August it says week 2 while the
+    first week anyone scores is week 1. Home was reading the raw number, so the
+    button said "Open week 2" and landed you on a page headed WEEK 1.
+    """
+    from .in_season_ui import current_week
+    return current_week()
 
 
 def _nfl_pre() -> bool:

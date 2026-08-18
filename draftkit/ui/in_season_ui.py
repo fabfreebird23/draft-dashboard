@@ -133,7 +133,12 @@ def _owner_name(ctx, owner_id) -> str:
 
 def _opponent(ctx, g):
     """(owner_id, pids) of this week's opponent, or the closest-strength team as a
-    stand-in before the schedule exists."""
+    stand-in before the schedule exists.
+
+    Callers that need the lineup he has SET (not the one he should set) get it from
+    `_opp_starters` rather than a third return value, because most callers — trades,
+    keepers — only ever want the roster.
+    """
     meta = ctx["meta"]
     try:
         ms = api.get_matchups(str(meta.league_id), g["week"]) or []
@@ -150,6 +155,10 @@ def _opponent(ctx, g):
         pass
     others = [(o, r["players"]) for o, r in g["rosters"].items() if o != g["me"] and r["players"]]
     return others[0] if others else (None, [])
+
+
+def _opp_starters(g, oid) -> list:
+    return (g["rosters"].get(str(oid)) or {}).get("starters") or []
 
 
 # ---------------------------------------------------------------------- render
@@ -194,7 +203,11 @@ def _command(ctx, g) -> None:
     avail = W.availability_report(g["mine"], g["slots"], g["proj"], reg,
                                   byes=g["byes"], week=g["week"], starters=g["starters"])
     oid, opp = _opponent(ctx, g)
-    om, os_ = W.team_distribution(opp, g["slots"], g["proj"], reg, g["byes"], g["week"]) if opp else (0, 1)
+    # His SET lineup, same as yours — scoring yourself on what you have and him on
+    # what he ought to have is a thumb on the scale, and it made this tile disagree
+    # with the Matchup tab about the same game.
+    om, os_ = (W.team_distribution(opp, g["slots"], g["proj"], reg, g["byes"], g["week"],
+                                   current=_opp_starters(g, oid)) if opp else (0, 1))
     # the lineup he has, not the one we would pick — that is what will actually score
     _now = lc["current_total"] if lc["have_current"] else lc["mean"]
     wp = W.win_prob(_now, lc["sd"], om, os_) if opp else None
@@ -419,9 +432,20 @@ def _matchup(ctx, g) -> None:
     if not opp:
         st.info("No opponent found for this week yet.")
         return
-    mm, ms = W.team_distribution(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"])
-    om, os_ = W.team_distribution(opp, g["slots"], g["proj"], reg, g["byes"], g["week"])
+    ost = _opp_starters(g, oid)
+    # BOTH sides as the lineups they have SET. Scoring yourself on what you'd play
+    # and the other guy on what he should play is how a screen ends up disagreeing
+    # with the Command Center about your own projection.
+    mm, ms = W.team_distribution(g["mine"], g["slots"], g["proj"], reg, g["byes"],
+                                 g["week"], current=g["starters"])
+    om, os_ = W.team_distribution(opp, g["slots"], g["proj"], reg, g["byes"],
+                                  g["week"], current=ost)
     wp = W.win_prob(mm, ms, om, os_)
+    # What the week looks like if you make your moves and he makes his — the upside
+    # you're leaving on the table, and the risk that he doesn't leave his there.
+    bm, bs = W.team_distribution(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"])
+    obm, obs = W.team_distribution(opp, g["slots"], g["proj"], reg, g["byes"], g["week"])
+    wp_best = W.win_prob(bm, bs, obm, obs)
     them = _owner_name(ctx, oid)
 
     st.markdown(
@@ -431,15 +455,21 @@ def _matchup(ctx, g) -> None:
         f'<div class="ws-wp"><i style="width:{100*wp:.0f}%"></i>'
         f'<span>{100*wp:.0f}% you &nbsp;·&nbsp; {mm:.1f} – {om:.1f}</span></div>',
         unsafe_allow_html=True)
-    st.caption("Win probability treats each team total as a normal distribution — the spread comes "
-               "from position-level weekly variance, so a boom/bust roster reads differently from a "
-               "steady one with the same projection.")
+    st.caption(f"Both lineups as currently **set** on Sleeper. Play your best lineup and he plays "
+               f"his and it's {bm:.1f} – {obm:.1f}, {100*wp_best:.0f}% you. Win probability treats "
+               f"each team total as a normal distribution — the spread comes from position-level "
+               f"weekly variance, so a boom/bust roster reads differently from a steady one with "
+               f"the same projection.")
 
     c1, c2 = st.columns(2)
     with c1:
         st.markdown('<div class="ws-h">Slot by slot</div>', unsafe_allow_html=True)
-        ml = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"])["spots"]
-        ol = W.lineup_check(opp, g["slots"], g["proj"], reg, g["byes"], g["week"])["spots"]
+        # ["current"], not ["spots"] — "spots" is the OPTIMAL lineup, and this
+        # column has to name the men who will actually be on the field.
+        ml = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"],
+                            current=g["starters"])["current"]
+        ol = W.lineup_check(opp, g["slots"], g["proj"], reg, g["byes"], g["week"],
+                            current=ost)["current"]
         rows = []
         for (s, a), (_s2, b) in zip(ml, ol):
             pa = float(g["proj"].get(str(a), 0) or 0) if a else 0.0
