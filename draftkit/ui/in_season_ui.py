@@ -15,7 +15,8 @@ from __future__ import annotations
 import streamlit as st
 
 from .. import (config, ecr as ECR, inseason, keepers as K, phase as PH,
-                projections as PJ, schedule as SCH, sleeper_client as api, weekly as W)
+                picks as PK, projections as PJ, schedule as SCH, sleeper_client as api,
+                weekly as W)
 from . import components as C
 
 TABS = ["Command Center", "Waivers", "Matchup", "Trades", "Playoffs", "League", "Keepers"]
@@ -161,6 +162,29 @@ def _ecr(season: int, week: int, scoring: str, _registry):
         return {"wk": {}, "ros": {}}
 
 
+@st.cache_data(ttl=600, show_spinner=False)
+def _pick_book(platform: str, league_id: str, season: int, rounds: int, rosters_json: str):
+    """Who holds which FUTURE draft pick, league-wide.
+
+    Sleeper's per-draft traded_picks can't see next year, and next year's picks
+    are the ones that actually get traded in October. The league-level endpoint
+    covers every season at once.
+    """
+    import json as _json
+    if platform != "sleeper":
+        return {}
+    try:
+        rids = sorted(int(r) for r in _json.loads(rosters_json))
+        traded = api.get_league_traded_picks(league_id) or []
+        seasons = PK.future_seasons(traded, int(season))
+        own = PK.ownership(traded, rids, seasons, int(rounds or 14))
+        # tuple keys don't survive Streamlit's cache serialisation — hand back the
+        # per-roster lists the callers actually want.
+        return {int(r): PK.held_by(own, r) for r in rids}
+    except Exception:  # noqa: BLE001 — no pick data must not break the tab
+        return {}
+
+
 def _gather(ctx, week):
     """Everything the tabs share, fetched once."""
     meta, reg = ctx["meta"], ctx["registry"]
@@ -175,10 +199,15 @@ def _gather(ctx, week):
     except Exception:  # noqa: BLE001
         proj = {}
     ecr = _ecr(season, week, getattr(meta, "scoring", "ppr") or "ppr", reg)
+    import json as _json
+    rids = [r.get("roster_id") for r in rosters.values() if r.get("roster_id") is not None]
+    book = _pick_book(meta.platform, str(meta.league_id), season,
+                      getattr(meta, "draft_rounds", 14) or 14,
+                      _json.dumps(sorted(int(x) for x in rids)))
     return {"rosters": rosters, "me": me, "mine": mine, "starters": starters,
             "proj": proj, "slots": ctx["roster_slots"], "byes": ctx.get("byes"),
             "week": week, "season": season,
-            "ecr": ecr["wk"], "ros": ecr["ros"]}
+            "ecr": ecr["wk"], "ros": ecr["ros"], "picks": book}
 
 
 def _owner_name(ctx, owner_id) -> str:
@@ -789,6 +818,33 @@ def _trades(ctx, g) -> None:
     _analyzer(ctx, g, oid, opp)
 
 
+def _roster_id(g, owner_id):
+    return (g["rosters"].get(str(owner_id)) or {}).get("roster_id")
+
+
+def _team_of(ctx, g, roster_id):
+    """Manager name for a roster_id — for "2027 R4 (via Ned)"."""
+    for owner, r in g["rosters"].items():
+        if r.get("roster_id") == roster_id:
+            return _owner_name(ctx, owner)
+    return None
+
+
+def _pick_menu(ctx, g, owner_id) -> dict:
+    """{label: pick} of the future picks this manager holds, in order.
+
+    Labels carry the origin so a manager holding three 2027 fourths can tell them
+    apart — they are genuinely different assets to the other side of the table.
+    """
+    rid = _roster_id(g, owner_id)
+    if rid is None:
+        return {}
+    out = {}
+    for pk in (g.get("picks") or {}).get(int(rid), []):
+        out[PK.label(pk, _team_of(ctx, g, pk.get("origin")))] = pk
+    return out
+
+
 def _analyzer(ctx, g, oid, opp) -> None:
     """Judge a SPECIFIC offer — the one in your inbox.
 
@@ -804,6 +860,7 @@ def _analyzer(ctx, g, oid, opp) -> None:
 
     mine_names = {reg.meta(p).name: p for p in g["mine"]}
     opp_names = {reg.meta(p).name: p for p in opp}
+    my_picks, their_picks = _pick_menu(ctx, g, g["me"]), _pick_menu(ctx, g, oid)
     c1, c2 = st.columns(2, gap="medium")
     send = c1.multiselect("You send", sorted(mine_names),
                           key=f"ws_an_send_{ctx['league_key']}",
@@ -811,14 +868,26 @@ def _analyzer(ctx, g, oid, opp) -> None:
     get = c2.multiselect(f"You get from {them}", sorted(opp_names),
                          key=f"ws_an_get_{ctx['league_key']}",
                          placeholder="pick from theirs")
-    if not send or not get:
-        st.caption("Pick at least one player on each side.")
+    # Picks are their own two boxes rather than being mixed into the player lists.
+    # In a keeper league the offer is usually "player for pick", and a single
+    # jumbled dropdown makes you hunt for the 2027 second among forty names.
+    sendp = c1.multiselect("…and these picks", list(my_picks),
+                           key=f"ws_an_sendp_{ctx['league_key']}",
+                           placeholder="your future draft picks")
+    getp = c2.multiselect("…and these picks", list(their_picks),
+                          key=f"ws_an_getp_{ctx['league_key']}",
+                          placeholder=f"{them}'s future draft picks")
+    if (not send and not sendp) or (not get and not getp):
+        st.caption("Put at least one player or pick on each side.")
         return
 
     weeks_left = max(1, 14 - g["week"])
+    n_teams = int(getattr(ctx["meta"], "num_teams", 12) or 12)
     r = W.analyze_trade(g["mine"], opp, [mine_names[n] for n in send], [opp_names[n] for n in get],
                         g["slots"], g["proj"], reg, byes=g["byes"], week=g["week"],
-                        keeper_rows=_keeper_rows(ctx, g), weeks_left=weeks_left)
+                        keeper_rows=_keeper_rows(ctx, g), weeks_left=weeks_left,
+                        send_picks=[my_picks[k] for k in sendp],
+                        get_picks=[their_picks[k] for k in getp], n_teams=n_teams)
 
     tone = {"accept": "var(--green)", "reject": "var(--red)",
             "marginal": "var(--amber)"}.get(r["verdict"], "var(--amber)")
@@ -831,9 +900,18 @@ def _analyzer(ctx, g, oid, opp) -> None:
          "in draft picks, next year" if r["keeper"] is not None else "no keepers involved",
          "var(--green)" if (r["keeper"] or 0) > 0 else
          ("var(--red)" if r["keeper"] is not None else "var(--muted)")),
+        ("Draft capital", "—" if r["capital"] is None else f'{r["capital"]:+d}',
+         ("in pick positions, next year" if r["capital"] is not None
+          else "no picks in this deal"),
+         "var(--green)" if (r["capital"] or 0) > 0 else
+         ("var(--red)" if r["capital"] is not None else "var(--muted)")),
+        # Their capital is the mirror of ours, so a deal that reads as nothing for
+        # them on lineup can still be an obvious yes on picks. Say which.
         ("For them", f'{r["them"]:+.1f}',
-         "they accept" if r["them"] > 0.05 else "they have no reason to",
-         "var(--green)" if r["them"] > 0.05 else "var(--muted)"),
+         ("they accept" if r["them"] > 0.05 else
+          (f'lineup no, but +{abs(r["capital"])} picks yes' if (r["capital"] or 0) < 0
+           else "they have no reason to")),
+         "var(--green)" if (r["them"] > 0.05 or (r["capital"] or 0) < 0) else "var(--muted)"),
     ])
     st.markdown(f'<div class="ws-verdict" style="border-color:{tone}">'
                 f'<b style="color:{tone}">{r["verdict"].upper()}</b> — {r["why"]}</div>',
@@ -864,12 +942,32 @@ def _analyzer(ctx, g, oid, opp) -> None:
                              widths=["auto", "44%", "84px"], wide=True), unsafe_allow_html=True)
             st.caption("These cost a late pick and are worth an early one. Giving one up is a "
                        "next-season decision, and the week number above does not price it.")
+        if r["picks_out"] or r["picks_in"]:
+            st.markdown('<div class="ws-h">Picks changing hands</div>', unsafe_allow_html=True)
+            prows = []
+            for lbl, side, cls in (("You send", r["picks_out"], "ws-dn"),
+                                   ("You get", r["picks_in"], "ws-up")):
+                for pk in side:
+                    prows.append([f'<span class="ws-fnt">{lbl}</span>',
+                                  f'<b class="{cls}">{PK.label(pk, _team_of(ctx, g, pk.get("origin")))}</b>',
+                                  f'<span class="ws-fnt">≈ pick {PK.overall(pk["round"], n_teams):.0f} '
+                                  f'overall</span>'])
+            st.markdown(_tbl(["", "Pick", "~Worth"], prows,
+                             widths=["78px", "auto", "42%"], wide=True), unsafe_allow_html=True)
+            st.caption("Every pick is priced at the **middle of its round** — next year's draft "
+                       "order follows standings that haven't happened, so a 2027 1st is not "
+                       "assumed to be the 1.01. The scale is linear in picks, which understates "
+                       "the very top of round one.")
         if r["roster"]:
             _alert("amb", "!", f'This changes your roster size by <b>{r["roster"]:+d}</b>. '
                                f'{"A freed spot is only worth something if there is a waiver add worth making." if r["roster"] < 0 else "You will need to drop someone to fit them."}')
-        counters = W.counter_offers(g["mine"], opp, [mine_names[n] for n in send],
-                                    [opp_names[n] for n in get], g["slots"], g["proj"], reg,
-                                    byes=g["byes"], week=g["week"], limit=3)
+        # Counters swap one of YOUR players for a different one; with no players on
+        # a side there is nothing to swap, and a pick-for-pick deal has no counter
+        # of that shape to offer.
+        counters = (W.counter_offers(g["mine"], opp, [mine_names[n] for n in send],
+                                     [opp_names[n] for n in get], g["slots"], g["proj"], reg,
+                                     byes=g["byes"], week=g["week"], limit=3)
+                    if (send and get) else [])
         if counters and r["them"] <= 0.05:
             st.markdown('<div class="ws-h">Counters that might actually clear</div>',
                         unsafe_allow_html=True)

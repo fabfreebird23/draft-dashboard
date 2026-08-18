@@ -13,7 +13,7 @@ import math
 import statistics
 from typing import Dict, List, Optional
 
-from . import lineup as LU, sleeper_client as api
+from . import lineup as LU, picks as PK, sleeper_client as api
 
 # ---------------------------------------------------------------- variance
 #
@@ -597,8 +597,19 @@ def trade_packages(my_pids, their_pids, slots, proj, registry, *, byes=None, wee
 
 
 # ---------------------------------------------------------------- analyzer
+def _CAPITAL_HEAVY(n_teams: int) -> float:
+    """How much draft capital counts as "a lot" — two full rounds.
+
+    Scaled by league size rather than fixed, because 24 picks is two rounds in a
+    12-team league and three in an 8-team one, and the sentence "does not pay for
+    N picks" should mean the same thing in both.
+    """
+    return 2.0 * max(1, int(n_teams or 1))
+
+
 def analyze_trade(my_pids, their_pids, send, get, slots, proj, registry, *,
-                  byes=None, week=None, keeper_rows=None, weeks_left: int = 11) -> dict:
+                  byes=None, week=None, keeper_rows=None, weeks_left: int = 11,
+                  send_picks=None, get_picks=None, n_teams: int = 12) -> dict:
     """Judge a SPECIFIC proposal — the one sitting in your inbox.
 
     The finder answers "what deals exist"; this answers "should I accept this one",
@@ -612,6 +623,9 @@ def analyze_trade(my_pids, their_pids, send, get, slots, proj, registry, *,
       rest      the same, multiplied out over the weeks left — a small weekly edge
                 compounds, and a 2-point gain for eleven weeks is a real haul
       keeper    surplus handed over vs surplus received, in draft picks
+      capital   draft picks in and out, in pick positions — the currency half of
+                every keeper-league offer, and the half this could not see at all
+                until it took send_picks/get_picks
       roster    spots gained or lost, which a 2-for-1 quietly costs you
 
     `verdict` is a recommendation, not a score, and it says which of the four drove
@@ -638,6 +652,13 @@ def analyze_trade(my_pids, their_pids, send, get, slots, proj, registry, *,
     k_out = sum(max(0, r["surplus"] or 0) for _p, r in out_k)
     k_in = sum(max(0, r["surplus"] or 0) for _p, r in in_k)
 
+    # Picks move no points this week and none the rest of this season — their
+    # whole effect is next year, which is why they get their own axis instead of
+    # being smeared into a lineup number they cannot influence.
+    cap_delta = round(PK.capital(get_picks or [], n_teams)
+                      - PK.capital(send_picks or [], n_teams))
+    has_picks = bool(send_picks or get_picks)
+
     week_delta = round(m1 - m0, 1)
     rest_delta = round(week_delta * max(1, weeks_left), 1)
     their_delta = round(t1 - t0, 1)
@@ -646,13 +667,51 @@ def analyze_trade(my_pids, their_pids, send, get, slots, proj, registry, *,
     # league's last round — priced by the UI, not guessed at here
     roster_delta = len(get) - len(send)
 
-    # The verdict names its own driver rather than blending everything into a number.
-    if week_delta <= 0.05:
+    # The verdict names its own driver rather than blending everything into a
+    # number. Order matters: a deal that moves no players must not be judged by
+    # its effect on a lineup it cannot touch, which is how a pick-for-pick loss
+    # first came back as "it does not improve your lineup this week" — true, and
+    # completely beside the point.
+    if not send and not get:
+        if cap_delta > 0:
+            verdict, why = ("accept",
+                            f"pure draft capital — you come out {cap_delta} pick "
+                            f"positions ahead")
+        elif cap_delta < 0:
+            verdict, why = ("reject",
+                            f"you give up {abs(cap_delta)} pick positions and get "
+                            f"nothing back this season")
+        else:
+            verdict, why = ("marginal",
+                            "an even swap — the same draft capital either way, so "
+                            "this only matters if you rate the seasons differently")
+    elif week_delta <= 0.05 and cap_delta > 0 and not get:
+        # Selling the present for the future is a strategy, not a mistake. A pure
+        # pick haul SHOULD fail "does it improve your lineup this week" — that is
+        # the deal, and the old first branch would have called it a reject.
+        verdict, why = ("accept",
+                        f"you give up this week to bank {cap_delta} picks of draft capital — "
+                        f"the right trade if you are building for next year")
+    elif week_delta <= 0.05 and has_picks and cap_delta < 0:
+        verdict, why = ("reject",
+                        f"no lineup gain AND {abs(cap_delta)} pick positions out the door")
+    elif week_delta <= 0.05:
         verdict, why = "reject", "it does not improve your lineup this week"
+    elif has_picks and cap_delta <= -_CAPITAL_HEAVY(n_teams) and week_delta < 4:
+        verdict, why = ("reject",
+                        f"a {week_delta:+.1f}/wk lineup gain does not pay for "
+                        f"{abs(cap_delta)} picks of draft capital")
     elif keeper_delta is not None and keeper_delta <= -40 and week_delta < 4:
         verdict, why = ("reject",
                         f"a {week_delta:+.1f}/wk lineup gain does not pay for "
                         f"{abs(keeper_delta)} picks of keeper surplus")
+    elif their_delta <= 0.05 and cap_delta < 0:
+        # Their side of the capital is exactly the negative of ours. Saying "they
+        # have no reason to accept" while handing them a first is the screen
+        # forgetting that the other manager can see the picks too.
+        verdict, why = ("send it",
+                        f"their lineup doesn't improve, but you are handing them "
+                        f"{abs(cap_delta)} pick positions — that is the reason they say yes")
     elif their_delta <= 0.05:
         verdict, why = ("send it, but expect a no",
                         "you gain and they do not — they have no reason to accept")
@@ -665,6 +724,8 @@ def analyze_trade(my_pids, their_pids, send, get, slots, proj, registry, *,
     return {
         "week": week_delta, "rest": rest_delta, "them": their_delta,
         "keeper": keeper_delta, "roster": roster_delta,
+        "capital": cap_delta if has_picks else None,
+        "picks_out": list(send_picks or []), "picks_in": list(get_picks or []),
         "mine_before": round(m0, 1), "mine_after": round(m1, 1),
         "theirs_before": round(t0, 1), "theirs_after": round(t1, 1),
         "out_keepers": [(_name(registry, p), r) for p, r in out_k],

@@ -97,6 +97,21 @@ def get_traded_picks(draft_id: str) -> List[Dict[str, Any]]:
     return _disk(f"tpicks_{draft_id}", 60, lambda: _get(f"draft/{draft_id}/traded_picks") or [])
 
 
+def get_league_traded_picks(league_id: str) -> List[Dict[str, Any]]:
+    """Every pick swap in the league, ALL seasons — [{season, round, roster_id,
+    owner_id, previous_owner_id}], ids being roster_ids.
+
+    The per-draft endpoint above only knows about one draft, so it cannot see next
+    year's first-rounder changing hands — and next year's picks are exactly the
+    ones that get traded in-season. Kreeper has 11 rows for 2027 and 3 for 2028
+    that the draft endpoint never returns.
+
+    `roster_id` is whose pick it ORIGINALLY was; `owner_id` is who holds it now.
+    """
+    return _disk(f"ltpicks_{league_id}", 600,
+                 lambda: _get(f"league/{league_id}/traded_picks") or [])
+
+
 def get_draft_picks(draft_id: str) -> List[Dict[str, Any]]:
     """Cached draft picks, keyed on the draft's STATUS.
 
