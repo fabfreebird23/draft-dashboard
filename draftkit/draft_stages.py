@@ -33,7 +33,7 @@ STAGES = {
         Stage(ROOKIE, "Rookie draft", 2, "rookies",
               "2 rounds, NFL rookies only. Everyone taken here is out of the "
               "veteran pool."),
-        Stage(VETERAN, "Veteran draft", 14, "all",
+        Stage(VETERAN, "Veteran draft", 13, "all",
               "The main draft, with rookie-draft picks already off the board."),
     ],
 }
@@ -67,29 +67,19 @@ def already_taken(league_id) -> Set[str]:
 
 
 def scheduled_rounds(league_id, stage: "Stage") -> int:
-    """Round count from the league's own un-run draft, falling back to the config.
+    """Rounds for this stage. The CONFIG above wins; the platform is not asked.
 
-    A mock with the wrong length practises rounds that do not exist. 7 1/2 Men's
-    pending veteran draft is 10 rounds where this file said 14 — the platform is
-    the better source for a number the commissioner can change at any time.
+    This briefly read the round count off the league's pending Sleeper draft, on
+    the theory that the commissioner is a better source than this repo. He isn't,
+    here — Sleeper caps a supplemental draft at 10 rounds, so 7 1/2 Men runs its
+    13-round veteran draft as more than one supplemental. The 10 on the platform
+    is a limit of the tool, not a description of the league, and a mock built from
+    it would practise ten rounds of a thirteen-round draft.
 
-    Only the most recently created pre-draft is trusted: the league also carries an
-    older abandoned one named "TBD", and picking the wrong one would be worse than
-    using the fallback.
+    Kept as a function rather than inlined so the seam stays visible: if a league
+    ever does need its rounds read from the platform, this is where that goes.
     """
-    from . import sleeper_client as api
-    if stage.key == ROOKIE:
-        return stage.rounds
-    try:
-        pend = [d for d in (api.get_league_drafts(str(league_id)) or [])
-                if d.get("status") == "pre_draft"]
-        if not pend:
-            return stage.rounds
-        newest = max(pend, key=lambda d: d.get("created") or 0)
-        n = int((newest.get("settings") or {}).get("rounds") or 0)
-        return n if n > 0 else stage.rounds
-    except Exception:  # noqa: BLE001
-        return stage.rounds
+    return stage.rounds
 
 
 def is_rookie(pid, registry) -> bool:
