@@ -13,7 +13,7 @@ practise the wrong draft.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Set
 
 ROOKIE, VETERAN = "rookie", "veteran"
 
@@ -41,6 +41,55 @@ STAGES = {
 
 def stages_for(league_id) -> Optional[List[Stage]]:
     return STAGES.get(str(league_id))
+
+
+def already_taken(league_id) -> Set[str]:
+    """Everyone already on a roster in this league — the real, played drafts.
+
+    The veteran stage used to subtract only what the ROOKIE MOCK took in this
+    browser session, which meant a league whose rookie draft had actually happened
+    still offered all sixteen of those players in the veteran pool. Practising
+    against men who are already gone is practising the wrong draft, which is the
+    one thing this module exists to prevent.
+
+    Current rosters rather than a replay of the completed drafts, because rosters
+    are downstream of everything: the draft, plus every add, drop and trade since.
+    Checked against 7 1/2 Men — its 2-round rookie draft made 16 picks and all 16
+    are still rostered, so the two agree there and rosters keep agreeing after the
+    first waiver claim.
+    """
+    from . import sleeper_client as api
+    try:
+        return {str(p) for r in (api.get_rosters(str(league_id)) or [])
+                for p in (r.get("players") or [])}
+    except Exception:  # noqa: BLE001 — no roster data just means no head start
+        return set()
+
+
+def scheduled_rounds(league_id, stage: "Stage") -> int:
+    """Round count from the league's own un-run draft, falling back to the config.
+
+    A mock with the wrong length practises rounds that do not exist. 7 1/2 Men's
+    pending veteran draft is 10 rounds where this file said 14 — the platform is
+    the better source for a number the commissioner can change at any time.
+
+    Only the most recently created pre-draft is trusted: the league also carries an
+    older abandoned one named "TBD", and picking the wrong one would be worse than
+    using the fallback.
+    """
+    from . import sleeper_client as api
+    if stage.key == ROOKIE:
+        return stage.rounds
+    try:
+        pend = [d for d in (api.get_league_drafts(str(league_id)) or [])
+                if d.get("status") == "pre_draft"]
+        if not pend:
+            return stage.rounds
+        newest = max(pend, key=lambda d: d.get("created") or 0)
+        n = int((newest.get("settings") or {}).get("rounds") or 0)
+        return n if n > 0 else stage.rounds
+    except Exception:  # noqa: BLE001
+        return stage.rounds
 
 
 def is_rookie(pid, registry) -> bool:
@@ -84,4 +133,10 @@ def apply(ctx, stage: Stage, taken=None):
         new["source_pools"] = {k: eligible(v, stage, reg, taken)
                                for k, v in ctx["source_pools"].items()}
     new["stage"] = stage
+    # His SAVED RANKINGS live in session state, not in ctx, so filtering the pools
+    # above left the visible board untouched: the AI would not draft a man who was
+    # already gone, but the list in front of him still offered Jeremiyah Love with
+    # a DRAFT button next to him. Hand the set down so the renderer can scope the
+    # one list this module cannot reach.
+    new["stage_taken"] = {str(p) for p in (taken or ())}
     return new

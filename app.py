@@ -729,6 +729,7 @@ def main():
         # pool AND the round count, so it's applied to ctx before the mock renders
         # — mocking the veteran draft against the full pool would practise the
         # wrong draft entirely.
+        import dataclasses
         from draftkit import draft_stages as DS
         stages = DS.stages_for(meta.league_id)
         if stages:
@@ -739,15 +740,28 @@ def main():
                                 "draft first — its picks are removed from the "
                                 "veteran pool.")
             stage = stages[names.index(sel)]
-            # Whatever the earlier stage took is gone from this one. Read from the
-            # rookie mock's own board so the two stages actually connect.
-            taken = []
+            # Whatever is already GONE is gone. Two different sources, because
+            # they answer different halves of the question:
+            #   · the real league — his rookie draft actually happened, and all
+            #     sixteen of those men were still being offered in the veteran
+            #     pool because this only ever looked at the mock
+            #   · the rookie MOCK in this session — so the two stages still
+            #     connect when he is practising both back to back
+            real, mock_taken = set(), []
             if stage.key != stages[0].key:
+                real = DS.already_taken(meta.league_id)
                 prev = st.session_state.get(f"mock_{ctx['league_key']}_{stages[0].key}") or {}
-                taken = [pid for pid in (prev.get("made") or {}).values() if pid]
-            st.caption(f"{stage.blurb}"
-                       + (f" · {len(taken)} already taken in the rookie draft."
-                          if taken else ""))
+                mock_taken = [pid for pid in (prev.get("made") or {}).values() if pid]
+            taken = sorted(real | {str(p) for p in mock_taken})
+            # The commissioner sets the round count, not this repo — 7 1/2 Men's
+            # pending veteran draft is 10 rounds where draft_stages said 14.
+            stage = dataclasses.replace(stage, rounds=DS.scheduled_rounds(meta.league_id, stage))
+            bits = [stage.blurb]
+            if real:
+                bits.append(f"{len(real)} already rostered from the real rookie draft.")
+            if mock_taken:
+                bits.append(f"{len(mock_taken)} taken in your rookie mock.")
+            st.caption(" · ".join(bits))
             mock_ui.render(DS.apply(ctx, stage, taken), state_suffix=stage.key)
         else:
             mock_ui.render(ctx)

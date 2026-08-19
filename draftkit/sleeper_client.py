@@ -97,6 +97,18 @@ def get_traded_picks(draft_id: str) -> List[Dict[str, Any]]:
     return _disk(f"tpicks_{draft_id}", 60, lambda: _get(f"draft/{draft_id}/traded_picks") or [])
 
 
+def get_league_drafts(league_id: str) -> List[Dict[str, Any]]:
+    """Every draft this league has, past and pending.
+
+    A league is not one draft. 7 1/2 Men has four: an abandoned startup, a
+    completed 2-round rookie draft, a pending 10-round veteran draft, and an
+    orphan named "TBD". Anything that reasons about "the draft" needs to say
+    which one it means.
+    """
+    return _disk(f"ldrafts_{league_id}", 600,
+                 lambda: _get(f"league/{league_id}/drafts") or [])
+
+
 def get_league_traded_picks(league_id: str) -> List[Dict[str, Any]]:
     """Every pick swap in the league, ALL seasons — [{season, round, roster_id,
     owner_id, previous_owner_id}], ids being roster_ids.

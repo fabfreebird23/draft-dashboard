@@ -49,6 +49,20 @@ def render(ctx, state_suffix: str = "") -> None:
     if not ranks:
         st.info("Add your rankings on the **My Rankings** tab first.")
         return
+    # A staged draft scopes the visible board too, not just the pools the AI picks
+    # from. Filtered here, once, at the source — every panel below (rankings, cheat
+    # sheet, queue, suggestions) reads this same list.
+    if ctx.get("stage"):
+        from .. import draft_stages as _DS
+        ranks = _DS.eligible(ranks, ctx["stage"], reg, ctx.get("stage_taken"))
+        if not ranks:
+            st.warning("Nobody in your rankings is eligible for this stage. Pull a "
+                       "fresh board on **My Rankings**.")
+            return
+        # Every panel below reads the board through ctx, not through session state,
+        # so the scoping survives the trip down. Filtering only the local variable
+        # changed nothing at all — rankings_tab went back to session state itself.
+        ctx = {**ctx, "ranks_override": ranks}
 
     slot_names = ctx["slot_names"]
     n = len(slot_names)
@@ -361,7 +375,8 @@ def render(ctx, state_suffix: str = "") -> None:
         with ltabs[2]:
             juice_tab(ctx, key_prefix=mkey, taken=taken, queued=queued, on_star=toggle_queue)
         with ltabs[3]:
-            queue_manager(ctx, qkey, st.session_state.get(ctx["ranks_key"]) or ranks_active,
+            queue_manager(ctx, qkey, ctx.get("ranks_override")
+                          or st.session_state.get(ctx["ranks_key"]) or ranks_active,
                           taken, reg, f"{mkey}_q", on_pick=show_card,
                           quick_draft=(draft if can_draft else None))
         with ltabs[4]:

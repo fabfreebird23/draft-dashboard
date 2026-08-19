@@ -358,7 +358,12 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
     source = st.selectbox("Ranking source", RS.SOURCES, key=src_key,
                           label_visibility="collapsed")
     if source == RS.UDK:
-        ranks = st.session_state.get(ctx["ranks_key"]) or []
+        # `ranks_override` is the saved board already scoped to a draft STAGE. It
+        # has to win over session state here: reading ranks_key directly is what
+        # kept sixteen already-drafted rookies on the veteran board with a DRAFT
+        # button beside each of them, even though every pool the AI used had been
+        # filtered correctly. The visible list was the one thing still unscoped.
+        ranks = ctx.get("ranks_override") or st.session_state.get(ctx["ranks_key"]) or []
         age = ctx.get("board_age_h")
         st.caption(f"Your saved board · {C.age_phrase(age)}. Nothing refreshes it "
                    "automatically — pull from UDK on **My Rankings** to update."
