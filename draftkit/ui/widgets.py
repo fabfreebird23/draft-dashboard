@@ -172,7 +172,7 @@ def predict_upcoming(ctx, taken_pids, current_overall, my_slot, kept_by_overall,
 def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *,
                     view="List", per_pos=16, limit=70, next_pick=None,
                     show_bands=True, on_star=None, queued=None, taken=None,
-                    quick_draft=None, my_pids=None) -> None:
+                    drafted=None, quick_draft=None, my_pids=None) -> None:
     """Best-available board. Clicking a player row opens their Spotlight card
     (`draft_fn` here is really the inspect handler); when `quick_draft` is given,
     each List-view row also gets a small **Draft** button to draft without opening
@@ -205,10 +205,18 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         return f':{pc}[**{pr}**] {stk}**{C.short_name(r["name"])}**{vchip}'
 
     taken_s = {str(x) for x in (taken or set())}
-    # Survival is measured against the LIVE board (ADP order among the undrafted),
-    # not against market ADP — see components.board_survival_fn. `taken` here is
-    # the full drafted set, which is exactly the input that anchor needs.
-    surv_fn = (C.board_survival_fn(ctx.get("adp_pool"), taken_s, pick, next_pick)
+    # TWO different sets, and conflating them is what broke the survival column.
+    #   `taken`   — cosmetic: which rows to draw struck-through. It is None unless
+    #               "Show drafted" is on, because otherwise those rows aren't here.
+    #   `drafted` — factual: who is off the board. The survival anchor needs this
+    #               ALWAYS, and it was being handed `taken`. With the toggle off
+    #               that is an empty set, so board_survival_fn ranked the drafted
+    #               players as though they were still available and every survivor
+    #               inherited a rank far later than his real one. The error grows
+    #               with every pick made, which is why the column looked fine at
+    #               1.01 and read 100% for everybody by the middle rounds.
+    gone = {str(x) for x in (drafted if drafted is not None else (taken or set()))}
+    surv_fn = (C.board_survival_fn(ctx.get("adp_pool"), gone, pick, next_pick)
                if (next_pick and pick) else None)
 
     def emit_row(r, compact=False):
@@ -431,7 +439,7 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
             clickable_board(ctx, avail, on_click, key_prefix, current_pick=pick_no,
                             view="List", next_pick=next_pick, show_bands=not by_value,
                             on_star=on_star, queued=queued, taken=strike,
-                            quick_draft=quick_draft, my_pids=my_pids)
+                            drafted=taken_s, quick_draft=quick_draft, my_pids=my_pids)
         else:
             st.markdown(C.avail_html(avail, taken, reg, ctx["adp_rank"],
                                      pos_rank=ctx["pos_rank"], current_pick=pick_no,

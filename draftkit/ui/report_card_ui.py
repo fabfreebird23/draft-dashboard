@@ -21,6 +21,41 @@ _POSCOL = {"QB": "#ef4444", "RB": "#22c55e", "WR": "#3b82f6", "TE": "#f59e0b",
            "K": "#a78bfa", "DST": "#94a3b8"}
 
 
+def _all_rounds(ctx) -> int:
+    """Rounds in the draft being graded, so "picks made of total" compares like
+    with like.
+
+    meta.draft_rounds is Sleeper's number for ONE draft — 2 for 7 1/2 Men while
+    the league is configured as dynasty — which would have read "104 of 16".
+    Counting every stage instead reads "104 of 120" and calls a finished 13-round
+    veteran mock incomplete, because the rookie stage he never mocked (it was
+    played for real months ago) is 16 of that 120. So: only stages that actually
+    have a board on the screen count toward the total.
+    """
+    from .. import draft_stages as DS
+    lid = ctx["meta"].league_id
+    stages = DS.stages_for(lid)
+    if not stages:
+        return ctx["meta"].draft_rounds
+    played = [x for x in stages
+              if (st.session_state.get(f"mock_{ctx['league_key']}_{x.key}") or {}).get("made")]
+    return sum(DS.scheduled_rounds(lid, x) for x in (played or stages))
+
+
+def _mock_states(ctx) -> list:
+    """Every mock board for this league, staged or not, most recent stage last.
+
+    Unsuffixed first for ordinary leagues; then one per stage for the leagues that
+    draft in two (7 1/2 Men). Anything missing is simply absent, so a league that
+    has only run one of its two stages still grades.
+    """
+    from .. import draft_stages as DS
+    keys = [f"mock_{ctx['league_key']}"]
+    for stage in (DS.stages_for(ctx["meta"].league_id) or []):
+        keys.append(f"mock_{ctx['league_key']}_{stage.key}")
+    return [st.session_state.get(k) or {} for k in keys]
+
+
 def _assemble_rosters(ctx, source: str):
     """{slot: [pid, ...]} for every team, keepers + picks, from the chosen draft.
     Returns (rosters, picks_made, picks_total)."""
@@ -38,16 +73,26 @@ def _assemble_rosters(ctx, source: str):
             st.warning("Couldn't read the live draft — switch the source to Mock, or "
                        "sync the draft on the Live Draft Assistant tab first.")
     else:  # Mock draft
-        state = st.session_state.get(f"mock_{ctx['league_key']}") or {}
-        for ov, pid in (state.get("made") or {}).items():
-            if pid:
-                board[int(ov)] = str(pid)
+        # A staged league keeps each stage on its own board — mock_<key>_rookie and
+        # mock_<key>_veteran — so reading only mock_<key> found nothing at all and
+        # the report card came up empty after a 7 1/2 Men mock. Same class of miss
+        # as the veteran pool: the stage split the state and one consumer was never
+        # told.
+        for st_state in _mock_states(ctx):
+            for ov, pid in (st_state.get("made") or {}).items():
+                if pid:
+                    board[int(ov)] = str(pid)
 
     rosters = {s: [] for s in range(ctx["meta"].num_teams)}
     for ov, pid in board.items():
         rosters.setdefault(owner(int(ov)), []).append(pid)
+    # Rosters are unioned across stages, but each stage numbers its picks from 1,
+    # so a rookie 1.01 and a veteran 1.01 are different picks with the same key.
+    # They are the same OWNER either way (both are round 1, slot 1 of the same
+    # snake), so team rosters come out right; only the recap's sense of "when" is
+    # per-stage, which is why it reads the stage board rather than this merge.
     picks_made = len([ov for ov in board if ov not in keeper_overalls])
-    total = ctx["meta"].num_teams * ctx["meta"].draft_rounds - len(keeper_overalls)
+    total = ctx["meta"].num_teams * _all_rounds(ctx) - len(keeper_overalls)
     # the board itself goes back too: the recap needs to know WHEN each player went,
     # not just who ended up where.
     return rosters, picks_made, max(0, total), board, keeper_overalls
@@ -80,7 +125,11 @@ def render(ctx) -> None:
                "playoff & title odds — from the rosters drafted, the value captured, "
                "and each manager's past results.")
 
-    have_mock = bool((st.session_state.get(f"mock_{ctx['league_key']}") or {}).get("made"))
+    # Same unsuffixed-key miss as _assemble_rosters, second instance: a staged
+    # league always looked like it had no mock, so the source defaulted to "Live
+    # draft" and the tab opened on "no live picks yet". Between that and the empty
+    # board, the screen had two independent ways of showing him nothing.
+    have_mock = any(st_.get("made") for st_ in _mock_states(ctx))
     default_src = "Live draft" if not have_mock else "Mock draft"
     src = st.radio("Grade which draft?", ["Mock draft", "Live draft"],
                    index=["Mock draft", "Live draft"].index(default_src),
