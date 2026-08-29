@@ -19,6 +19,7 @@ _ALIASES = {
     "michaelpittman": "michaelpittmanjr",
     "calvinaustin": "calvinaustiniii",
     "hollywoodbrown": "marquisebrown",
+    "kennethgainwell": "kennygainwell",   # Flock spells him Kenneth, Sleeper Kenny
 }
 
 

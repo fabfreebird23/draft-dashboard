@@ -60,7 +60,11 @@ BOOKMARKLET = (
     # wheel events both render nothing), and rendered rows stay in the DOM.
     "javascript:(()=>{if(window.__flockOn){alert('Flock grabber already running.');return;}"
     "window.__flockOn=1;const F=new Map();"
-    "const RE=/^(\\d+)\\.\\s+(.+?)\\s+(QB|RB|WR|TE|K|D|DST)(\\d+)\\s+([A-Z]{2,4})\\b/;"
+    # TEAM IS OPTIONAL. Requiring it silently dropped every player Flock lists
+    # without one — the TM column reads "-" for a free agent — which cost seven
+    # real names including Tyreek Hill, DeAndre Hopkins and Kareem Hunt. The
+    # position token is the anchor; the team is taken only if it is actually there.
+    "const RE=/^(\\d+)\\.\\s+(.+?)\\s+(QB|RB|WR|TE|K|D|DST)(\\d+)(?:\\s+([A-Z]{2,4}))?(?:\\s|$)/;"
     "const grab=()=>{let tier='';"
     "for(const e of document.querySelectorAll('div,li,tspan')){"
     "if(String(e.tagName).toLowerCase()==='tspan'){"
@@ -70,7 +74,7 @@ BOOKMARKLET = (
     "for(const c of e.children){const ct=(c.innerText||'').replace(/\\s+/g,' ').trim();"
     "if(RE.test(ct)){inner=true;break;}}if(inner)continue;const m=t.match(RE);"
     "const cur=F.get(m[1]);"
-    "F.set(m[1],{r:+m[1],n:m[2].replace(/\\s+\\d+$/,'').trim(),p:m[3],t:m[5],"
+    "F.set(m[1],{r:+m[1],n:m[2].replace(/\\s+\\d+$/,'').trim(),p:m[3],t:m[5]||'',"
     "g:tier||(cur&&cur.g)||''});}};"
     "const b=document.createElement('button');"
     "b.style.cssText='position:fixed;z-index:2147483647;right:18px;bottom:18px;"
@@ -135,10 +139,28 @@ def attach(rows: List[dict], registry) -> List[dict]:
     imported without a Tier column lands as one flat tier rather than as a guess.
     """
     idx = {nm: p.sleeper_pid for nm, p in registry.by_norm.items() if p.sleeper_pid}
+    # Fallback for the names two sites spell differently — Flock's "Kenneth
+    # Gainwell" is Sleeper's "Kenny". Keyed on last name + position + team, which
+    # Flock gives us, and used ONLY when it lands on exactly one player: a near
+    # miss that quietly attaches the wrong man is worse than a row we drop and
+    # report. The alias map in names.py stays the place for a known pair.
+    alt: Dict[str, list] = {}
+    for _nm, _p in registry.by_norm.items():
+        if not _p.sleeper_pid:
+            continue
+        last = normalize_name((_p.name or "").split()[-1] if _p.name else "")
+        alt.setdefault(f"{last}|{(_p.position or '').upper()}|{(_p.team or '').upper()}",
+                       []).append(_p.sleeper_pid)
+
     seen: Dict[str, int] = {}
     out, rank = [], 0
     for r in rows:
         pid = idx.get(normalize_name(r["name"]))
+        if not pid and r.get("pos") and r.get("team"):
+            last = normalize_name((r["name"] or "").split()[-1] if r["name"] else "")
+            cands = alt.get(f"{last}|{r['pos'].upper()}|{r['team'].upper()}") or []
+            if len(cands) == 1:
+                pid = cands[0]
         if not pid:
             continue
         letter = (r.get("tier") or "").strip()
