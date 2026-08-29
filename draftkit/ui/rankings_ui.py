@@ -116,7 +116,8 @@ def render(ctx) -> None:
             "want (league + position + creator).\n"
             "3. Click **Grab Flock**. A counter appears bottom-right.\n"
             "4. **Scroll the board to the bottom** — the counter climbs as rows "
-            "render. Then click the counter to download `flock_rankings.csv`.\n"
+            "render. Then click the counter to download `flock_rankings.csv` "
+            "(rank, player, position, team and Flock's S/A/B tier).\n"
             "5. Upload that file below.")
         st.code(FL.BOOKMARKLET, language="text")
         _up = st.file_uploader("flock_rankings.csv", type=["csv"], key=f"{rkey}_flockup")

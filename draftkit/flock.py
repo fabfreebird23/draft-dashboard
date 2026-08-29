@@ -41,27 +41,37 @@ RANKINGS_URL = "https://flockfantasy.com/rankings"
 # rows actually render, reassembles each row from its separately-positioned cells,
 # and downloads flock_rankings.csv (Rank,Name,Position,Team,Tier).
 BOOKMARKLET = (
-    # Matches the ROW CONTAINER, not individual cells. The first cut bucketed leaf
-    # cells by vertical position and reassembled a row from them; that found the
-    # names but returned empty position and team, because those cells sit in a
-    # separate scrolling column and did not land in the same bucket. Matching the
-    # element whose own text carries "12. Name RB7 MIA" — and rejecting any that
-    # contains a smaller element matching the same shape, so ancestors don't
-    # duplicate — gets all four fields at once. Measured on the live board: 347
-    # rows in a single pass.
+    # Matches the ROW CONTAINER, not individual cells. An earlier cut bucketed leaf
+    # cells by vertical position and got names with empty position and team,
+    # because those cells sit in a separate scrolling column and never landed in
+    # the same bucket. Matching the element whose own text carries
+    # "12. Name RB7 MIA" — and rejecting any that contains a smaller element of the
+    # same shape, so ancestors don't duplicate — gets all four fields at once.
     #
-    # It still collects WHILE HE SCROLLS rather than scrolling for him: Flock only
+    # TIERS come from the band rows (S, A, B, C…) that sit between groups, and the
+    # letter is an SVG <tspan> — not a div, which is why a div-only walk found none
+    # of them. The walk includes tspan and runs in DOCUMENT ORDER: a lone capital
+    # letter sets the current tier and every player row after it inherits it until
+    # the next band. Only tspan is trusted for this; the position filter has bare
+    # "K" and "D" buttons that would otherwise read as tiers.
+    #
+    # It collects WHILE HE SCROLLS rather than scrolling for him: Flock only
     # renders rows on a real scroll (assigning scrollTop and dispatching synthetic
     # wheel events both render nothing), and rendered rows stay in the DOM.
     "javascript:(()=>{if(window.__flockOn){alert('Flock grabber already running.');return;}"
     "window.__flockOn=1;const F=new Map();"
     "const RE=/^(\\d+)\\.\\s+(.+?)\\s+(QB|RB|WR|TE|K|D|DST)(\\d+)\\s+([A-Z]{2,4})\\b/;"
-    "const grab=()=>{for(const e of document.querySelectorAll('div,li')){"
+    "const grab=()=>{let tier='';"
+    "for(const e of document.querySelectorAll('div,li,tspan')){"
+    "if(String(e.tagName).toLowerCase()==='tspan'){"
+    "const s=(e.textContent||'').trim();if(/^[A-Z]$/.test(s))tier=s;continue;}"
     "const t=(e.innerText||'').replace(/\\s+/g,' ').trim();"
     "if(t.length>120||!RE.test(t))continue;let inner=false;"
     "for(const c of e.children){const ct=(c.innerText||'').replace(/\\s+/g,' ').trim();"
     "if(RE.test(ct)){inner=true;break;}}if(inner)continue;const m=t.match(RE);"
-    "F.set(m[1],{r:+m[1],n:m[2].replace(/\\s+\\d+$/,'').trim(),p:m[3],t:m[5]});}};"
+    "const cur=F.get(m[1]);"
+    "F.set(m[1],{r:+m[1],n:m[2].replace(/\\s+\\d+$/,'').trim(),p:m[3],t:m[5],"
+    "g:tier||(cur&&cur.g)||''});}};"
     "const b=document.createElement('button');"
     "b.style.cssText='position:fixed;z-index:2147483647;right:18px;bottom:18px;"
     "padding:12px 16px;font:600 14px system-ui;background:#f27b1f;color:#111;border:0;"
@@ -71,8 +81,8 @@ BOOKMARKLET = (
     "const iv=setInterval(()=>{grab();paint();},400);"
     "b.onclick=()=>{clearInterval(iv);"
     "const rows=[...F.values()].sort((a,b)=>a.r-b.r);"
-    "const csv='Rank,Name,Position,Team\\n'+rows.map(o=>"
-    "[o.r,'\"'+o.n.replace(/\"/g,'')+'\"',o.p,o.t].join(',')).join('\\n');"
+    "const csv='Rank,Name,Position,Team,Tier\\n'+rows.map(o=>"
+    "[o.r,'\"'+o.n.replace(/\"/g,'')+'\"',o.p,o.t,o.g].join(',')).join('\\n');"
     "const a=document.createElement('a');"
     "a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));"
     "a.download='flock_rankings.csv';a.click();b.remove();window.__flockOn=0;};})()"
@@ -121,10 +131,8 @@ def attach(rows: List[dict], registry) -> List[dict]:
     """Board rows -> the {rank, name, tier, pid, pos} shape every source returns.
 
     Letter tiers (S/A/B/C…) become the integers the board expects, in the order
-    they appear rather than by alphabet, so an S tier stays above an A. The
-    bookmarklet does not currently capture Flock's tier bands — they are separate
-    band rows, not part of a player row — so an import without a Tier column lands
-    as one flat tier rather than as a guess.
+    they appear rather than by alphabet, so an S tier stays above an A. A board
+    imported without a Tier column lands as one flat tier rather than as a guess.
     """
     idx = {nm: p.sleeper_pid for nm, p in registry.by_norm.items() if p.sleeper_pid}
     seen: Dict[str, int] = {}
