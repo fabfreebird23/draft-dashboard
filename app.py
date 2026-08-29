@@ -7,6 +7,7 @@ render from one normalized Pick shape.
 """
 from __future__ import annotations
 
+import dataclasses
 import streamlit as st
 
 from draftkit import config, players, theme
@@ -722,14 +723,27 @@ def main():
     elif section == nav[1]:
         rankings_ui.render(ctx)
     elif section == nav[3]:
-        assistant_ui.render(ctx)
+        # The LIVE war room needs the stage too, and never got it — draft_stages was
+        # only ever applied to the mock. Two consequences for a real draft:
+        #   · the board was Sleeper's round count for the draft it is bound to. A
+        #     supplemental caps at 10, so a 14-round veteran draft drew 10 rounds.
+        #   · the 16 players taken in the completed rookie draft were still in the
+        #     pool, so the board would have offered men who are already rostered
+        #     while he was actually on the clock.
+        from draftkit import draft_stages as _DS
+        _stage = _DS.live_stage(meta.league_id)
+        if _stage:
+            _stage = dataclasses.replace(
+                _stage, rounds=_DS.scheduled_rounds(meta.league_id, _stage))
+            assistant_ui.render(_DS.apply(ctx, _stage, _DS.already_taken(meta.league_id)))
+        else:
+            assistant_ui.render(ctx)
     elif section == nav[2]:
         # Leagues that draft in stages (7 1/2 Men: 2-round rookie draft, then the
         # veteran draft) mock one stage at a time. The stage changes the eligible
         # pool AND the round count, so it's applied to ctx before the mock renders
         # — mocking the veteran draft against the full pool would practise the
         # wrong draft entirely.
-        import dataclasses
         from draftkit import draft_stages as DS
         stages = DS.stages_for(meta.league_id)
         if stages:

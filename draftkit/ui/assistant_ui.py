@@ -54,6 +54,14 @@ def _live(ctx, *, bound_auto: bool) -> None:
     kept_pids = ctx["keepers"]["kept_pids"]
     owner = ctx["pick_owner_slot"]            # traded-pick-aware ownership
     ranks = st.session_state.get(ctx["ranks_key"])
+    # Scope the visible board to the stage, exactly as the mock does. The pools
+    # `apply` filters drive the AI and the survival anchor; this is the list he
+    # actually reads and drafts from, and it lives in session state where `apply`
+    # cannot reach it.
+    if ctx.get("stage"):
+        from .. import draft_stages as _DS
+        ranks = _DS.eligible(ranks or [], ctx["stage"], reg, ctx.get("stage_taken"))
+        ctx = {**ctx, "ranks_override": ranks}
 
     # ---- setup/config tucked into a gear dropdown; only actions stay on top ----
     ctrl = st.columns([0.5, 2.4, 1.2, 1, 1])

@@ -33,7 +33,7 @@ STAGES = {
         Stage(ROOKIE, "Rookie draft", 2, "rookies",
               "2 rounds, NFL rookies only. Everyone taken here is out of the "
               "veteran pool."),
-        Stage(VETERAN, "Veteran draft", 13, "all",
+        Stage(VETERAN, "Veteran draft", 14, "all",
               "The main draft, with rookie-draft picks already off the board."),
     ],
 }
@@ -72,14 +72,26 @@ def scheduled_rounds(league_id, stage: "Stage") -> int:
     This briefly read the round count off the league's pending Sleeper draft, on
     the theory that the commissioner is a better source than this repo. He isn't,
     here — Sleeper caps a supplemental draft at 10 rounds, so 7 1/2 Men runs its
-    13-round veteran draft as more than one supplemental. The 10 on the platform
-    is a limit of the tool, not a description of the league, and a mock built from
-    it would practise ten rounds of a thirteen-round draft.
+    14-round veteran draft as more than one supplemental. The 10 on the platform
+    is a limit of the tool, not a description of the league, and a board built
+    from it would be four rounds short.
 
     Kept as a function rather than inlined so the seam stays visible: if a league
     ever does need its rounds read from the platform, this is where that goes.
     """
     return stage.rounds
+
+
+def live_stage(league_id) -> Optional[Stage]:
+    """The stage a LIVE draft is running right now — the last one, in practice.
+
+    Stages are played in order and the earlier ones are finished by the time a
+    later one drafts; `already_taken` is the proof, since those picks are sitting
+    on rosters. If that ever stops being true this is the one place to teach it
+    otherwise.
+    """
+    stages = stages_for(league_id)
+    return stages[-1] if stages else None
 
 
 def is_rookie(pid, registry) -> bool:
