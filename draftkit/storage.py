@@ -40,6 +40,18 @@ def _local_path(key: str) -> Path:
 
 # ---------------------------------------------------------------- GitHub backend
 def _gh_config() -> Optional[Tuple[str, str, str]]:
+    """The repo-backed store, or None for local-only.
+
+    DRAFTKIT_LOCAL_ONLY=1 forces None. st.secrets resolves from
+    .streamlit/secrets.toml even outside a Streamlit run, so a plain script in a
+    checkout that has the token writes to the SHARED draft-data branch — which is
+    how a throwaway 8-row Flock board written from a scratch test ended up as the
+    board he was looking at in the app. Deleting the local file did nothing,
+    because the local file was never where it went. Anything poking at storage
+    outside the app should set this.
+    """
+    if os.environ.get("DRAFTKIT_LOCAL_ONLY") == "1":
+        return None
     try:
         import streamlit as st
         tok = st.secrets.get("github_token")
