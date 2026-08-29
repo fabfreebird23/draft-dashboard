@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
+import time
 
 import pandas as pd
 import streamlit as st
 
-from .. import rankings, storage, udk
+from .. import flock as FL, rankings, storage, udk
+from . import components as C
 
 
 def _set(ctx, ranks):
@@ -91,6 +93,52 @@ def render(ctx) -> None:
             "`udk_rankings.csv`.\n"
             "4. Back here, choose **Upload file** and pick that CSV.")
         st.code(udk.BOOKMARKLET, language="text")
+
+    # ---- Flock Fantasy: its own slot, deliberately NOT the saved UDK board ----
+    # Importing Flock over the UDK board would replace the thing he drafts from.
+    # It lands in a separate slot and shows up as its own entry in the Rankings
+    # source picker, so the two boards sit side by side.
+    with st.expander("Flock Fantasy — import as a separate board"):
+        _fl = FL.load(int(ctx["meta"].season), ctx["meta"].scoring) or {}
+        _rows = _fl.get("rows") or []
+        if _rows:
+            _age = (time.time() - float(_fl.get("saved") or 0)) / 3600.0
+            st.success(f"{len(_rows)} players saved · imported {C.age_phrase(_age)}. "
+                       f"Pick **Flock Fantasy** in the Rankings source dropdown.")
+        st.markdown(
+            "Flock needs a login and its API blocks outside calls, so this runs "
+            "**in your browser** the same way the UDK grabber does. It collects "
+            "*while you scroll* — Flock only renders rows on a real scroll, and a "
+            "grabber that scrolls for you comes back empty:\n\n"
+            "1. Bookmark any page, edit it, name it *Grab Flock*, and replace its "
+            "**URL** with the code below.\n"
+            f"2. Open [{FL.RANKINGS_URL}]({FL.RANKINGS_URL}) and pick the board you "
+            "want (league + position + creator).\n"
+            "3. Click **Grab Flock**. A counter appears bottom-right.\n"
+            "4. **Scroll the board to the bottom** — the counter climbs as rows "
+            "render. Then click the counter to download `flock_rankings.csv`.\n"
+            "5. Upload that file below.")
+        st.code(FL.BOOKMARKLET, language="text")
+        _up = st.file_uploader("flock_rankings.csv", type=["csv"], key=f"{rkey}_flockup")
+        _paste = st.text_area("…or paste it", height=120, key=f"{rkey}_flocktext",
+                              placeholder="Rank,Name,Position,Team,Tier")
+        if st.button("Save Flock board", key=f"{rkey}_flocksave"):
+            raw = ""
+            if _up is not None:
+                raw = _up.getvalue().decode("utf-8", "replace")
+            elif _paste.strip():
+                raw = _paste
+            parsed = FL.parse_csv(raw)
+            matched = FL.attach(parsed, reg)
+            if not parsed:
+                st.error("Nothing to read there — upload the CSV or paste it.")
+            else:
+                FL.save(int(ctx["meta"].season), ctx["meta"].scoring, parsed)
+                st.success(f"Saved {len(parsed)} Flock rows · {len(matched)} matched to "
+                           f"players. Choose **Flock Fantasy** in the Rankings dropdown.")
+                if len(matched) < len(parsed):
+                    st.caption(f"{len(parsed) - len(matched)} unmatched (rookies or "
+                               "name spellings we don't carry) — they're simply skipped.")
 
     src = st.radio("Other sources", ["Paste", "CSV / Sheet URL", "Upload file"],
                    horizontal=True, key=f"{rkey}_src")

@@ -214,6 +214,20 @@ def _tweaks_local(key: str) -> Path:
     return _doc_local("tweaks", key)
 
 
+def save_doc(kind: str, key: str, obj) -> None:
+    """Public face of the generic doc store — repo-backed when configured.
+
+    Flock's imported board uses this rather than the rank_sources disk cache
+    because that cache is a local file and Cloud's filesystem does not survive a
+    reboot; an imported board that vanished on restart would be worse than none.
+    """
+    _save_doc(kind, key, obj)
+
+
+def load_doc(kind: str, key: str, default):
+    return _load_doc(kind, key, default)
+
+
 def save_tweaks(key: str, tweaks: dict) -> None:
     _save_doc("tweaks", key, tweaks)
 

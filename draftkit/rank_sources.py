@@ -27,7 +27,8 @@ from .names import normalize_name
 UDK = "UDK"
 FP_ECR = "FantasyPros ECR"
 ESPN = "ESPN"
-SOURCES = [UDK, FP_ECR, ESPN]
+FLOCK = "Flock Fantasy"
+SOURCES = [UDK, FP_ECR, ESPN, FLOCK]
 
 _CACHE_TTL = 60 * 60 * 12  # 12h — rankings move slowly in-season
 
@@ -201,6 +202,22 @@ def load_with_status(source: str, season: int, scoring: str, registry):
     "couldn't load" caption only appearing when there was no cache at all. That is
     the one place in the app that could silently serve stale data, so it now
     reports its own age."""
+    if source == FLOCK:
+        # Imported, never fetched — Flock is login-gated and its API is behind
+        # CORS, so the board arrives via the bookmarklet on My Rankings. It is
+        # therefore never "stale" in the sense the other sources are (nothing
+        # upstream to fall behind), but its age is still worth reporting, because
+        # an import from three weeks ago is exactly as misleading as a stale scrape.
+        from . import flock as FL
+        doc = FL.load(season, scoring) or {}
+        rows = FL.attach(doc.get("rows") or [], registry)
+        if not rows:
+            return [], {"stale": False, "age_h": None, "failed": True}
+        age = None
+        if doc.get("saved"):
+            age = max(0.0, (time.time() - float(doc["saved"])) / 3600.0)
+        return rows, {"stale": False, "age_h": age, "failed": False}
+
     p = _cache_path(source, season, scoring)
     cached = _read_cache(p)
     if cached is not None:
