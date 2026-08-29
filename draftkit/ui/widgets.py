@@ -216,7 +216,12 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
     #               with every pick made, which is why the column looked fine at
     #               1.01 and read 100% for everybody by the middle rounds.
     gone = {str(x) for x in (drafted if drafted is not None else (taken or set()))}
-    surv_fn = (C.board_survival_fn(ctx.get("adp_pool"), gone, pick, next_pick)
+    # The horizon comes from ctx, not from next-pick-1 here. This panel re-derived
+    # it and so disagreed with the war room's own number: at pick 1.01 with his
+    # pick at 1.02 the derivation gives zero, and the column read 100% for every
+    # player while Gibbs was about to come off the board.
+    surv_fn = (C.board_survival_fn(ctx.get("adp_pool"), gone, pick, next_pick,
+                                   horizon=ctx.get("survival_horizon"))
                if (next_pick and pick) else None)
 
     def emit_row(r, compact=False):
@@ -546,7 +551,11 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
     # ADP) doesn't read every suggestion as ~100% likely to fall back to you.
     sugg = V.top_suggestions(
         avail, ctx["value"], reg, needs, taken_s, next_pick=next_pick,
-        survival_fn=C.board_survival_fn(ctx.get("adp_pool"), taken_s, pick_no, next_pick),
+        # Third derivation of the horizon, same as the board and the war room —
+        # all three now read the one number off ctx so the panels cannot disagree
+        # about how many players come off the board before his pick.
+        survival_fn=C.board_survival_fn(ctx.get("adp_pool"), taken_s, pick_no, next_pick,
+                                        horizon=ctx.get("survival_horizon")),
         my_pids=my_pids, roster_slots=ctx["roster_slots"], byes=ctx.get("byes"), k=k,
         upside=upside, strategy=strategy, round_no=round_no, juice_map=ctx.get("juice"),
         adp_rank_fn=ctx["adp_rank"],

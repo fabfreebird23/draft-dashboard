@@ -83,7 +83,16 @@ def _nfl_pre() -> bool:
 
 def _days_label(d) -> str:
     """"1 days" on the tile the night before a draft is a small thing that makes the
-    whole screen look unattended."""
+    whole screen look unattended. "1 day" three hours before one is a bigger thing:
+    on the morning of the draft this is the number he checks, and rounding a
+    same-day draft up to a day understates the only deadline that matters.
+    """
+    hours = float(d) * 24.0
+    if hours < 1:
+        return "minutes"
+    if hours < 23.5:
+        n = max(1, int(round(hours)))
+        return f"{n} hour" if n == 1 else f"{n} hours"
     n = max(1, int(round(d)))
     return f"{n} day" if n == 1 else f"{n} days"
 
@@ -174,9 +183,10 @@ def _render_hero(preset, s, age, on_pick) -> None:
                        if det["expected"] else (str(det["kept"]) if det["kept"] else "—")),
                       det["short"] or ("all in" if det["kept"] else "none submitted"))
             with t[2]:
+                _fresh_for = _stale_after_days(d)
                 _tile("your board",
                       "—" if age is None else (f"{int(age)}h" if age < 48 else f"{int(age/24)}d"),
-                      "current" if (age is not None and age / 24 < 7) else
+                      "current" if (age is not None and age / 24 < _fresh_for) else
                       ("stale — pull a fresh one" if age is not None else "never pulled"))
 
             with st.container(key=f"hmact_{s.league_id}"):
@@ -217,7 +227,7 @@ def _render_hero(preset, s, age, on_pick) -> None:
             # than a Questionable WR does on a Sunday.
             if age is None:
                 items.append(("nil", "No board saved for this league yet."))
-            elif age / 24 >= 7:
+            elif age / 24 >= _stale_after_days(s.days_to_draft):
                 items.append(("amber", f"Board is {int(age/24)} days old — pull a fresh one."))
             else:
                 items.append(("ok", f"Board pulled {int(age)}h ago — current."))
@@ -260,6 +270,19 @@ def _injury_alert(preset: dict):
                       f"questionable — {who}.")
     except Exception:  # noqa: BLE001 — Home must render even if a league is unreachable
         return None
+
+
+def _stale_after_days(days_to_draft) -> float:
+    """How old a board may be before it stops counting as current.
+
+    A week is fine in July. It is not fine on the morning of the draft: his 7 1/2
+    Men board was six days old and the tile still said "current", which is exactly
+    when a wrong reassurance costs the most. Inside two days of a draft, two days
+    is the limit.
+    """
+    if days_to_draft is not None and 0 <= days_to_draft <= 2:
+        return 2.0
+    return 7.0
 
 
 def _tile(label, value, sub):

@@ -104,7 +104,14 @@ def render(ctx, state_suffix: str = "") -> None:
     # ---- setup/config tucked into a gear dropdown; only actions stay on top ----
     ctrl = st.columns([0.5, 1.6, 1.5, 1.4, 1, 1])
     with ctrl[0].popover("⚙", use_container_width=True):
-        me = st.selectbox("Your draft slot", slot_names, key=f"{mkey}_slot")
+        # Same miss as the war room's "Your team": no index means the first name in
+        # draft order wins, so every mock he has ever run was played from Maybe
+        # Later's seat rather than his own — wrong picks highlighted, wrong roster
+        # in My Team, wrong recap.
+        _mine = ctx.get("owner_slot", {}).get(str(ctx.get("my_team")))
+        me = st.selectbox("Your draft slot", slot_names, key=f"{mkey}_slot",
+                          index=_mine if isinstance(_mine, int) and 0 <= _mine < len(slot_names)
+                          else 0)
         mode = st.radio("Opponents", ["AI mock", "Manual / live"], horizontal=True,
                         key=f"{mkey}_mode",
                         help="AI mock = opponents auto-draft from their tendencies. "
@@ -287,7 +294,13 @@ def render(ctx, state_suffix: str = "") -> None:
 
     # One board-anchored survival model per render, shared by the cheat sheet, the
     # suggestion scorer and the rankings rows so every % on screen agrees.
-    surv_fn = C.board_survival_fn(ctx["adp_pool"], taken, pick_no, next_user_pick) \
+    # Same horizon rule as the war room: the pick on the clock counts toward the
+    # players who come off the board before your next turn unless it is yours.
+    _horizon = ((next_user_pick - pick_no) - (1 if owner(pick_no) == my_slot else 0)
+                if next_user_pick else None)
+    ctx = {**ctx, "survival_horizon": _horizon}   # every panel reads the same number
+    surv_fn = C.board_survival_fn(ctx["adp_pool"], taken, pick_no, next_user_pick,
+                                  horizon=_horizon) \
         if next_user_pick else (lambda pid, adp=None: None)
 
     if done:

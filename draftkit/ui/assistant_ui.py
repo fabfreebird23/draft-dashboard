@@ -58,7 +58,17 @@ def _live(ctx, *, bound_auto: bool) -> None:
     # ---- setup/config tucked into a gear dropdown; only actions stay on top ----
     ctrl = st.columns([0.5, 2.4, 1.2, 1, 1])
     with ctrl[0].popover("⚙", use_container_width=True):
-        me = st.selectbox("Your team", slot_names, key=f"{akey}_me")
+        # DEFAULT TO HIS OWN TEAM. This had no index, so it silently selected the
+        # first name in draft order — "Maybe Later" in 7 1/2 Men, where he is
+        # Clayton's Kids at slot 2. The war room then badged 1.01 as YOUR PICK,
+        # the turn alarm would have fired on another manager's picks all draft,
+        # and every "my team"/needs panel was reading the wrong roster. It looks
+        # authoritative while being wrong, which is the worst way to be wrong on
+        # draft day.
+        _mine = ctx.get("owner_slot", {}).get(str(ctx.get("my_team")))
+        me = st.selectbox("Your team", slot_names, key=f"{akey}_me",
+                          index=_mine if isinstance(_mine, int) and 0 <= _mine < len(slot_names)
+                          else 0)
         mode = st.radio("Draft source", ["Live sync", "Manual entry"], horizontal=True,
                         key=f"{akey}_mode",
                         help="Live sync = pull picks automatically from Sleeper/ESPN. "
@@ -219,7 +229,13 @@ def _live(ctx, *, bound_auto: bool) -> None:
 
     # One board-anchored survival model per render, shared by the cheat sheet, the
     # suggestion scorer and the rankings rows so every % on screen agrees.
-    surv_fn = C.board_survival_fn(ctx["adp_pool"], drafted, pick_no, next_user_pick) \
+    # Count the picks that will actually be made before his next one. The pick on
+    # the clock counts unless it is his own.
+    _horizon = ((next_user_pick - pick_no) - (1 if _my_open_pick(pick_no) else 0)
+                if next_user_pick else None)
+    ctx = {**ctx, "survival_horizon": _horizon}   # every panel reads the same number
+    surv_fn = C.board_survival_fn(ctx["adp_pool"], drafted, pick_no, next_user_pick,
+                                  horizon=_horizon) \
         if next_user_pick else (lambda pid, adp=None: None)
 
     queued = {str(x) for x in st.session_state.get(qkey, [])}

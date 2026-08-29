@@ -65,7 +65,7 @@ def _sigma_for_horizon(h):
     return (lo + hi) / 2
 
 
-def survival_pct(adp, next_pick, current_pick=None, avail_rank=None):
+def survival_pct(adp, next_pick, current_pick=None, avail_rank=None, horizon=None):
     """Probability (0-100) a player is still available at your next pick.
 
     `avail_rank` (1-based position in ADP order among UNDRAFTED players) is the
@@ -105,7 +105,12 @@ def survival_pct(adp, next_pick, current_pick=None, avail_rank=None):
         # board in order; sigma carries the room's deviation from that order, and
         # is solved rather than guessed (see _sigma_for_horizon).
         # Survives iff he lasts past every pick before yours, i.e. X > next - 0.5.
-        h = int(next_pick) - int(current_pick) - 1
+        # `horizon` = how many players actually come off the board before your
+        # next pick. Deriving it as next-current-1 assumes the pick on the clock
+        # is YOURS. When it isn't — which is most of a draft — that undercounts by
+        # one, and at the boundary (you pick 1.02, someone else is on 1.01) it
+        # gives h=0 and the whole column reads 100% with a man about to be taken.
+        h = int(horizon) if horizon is not None else int(next_pick) - int(current_pick) - 1
         if h <= 0:                      # you pick again immediately — nobody moves
             return 100
         mu = float(current_pick) + float(avail_rank)
@@ -126,7 +131,7 @@ def survival_pct(adp, next_pick, current_pick=None, avail_rank=None):
     return max(0, min(100, round(p * 100)))
 
 
-def board_survival_fn(adp_pool, drafted, current_pick, next_pick):
+def board_survival_fn(adp_pool, drafted, current_pick, next_pick, horizon=None):
     """pid -> survival %, anchored to the live board rather than to market ADP.
 
     Ranks the UNDRAFTED players in ADP order — that ordering is the room's own
@@ -148,7 +153,7 @@ def board_survival_fn(adp_pool, drafted, current_pick, next_pick):
 
     def _fn(pid, adp=None):
         return survival_pct(adp, next_pick, current_pick,
-                            avail_rank=ranks.get(str(pid)))
+                            avail_rank=ranks.get(str(pid)), horizon=horizon)
     _fn.ranks = ranks
     return _fn
 

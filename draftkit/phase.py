@@ -127,15 +127,25 @@ def _annotate(s: Summary, board_age_h: Optional[float]) -> None:
         s.note, s.tone = ("Draft date has passed but Sleeper still shows it unstarted.", "amber")
         return
     days = max(1, int(round(d)))
+    # Same rounding fix as the hero tile's _days_label: on the morning of a draft
+    # "in 1 day" is wrong in the direction that matters, and the note sat right
+    # beside a tile reading "3 hours". One draft, two numbers, is worse than either.
+    hours = d * 24.0
+    countdown = (f"in {max(1, int(round(hours)))} hours" if hours < 23.5
+                 else f"in {days} day{'s' if days != 1 else ''}")
     # DISPLAY_TZ, not the host clock: Cloud runs UTC and was naming the wrong
     # day for a draft scheduled at 8pm Eastern.
     when = config.fmt_local(s.draft_at, "%a %b %-d")
-    if board_age_h is not None and board_age_h / 24.0 >= 7 and d <= 14:
-        s.note = (f"Drafts in {days} day{'s' if days != 1 else ''} ({when}) — "
-                  f"your board is {int(board_age_h / 24)} days old.")
+    # A week-old board is fine in July and not fine on draft morning — the same
+    # two-day rule the Home tile uses inside the last 48 hours.
+    stale_days = 2.0 if d <= 2 else 7.0
+    if board_age_h is not None and board_age_h / 24.0 >= stale_days and d <= 14:
+        aged = (f"{int(board_age_h)}h old" if board_age_h < 48
+                else f"{int(board_age_h / 24)} days old")
+        s.note = f"Drafts {countdown} ({when}) — your board is {aged}."
         s.tone = "red" if d <= 7 else "amber"
         return
-    s.note = f"Drafts in {days} day{'s' if days != 1 else ''} · {when}."
+    s.note = f"Drafts {countdown} · {when}."
     s.tone = "red" if d <= 7 else ("amber" if d <= 21 else "nil")
 
 

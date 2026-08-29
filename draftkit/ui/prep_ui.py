@@ -118,8 +118,11 @@ def render(ctx, summary=None) -> None:
         if days is not None and days >= 0:
             when = config.fmt_local(summary.draft_at,
                                     "%a, %b %-d · %-I:%M%p").replace("AM", "am").replace("PM", "pm")
-            _n = max(1, int(round(days)))
-            _tile(f"pk1_{lid}", "draft in", f"{_n} day" if _n == 1 else f"{_n} days", when)
+            # Third copy of this rounding, so it goes through the one function now.
+            # On draft morning Home said "3 hours" and this tile said "1 day"; the
+            # same clock disagreeing with itself is worse than either number alone.
+            from .home_ui import _days_label
+            _tile(f"pk1_{lid}", "draft in", _days_label(days), when)
         else:
             _tile(f"pk1_{lid}", "draft in", "—", "no date set on the platform yet")
     with tiles[1]:
