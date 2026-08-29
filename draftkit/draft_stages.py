@@ -82,6 +82,54 @@ def scheduled_rounds(league_id, stage: "Stage") -> int:
     return stage.rounds
 
 
+def taxi_slots(league_id) -> int:
+    """How many taxi spots the league gives each team, per the platform."""
+    from . import sleeper_client as api
+    try:
+        return int(((api.get_league(str(league_id)) or {}).get("settings") or {})
+                   .get("taxi_slots") or 0)
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def taxi_by_slot(league_id, owner_slot, stage: "Stage") -> dict:
+    """{draft slot: [pid, ...]} — who each team took in the EARLIER stage.
+
+    In 7 1/2 Men the rookie draft is two rounds and the league carries two taxi
+    spots, so a team's rookie picks are exactly its taxi squad. Read from that
+    draft's own picks rather than from roster.taxi, because taxi is a field
+    managers have to set by hand and most of them have not: the league shows two
+    players in taxi in total, while the draft shows sixteen.
+
+    Not from roster.players either — that is right only until the veteran draft
+    starts, after which it is everyone.
+    """
+    from . import sleeper_client as api
+    try:
+        drafts = [d for d in (api.get_league_drafts(str(league_id)) or [])
+                  if d.get("status") == "complete"
+                  and int((d.get("settings") or {}).get("rounds") or 0) == int(stage.rounds)]
+        if not drafts:
+            return {}
+        # Several drafts can share a round count (an abandoned one lingers); the
+        # real stage is the one people actually picked in.
+        best, best_picks = None, []
+        for d in drafts:
+            picks = api.get_draft_picks(d["draft_id"]) or []
+            if len(picks) > len(best_picks):
+                best, best_picks = d, picks
+        out: dict = {}
+        for pk in best_picks:
+            slot = owner_slot.get(str(pk.get("picked_by")))
+            pid = pk.get("player_id")
+            if slot is None or not pid:
+                continue
+            out.setdefault(int(slot), []).append(str(pid))
+        return out
+    except Exception:  # noqa: BLE001 — a missing taxi read must not break the board
+        return {}
+
+
 def live_stage(league_id) -> Optional[Stage]:
     """The stage a LIVE draft is running right now — the last one, in practice.
 

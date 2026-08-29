@@ -520,6 +520,8 @@ def render(ctx, state_suffix: str = "") -> None:
             _vslot = _labels.index(_pick)
             _vpids = pids_by_slot.get(_vslot, [])
             st.markdown(C.lineup_html(_vpids, ctx["roster_slots"], reg), unsafe_allow_html=True)
+            st.markdown(C.taxi_html((ctx.get("taxi_by_slot") or {}).get(_vslot, []),
+                                    ctx.get("taxi_slots") or 0, reg), unsafe_allow_html=True)
             st.markdown(C.roster_balance_html(_vpids, ctx["roster_slots"], reg), unsafe_allow_html=True)
             st.markdown(C.roster_needs_html(_vpids, ctx["roster_slots"], reg), unsafe_allow_html=True)
             if _vslot == my_slot:

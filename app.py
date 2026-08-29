@@ -293,6 +293,19 @@ SAVED_LEAGUES = [
 ]
 
 
+def _taxi_ctx(league_id, owner_slot) -> dict:
+    """{taxi_by_slot, taxi_slots} for a staged league, or empty for a normal one."""
+    from draftkit import draft_stages as DS
+    stages = DS.stages_for(league_id)
+    if not stages or len(stages) < 2:
+        return {}
+    try:
+        return {"taxi_by_slot": DS.taxi_by_slot(league_id, owner_slot, stages[0]),
+                "taxi_slots": DS.taxi_slots(league_id)}
+    except Exception:  # noqa: BLE001 — no taxi read must not cost him the board
+        return {}
+
+
 def _select_league(preset: dict) -> None:
     st.session_state.league = {
         "platform": preset["platform"], "league_id": preset["league_id"],
@@ -507,6 +520,11 @@ def build_context(sel: dict) -> dict:
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
         "my_team": sel.get("my_team"),
         "board_age_h": board_age_h,
+        # Taxi squad: in a staged league the EARLIER draft's picks are the taxi.
+        # 7 1/2 Men runs a 2-round rookie draft and carries 2 taxi spots, so a
+        # team's rookie picks are exactly its taxi squad. Kept out of the roster
+        # entirely — they don't fill a starting spot and can't be drafted over.
+        **_taxi_ctx(meta.league_id, owner_slot),
     }
 
 

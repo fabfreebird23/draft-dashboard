@@ -293,6 +293,12 @@ div[data-testid="stRadio"] label{ font-size:12px; }
 
 /* ---- My Team lineup ---- */
 .dr-lineup{ margin-bottom:16px; }
+.dr-taxi{ margin:2px 0 16px; }
+.dr-taxi .tx-h{ font-size:11px; font-weight:800; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 6px 2px; }
+.dr-taxi .dr-lineup{ margin-bottom:0; }
+.dr-lineup .slot .pos.TX{ background:#7c6cf0; }
+.dr-taxi .tx-pos{ font-size:10px; font-weight:800; color:var(--muted); margin-left:6px; }
 .dr-lineup .slot{ display:flex; align-items:center; gap:8px; background:#fff;
   border:1px solid var(--line); border-radius:8px; padding:6px 11px; margin-bottom:4px; }
 .dr-lineup .slot .pos{ font-weight:800; color:#fff; background:#5b6b7f; border-radius:4px;

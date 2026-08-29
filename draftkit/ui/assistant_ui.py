@@ -436,6 +436,8 @@ def _live(ctx, *, bound_auto: bool) -> None:
             st.markdown(C.full_roster_html(_vpids, ctx["roster_slots"],
                                            ctx.get("bench_slots", 0), reg,
                                            byes=ctx.get("byes")), unsafe_allow_html=True)
+            st.markdown(C.taxi_html((ctx.get("taxi_by_slot") or {}).get(_vslot, []),
+                                    ctx.get("taxi_slots") or 0, reg), unsafe_allow_html=True)
             st.markdown(C.roster_balance_html(_vpids, ctx["roster_slots"], reg), unsafe_allow_html=True)
             st.markdown(C.roster_needs_html(_vpids, ctx["roster_slots"], reg), unsafe_allow_html=True)
             if _vslot == my_slot:

@@ -356,6 +356,35 @@ def lineup_html(pids: list, roster_slots: List[str], registry, bench_cap: int = 
     return '<div class="dr-lineup">' + "".join(rows) + "</div>"
 
 
+def taxi_html(pids: list, n_slots: int, registry) -> str:
+    """A team's taxi squad, drawn as its own strip under the lineup.
+
+    Taxi players are NOT roster players: they don't fill a starting spot, don't
+    count against the bench, and can't be drafted over. Showing them inside the
+    lineup would overstate the roster by exactly the taxi size — so they get their
+    own labelled strip, with empty spots drawn because an unused taxi slot is a
+    thing you can still use.
+    """
+    if not n_slots:
+        return ""
+    rows = []
+    for i in range(n_slots):
+        pid = pids[i] if i < len(pids) else None
+        if pid:
+            try:
+                pm = registry.meta(pid)
+                nm = f'{pm.name} <span class="tx-pos">{pm.position}</span>'
+            except Exception:  # noqa: BLE001
+                nm = str(pid)
+            rows.append(f'<div class="slot"><span class="pos TX">TX</span>'
+                        f'<span class="nm">{nm}</span></div>')
+        else:
+            rows.append('<div class="slot empty"><span class="pos TX">TX</span>'
+                        '<span class="nm"><span class="empty-pill">Empty</span></span></div>')
+    return ('<div class="dr-taxi"><div class="tx-h">Taxi squad</div>'
+            + '<div class="dr-lineup">' + "".join(rows) + "</div></div>")
+
+
 def full_roster_html(pids: list, roster_slots: List[str], bench_n: int, registry,
                      byes=None) -> str:
     """The whole roster you are actually drafting — every starter slot AND every
