@@ -17,6 +17,13 @@ _POSITIONS = ("QB", "RB", "WR", "TE")
 # fraction PLUS a flat keeper-value floor (rookies project low in year one but
 # carry real long-term keeper upside, so even near-startable rookies should rise).
 # Tune here to dial the rookie lean up or down across the whole app.
+# KEEPER LEAGUES ONLY. A rookie is worth more than his rookie-year points there
+# because he converts to a cheap long-term keeper. In a REDRAFT league he is worth
+# exactly what he scores this season and nothing else, so applying this premium
+# unconditionally is not a lean, it is a wrong number: it lifted Jeremiyah Love to
+# a VORP of 795 off a 777-point projection — above his own projection, and above
+# Achane and Henry, who both out-project him. Callers say which kind of league
+# they are in; see build_value(rookie_premium=...).
 ROOKIE_PREMIUM = 0.65
 ROOKIE_FLOOR = 16.0
 # Board-derived scoring weights. Defined UP HERE because best_pick() uses
@@ -90,9 +97,14 @@ class ValueModel:
                    if pts >= repl and str(pid) not in drafted)
 
 
-def build_value(proj: Dict[str, float], registry, roster_slots, n_teams) -> ValueModel:
+def build_value(proj: Dict[str, float], registry, roster_slots, n_teams, rookie_premium: bool = True) -> ValueModel:
     """Compute VORP for every projected player from league-specific replacement
-    levels."""
+    levels.
+
+    `rookie_premium` says whether this league pays for a rookie's FUTURE. In a
+    keeper or dynasty league it does; in a redraft it does not, and leaving it on
+    there overstates every first-year player by 65% plus a flat floor.
+    """
     pos_players: Dict[str, list] = {p: [] for p in _POSITIONS}
     for pid, pts in proj.items():
         pos = registry.meta(pid).position
@@ -119,9 +131,10 @@ def build_value(proj: Dict[str, float], registry, roster_slots, n_teams) -> Valu
     # points because he converts to a cheap long-term keeper. Boost rookies (a %
     # bump plus a keeper-value floor) so good AND near-startable rookies rise on
     # the board, recommendations and Suggestions; truly deep rookies still sink.
-    for pid, v in list(vorp.items()):
-        if is_rookie(registry, pid):
-            vorp[pid] = round(v * (1 + ROOKIE_PREMIUM) + ROOKIE_FLOOR, 1)
+    if rookie_premium:
+        for pid, v in list(vorp.items()):
+            if is_rookie(registry, pid):
+                vorp[pid] = round(v * (1 + ROOKIE_PREMIUM) + ROOKIE_FLOOR, 1)
     # overall draft-value rank: every player ordered by VORP (cross-position)
     overall_rank = {pid: i + 1 for i, (pid, _) in
                     enumerate(sorted(vorp.items(), key=lambda x: x[1], reverse=True))}

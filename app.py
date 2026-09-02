@@ -282,14 +282,17 @@ MY_SLEEPER_ID = "964703051971887104"          # same account in all three league
 
 SAVED_LEAGUES = [
     {"label": "The Kreeper League", "platform": "sleeper",
-     "league_id": "1310907162930733056", "season": 2026, "my_team": MY_SLEEPER_ID},
+     "league_id": "1310907162930733056", "season": 2026, "my_team": MY_SLEEPER_ID,
+     "keeper": True},
     {"label": "Babies and Boomer", "platform": "sleeper",
-     "league_id": "1312885282554535936", "season": 2026, "my_team": MY_SLEEPER_ID},
+     "league_id": "1312885282554535936", "season": 2026, "my_team": MY_SLEEPER_ID,
+     "keeper": True},
     {"label": "7\u00bd Men", "platform": "sleeper",
-     "league_id": "1388606375239643136", "season": 2026, "my_team": MY_SLEEPER_ID},
+     "league_id": "1388606375239643136", "season": 2026, "my_team": MY_SLEEPER_ID,
+     "keeper": True},
     # Public league — readable with no espn_s2/SWID, so no credentials are stored.
     {"label": "Show us your TD's", "platform": "espn",
-     "league_id": "798873", "season": 2026, "my_team": "12"},
+     "league_id": "798873", "season": 2026, "my_team": "12", "keeper": False},
 ]
 
 
@@ -321,6 +324,7 @@ def _select_league(preset: dict) -> None:
         "platform": preset["platform"], "league_id": preset["league_id"],
         "season": int(preset.get("season") or config.current_season()),
         "espn_s2": preset.get("espn_s2"), "swid": preset.get("swid"),
+        "keeper": preset.get("keeper", True),
         "my_team": preset.get("my_team"),
     }
     st.rerun()
@@ -495,7 +499,12 @@ def build_context(sel: dict) -> dict:
     else:
         proj = get_projections(config.current_season(), meta.scoring,
                                tuple(sorted(_w.items())) if _w else None)
-    value = value_mod.build_value(proj, registry, roster_slots, meta.num_teams)
+    # The rookie premium is a KEEPER-league idea — it prices a rookie's future.
+    # "Show us your TD's" is a redraft: a rookie is worth this season and nothing
+    # more, and leaving the premium on had Jeremiyah Love valued above his own
+    # projection and above every back who out-projects him.
+    value = value_mod.build_value(proj, registry, roster_slots, meta.num_teams,
+                                  rookie_premium=bool(sel.get("keeper", True)))
     # Playoff strength of schedule (weeks 15-17) from real defense-vs-position.
     schedule = get_schedule(config.current_season())
     dvp = get_dvp(config.current_season() - 1, registry, meta.scoring)
