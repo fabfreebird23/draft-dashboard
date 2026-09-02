@@ -10,6 +10,8 @@ from __future__ import annotations
 import dataclasses
 import streamlit as st
 
+from draftkit import positional as _PZ
+
 from draftkit import config, players, theme
 from draftkit.adp import consensus
 from draftkit.names import normalize_name
@@ -148,10 +150,11 @@ def get_sleeper_adp(season: int):
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_source_pools(season: int, curve_key, _registry, _adp_df, _curve, _sleeper):
+def get_source_pools(season: int, curve_key, _registry, _adp_df, _curve, _sleeper,
+                     positions=("QB", "RB", "WR", "TE")):
     """{source: rookie-boosted draft pool ordered by that source's ADP} so an AI
     team set to 'ESPN' / 'Sleeper' drafts off that board. Cached by (season, curve)."""
-    base = rankings_mod.adp_pool(_registry, _adp_df)
+    base = rankings_mod.adp_pool(_registry, _adp_df, positions=positions)
     pools = {}
     for src in AI_SOURCES:
         if src == MY_BOARD:
@@ -161,7 +164,8 @@ def get_source_pools(season: int, curve_key, _registry, _adp_df, _curve, _sleepe
         elif src == "Sleeper":
             pool = rankings_mod.apply_external_adp(base, _sleeper)
         else:
-            pool = rankings_mod.adp_pool(_registry, _adp_df, source=src)
+            pool = rankings_mod.adp_pool(_registry, _adp_df, source=src,
+                                         positions=positions)
         pools[src] = rankings_mod.apply_rookie_curve(pool, _registry, _curve)
     return pools
 
@@ -412,7 +416,11 @@ def build_context(sel: dict) -> dict:
             return adp_lk[key]
         return adp_lk.get(normalize_name(name))
 
-    adp_pool = rankings_mod.adp_pool(registry, adp_df)
+    # A league that forces kickers and defenses needs them in the AI's pool, or
+    # the mock runs dry in the rounds where they are the only legal pick.
+    _pool_pos = (("QB", "RB", "WR", "TE", "K", "DST")
+                 if _PZ.is_fixed_roster(meta.league_id) else ("QB", "RB", "WR", "TE"))
+    adp_pool = rankings_mod.adp_pool(registry, adp_df, positions=_pool_pos)
     # League-specific rookie boost: pull rookies up to where THIS league's history
     # actually drafts them (keeper leagues hammer rookies; redraft leagues don't, so
     # the curve is empty and ai_pool == adp_pool). The AI opponents + predictor draft
@@ -434,7 +442,8 @@ def build_context(sel: dict) -> dict:
     source_pools = get_source_pools(config.current_season(),
                                     tuple(sorted(curve.items())), registry, adp_df, curve,
                                     juice_mod.sleeper_rank_map(
-                                        juice_map, get_sleeper_adp(config.current_season())))
+                                        juice_map, get_sleeper_adp(config.current_season())),
+                                    positions=_pool_pos)
     source_pools["Consensus"] = ai_pool
     # Positional rank (RB5, WR7…) + per-position tiers (talent cliffs by ADP gap).
     pos_rank, counts = {}, {}
@@ -455,7 +464,6 @@ def build_context(sel: dict) -> dict:
 
     # A fixed-roster league's real length is its own — ESPN reports 17 rounds for
     # 798873, but the last one is twelve picks with playerId -1 and nobody in them.
-    from draftkit import positional as _PZ
     if _PZ.is_fixed_roster(meta.league_id):
         meta = dataclasses.replace(meta, draft_rounds=_PZ.rounds(meta.league_id))
 

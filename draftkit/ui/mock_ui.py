@@ -248,6 +248,32 @@ def render(ctx, state_suffix: str = "") -> None:
         rnd = (ov - 1) // n + 1
         tk = taken_pids()
         pool = [p for p in _slot_pool(owner(ov)) if p["pid"] not in tk]
+        # ROSTER CAPS BIND HERE TOO. This is a league rule, not a preference on his
+        # board: "Show us your TD's" allows at most 2 QB / 4 RB / 4 WR / 2 TE /
+        # 2 K / 2 D-ST, and a fifth back is an illegal roster for anyone. The caps
+        # were only being applied to the list he looks at, so "Pick for me" and
+        # "Sim to end" — which come through here — happily handed him a fifth RB
+        # and built the opponents rosters they could never register either.
+        _lg = ctx["meta"].league_id
+        if PZ.is_fixed_roster(_lg):
+            _theirs = ([pid for ov2, pid in made.items() if owner(ov2) == owner(ov)]
+                       + [pid for ov2, pid in kept_by_overall.items()
+                          if owner(ov2) == owner(ov)])
+            _open = PZ.still_needed(_theirs, _lg, reg)
+            if _open:
+                def _fits(p):
+                    try:
+                        q = (reg.meta(p["pid"]).position or "").upper()
+                    except Exception:  # noqa: BLE001
+                        return False
+                    return ("DST" if q in ("DEF", "D/ST") else q) in _open
+                # No "or pool" fallback here. Falling back to the whole board when
+                # nothing legal is left does not rescue the mock, it fills it with
+                # rosters the league would reject — a simulated draft gave teams
+                # five and six backs that way. If there is genuinely no legal pick
+                # the draft stops, which is a visible problem rather than a quiet
+                # wrong answer.
+                pool = [p for p in pool if _fits(p)]
         # Opponent RB lean — nudges backs up the queue, never forces a position.
         pool = PZ.lean_pool(pool, reg,
                             st.session_state.get(f"{mkey}_rblean",

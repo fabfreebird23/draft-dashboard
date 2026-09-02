@@ -212,7 +212,8 @@ def fetch_url(url: str) -> str:
     return r.text
 
 
-def adp_pool(registry, adp_df: pd.DataFrame, source: str = None) -> list:
+def adp_pool(registry, adp_df: pd.DataFrame, source: str = None,
+             positions=("QB", "RB", "WR", "TE")) -> list:
     """ADP-ordered draftable players (pid, name, pos, adp) for the mock AI. With
     `source` (a per-source column name like 'ESPN' / 'FantasyPros' / 'Underdog'),
     order by that source's ADP instead of the consensus — so an AI team can be set
@@ -225,9 +226,23 @@ def adp_pool(registry, adp_df: pd.DataFrame, source: str = None) -> list:
     col = source if (source and source in adp_df.columns) else "consensus_rank"
     for _, ar in adp_df.iterrows():
         pos = ar.get("position")
-        if pos not in ("QB", "RB", "WR", "TE"):
+        # K and D/ST are excluded by default because most leagues draft them as an
+        # afterthought and they only clutter the AI's board. A league that FORCES
+        # them — "Show us your TD's" requires two of each — has to have them here,
+        # or the pool runs dry the moment every team needs nothing else.
+        if pos not in positions:
             continue
         pid = idx.get(normalize_name(ar["name"]))
+        if not pid and pos == "DST":
+            # ADP calls them "Texans D/ST"; the registry calls them "Houston
+            # Texans". Normalising gives texansdst vs houstontexans, so NO defense
+            # ever matched and none reached the pool — invisible until a league
+            # that must roster two of them ran the board dry. Match on the
+            # nickname, which is the part both sides agree on.
+            nick = normalize_name(re.sub(r"\bd/?st\b|\bdef(ense)?\b", "",
+                                         str(ar["name"]), flags=re.I))
+            if nick:
+                pid = next((q for nm, q in idx.items() if nm.endswith(nick)), None)
         if not pid:
             continue
         val, cons = ar.get(col), ar.get("consensus_rank")
