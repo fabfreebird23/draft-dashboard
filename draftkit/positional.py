@@ -113,3 +113,42 @@ DEFAULT_STRATEGY = {
 
 def default_strategy(league_id):
     return DEFAULT_STRATEGY.get(str(league_id))
+
+
+# How hard the AI opponents chase running backs, per league. 1.0 is "straight off
+# their board". This is NOT measured — the league's recorded pick order is data
+# entry, so there is nothing to learn it from. It is his own read of the room,
+# written down so the mock starts where he says the draft actually starts, and
+# left on a slider so he can move it.
+DEFAULT_RB_LEAN = {
+    "798873": 1.5,      # "we do draft rb heavy"
+}
+
+
+def default_rb_lean(league_id) -> float:
+    return float(DEFAULT_RB_LEAN.get(str(league_id), 1.0))
+
+
+def lean_pool(pool, registry, lean: float, n_teams: int, pos: str = "RB"):
+    """Reorder an AI's board so `pos` comes off earlier, without forcing it.
+
+    A lean of 2.0 moves a back a full round earlier in the queue; 1.0 returns the
+    pool untouched. Nudging the ORDER rather than filtering keeps the opponents
+    capable of taking anyone — a hard positional rule would make them predictable
+    in a way a real room never is.
+    """
+    if abs(float(lean) - 1.0) < 1e-9 or not pool:
+        return pool
+    bump = (float(lean) - 1.0) * max(1, int(n_teams or 1))
+    want = (pos or "RB").upper()
+
+    def _is(p):
+        pid = p.get("pid") if isinstance(p, dict) else p
+        try:
+            q = (registry.meta(pid).position or "").upper()
+        except Exception:  # noqa: BLE001
+            return False
+        return ("DST" if q in ("DEF", "D/ST") else q) == want
+
+    idx = {id(p): i for i, p in enumerate(pool)}
+    return sorted(pool, key=lambda p: idx[id(p)] - (bump if _is(p) else 0))

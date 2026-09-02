@@ -312,9 +312,13 @@ STRATEGY_HELP = {
     "Robust RB": "Pound RB early — aim for ~3 of your first 4–5 picks at RB.",
     "Elite TE": "Land a top-tier TE early for a weekly positional edge.",
     "Late-Round QB": "Wait on QB; spend early picks on RB/WR, grab your QB late.",
+    # "treats the top ~24 RBs as one tier" used to live here. It came from ESPN's
+    # historical draft ranks, which turned out not to be the preseason board for
+    # the season requested, so the claim was retracted — and the help text has to
+    # be retracted with it, not just the comment beside the weights.
     "Carries & Catches": ("For leagues that score volume — 1 pt per carry, 2 per "
-                          "catch. Hammers RB, treats the top ~24 RBs as one tier, "
-                          "and refuses to pay up at QB."),
+                          "catch. Hammers RB, takes one real TE, and refuses to "
+                          "pay up at QB (every team gets a good one)."),
     "Value (BPA)": "Best player available — rank purely by value, ignore roster needs.",
 }
 _SUPERFLEX_SLOTS = {"SUPER_FLEX", "SUPERFLEX", "SFLEX", "OP", "Q/W/R/T"}
