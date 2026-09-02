@@ -420,7 +420,15 @@ def build_context(sel: dict) -> dict:
     # the mock runs dry in the rounds where they are the only legal pick.
     _pool_pos = (("QB", "RB", "WR", "TE", "K", "DST")
                  if _PZ.is_fixed_roster(meta.league_id) else ("QB", "RB", "WR", "TE"))
-    adp_pool = rankings_mod.adp_pool(registry, adp_df, positions=_pool_pos)
+    try:
+        adp_pool = rankings_mod.adp_pool(registry, adp_df, positions=_pool_pos)
+    except TypeError:
+        # Streamlit Cloud reloads app.py but keeps imported submodules, so a deploy
+        # can run NEW app.py against an OLD rankings.py that has no `positions`
+        # argument — and the whole app died on the home screen with a TypeError.
+        # Degrading to the previous pool (no K/D-ST) beats locking him out of a
+        # dashboard he drafts on. A reboot is still the real fix.
+        adp_pool = rankings_mod.adp_pool(registry, adp_df)
     # League-specific rookie boost: pull rookies up to where THIS league's history
     # actually drafts them (keeper leagues hammer rookies; redraft leagues don't, so
     # the curve is empty and ai_pool == adp_pool). The AI opponents + predictor draft
@@ -439,11 +447,16 @@ def build_context(sel: dict) -> dict:
     # doesn't cover. See juice.sleeper_rank_map.
     juice_map = get_juice_value(config.current_season(), meta.scoring, registry)
     from draftkit import juice as juice_mod
-    source_pools = get_source_pools(config.current_season(),
-                                    tuple(sorted(curve.items())), registry, adp_df, curve,
-                                    juice_mod.sleeper_rank_map(
-                                        juice_map, get_sleeper_adp(config.current_season())),
-                                    positions=_pool_pos)
+    _sleeper_ranks = juice_mod.sleeper_rank_map(
+        juice_map, get_sleeper_adp(config.current_season()))
+    try:
+        source_pools = get_source_pools(config.current_season(),
+                                        tuple(sorted(curve.items())), registry, adp_df,
+                                        curve, _sleeper_ranks, positions=_pool_pos)
+    except TypeError:                      # same stale-submodule guard as above
+        source_pools = get_source_pools(config.current_season(),
+                                        tuple(sorted(curve.items())), registry, adp_df,
+                                        curve, _sleeper_ranks)
     source_pools["Consensus"] = ai_pool
     # Positional rank (RB5, WR7…) + per-position tiers (talent cliffs by ADP gap).
     pos_rank, counts = {}, {}
