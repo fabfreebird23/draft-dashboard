@@ -293,6 +293,16 @@ SAVED_LEAGUES = [
 ]
 
 
+def _positional_ctx(league_id) -> dict:
+    """{fixed_roster, roster_slots, bench_slots} for a fixed-roster league."""
+    from draftkit import positional as PZ
+    if not PZ.is_fixed_roster(league_id):
+        return {}
+    return {"fixed_roster": True,
+            "roster_slots": PZ.roster_slots(league_id),
+            "bench_slots": 0}
+
+
 def _taxi_ctx(league_id, owner_slot) -> dict:
     """{taxi_by_slot, taxi_slots} for a staged league, or empty for a normal one."""
     from draftkit import draft_stages as DS
@@ -439,13 +449,22 @@ def build_context(sel: dict) -> dict:
             prev = adp
             pos_tier[str(p["pid"])] = tier
 
+    # A fixed-roster league's real length is its own — ESPN reports 17 rounds for
+    # 798873, but the last one is twelve picks with playerId -1 and nobody in them.
+    from draftkit import positional as _PZ
+    if _PZ.is_fixed_roster(meta.league_id):
+        meta = dataclasses.replace(meta, draft_rounds=_PZ.rounds(meta.league_id))
+
     try:
         bench_slots = provider.get_bench_count()
     except Exception:  # noqa: BLE001
         bench_slots = 0
     # Sanity: starters + bench should equal the draft length. When a provider can't
     # report the bench, derive it so the roster panel still shows every pick.
-    if not bench_slots:
+    if _PZ.is_fixed_roster(meta.league_id):
+        roster_slots = _PZ.roster_slots(meta.league_id)
+        bench_slots = 0          # every pick is a roster spot; there is no bench
+    elif not bench_slots:
         bench_slots = max(0, meta.draft_rounds - len(roster_slots))
 
     # Keepers (from the league's companion keeper dashboard) + placements.
@@ -520,6 +539,10 @@ def build_context(sel: dict) -> dict:
         "league_key": league_key, "ranks_key": f"ranks_{league_key}",
         "my_team": sel.get("my_team"),
         "board_age_h": board_age_h,
+        # Fixed-roster leagues must finish with an exact positional shape, so the
+        # roster and round count come from that rather than from the platform's
+        # weekly-lineup settings.
+        **_positional_ctx(meta.league_id),
         # Taxi squad: in a staged league the EARLIER draft's picks are the taxi.
         # 7 1/2 Men runs a 2-round rookie draft and carries 2 taxi spots, so a
         # team's rookie picks are exactly its taxi squad. Kept out of the roster

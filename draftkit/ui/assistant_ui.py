@@ -42,7 +42,7 @@ def _live(ctx, *, bound_auto: bool) -> None:
     on the run following its click, so Reset cannot re-fire on a tick. (Measured,
     not assumed: 6 consecutive ticks after one click, still one fire.)
     """
-    from .. import value as V
+    from .. import positional as PZ, value as V
     reg = ctx["registry"]
     slot_names = ctx["slot_names"]
     n = len(slot_names)
@@ -268,6 +268,7 @@ def _live(ctx, *, bound_auto: bool) -> None:
         rerun_here()
 
     round_no = (pick_no - 1) // n + 1
+
     need_map = C.needs_by_slot(pids_by_slot, slot_names, ctx["roster_slots"], reg)
 
     # ---- draft board: static, full width, pinned on top ----

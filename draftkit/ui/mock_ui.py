@@ -7,6 +7,7 @@ import time
 
 import streamlit as st
 
+from .. import positional as PZ
 from .. import draft_history
 from . import components as C
 from .widgets import (juice_tab, predict_upcoming, predictor_widget, queue_manager,
@@ -231,6 +232,7 @@ def render(ctx, state_suffix: str = "") -> None:
         rnd = (ov - 1) // n + 1
         tk = taken_pids()
         pool = [p for p in _slot_pool(owner(ov)) if p["pid"] not in tk]
+
         choice = draft_history.pick_for_owner(owner_by_slot.get(owner(ov)), rnd, pool,
                                               tendencies, reg, jitter=_AI_JITTER,
                                               roster_counts=_slot_pos_counts(owner(ov)),
@@ -347,6 +349,29 @@ def render(ctx, state_suffix: str = "") -> None:
 
     queued = {str(x) for x in st.session_state.get(qkey, [])}
     round_no = (pick_no - 1) // n + 1
+    # FIXED ROSTER: a position he has already filled is not a bad pick here, it is
+    # an illegal roster — so it comes off his board. And once the compulsory spots
+    # left equal the picks left (two kickers and two defenses are mandatory), every
+    # remaining pick is spoken for and the board says so instead of recommending a
+    # fifth receiver he cannot roster.
+    # NB: scoped by ROSTER NEED, never by round. The tidy QB-QB-RB-RB order in
+    # ESPN's data is how they type the results in afterwards, not how they pick.
+    _need = (PZ.still_needed(my_pids, ctx["meta"].league_id, reg)
+             if PZ.is_fixed_roster(ctx["meta"].league_id) else {})
+    if _need:
+        _left = len([k for k in range(pick_no, total + 1) if owner(k) == my_slot])
+        _forced = PZ.must_reserve(my_pids, ctx["meta"].league_id, reg, _left)
+        _open = set(_forced or _need)
+        def _keep(r):
+            try:
+                q = (reg.meta(r["pid"]).position or "").upper()
+            except Exception:  # noqa: BLE001
+                return False
+            return ("DST" if q in ("DEF", "D/ST") else q) in _open
+        ctx = {**ctx,
+               "ranks_override": [r for r in (ctx.get("ranks_override") or ranks) if _keep(r)],
+               "roster_need": _need, "roster_forced": _forced}
+
     need_map = C.needs_by_slot(pids_by_slot, slot_names, ctx["roster_slots"], reg)
 
     # ---- draft board: static, full width, pinned on top ----
