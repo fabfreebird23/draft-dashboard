@@ -130,6 +130,16 @@ def render(ctx, state_suffix: str = "") -> None:
                  "drafted them (learned from past drafts). Below 1 they fly off even "
                  "earlier; above 1 they slide past their ADP. Change it between mocks "
                  "to practise against very different boards.")
+        # The AI drafts from consensus ADP unless the league has learned tendencies.
+        # This league has NONE — its ESPN pick order is data entry, not draft order,
+        # so there is nothing to learn from and the opponents come out generically
+        # market-shaped. He says the room is more RB-hungry than that; this is how
+        # he tells the mock, since no data I have can settle it.
+        st.slider(
+            "Opponent RB lean", 0.0, 2.0, 1.0, 0.1, key=f"{mkey}_rblean",
+            help="How hard the AI opponents chase running backs. 1.0 = straight off "
+                 "their board. Above 1 they take RBs earlier and the position dries "
+                 "up faster — set this to match the room you actually draft in.")
         st.slider(
             "My board influence", 0.0, 6.0, 0.0, 0.5, key=f"{mkey}_boardedge",
             help="How much YOUR UDK board sways Suggestions. Your board already "
@@ -236,6 +246,21 @@ def render(ctx, state_suffix: str = "") -> None:
         rnd = (ov - 1) // n + 1
         tk = taken_pids()
         pool = [p for p in _slot_pool(owner(ov)) if p["pid"] not in tk]
+        # Opponent RB lean: reorder the pool so backs come off earlier, by nudging
+        # their board position rather than by forcing a position. At 1.0 nothing
+        # moves and the pool is untouched.
+        _lean = float(st.session_state.get(f"{mkey}_rblean", 1.0))
+        if abs(_lean - 1.0) > 1e-9 and pool:
+            def _rb(p):
+                try:
+                    return (reg.meta(p["pid"]).position or "").upper() == "RB"
+                except Exception:  # noqa: BLE001
+                    return False
+            # shift a back up the queue by a fraction of the picks still to come:
+            # a lean of 2.0 moves him a full round earlier in a 12-team room.
+            bump = (_lean - 1.0) * n
+            pool = sorted(pool, key=lambda p: (pool.index(p) - bump) if _rb(p)
+                          else pool.index(p))
 
         choice = draft_history.pick_for_owner(owner_by_slot.get(owner(ov)), rnd, pool,
                                               tendencies, reg, jitter=_AI_JITTER,

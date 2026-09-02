@@ -367,25 +367,30 @@ def strategy_weight(strategy, pos, round_no, my_pids, registry, roster_slots) ->
             return 0.85                     # make room for the elite TE in the first picks
     elif strategy == "Carries & Catches":
         # Measured on "Show us your TD's" (ESPN 798873), 36 team-seasons 2023-25,
-        # a league scoring 1 point per rush attempt and 2 per reception.
+        # a league scoring 1 point per rush attempt and 2 per reception. This rests
+        # ONLY on actual season points and team points-for — no draft ranks. ESPN's
+        # draftRanksByRankType for past seasons turned out not to be that season's
+        # preseason board (the 2023 file returns 2024's ranks; the 2024 file has
+        # Kamara 2nd and Kyren Williams 3rd, which no preseason board ever said),
+        # so every rank-derived claim was dropped rather than encoded here.
         #
         #   drafted starters -> season points     r = +0.72 overall
         #      RB +0.47   FLEX +0.42   WR +0.36   TE +0.21   QB +0.06
         #
-        # RB by preseason overall rank:  1-12 = 729 pts, 13-24 = 711, 25-36 = 637,
-        # 37-48 = 426. So the top TWENTY-FOUR backs are effectively one tier (an
-        # 18-point gap across a season) and the cliff is much later than the board
-        # implies — which is why this leans hard to RB but does NOT reach for the
-        # very top one. Any top-24 RB beats a top-12 WR by roughly 220 points.
+        # Points spread among drafted players, pooled and rank-free:
+        #      RB 1047 best / 602 worst-you-must-roster   swing 445
+        #      WR  736      / 402                         swing 334
+        # RB is both the highest ceiling and the widest swing, which is what 1
+        # point per carry does to a league.
         if pos == "RB":
             return 1.30 if rb < 3 else (1.10 if rb < 4 else 0.85)
-        # QB scores heavily here (a mid-round QB returns ~686) but every team gets
-        # one — 24 drafted for 12 starting spots — so it is points nobody gains on.
-        # r = +0.06 is the whole argument for spending the pick elsewhere.
+        # QB scores heavily here but every team gets one — 24 drafted for 12
+        # starting spots — so it is points nobody gains on. r = +0.06 is the whole
+        # argument for spending the pick elsewhere.
         if pos == "QB":
             return 0.45 if (qb == 0 and rd <= 6) else (1.15 if qb == 0 else 0.35)
-        # TE13-24 average 445 and TE25-48 average 333 — one real tight end matters,
-        # the second is a formality.
+        # TE r = +0.21: one real tight end is worth having, the second is a
+        # formality in a league that forces you to roster two.
         if pos == "TE":
             return 1.15 if (te == 0 and 3 <= rd <= 8) else (0.60 if te >= 1 else 1.0)
         if pos == "WR":
