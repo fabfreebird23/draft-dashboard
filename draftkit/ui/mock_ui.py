@@ -140,8 +140,12 @@ def render(ctx, state_suffix: str = "") -> None:
         npred = st.session_state.get(f"{mkey}_npred", 0)
         if st.session_state.get(f"{mkey}_predictkp", False) and npred:
             st.caption(f"+{npred} predicted keepers")
+        # Default to the strategy this league's own history argues for, rather
+        # than making him remember. Still a dropdown — it is a default, not a lock.
+        _dflt = PZ.default_strategy(ctx["meta"].league_id)
         strategy = st.selectbox(
             "Strategy", V.STRATEGIES, key=f"{mkey}_strategy",
+            index=V.STRATEGIES.index(_dflt) if _dflt in V.STRATEGIES else 0,
             help="Biases the ★ recommendation and Suggestions toward a plan "
                  "(Hero/Zero/Robust RB, Elite TE, Late-Round QB, or pure value).")
     manual = mode == "Manual / live"

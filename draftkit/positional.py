@@ -102,3 +102,14 @@ def must_reserve(pids, league_id, registry, picks_left: int) -> Dict[str, int]:
     if not need:
         return {}
     return need if sum(need.values()) >= int(picks_left or 0) else {}
+
+
+# The strategy a league's own history argues for. Only set where it has actually
+# been measured — a default nobody checked is worse than no default.
+DEFAULT_STRATEGY = {
+    "798873": "Carries & Catches",
+}
+
+
+def default_strategy(league_id):
+    return DEFAULT_STRATEGY.get(str(league_id))

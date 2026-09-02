@@ -291,7 +291,7 @@ def synergy(pm, my_pids, registry) -> List[tuple]:
 
 # ---- draft strategies: bias the recommendation engine by position × round ----
 STRATEGIES = ["Balanced", "Hero RB", "Zero RB", "Robust RB", "Elite TE",
-              "Late-Round QB", "Value (BPA)"]
+              "Late-Round QB", "Carries & Catches", "Value (BPA)"]
 STRATEGY_HELP = {
     "Balanced": "No positional bias — value, roster fit, scarcity & survival.",
     "Hero RB": "Lock one elite RB early, then load WR/TE and wait on RB2.",
@@ -299,6 +299,9 @@ STRATEGY_HELP = {
     "Robust RB": "Pound RB early — aim for ~3 of your first 4–5 picks at RB.",
     "Elite TE": "Land a top-tier TE early for a weekly positional edge.",
     "Late-Round QB": "Wait on QB; spend early picks on RB/WR, grab your QB late.",
+    "Carries & Catches": ("For leagues that score volume — 1 pt per carry, 2 per "
+                          "catch. Hammers RB, treats the top ~24 RBs as one tier, "
+                          "and refuses to pay up at QB."),
     "Value (BPA)": "Best player available — rank purely by value, ignore roster needs.",
 }
 _SUPERFLEX_SLOTS = {"SUPER_FLEX", "SUPERFLEX", "SFLEX", "OP", "Q/W/R/T"}
@@ -349,6 +352,31 @@ def strategy_weight(strategy, pos, round_no, my_pids, registry, roster_slots) ->
             return 1.85
         if pos == "RB" and rd <= 2 and te == 0:
             return 0.85                     # make room for the elite TE in the first picks
+    elif strategy == "Carries & Catches":
+        # Measured on "Show us your TD's" (ESPN 798873), 36 team-seasons 2023-25,
+        # a league scoring 1 point per rush attempt and 2 per reception.
+        #
+        #   drafted starters -> season points     r = +0.72 overall
+        #      RB +0.47   FLEX +0.42   WR +0.36   TE +0.21   QB +0.06
+        #
+        # RB by preseason overall rank:  1-12 = 729 pts, 13-24 = 711, 25-36 = 637,
+        # 37-48 = 426. So the top TWENTY-FOUR backs are effectively one tier (an
+        # 18-point gap across a season) and the cliff is much later than the board
+        # implies — which is why this leans hard to RB but does NOT reach for the
+        # very top one. Any top-24 RB beats a top-12 WR by roughly 220 points.
+        if pos == "RB":
+            return 1.30 if rb < 3 else (1.10 if rb < 4 else 0.85)
+        # QB scores heavily here (a mid-round QB returns ~686) but every team gets
+        # one — 24 drafted for 12 starting spots — so it is points nobody gains on.
+        # r = +0.06 is the whole argument for spending the pick elsewhere.
+        if pos == "QB":
+            return 0.45 if (qb == 0 and rd <= 6) else (1.15 if qb == 0 else 0.35)
+        # TE13-24 average 445 and TE25-48 average 333 — one real tight end matters,
+        # the second is a formality.
+        if pos == "TE":
+            return 1.15 if (te == 0 and 3 <= rd <= 8) else (0.60 if te >= 1 else 1.0)
+        if pos == "WR":
+            return 0.88 if rd <= 3 else 1.0
     elif strategy == "Late-Round QB":
         if _is_superflex(roster_slots):
             return 1.0                      # QB is premium in superflex — don't fade

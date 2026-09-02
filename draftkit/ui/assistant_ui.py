@@ -81,8 +81,12 @@ def _live(ctx, *, bound_auto: bool) -> None:
                         key=f"{akey}_mode",
                         help="Live sync = pull picks automatically from Sleeper/ESPN. "
                              "Manual entry = tap the player each team takes.")
+        # Default to the strategy this league's own history argues for, rather
+        # than making him remember. Still a dropdown — it is a default, not a lock.
+        _dflt = PZ.default_strategy(ctx["meta"].league_id)
         strategy = st.selectbox(
             "Strategy", V.STRATEGIES, key=f"{akey}_strategy",
+            index=V.STRATEGIES.index(_dflt) if _dflt in V.STRATEGIES else 0,
             help="Biases the ★ recommendation and Suggestions toward a plan "
                  "(Hero/Zero/Robust RB, Elite TE, Late-Round QB, or pure value).")
         _mkey = f"mockid_{ctx['meta'].platform}_{ctx['meta'].league_id}"
