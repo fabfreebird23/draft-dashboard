@@ -356,6 +356,19 @@ def lineup_html(pids: list, roster_slots: List[str], registry, bench_cap: int = 
     return '<div class="dr-lineup">' + "".join(rows) + "</div>"
 
 
+def slot_picks_label(slot_idx: int, n_teams: int, rounds: int, k: int = 4) -> str:
+    """"1.08 · 2.05 · 3.08 · 4.05" — the first few picks a seat actually gets.
+
+    The seat number alone means nothing at a draft table; the pick numbers are what
+    he is trying to compare when he finds out where he is sitting.
+    """
+    out = []
+    for rd in range(1, min(int(rounds or 0), k) + 1):
+        col = slot_idx if rd % 2 == 1 else (n_teams - 1 - slot_idx)
+        out.append(f"{rd}.{col + 1:02d}")
+    return " · ".join(out)
+
+
 def taxi_html(pids: list, n_slots: int, registry) -> str:
     """A team's taxi squad, drawn as its own strip under the lineup.
 

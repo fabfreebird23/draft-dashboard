@@ -104,15 +104,20 @@ def render(ctx, state_suffix: str = "") -> None:
     from .. import value as V
     # ---- setup/config tucked into a gear dropdown; only actions stay on top ----
     ctrl = st.columns([0.5, 1.6, 1.5, 1.4, 1, 1])
+    # THE SEAT LIVES ON THE TOOLBAR, not in the gear. In a league whose order is
+    # revealed at the table, this is the first control he touches when the draft
+    # starts — one click, not two plus a hunt through settings.
+    _mine = ctx.get("owner_slot", {}).get(str(ctx.get("my_team")))
+    with ctrl[1]:
+        me = st.selectbox(
+            "Your seat", slot_names, key=f"{mkey}_slot",
+            index=_mine if isinstance(_mine, int) and 0 <= _mine < len(slot_names) else 0,
+            label_visibility="collapsed",
+            help="Where you are drafting from. The board, your picks, roster needs "
+                 "and every survival % follow it — change it the moment you find out.")
+        st.caption(C.slot_picks_label(slot_names.index(me), len(slot_names),
+                                      ctx["meta"].draft_rounds))
     with ctrl[0].popover("⚙", use_container_width=True):
-        # Same miss as the war room's "Your team": no index means the first name in
-        # draft order wins, so every mock he has ever run was played from Maybe
-        # Later's seat rather than his own — wrong picks highlighted, wrong roster
-        # in My Team, wrong recap.
-        _mine = ctx.get("owner_slot", {}).get(str(ctx.get("my_team")))
-        me = st.selectbox("Your draft slot", slot_names, key=f"{mkey}_slot",
-                          index=_mine if isinstance(_mine, int) and 0 <= _mine < len(slot_names)
-                          else 0)
         mode = st.radio("Opponents", ["AI mock", "Manual / live"], horizontal=True,
                         key=f"{mkey}_mode",
                         help="AI mock = opponents auto-draft from their tendencies. "

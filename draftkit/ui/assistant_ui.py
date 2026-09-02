@@ -65,18 +65,23 @@ def _live(ctx, *, bound_auto: bool) -> None:
 
     # ---- setup/config tucked into a gear dropdown; only actions stay on top ----
     ctrl = st.columns([0.5, 2.4, 1.2, 1, 1])
+    # THE SEAT SITS ON THE TOOLBAR. It defaults to his own team — it had no index
+    # once, which silently picked the first name in draft order and badged another
+    # manager's pick as his — but in a league whose order is only revealed at the
+    # table, the default is a starting point and the control has to be one click
+    # away, not inside a settings popover.
+    _mine = ctx.get("owner_slot", {}).get(str(ctx.get("my_team")))
+    with ctrl[1]:
+        _c = st.columns([2, 3])
+        me = _c[0].selectbox(
+            "Your seat", slot_names, key=f"{akey}_me",
+            index=_mine if isinstance(_mine, int) and 0 <= _mine < len(slot_names) else 0,
+            label_visibility="collapsed",
+            help="Where you are drafting from. Everything follows it — the board, "
+                 "your picks, roster needs, the turn alarm and every survival %.")
+        _c[1].caption("your picks: " + C.slot_picks_label(
+            slot_names.index(me), len(slot_names), ctx["meta"].draft_rounds))
     with ctrl[0].popover("⚙", use_container_width=True):
-        # DEFAULT TO HIS OWN TEAM. This had no index, so it silently selected the
-        # first name in draft order — "Maybe Later" in 7 1/2 Men, where he is
-        # Clayton's Kids at slot 2. The war room then badged 1.01 as YOUR PICK,
-        # the turn alarm would have fired on another manager's picks all draft,
-        # and every "my team"/needs panel was reading the wrong roster. It looks
-        # authoritative while being wrong, which is the worst way to be wrong on
-        # draft day.
-        _mine = ctx.get("owner_slot", {}).get(str(ctx.get("my_team")))
-        me = st.selectbox("Your team", slot_names, key=f"{akey}_me",
-                          index=_mine if isinstance(_mine, int) and 0 <= _mine < len(slot_names)
-                          else 0)
         mode = st.radio("Draft source", ["Live sync", "Manual entry"], horizontal=True,
                         key=f"{akey}_mode",
                         help="Live sync = pull picks automatically from Sleeper/ESPN. "
