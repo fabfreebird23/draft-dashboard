@@ -262,21 +262,18 @@ def render(ctx, state_suffix: str = "") -> None:
         rnd = (ov - 1) // n + 1
         tk = taken_pids()
         pool = [p for p in _slot_pool(owner(ov)) if p["pid"] not in tk]
-        # ROSTER SHAPE BINDS HERE TOO. This is a league rule, not a preference on
-        # his board: "Show us your TD's" is 2 QB / 2 TE / 2 K / 2 D-ST exactly and
-        # nine RB+WR with at least four of each, so a third quarterback or a fifth
-        # back ON TOP of a fifth receiver is a roster nobody can register. The
-        # shape was only being applied to the list he looks at, so "Pick for me"
-        # and "Sim to end" — which come through here — happily broke it.
+        # ROSTER CAPS BIND HERE TOO. This is a league rule, not a preference on his
+        # board: ESPN caps "Show us your TD's" at 2 QB / 4 RB / 4 WR / 2 TE / 2 K /
+        # 2 D-ST, and a fifth back is an illegal roster for anyone. The caps were
+        # only being applied to the list he looks at, so "Pick for me" and "Sim to
+        # end" — which come through here — happily handed him a fifth RB and built
+        # the opponents rosters they could never register either.
         _lg = ctx["meta"].league_id
         if PZ.is_fixed_roster(_lg):
             _theirs = ([pid for ov2, pid in made.items() if owner(ov2) == owner(ov)]
                        + [pid for ov2, pid in kept_by_overall.items()
                           if owner(ov2) == owner(ov)])
-            # legal(), not still_needed(): with the minimums met there is still the
-            # floating RB/WR slot to spend, and filtering on "must draft" would
-            # leave the last pick of every roster with nothing legal in the pool.
-            _open = PZ.legal(_theirs, _lg, reg)
+            _open = PZ.still_needed(_theirs, _lg, reg)
             if _open:
                 def _fits(p):
                     try:
@@ -420,7 +417,7 @@ def render(ctx, state_suffix: str = "") -> None:
     # fifth receiver he cannot roster.
     # NB: scoped by ROSTER NEED, never by round. The tidy QB-QB-RB-RB order in
     # ESPN's data is how they type the results in afterwards, not how they pick.
-    _need = (PZ.legal(my_pids, ctx["meta"].league_id, reg)
+    _need = (PZ.still_needed(my_pids, ctx["meta"].league_id, reg)
              if PZ.is_fixed_roster(ctx["meta"].league_id) else {})
     if _need:
         _left = len([k for k in range(pick_no, total + 1) if owner(k) == my_slot])

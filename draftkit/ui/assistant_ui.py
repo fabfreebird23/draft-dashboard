@@ -244,7 +244,7 @@ def _live(ctx, *, bound_auto: bool) -> None:
     # spots left equal the picks left, every remaining pick is spoken for and the
     # board says so rather than offering a player he has nowhere to put.
     if PZ.is_fixed_roster(ctx["meta"].league_id):
-        _room = PZ.legal(my_pids, ctx["meta"].league_id, reg)
+        _room = PZ.still_needed(my_pids, ctx["meta"].league_id, reg)
         if _room:
             _left = len([k for k in range(pick_no, total + 1) if _my_open_pick(k)])
             _forced = PZ.must_reserve(my_pids, ctx["meta"].league_id, reg, _left)
