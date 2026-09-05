@@ -12,7 +12,7 @@ from .. import draft_history
 from . import components as C
 from .widgets import (juice_tab, predict_upcoming, predictor_widget, queue_manager,
                       player_card_dialog, rankings_tab, select_player,
-                      spotlight_panel,
+                      seat_editor, spotlight_panel,
                       steals_traps_widget, suggestions_tab)
 
 @st.cache_data(ttl=1800, show_spinner="Predicting keepers…")
@@ -108,13 +108,22 @@ def render(ctx, state_suffix: str = "") -> None:
     # revealed at the table, this is the first control he touches when the draft
     # starts — one click, not two plus a hunt through settings.
     _mine = ctx.get("owner_slot", {}).get(str(ctx.get("my_team")))
+    # Relabelling the seats (the ⇅ editor) changes the OPTIONS of this selectbox.
+    # A stored value that is no longer one of them is an exception, not a reset,
+    # so it goes before the widget is built.
+    if st.session_state.get(f"{mkey}_slot") not in slot_names:
+        st.session_state.pop(f"{mkey}_slot", None)
     with ctrl[1]:
-        me = st.selectbox(
+        _c = st.columns([4, 1])
+        me = _c[0].selectbox(
             "Your seat", slot_names, key=f"{mkey}_slot",
             index=_mine if isinstance(_mine, int) and 0 <= _mine < len(slot_names) else 0,
             label_visibility="collapsed",
             help="Where you are drafting from. The board, your picks, roster needs "
                  "and every survival % follow it — change it the moment you find out.")
+        with _c[1].popover("⇅", use_container_width=True,
+                           help="Who sits in which seat"):
+            seat_editor(ctx)
         st.caption(C.slot_picks_label(slot_names.index(me), len(slot_names),
                                       ctx["meta"].draft_rounds))
     with ctrl[0].popover("⚙", use_container_width=True):
@@ -253,18 +262,21 @@ def render(ctx, state_suffix: str = "") -> None:
         rnd = (ov - 1) // n + 1
         tk = taken_pids()
         pool = [p for p in _slot_pool(owner(ov)) if p["pid"] not in tk]
-        # ROSTER CAPS BIND HERE TOO. This is a league rule, not a preference on his
-        # board: "Show us your TD's" allows at most 2 QB / 4 RB / 4 WR / 2 TE /
-        # 2 K / 2 D-ST, and a fifth back is an illegal roster for anyone. The caps
-        # were only being applied to the list he looks at, so "Pick for me" and
-        # "Sim to end" — which come through here — happily handed him a fifth RB
-        # and built the opponents rosters they could never register either.
+        # ROSTER SHAPE BINDS HERE TOO. This is a league rule, not a preference on
+        # his board: "Show us your TD's" is 2 QB / 2 TE / 2 K / 2 D-ST exactly and
+        # nine RB+WR with at least four of each, so a third quarterback or a fifth
+        # back ON TOP of a fifth receiver is a roster nobody can register. The
+        # shape was only being applied to the list he looks at, so "Pick for me"
+        # and "Sim to end" — which come through here — happily broke it.
         _lg = ctx["meta"].league_id
         if PZ.is_fixed_roster(_lg):
             _theirs = ([pid for ov2, pid in made.items() if owner(ov2) == owner(ov)]
                        + [pid for ov2, pid in kept_by_overall.items()
                           if owner(ov2) == owner(ov)])
-            _open = PZ.still_needed(_theirs, _lg, reg)
+            # legal(), not still_needed(): with the minimums met there is still the
+            # floating RB/WR slot to spend, and filtering on "must draft" would
+            # leave the last pick of every roster with nothing legal in the pool.
+            _open = PZ.legal(_theirs, _lg, reg)
             if _open:
                 def _fits(p):
                     try:
@@ -408,7 +420,7 @@ def render(ctx, state_suffix: str = "") -> None:
     # fifth receiver he cannot roster.
     # NB: scoped by ROSTER NEED, never by round. The tidy QB-QB-RB-RB order in
     # ESPN's data is how they type the results in afterwards, not how they pick.
-    _need = (PZ.still_needed(my_pids, ctx["meta"].league_id, reg)
+    _need = (PZ.legal(my_pids, ctx["meta"].league_id, reg)
              if PZ.is_fixed_roster(ctx["meta"].league_id) else {})
     if _need:
         _left = len([k for k in range(pick_no, total + 1) if owner(k) == my_slot])

@@ -22,7 +22,7 @@ def rerun_here() -> None:
     try:
         st.rerun(scope="fragment")
     except StreamlitAPIException:
-        rerun_here()
+        st.rerun()
 
 _POSCOL = {"QB": "red", "RB": "green", "WR": "blue", "TE": "orange"}
 
@@ -1071,3 +1071,49 @@ def player_card_dialog(ctx, pid, *, on_draft=None, on_star=None, queued=None, **
                 on_star(pid)
 
     _dlg()
+
+
+def seat_editor(ctx) -> None:
+    """Who sits where — for the league whose draft order is drawn at the table.
+
+    Two states, matching the two things he can actually know when the draft
+    starts: NUMBERED (he knows his own pick number and nothing else) and NAMES
+    (he is filling the room in as it is called out). A seat he hasn't assigned
+    stays "Seat k" rather than borrowing whichever manager the platform happened
+    to list there — a seating chart nobody drew is worse than no chart.
+
+    Changing anything here rebuilds the order in build_context on the same rerun,
+    because these widget keys ARE the stored state — there is no copy-back step to
+    fall a rerun behind.
+    """
+    from .. import seating as SEAT
+    lk = ctx["league_key"]
+    names = list(ctx.get("team_names") or [])
+    n = len(names)
+    gen = int(st.session_state.get(SEAT.gen_key(lk), 0))
+    modes = [SEAT.NUMBERED, SEAT.NAMES]
+    mode = st.radio("Seats", modes, horizontal=True, key=SEAT.mode_key(lk),
+                    index=modes.index(ctx.get("seat_mode") or SEAT.NAMES),
+                    help=f"Numbered: seats are 1\u2013{n} and no names are claimed. "
+                         "Names: assign managers to seats as you learn them.")
+    if mode == SEAT.NUMBERED:
+        st.caption(f"Seats 1\u2013{n}. Pick your number in **Your seat** \u2014 assign "
+                   "names here once the order is called out.")
+        return
+    # Every seat offers the SAME list. Hiding names already used would make the
+    # dropdowns shift under him as he fills them in; a double-assignment is
+    # handled where it matters instead (the earlier seat keeps the manager).
+    cols = st.columns(2)
+    vals = []
+    for i in range(n):
+        with cols[i % 2]:
+            vals.append(st.selectbox(SEAT.seat_label(i), [SEAT.UNSET] + names,
+                                     key=SEAT.seat_key(lk, i, gen)))
+    dupes = sorted({v for v in vals if v != SEAT.UNSET and vals.count(v) > 1})
+    if dupes:
+        st.caption("\u26a0\ufe0e " + ", ".join(dupes)
+                   + " in two seats \u2014 the earlier seat keeps them.")
+    if st.button("Clear seats", use_container_width=True, key=f"seatclearbtn_{lk}",
+                 disabled=not any(v != SEAT.UNSET for v in vals)):
+        st.session_state[SEAT.gen_key(lk)] = gen + 1
+        rerun_here()

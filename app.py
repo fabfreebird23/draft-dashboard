@@ -11,6 +11,7 @@ import dataclasses
 import streamlit as st
 
 from draftkit import positional as _PZ
+from draftkit import seating as _SEAT
 
 from draftkit import config, players, theme
 from draftkit.adp import consensus
@@ -365,6 +366,17 @@ def build_context(sel: dict) -> dict:
                  for i, oid in enumerate(scraped)]
     elif mgr_names:
         order = [Team(slot=t.slot, team_id=t.team_id, name=disp(t.team_id, t.name)) for t in order]
+    # SEATING. A league whose order is drawn at the table has no seating chart
+    # until draft night, so the seats are numbered and he fills in names as he
+    # learns them (the editor lives on the draft toolbar). Untouched leagues keep
+    # the provider's order exactly.
+    _lk = f"{meta.platform}_{meta.league_id}"
+    team_names = [t.name for t in order]
+    _seat_mode = st.session_state.get(_SEAT.mode_key(_lk)) or _SEAT.default_mode(meta.league_id)
+    _gen = int(st.session_state.get(_SEAT.gen_key(_lk), 0))
+    order = _SEAT.apply(order, _seat_mode,
+                        [st.session_state.get(_SEAT.seat_key(_lk, i, _gen))
+                         for i in range(len(order))])
     slot_names = [t.name for t in order] or [f"Team {i+1}" for i in range(meta.num_teams)]
     owner_by_slot = {t.slot: t.team_id for t in order}
     owner_slot = {t.team_id: t.slot for t in order}
@@ -542,6 +554,9 @@ def build_context(sel: dict) -> dict:
         "registry": registry, "provider": provider, "meta": meta,
         "get_ranks": get_ranks,
         "slot_names": slot_names, "roster_slots": roster_slots,
+        # The real manager names, kept separate from the seat labels: the
+        # seat editor needs something to offer even when the board is numbered.
+        "team_names": team_names, "seat_mode": _seat_mode,
         "bench_slots": bench_slots,
         "owner_by_slot": owner_by_slot, "owner_slot": owner_slot,
         "adp_df": adp_df, "adp_rank": adp_rank, "adp_pool": adp_pool,

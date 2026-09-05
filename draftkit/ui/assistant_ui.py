@@ -9,7 +9,7 @@ from . import components as C
 from . import sleeper_handoff as SH
 from .widgets import (juice_tab, predict_upcoming, predictor_widget, queue_manager,
                       player_card_dialog, rankings_tab, select_player,
-                      spotlight_panel,
+                      seat_editor, spotlight_panel,
                       rerun_here,
                       steals_traps_widget, suggestions_tab)
 
@@ -71,15 +71,22 @@ def _live(ctx, *, bound_auto: bool) -> None:
     # table, the default is a starting point and the control has to be one click
     # away, not inside a settings popover.
     _mine = ctx.get("owner_slot", {}).get(str(ctx.get("my_team")))
+    # The ⇅ editor can relabel every seat, and a stored value that is no longer in
+    # the options raises rather than resetting — so drop it before the widget.
+    if st.session_state.get(f"{akey}_me") not in slot_names:
+        st.session_state.pop(f"{akey}_me", None)
     with ctrl[1]:
-        _c = st.columns([2, 3])
+        _c = st.columns([2, 0.6, 3])
         me = _c[0].selectbox(
             "Your seat", slot_names, key=f"{akey}_me",
             index=_mine if isinstance(_mine, int) and 0 <= _mine < len(slot_names) else 0,
             label_visibility="collapsed",
             help="Where you are drafting from. Everything follows it — the board, "
                  "your picks, roster needs, the turn alarm and every survival %.")
-        _c[1].caption("your picks: " + C.slot_picks_label(
+        with _c[1].popover("⇅", use_container_width=True,
+                           help="Who sits in which seat"):
+            seat_editor(ctx)
+        _c[2].caption("your picks: " + C.slot_picks_label(
             slot_names.index(me), len(slot_names), ctx["meta"].draft_rounds))
     with ctrl[0].popover("⚙", use_container_width=True):
         mode = st.radio("Draft source", ["Live sync", "Manual entry"], horizontal=True,
@@ -231,6 +238,26 @@ def _live(ctx, *, bound_auto: bool) -> None:
     real_picks = {ov: pid for ov, pid in pick_pids.items() if pid and ov not in kept_at}
 
     needs = C.open_needs(my_pids, ctx["roster_slots"], reg)
+    # FIXED ROSTER: the same rule the mock enforces, on the board he drafts from
+    # for real. A position with no room left is not a bad pick here, it is a roster
+    # ESPN will not register — so it comes off the board. And once the compulsory
+    # spots left equal the picks left, every remaining pick is spoken for and the
+    # board says so rather than offering a player he has nowhere to put.
+    if PZ.is_fixed_roster(ctx["meta"].league_id):
+        _room = PZ.legal(my_pids, ctx["meta"].league_id, reg)
+        if _room:
+            _left = len([k for k in range(pick_no, total + 1) if _my_open_pick(k)])
+            _forced = PZ.must_reserve(my_pids, ctx["meta"].league_id, reg, _left)
+            _open = set(_forced or _room)
+
+            def _keep(r):
+                try:
+                    q = (reg.meta(r["pid"]).position or "").upper()
+                except Exception:  # noqa: BLE001
+                    return False
+                return ("DST" if q in ("DEF", "D/ST") else q) in _open
+            ranks = [r for r in (ranks or []) if _keep(r)]
+            ctx = {**ctx, "ranks_override": ranks}
     recent_positions = [reg.meta(pid).position
                         for ov, pid in sorted(real_picks.items())[-6:] if pid]
     qkey = f"queue_{ctx['league_key']}"
