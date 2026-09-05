@@ -476,6 +476,14 @@ def juice_tab(ctx, *, key_prefix, taken, queued=None, on_star=None, limit=80) ->
     if not jmap:
         st.caption("Couldn't load Juice's Value sheet right now — try again shortly.")
         return
+    # Where the league doesn't draft off Sleeper's board, this is still worth
+    # reading as market context — but it is not a call, and it is not allowed to
+    # move the suggestions. Say so on the tab rather than letting the green Δ
+    # imply a fall that nothing in this room would cause.
+    if ctx.get("juice_market") is None:
+        st.caption("Δ is **Sleeper's** draft room vs FantasyPros. This league drafts "
+                   "elsewhere, so read it as market context — it isn't moving your "
+                   "suggestions.")
     taken_s = {str(x) for x in (taken or set())}
     queued_s = {str(x) for x in (queued or set())}
     present = {row.get("position") for row in jmap.values()}
@@ -557,7 +565,7 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
         survival_fn=C.board_survival_fn(ctx.get("adp_pool"), taken_s, pick_no, next_pick,
                                         horizon=ctx.get("survival_horizon")),
         my_pids=my_pids, roster_slots=ctx["roster_slots"], byes=ctx.get("byes"), k=k,
-        upside=upside, strategy=strategy, round_no=round_no, juice_map=ctx.get("juice"),
+        upside=upside, strategy=strategy, round_no=round_no, juice_map=ctx.get("juice_market"),
         adp_rank_fn=ctx["adp_rank"],
         board_edge_weight=float(st.session_state.get(f"{key_prefix}_boardedge", 0.0)))
     if strategy and strategy != "Balanced":

@@ -416,7 +416,7 @@ def _live(ctx, *, bound_auto: bool) -> None:
             survival_fn=surv_fn,
             my_pids=my_pids, roster_slots=ctx["roster_slots"],
             strategy=strategy, round_no=round_no,
-            byes=ctx.get("byes"), juice_map=ctx.get("juice"))
+            byes=ctx.get("byes"), juice_map=ctx.get("juice_market"))
         if rec_row is None:
             rec_row = board_avail[0]
 

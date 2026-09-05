@@ -568,6 +568,14 @@ def build_context(sel: dict) -> dict:
         "profiles": profiles,
         "value": value, "proj": proj, "schedule": schedule, "dvp": dvp,
         "juice": juice_map,
+        # ...and the same sheet again, but only where its premise holds. Juice's
+        # skew measures SLEEPER'S draft room against FantasyPros: "he'll fall
+        # further than he should" is a claim about people drafting off Sleeper's
+        # default board. "Show us your TD's" is on ESPN and is drafted live in a
+        # room, results typed in afterwards — nobody there is looking at Sleeper's
+        # order, so the signal has no mechanism and must not move the score. The
+        # tab and the player card still show it; it is market context, not a call.
+        "juice_market": juice_map if meta.platform == "sleeper" else None,
         # Every external fetch here degrades silently by design (a network blip
         # must not take the app down mid-draft). That's only safe if the
         # degradation is VISIBLE — health_html renders this in the topbar.
