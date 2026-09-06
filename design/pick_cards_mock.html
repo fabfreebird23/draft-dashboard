@@ -1,0 +1,268 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Pick cards — sportsbot's live grammar, in the war room</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   MOCK ONLY. Nothing here is wired to the app yet — it is the sportsbot live
+   card's GRAMMAR applied to a draft pick, so the look can be judged before any
+   of components.py is rewritten.
+
+   What carries over from the live view, and what it means here:
+
+     the two-colour hero wash   →  NFL team colour on the left, position colour
+                                   on the right. A card is identifiable at a
+                                   glance, from across the room, before reading.
+     the pulsing clock pill     →  whose pick it is and which pick, live.
+     the situation line         →  the run that is happening ("4th & 4" becomes
+                                   "5 of last 6 picks were RB").
+     the big number             →  value over replacement, where the score was.
+     the four market cells      →  ADP · RANK · VALUE · SURVIVAL, the four
+                                   numbers the suggestions table already carries.
+                                   The one that is DRIVING the call is lit,
+                                   exactly as your own line is lit on a game.
+     the bet strips + verdicts  →  the reasons, each with its own verdict.
+     the last play + actions    →  the last pick made, then Queue / Draft.
+     the left edge              →  green take him · amber close · red don't.
+
+   The palette and faces are the DRAFT app's own (theme.py DARK, Sora + Inter);
+   only the structure is borrowed. Porting sportsbot's crimson and Big Shoulders
+   as well would make this a second sportsbot, not a war room.
+   ========================================================================== */
+:root{
+  --bg:#161415; --panel:#232022; --panel2:#2c282a; --line:#332e30; --line2:#3d383a;
+  --ink:#f2eef0; --muted:#a2989c; --mut2:#95898e;
+  --crimson:#ff336c;
+  --green:#7fd8b4; --green-soft:rgba(127,216,180,.14);
+  --amber:#f0b357; --amber-soft:rgba(240,179,87,.13);
+  --red:#ff8fae;   --red-soft:rgba(255,143,174,.14);
+  --qb:#c98fbb; --rb:#7fd8b4; --wr:#6aa6f0; --te:#f0b357; --dst:#8fb8f5; --k:#95898e;
+  --f-display:'Sora',system-ui,sans-serif;
+  --f-body:'Inter',system-ui,sans-serif;
+  --f-data:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);margin:0;padding:22px 22px 60px;font-size:13px}
+.mast{display:flex;align-items:baseline;gap:12px;margin:0 0 4px}
+.mast h1{font-family:var(--f-display);font-weight:800;font-size:26px;margin:0;letter-spacing:-.01em}
+.mast .n{font-family:var(--f-data);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2)}
+.note{color:var(--muted);max-width:74ch;line-height:1.5;margin:6px 0 18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(470px,1fr));gap:14px;align-items:start}
+
+/* ---------------------------------------------------------------- the card */
+.pk{position:relative;background:var(--panel);border:1px solid rgba(255,255,255,.06);
+    border-left:4px solid var(--line2);border-radius:14px;overflow:hidden;
+    box-shadow:0 18px 40px -24px rgba(0,0,0,.9)}
+.pk.take{border-left-color:var(--green);box-shadow:0 18px 40px -24px rgba(0,0,0,.9),-6px 0 18px -10px var(--green)}
+.pk.close{border-left-color:var(--amber)}
+.pk.avoid{border-left-color:var(--red)}
+.pk.dim{opacity:.9}
+/* "on the clock" is this view's is-live: the one card that is happening now. */
+.pk.live{box-shadow:0 18px 40px -24px rgba(0,0,0,.9),0 0 0 1px rgba(255,51,108,.3),0 0 28px -8px rgba(255,51,108,.35)}
+
+.hero{position:relative;padding:12px 14px 10px;
+      background:linear-gradient(100deg,var(--c1,#2a2f3a) 0%,var(--panel) 42%,var(--panel) 58%,var(--c2,#3a2a2a) 100%)}
+.hero:after{content:"";position:absolute;inset:0;pointer-events:none;
+            background:linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,.5))}
+.hero>*{position:relative}
+.row{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) auto;align-items:center;gap:12px}
+.who{display:flex;align-items:center;gap:9px;min-width:0}
+.face{width:38px;height:38px;border-radius:10px;flex:none;object-fit:cover;background:rgba(255,255,255,.92);
+      box-shadow:inset 0 0 0 1px rgba(0,0,0,.08),0 2px 8px -2px rgba(0,0,0,.6)}
+.nm{min-width:0}
+.nm b{display:block;font-family:var(--f-display);font-weight:800;font-size:19px;line-height:1.05;
+      letter-spacing:-.01em;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--f-data);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.72)}
+.mid{text-align:center;display:grid;gap:4px;justify-items:center;min-width:0;width:100%;max-width:240px}
+.clk{display:inline-flex;align-items:center;gap:5px;font-family:var(--f-data);font-size:9.5px;
+     letter-spacing:.12em;text-transform:uppercase;color:var(--crimson);padding:3px 9px;border-radius:999px;
+     background:rgba(255,51,108,.14);border:1px solid rgba(255,51,108,.35);white-space:nowrap}
+.clk i{width:5px;height:5px;border-radius:999px;background:var(--crimson);animation:p 1.6s infinite}
+.clk.soon{color:var(--muted);background:rgba(255,255,255,.05);border-color:var(--line2)}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.25}}
+.sit{font-family:var(--f-data);font-size:10px;color:rgba(255,255,255,.78);white-space:nowrap;
+     max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.sit b{color:#fff}
+.sit .hot{color:var(--crimson);letter-spacing:.1em;text-transform:uppercase;font-size:9.5px;margin-left:5px}
+.big{font-family:var(--f-display);font-weight:800;font-size:30px;line-height:1;letter-spacing:-.02em;
+     color:#fff;text-align:right;flex:none;white-space:nowrap}
+.big small{display:block;font-family:var(--f-data);font-size:8.5px;font-weight:500;letter-spacing:.14em;
+           text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:3px}
+.big.low{color:var(--muted)}
+
+/* the four cells — same shape as the market row, different numbers */
+.cells{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:9px 14px 0;
+       font-family:var(--f-data);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;
+       color:var(--mut2);text-align:center}
+.cell{display:block;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:8px;
+      padding:6px 4px;text-align:center;color:var(--ink);font-size:13px;font-weight:600;letter-spacing:0;
+      text-transform:none;font-family:var(--f-data)}
+.cell.on{background:var(--green-soft);border-color:rgba(127,216,180,.5);color:var(--green);
+         box-shadow:0 0 14px -6px rgba(127,216,180,.8)}
+.cell.warn{background:var(--amber-soft);border-color:rgba(240,179,87,.5);color:var(--amber)}
+.cell.bad{background:var(--red-soft);border-color:rgba(255,143,174,.5);color:var(--red)}
+.cell.empty{color:var(--mut2);font-weight:400}
+
+/* the reasons, where the bets were */
+.why{padding:10px 14px 4px;display:grid;gap:6px}
+.r{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:8px 11px;border-radius:10px;
+   background:linear-gradient(90deg,rgba(127,216,180,.10),rgba(255,255,255,.02));
+   border:1px solid rgba(127,216,180,.22)}
+.r.n{background:linear-gradient(90deg,rgba(255,255,255,.05),rgba(255,255,255,.015));border-color:var(--line2)}
+.r.w{background:linear-gradient(90deg,rgba(240,179,87,.10),rgba(255,255,255,.02));border-color:rgba(240,179,87,.28)}
+.r.b{background:linear-gradient(90deg,rgba(255,143,174,.10),rgba(255,255,255,.02));border-color:rgba(255,143,174,.28)}
+.r .v{font-weight:600;font-size:13px}
+.r .d{font-family:var(--f-data);font-size:10.5px;color:var(--muted);margin-top:2px}
+.vd{font-family:var(--f-data);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+    padding:3px 8px;border-radius:5px;border:1px solid var(--line2);color:var(--mut2);white-space:nowrap}
+.vd.good{color:var(--green);border-color:var(--green);background:var(--green-soft)}
+.vd.warn{color:var(--amber);border-color:var(--amber);background:var(--amber-soft)}
+.vd.bad{color:var(--red);border-color:var(--red);background:var(--red-soft)}
+
+/* last pick + actions, where the last play was */
+.foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 14px 12px;
+      font-size:11.5px;color:var(--mut2)}
+.foot .lp{flex:1;min-width:0;line-height:1.35}
+.acts{display:flex;gap:6px;flex:none}
+.mini{font-family:var(--f-data);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+      padding:5px 10px;border-radius:7px;background:rgba(255,255,255,.05);border:1px solid var(--line2);
+      color:var(--ink);cursor:pointer}
+.mini.go{background:var(--green-soft);border-color:rgba(127,216,180,.5);color:var(--green)}
+.mini:hover{border-color:var(--muted)}
+
+/* a run bar — the one thing a draft has that a game does not: a queue */
+.bar{display:flex;gap:3px;padding:0 14px 10px}
+.bar i{height:4px;flex:1;border-radius:999px;background:rgba(255,255,255,.08)}
+.bar i.rb{background:var(--rb)} .bar i.wr{background:var(--wr)} .bar i.qb{background:var(--qb)}
+.bar i.te{background:var(--te)}
+.cap{font-family:var(--f-data);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2);
+     padding:0 14px 10px;margin-top:-4px}
+</style></head><body>
+
+<div class="mast"><h1>Pick cards</h1><span class="n">mock · sportsbot's live grammar, in the war room</span></div>
+<p class="note">Same skeleton as the live view: coloured hero, clock pill, four numbers, reason strips with
+their own verdicts, last event, actions, and a verdict edge down the left. The numbers are the ones the
+Suggestions tab already computes — this is a way of <i>showing</i> them, not new maths.</p>
+
+<div class="grid">
+
+  <!-- 1 · on the clock, take him -->
+  <div class="pk take live">
+    <div class="hero" style="--c1:#008E97;--c2:#1d5f52">
+      <div class="row">
+        <div class="who">
+          <img class="face" src="https://sleepercdn.com/content/nfl/players/thumb/9226.jpg" alt="">
+          <div class="nm"><b>De'Von Achane</b><span>RB · MIA · Bye 6</span></div>
+        </div>
+        <div class="mid">
+          <span class="clk"><i></i>1.08 · your pick</span>
+          <span class="sit"><b>RB run</b> · 5 of last 6 picks<span class="hot">7 left</span></span>
+        </div>
+        <div class="big">+286<small>value</small></div>
+      </div>
+    </div>
+    <div class="cells">
+      <span>ADP</span><span>Rank</span><span>Value</span><span>Survival</span>
+      <span class="cell">14</span><span class="cell">RB6</span><span class="cell on">+286</span><span class="cell warn">41%</span>
+    </div>
+    <div class="why">
+      <div class="r"><div><div class="v">Fills your RB starter</div>
+        <div class="d">4 of 4 RB slots open · 16 picks to fill 16</div></div><span class="vd good">fits</span></div>
+      <div class="r w"><div><div class="v">~3 likely gone by your next pick</div>
+        <div class="d">41% he lasts to 2.05 · nine picks away</div></div><span class="vd warn">won't last</span></div>
+      <div class="r n"><div><div class="v">Carries &amp; Catches</div>
+        <div class="d">1 pt per carry, 2 per catch — this league scores volume</div></div><span class="vd">strategy</span></div>
+    </div>
+    <div class="bar"><i class="rb"></i><i class="rb"></i><i class="wr"></i><i class="rb"></i><i class="rb"></i><i class="rb"></i><i class="qb"></i></div>
+    <div class="cap">last 7 picks</div>
+    <div class="foot"><span class="lp">(1.07) Seat 7 selected <b>Chase Brown</b> · RB-CIN</span>
+      <span class="acts"><button class="mini">☆ Queue</button><button class="mini go">Draft →</button></span></div>
+  </div>
+
+  <!-- 2 · close call -->
+  <div class="pk close">
+    <div class="hero" style="--c1:#241773;--c2:#1d5f52">
+      <div class="row">
+        <div class="who">
+          <img class="face" src="https://sleepercdn.com/content/nfl/players/thumb/3198.jpg" alt="">
+          <div class="nm"><b>Derrick Henry</b><span>RB · BAL · Bye 7</span></div>
+        </div>
+        <div class="mid">
+          <span class="clk soon">next best</span>
+          <span class="sit"><b>Tier 2</b> · cliff after him</span>
+        </div>
+        <div class="big">+287<small>value</small></div>
+      </div>
+    </div>
+    <div class="cells">
+      <span>ADP</span><span>Rank</span><span>Value</span><span>Survival</span>
+      <span class="cell">17</span><span class="cell">RB10</span><span class="cell on">+287</span><span class="cell">53%</span>
+    </div>
+    <div class="why">
+      <div class="r"><div><div class="v">Same value, later ADP</div>
+        <div class="d">+1 over Achane · going 3 picks later on the market</div></div><span class="vd good">value</span></div>
+      <div class="r w"><div><div class="v">Age 32 · 3rd straight 300-touch season</div>
+        <div class="d">the one thing the projection cannot price</div></div><span class="vd warn">risk</span></div>
+    </div>
+    <div class="foot"><span class="lp">coin flip with Achane — take the one you'd start</span>
+      <span class="acts"><button class="mini">☆ Queue</button><button class="mini go">Draft →</button></span></div>
+  </div>
+
+  <!-- 3 · don't -->
+  <div class="pk avoid">
+    <div class="hero" style="--c1:#101010;--c2:#8a5f22">
+      <div class="row">
+        <div class="who">
+          <img class="face" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+          <div class="nm"><b>Brock Bowers</b><span>TE · LV · Bye 8</span></div>
+        </div>
+        <div class="mid">
+          <span class="clk soon">on your board</span>
+          <span class="sit"><b>TE 2 of 2</b> · roster full</span>
+        </div>
+        <div class="big low">+201<small>value</small></div>
+      </div>
+    </div>
+    <div class="cells">
+      <span>ADP</span><span>Rank</span><span>Value</span><span>Survival</span>
+      <span class="cell">21</span><span class="cell">TE2</span><span class="cell">+201</span><span class="cell bad">—</span>
+    </div>
+    <div class="why">
+      <div class="r b"><div><div class="v">You cannot roster a third tight end</div>
+        <div class="d">ESPN caps this league at 2 TE — the pick would not register</div></div><span class="vd bad">illegal</span></div>
+      <div class="r n"><div><div class="v">Off your board until a TE is traded</div>
+        <div class="d">shown here only because he is the best player left</div></div><span class="vd">hidden</span></div>
+    </div>
+    <div class="foot"><span class="lp">every remaining pick is spoken for: 2 K, 2 D/ST, 1 QB</span>
+      <span class="acts"><button class="mini">Why?</button></span></div>
+  </div>
+
+  <!-- 4 · your next turn, the "not started" state -->
+  <div class="pk dim">
+    <div class="hero" style="--c1:#0B2265;--c2:#2a3550">
+      <div class="row">
+        <div class="who">
+          <img class="face" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt="">
+          <div class="nm"><b>Malik Nabers</b><span>WR · NYG · queued #1</span></div>
+        </div>
+        <div class="mid">
+          <span class="clk soon">2.05 · in 9 picks</span>
+          <span class="sit">3 of your 5 stars project gone</span>
+        </div>
+        <div class="big low">—<small>your turn</small></div>
+      </div>
+    </div>
+    <div class="cells">
+      <span>ADP</span><span>Rank</span><span>Value</span><span>Survival</span>
+      <span class="cell">26</span><span class="cell">WR9</span><span class="cell">+244</span><span class="cell warn">38%</span>
+    </div>
+    <div class="why">
+      <div class="r n"><div><div class="v">Queue holds 5 · 2 survive to 2.05</div>
+        <div class="d">Nabers 38% · Egbuka 61% · McConkey 12% · Kraft 74% · Judkins 9%</div></div><span class="vd">plan</span></div>
+    </div>
+    <div class="foot"><span class="lp">nine picks · Seats 9-12 then 12-9 · two need a WR</span>
+      <span class="acts"><button class="mini">Edit queue</button></span></div>
+  </div>
+
+</div>
+</body></html>
