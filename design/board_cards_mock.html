@@ -1,0 +1,326 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Board cards — where else the live grammar fits</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   MOCK ONLY — the second pass. The pick card answered "one player, right now".
+   These are the OTHER places on the board where a game card's shape actually
+   fits, and the test each one had to pass is the same:
+
+     does this thing have two sides, a number that settles it, and a reason?
+
+   Where the answer is yes, the port is nearly free — the matchup IS a game, the
+   trade IS two sides, the waiver IS a swap. Where the answer is no, a card is
+   just a box with a gradient on it, and those screens are left alone: the draft
+   board grid, the rankings list and the queue are all better as dense rows, and
+   turning them into cards would cost him the thing they are for.
+
+   Every number below is one the app already computes:
+     matchup   weekly.team_distribution + weekly.win_prob + weekly.swing_players
+     trade     weekly.analyze_trade (value / capital / verdict chain)
+     waiver    weekly.waiver_board + weekly.bid_guidance
+     report    value.grade_team + the recap's best-value / biggest-reach
+     clock     the draft state itself
+   ========================================================================== */
+:root{
+  --bg:#161415; --panel:#232022; --panel2:#2c282a; --line:#332e30; --line2:#3d383a;
+  --ink:#f2eef0; --muted:#a2989c; --mut2:#95898e;
+  --crimson:#ff336c;
+  --green:#7fd8b4; --green-soft:rgba(127,216,180,.14);
+  --amber:#f0b357; --amber-soft:rgba(240,179,87,.13);
+  --red:#ff8fae;   --red-soft:rgba(255,143,174,.14);
+  --qb:#c98fbb; --rb:#7fd8b4; --wr:#6aa6f0; --te:#f0b357; --dst:#8fb8f5; --k:#95898e;
+  --f-display:'Sora',system-ui,sans-serif;
+  --f-body:'Inter',system-ui,sans-serif;
+  --f-data:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);margin:0;padding:22px 22px 70px;font-size:13px}
+h1{font-family:var(--f-display);font-weight:800;font-size:26px;margin:0 0 2px;letter-spacing:-.01em}
+.sub{color:var(--muted);max-width:78ch;line-height:1.5;margin:0 0 22px}
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:26px 0 10px;
+     font-family:var(--f-display);font-weight:800;font-size:17px;letter-spacing:-.01em}
+.bar i{height:1px;background:var(--line2);display:block}
+.bar em{font-family:var(--f-data);font-size:9.5px;font-style:normal;letter-spacing:.14em;
+        text-transform:uppercase;color:var(--mut2);white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(520px,1fr));gap:14px;align-items:start}
+
+.c{position:relative;background:var(--panel);border:1px solid rgba(255,255,255,.06);
+   border-left:4px solid var(--line2);border-radius:14px;overflow:hidden;
+   box-shadow:0 18px 40px -24px rgba(0,0,0,.9);margin-bottom:14px}
+.c.good{border-left-color:var(--green)} .c.warn{border-left-color:var(--amber)}
+.c.bad{border-left-color:var(--red)}
+.c.live{box-shadow:0 18px 40px -24px rgba(0,0,0,.9),0 0 0 1px rgba(255,51,108,.3),0 0 28px -8px rgba(255,51,108,.35)}
+
+.hero{position:relative;padding:12px 14px 10px;
+      background:linear-gradient(100deg,var(--c1,#2a2f3a) 0%,var(--panel) 42%,var(--panel) 58%,var(--c2,#3a2a2a) 100%)}
+.hero:after{content:"";position:absolute;inset:0;pointer-events:none;
+            background:linear-gradient(180deg,rgba(0,0,0,.16),rgba(0,0,0,.48))}
+.hero>*{position:relative}
+.two{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.2fr);align-items:center;gap:12px}
+.side{display:flex;align-items:center;gap:9px;min-width:0}
+.side.r{justify-content:flex-end;text-align:right}
+.crest{width:34px;height:34px;border-radius:9px;flex:none;display:grid;place-items:center;
+       font-family:var(--f-display);font-weight:800;font-size:12px;color:#141314;
+       background:rgba(255,255,255,.92);box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.who{min-width:0}
+.who b{display:block;font-family:var(--f-display);font-weight:800;font-size:17px;line-height:1.05;
+       color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
+.who span{display:block;font-family:var(--f-data);font-size:9.5px;letter-spacing:.1em;
+          text-transform:uppercase;color:rgba(255,255,255,.72);white-space:nowrap}
+.pts{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1;color:#fff;
+     letter-spacing:-.02em;white-space:nowrap;flex:none}
+.pts.trail{color:rgba(255,255,255,.6)}
+.mid{text-align:center;display:grid;gap:4px;justify-items:center;min-width:0;overflow:hidden}
+.clk{display:inline-flex;align-items:center;gap:5px;font-family:var(--f-data);font-size:9.5px;
+     letter-spacing:.12em;text-transform:uppercase;color:var(--crimson);padding:3px 9px;border-radius:999px;
+     background:rgba(255,51,108,.14);border:1px solid rgba(255,51,108,.38);white-space:nowrap}
+.clk i{width:5px;height:5px;border-radius:999px;background:var(--crimson);animation:p 1.6s infinite}
+.clk.q{color:rgba(255,255,255,.82);background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2)}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.25}}
+.sit{font-family:var(--f-data);font-size:10px;color:rgba(255,255,255,.8);white-space:nowrap;
+     max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.sit b{color:#fff}
+
+/* win-probability bar — the one thing a game card has that we can beat it at,
+   because our distribution is a real projection and not a betting market */
+.wp{display:flex;height:5px;border-radius:999px;overflow:hidden;margin:9px 14px 0;
+    background:rgba(255,255,255,.08)}
+.wp i{display:block;height:100%}
+.wpk{display:flex;justify-content:space-between;font-family:var(--f-data);font-size:9px;
+     letter-spacing:.12em;text-transform:uppercase;color:var(--mut2);padding:5px 14px 0}
+
+.cells{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:9px 14px 0;
+       font-family:var(--f-data);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;
+       color:var(--mut2);text-align:center}
+.cells.three{grid-template-columns:repeat(3,1fr)}
+.cell{display:block;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
+      border-radius:8px;padding:6px 4px;text-align:center;color:var(--ink);font-size:13px;
+      font-weight:600;letter-spacing:0;text-transform:none;font-family:var(--f-data)}
+.cell.on{background:var(--green-soft);border-color:rgba(127,216,180,.5);color:var(--green)}
+.cell.warn{background:var(--amber-soft);border-color:rgba(240,179,87,.5);color:var(--amber)}
+.cell.bad{background:var(--red-soft);border-color:rgba(255,143,174,.5);color:var(--red)}
+
+.why{padding:10px 14px 4px;display:grid;gap:6px}
+.r{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:8px 11px;
+   border-radius:10px;background:rgba(255,255,255,.03);border:1px solid var(--line2)}
+.r.g{background:linear-gradient(90deg,rgba(127,216,180,.10),rgba(255,255,255,.02));border-color:rgba(127,216,180,.28)}
+.r.w{background:linear-gradient(90deg,rgba(240,179,87,.10),rgba(255,255,255,.02));border-color:rgba(240,179,87,.28)}
+.r.b{background:linear-gradient(90deg,rgba(255,143,174,.10),rgba(255,255,255,.02));border-color:rgba(255,143,174,.28)}
+.r .v{font-weight:700;font-size:13px} .r .d{font-family:var(--f-data);font-size:10.5px;color:var(--muted);margin-top:2px}
+.vd{font-family:var(--f-data);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+    padding:3px 8px;border-radius:5px;border:1px solid var(--line2);color:var(--mut2);white-space:nowrap}
+.vd.g{color:var(--green);border-color:var(--green);background:var(--green-soft)}
+.vd.w{color:var(--amber);border-color:var(--amber);background:var(--amber-soft)}
+.vd.b{color:var(--red);border-color:var(--red);background:var(--red-soft)}
+
+.foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 14px 12px;
+      font-size:11.5px;color:var(--mut2)}
+.foot .lp{flex:1;min-width:0;line-height:1.35}
+.acts{display:flex;gap:6px;flex:none}
+.mini{font-family:var(--f-data);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+      padding:5px 10px;border-radius:7px;background:rgba(255,255,255,.05);border:1px solid var(--line2);
+      color:var(--ink);cursor:pointer}
+.mini.go{background:var(--green-soft);border-color:rgba(127,216,180,.5);color:var(--green)}
+
+/* grade badge, where the score sits on a game */
+.gb{flex:none;align-self:center;font-family:var(--f-display);font-weight:800;font-size:30px;line-height:1;color:#fff;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:11px;
+    padding:6px 12px;letter-spacing:-.02em}
+
+/* the swap arrow between two sides of a trade / waiver */
+.swap{font-family:var(--f-data);font-size:15px;color:rgba(255,255,255,.65)}
+
+/* the full-width clock strip */
+.strip{border-left-width:4px}
+.strip .hero{padding:14px 16px}
+.strip .who b{font-size:20px}
+.strip .pts{font-size:34px}
+.pill{font-family:var(--f-data);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+      padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);white-space:nowrap}
+.seatrow{display:flex;gap:5px;padding:9px 16px 0;flex-wrap:wrap}
+.seatrow b{font-family:var(--f-data);font-size:9.5px;font-weight:500;letter-spacing:.06em;
+           padding:4px 8px;border-radius:6px;background:rgba(255,255,255,.04);
+           border:1px solid var(--line2);color:var(--mut2)}
+.seatrow b.me{color:var(--crimson);border-color:rgba(255,51,108,.5);background:rgba(255,51,108,.12)}
+.seatrow b.next{color:var(--ink);border-color:var(--muted)}
+.note{color:var(--mut2);font-size:11.5px;padding:0 16px 12px;line-height:1.4}
+</style></head><body>
+
+<h1>Where else the card fits</h1>
+<p class="sub">The test each screen had to pass: <b>two sides, a number that settles it, a reason.</b>
+Where that's true the port is nearly free — a matchup <i>is</i> a game, a trade <i>is</i> two sides, a
+waiver <i>is</i> a swap. Where it isn't, the screen is left alone; the board grid, the rankings list
+and the queue are all better as dense rows.</p>
+
+<!-- ══════════════════════════════════════════════ 1 · the clock strip ═══ -->
+<div class="bar"><span>On the clock</span><i></i><em>draft · replaces the status bar</em></div>
+<div class="c live strip">
+  <div class="hero" style="--c1:#3a1020;--c2:#1d5f52">
+    <div class="two">
+      <div class="side">
+        <span class="crest">8</span>
+        <div class="who"><b>You're up</b><span>Seat 8 · Round 1</span></div>
+      </div>
+      <div class="mid">
+        <span class="clk"><i></i>pick 1.08</span>
+        <span class="sit"><b>RB run</b> · 5 of last 6 · 7 quality left</span>
+      </div>
+      <div class="side r">
+        <div class="who"><b>2.05</b><span>next turn · 9 picks</span></div>
+        <span class="pts">8</span>
+      </div>
+    </div>
+  </div>
+  <div class="seatrow">
+    <b class="me">1.08 you</b><b>1.09 Seat 9</b><b>1.10 Seat 10</b><b>1.11 Seat 11</b><b>1.12 Seat 12</b>
+    <b>2.12 Seat 12</b><b>2.11 Seat 11</b><b>2.10 Seat 10</b><b>2.09 Seat 9</b><b>2.06 Seat 6</b><b class="next">2.05 you</b>
+  </div>
+  <div class="note">Every seat between your two picks, in order — the nine chances for someone to take
+    the man you want. Today this is a sentence; as a strip it's a thing you can count.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ 2 · the matchup ═══ -->
+<div class="bar"><span>Week 6 matchup</span><i></i><em>in-season · the truest port</em></div>
+<div class="grid">
+  <div class="c live">
+    <div class="hero" style="--c1:#e0043f;--c2:#0B2265">
+      <div class="two">
+        <div class="side">
+          <span class="crest">BL</span>
+          <div class="who"><b>Bad Life</b><span>you · 4–1</span></div>
+          <span class="pts" style="margin-left:auto">86.4</span>
+        </div>
+        <div class="mid">
+          <span class="clk"><i></i>4 yet to play</span>
+          <span class="sit"><b>proj 131.2</b> · they proj 124.8</span>
+        </div>
+        <div class="side r">
+          <span class="pts trail">72.1</span>
+          <div class="who"><b>Dirt Merchants</b><span>3–2</span></div>
+          <span class="crest">DM</span>
+        </div>
+      </div>
+    </div>
+    <div class="wp"><i style="width:61%;background:var(--green)"></i><i style="width:39%;background:var(--mut2)"></i></div>
+    <div class="wpk"><span>61% you</span><span>win probability</span><span>39%</span></div>
+    <div class="cells">
+      <span>Proj</span><span>Live</span><span>Left</span><span>Swing</span>
+      <span class="cell">131.2</span><span class="cell on">+14.3</span><span class="cell">4 v 3</span><span class="cell warn">±23</span>
+    </div>
+    <div class="why">
+      <div class="r g"><div><div class="v">Puka Nacua is the game</div>
+        <div class="d">his floor loses it, his ceiling wins it by 20 — ±23 pts of swing</div></div><span class="vd g">watch</span></div>
+      <div class="r w"><div><div class="v">Your TE slot projects 4.1</div>
+        <div class="d">weakest slot · Hockenson (12.6) is on waivers</div></div><span class="vd w">fix</span></div>
+    </div>
+    <div class="foot"><span class="lp">Sunday 4:25 · both D/STs and your K still to play</span>
+      <span class="acts"><button class="mini">Lineup</button><button class="mini go">Waivers →</button></span></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ 3 · the trade ═══ -->
+  <div class="c warn">
+    <div class="hero" style="--c1:#2f6fb5;--c2:#a8570d">
+      <div class="two">
+        <div class="side">
+          <span class="crest">OUT</span>
+          <div class="who"><b>Nabers + 2027 2nd</b><span>you send</span></div>
+        </div>
+        <div class="mid">
+          <span class="swap">⇄</span>
+          <span class="sit"><b>Fair, slightly yours</b></span>
+        </div>
+        <div class="side r">
+          <div class="who"><b>Brock Bowers</b><span>you get</span></div>
+          <span class="crest">IN</span>
+        </div>
+      </div>
+    </div>
+    <div class="cells three">
+      <span>Weekly pts</span><span>Draft capital</span><span>Playoff weeks</span>
+      <span class="cell on">+4.8</span><span class="cell bad">−31 picks</span><span class="cell on">+11.2</span>
+    </div>
+    <div class="why">
+      <div class="r g"><div><div class="v">Turns your worst slot into your best</div>
+        <div class="d">TE 4.1 → 15.3 · you start 3 WR already</div></div><span class="vd g">accept</span></div>
+      <div class="r b"><div><div class="v">A 2027 2nd is real money</div>
+        <div class="d">priced at the middle of the round — 31 picks of capital</div></div><span class="vd b">cost</span></div>
+      <div class="r"><div><div class="v">Counter: swap the 2nd for a 3rd</div>
+        <div class="d">still +3.9 weekly for you, −14 capital instead of −31</div></div><span class="vd">counter</span></div>
+    </div>
+    <div class="foot"><span class="lp">value and capital are the same unit — picks of position</span>
+      <span class="acts"><button class="mini">Counter</button><button class="mini go">Send →</button></span></div>
+  </div>
+
+  <!-- ═════════════════════════════════════════════════ 4 · the waiver ═══ -->
+  <div class="c good">
+    <div class="hero" style="--c1:#4F2683;--c2:#a8570d">
+      <div class="two">
+        <div class="side">
+          <span class="crest">+</span>
+          <div class="who"><b>T.J. Hockenson</b><span>add · TE · MIN · 8% rostered</span></div>
+        </div>
+        <div class="mid">
+          <span class="clk q">$14 of $50</span>
+          <span class="sit"><b>+8.5</b> to your week</span>
+        </div>
+        <div class="side r">
+          <div class="who"><b>Wil Lutz</b><span>drop · K · DEN</span></div>
+          <span class="crest">−</span>
+        </div>
+      </div>
+    </div>
+    <div class="cells">
+      <span>Bid</span><span>Gain</span><span>Rostered</span><span>ROS rank</span>
+      <span class="cell on">$14</span><span class="cell on">+8.5</span><span class="cell">8%</span><span class="cell">TE9</span>
+    </div>
+    <div class="why">
+      <div class="r g"><div><div class="v">He starts for you immediately</div>
+        <div class="d">your TE projects 4.1 — the league's worst starting slot</div></div><span class="vd g">starter</span></div>
+      <div class="r w"><div><div class="v">8% rostered won't last the night</div>
+        <div class="d">two teams below you also start a sub-5 TE</div></div><span class="vd w">contested</span></div>
+    </div>
+    <div class="foot"><span class="lp">28% of budget · 8 weeks left · claims process Wed 3am</span>
+      <span class="acts"><button class="mini">Change drop</button><button class="mini go">Claim →</button></span></div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ 5 · the report card ═══ -->
+  <div class="c good">
+    <div class="hero" style="--c1:#e0043f;--c2:#1d5f52">
+      <div class="two">
+        <div class="side">
+          <span class="crest">BL</span>
+          <div class="who"><b>Bad Life</b><span>draft complete · 16 rounds</span></div>
+        </div>
+        <div class="mid">
+          <span class="clk q">projected #6 of 12</span>
+          <span class="sit"><b>6478 pts</b> · +104 vs league</span>
+        </div>
+        <div class="side r"><div class="who"><b>B+ draft</b><span>grade</span></div><span class="gb">B+</span></div>
+      </div>
+    </div>
+    <div class="cells">
+      <span>QB</span><span>RB</span><span>WR</span><span>TE</span>
+      <span class="cell on">2/2</span><span class="cell on">4/4</span><span class="cell on">4/4</span><span class="cell on">2/2</span>
+    </div>
+    <div class="why">
+      <div class="r g"><div><div class="v">Best value · Saquon Barkley</div>
+        <div class="d">+268 over replacement at 1.08</div></div><span class="vd g">steal</span></div>
+      <div class="r b"><div><div class="v">Biggest reach · Tyler Allgeier</div>
+        <div class="d">−103 · went 34 picks before his ADP</div></div><span class="vd b">reach</span></div>
+      <div class="r"><div><div class="v">Legal roster</div>
+        <div class="d">2 QB · 4 RB · 4 WR · 2 TE · 2 K · 2 D/ST — every cap exactly met</div></div><span class="vd">valid</span></div>
+    </div>
+    <div class="foot"><span class="lp">the 17th roster spot stays empty — no position has room left</span>
+      <span class="acts"><button class="mini">Full recap</button><button class="mini">Export CSV</button></span></div>
+  </div>
+</div>
+
+<div class="bar"><span>Left alone</span><i></i><em>on purpose</em></div>
+<p class="sub">The <b>draft board grid</b>, the <b>rankings list</b>, the <b>queue</b> and the
+<b>pick predictor</b> all fail the test — one side, no verdict, and their whole job is letting you scan
+forty rows at once. A card costs six times the height to say the same thing. They keep their rows.</p>
+
+</body></html>
