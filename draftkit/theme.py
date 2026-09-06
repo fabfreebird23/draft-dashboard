@@ -17,6 +17,27 @@ def set_espn_ids(mapping: dict) -> None:
     _ESPN_BY_PID.update({str(k): str(v) for k, v in mapping.items() if v})
 
 
+# NFL team colour, for the pick card's hero wash. Deliberately the colour that
+# READS ON A DARK PANEL rather than the strict brand primary: Las Vegas's black
+# and Jacksonville's near-black are invisible washed over #232022, so those teams
+# get their secondary (silver, gold). A team we don't know falls back to the
+# panel, which simply renders a flat hero rather than a wrong one.
+TEAM_WASH = {
+    "ARI": "#97233F", "ATL": "#A71930", "BAL": "#241773", "BUF": "#00338D",
+    "CAR": "#0085CA", "CHI": "#C83803", "CIN": "#FB4F14", "CLE": "#FF3C00",
+    "DAL": "#7F9695", "DEN": "#FB4F14", "DET": "#0076B6", "GB": "#2E6B4F",
+    "HOU": "#A71930", "IND": "#0B4F9B", "JAX": "#D7A22A", "KC": "#E31837",
+    "LV": "#A5ACAF", "LAC": "#0080C6", "LAR": "#003594", "MIA": "#008E97",
+    "MIN": "#4F2683", "NE": "#0B3D6B", "NO": "#D3BC8D", "NYG": "#0B2265",
+    "NYJ": "#125740", "PHI": "#006B60", "PIT": "#FFB612", "SF": "#AA0000",
+    "SEA": "#69BE28", "TB": "#D50A0A", "TEN": "#4B92DB", "WAS": "#8B2332",
+}
+
+
+def team_wash(team: str, fallback: str = "#2c282a") -> str:
+    return TEAM_WASH.get((team or "").upper(), fallback)
+
+
 # accent palette
 BLUE = "#1f4e9b"
 GREEN = "#1c8a4d"
@@ -1301,6 +1322,74 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .tone-amber{ background:#fbf1e2; color:#7a4f06; } .tone-amber > i{ background:var(--tone-amber); }
 .tone-ok{ background:#e7f3ed; color:#155f43; } .tone-ok > i{ background:var(--tone-ok); }
 .tone-nil{ background:var(--panel2); color:var(--muted); } .tone-nil > i{ background:var(--tone-nil); }
+
+/* ---- PICK CARDS. The live view's card grammar from sportsbot, applied to a
+   pick: a two-colour hero (team on the left, position on the right), the pick
+   clock as a pill, the four numbers the suggestions table already carries, then
+   the reasons as strips with a verdict each. Palette and faces stay this app's.
+   The wrapper is a Streamlit container so the Draft / ☆ buttons sit INSIDE the
+   card instead of orphaned beneath it. ---- */
+[class*="st-key-pcw_"]{ background:var(--panel); border:1px solid var(--line);
+  border-left:4px solid var(--line2); border-radius:14px; overflow:hidden;
+  box-shadow:var(--shadow-lg); margin-bottom:12px; }
+.pc2-hero{ position:relative; padding:12px 14px 10px; margin:-1rem -1rem 0;
+  background:linear-gradient(100deg,var(--c1) 0%,var(--panel) 42%,var(--panel) 58%,var(--c2) 100%); }
+.pc2-hero:after{ content:""; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.10),rgba(0,0,0,.42)); }
+.pc2-hero > *{ position:relative; }
+.pc2-row{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) auto;
+  align-items:center; gap:12px; }
+.pc2-who{ display:flex; align-items:center; gap:9px; min-width:0; }
+.pc2-who img{ width:38px; height:38px; border-radius:10px; flex:none; object-fit:cover;
+  background:rgba(255,255,255,.92); box-shadow:inset 0 0 0 1px rgba(0,0,0,.08); }
+.pc2-nm{ min-width:0; }
+.pc2-nm b{ display:block; font-family:'Sora',sans-serif; font-weight:800; font-size:18px;
+  line-height:1.05; letter-spacing:-.01em; color:#fff; white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; }
+.pc2-nm span{ display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.74); }
+.pc2-mid{ text-align:center; display:grid; gap:4px; justify-items:center; min-width:0; width:100%; }
+.pc2-clk{ display:inline-flex; align-items:center; gap:5px; font-size:9.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--crimson); padding:3px 9px; border-radius:999px;
+  background:rgba(224,4,63,.14); border:1px solid rgba(224,4,63,.4); white-space:nowrap; }
+.pc2-clk i{ width:5px; height:5px; border-radius:999px; background:var(--crimson);
+  animation:pcpulse 1.6s infinite; }
+.pc2-clk.soon{ color:rgba(255,255,255,.8); background:rgba(255,255,255,.10);
+  border-color:rgba(255,255,255,.22); }
+@keyframes pcpulse{ 0%,100%{opacity:1} 50%{opacity:.25} }
+.pc2-sit{ font-size:10px; color:rgba(255,255,255,.8); white-space:nowrap; max-width:100%;
+  overflow:hidden; text-overflow:ellipsis; }
+.pc2-sit b{ color:#fff; }
+.pc2-big{ font-family:'Sora',sans-serif; font-weight:800; font-size:29px; line-height:1;
+  letter-spacing:-.02em; color:#fff; text-align:right; white-space:nowrap; }
+.pc2-big small{ display:block; font-size:8.5px; font-weight:500; letter-spacing:.14em;
+  text-transform:uppercase; color:rgba(255,255,255,.62); margin-top:3px; }
+.pc2-cells{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; padding:9px 0 0;
+  font-size:8.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--mut2);
+  text-align:center; }
+.pc2-cell{ display:block; background:var(--panel2); border:1px solid var(--line);
+  border-radius:8px; padding:6px 4px; text-align:center; color:var(--ink); font-size:13px;
+  font-weight:700; letter-spacing:0; text-transform:none; }
+.pc2-cell.on{ border-color:var(--green); color:var(--green); }
+.pc2-cell.warn{ border-color:var(--amber); color:var(--amber); }
+.pc2-cell.bad{ border-color:var(--red); color:var(--red); }
+.pc2-why{ display:grid; gap:6px; padding:10px 0 2px; }
+.pc2-r{ display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center;
+  padding:8px 11px; border-radius:10px; background:var(--panel2); border:1px solid var(--line); }
+.pc2-r.g{ border-color:var(--green); } .pc2-r.w{ border-color:var(--amber); }
+.pc2-r.b{ border-color:var(--red); }
+.pc2-r .v{ font-weight:700; font-size:13px; }
+.pc2-r .d{ font-size:10.5px; color:var(--muted); margin-top:2px; }
+.pc2-vd{ font-size:9.5px; letter-spacing:.09em; text-transform:uppercase; padding:3px 8px;
+  border-radius:5px; border:1px solid var(--line2); color:var(--mut2); white-space:nowrap; }
+.pc2-vd.g{ color:var(--green); border-color:var(--green); }
+.pc2-vd.w{ color:var(--amber); border-color:var(--amber); }
+.pc2-vd.b{ color:var(--red); border-color:var(--red); }
+.pc2-foot{ font-size:11.5px; color:var(--mut2); padding:4px 0 6px; line-height:1.35; }
+/* the button row that closes the card */
+[class*="st-key-pcw_"] [data-testid="stHorizontalBlock"]{ gap:6px; }
+[class*="st-key-pcw_"] button{ padding:5px 0; font-size:11px; letter-spacing:.1em;
+  text-transform:uppercase; }
 </style>
 
 """

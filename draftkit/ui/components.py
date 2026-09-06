@@ -1765,3 +1765,41 @@ def filter_search(rows, query, registry):
         elif team and q == team:
             out.append(r)
     return out
+
+
+def _esc(v) -> str:
+    return (str(v if v is not None else "")
+            .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def pick_card_html(*, name, pid, pos, team, bye, wash, pos_color, clock, clock_live,
+                   sit, big, big_label, cells, reasons, foot) -> str:
+    """One pick as a card, in the live view's grammar.
+
+    `cells` is [(label, value, tone)] — the four numbers the suggestions table
+    already shows, with the ONE that is driving the call lit. `reasons` is
+    [(headline, detail, verdict, tone)]. Everything here is presentation: the
+    caller passes signals the model already computed, so a card can never say
+    something the row underneath it wouldn't.
+    """
+    from .. import theme as _T
+    cl = (f'<span class="pc2-clk{"" if clock_live else " soon"}">'
+          f'{"<i></i>" if clock_live else ""}{_esc(clock)}</span>') if clock else ""
+    cellhtml = "".join(f'<span>{_esc(l)}</span>' for l, _v, _t in cells)
+    cellhtml += "".join(f'<span class="pc2-cell{(" " + t) if t else ""}">{_esc(v)}</span>'
+                        for _l, v, t in cells)
+    rs = "".join(
+        f'<div class="pc2-r{(" " + t) if t else ""}"><div><div class="v">{_esc(h)}</div>'
+        f'<div class="d">{_esc(d)}</div></div>'
+        f'<span class="pc2-vd{(" " + t) if t else ""}">{_esc(vd)}</span></div>'
+        for h, d, vd, t in reasons)
+    sub = f"{pos} · {team}" + (f" · Bye {bye}" if bye else "")
+    return (
+        f'<div class="pc2-hero" style="--c1:{wash};--c2:{pos_color}">'
+        f'<div class="pc2-row"><div class="pc2-who">{_T.img_tag(pid, "")}'
+        f'<div class="pc2-nm"><b>{_esc(name)}</b><span>{_esc(sub)}</span></div></div>'
+        f'<div class="pc2-mid">{cl}<span class="pc2-sit">{sit}</span></div>'
+        f'<div class="pc2-big">{_esc(big)}<small>{_esc(big_label)}</small></div></div></div>'
+        f'<div class="pc2-cells">{cellhtml}</div>'
+        f'<div class="pc2-why">{rs}</div>'
+        + (f'<div class="pc2-foot">{foot}</div>' if foot else ""))

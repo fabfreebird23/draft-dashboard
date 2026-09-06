@@ -552,6 +552,10 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
     upside = trow[1].toggle("Upside", key=f"{key_prefix}_upside",
                             help="Upside Mode — re-rank toward high-ceiling, younger and "
                                  "rookie players instead of safe floor/value.")
+    cards = trow[1].toggle("Cards", key=f"{key_prefix}_cards",
+                           help="Show each suggestion as a pick card — team colours, the "
+                                "pick clock, the four numbers, and the reasons with a "
+                                "verdict each. Same players, same order, same maths.")
 
     avail = [r for r in ranks if r.get("pid") and str(r["pid"]) not in taken_s
              and (pos_f == "All" or reg.meta(r["pid"]).position == pos_f)]
@@ -591,11 +595,18 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
     # header sits in the SAME 3-column split as each row (Draft | info-grid | star)
     # so its ADP/Rank/Value/Survival labels land exactly over the row's own grid,
     # instead of spanning the full width and drifting out of alignment.
-    hcols = st.columns([0.9, 7.6, 0.42], gap="small")
-    with hcols[1]:
-        st.markdown('<div class="sg-colhead"><span></span><span class="r">ADP</span>'
-                    '<span class="r">Rank</span><span class="r">Value</span>'
-                    '<span class="r">Survival</span></div>', unsafe_allow_html=True)
+    if not cards:
+        hcols = st.columns([0.9, 7.6, 0.42], gap="small")
+        with hcols[1]:
+            st.markdown('<div class="sg-colhead"><span></span><span class="r">ADP</span>'
+                        '<span class="r">Rank</span><span class="r">Value</span>'
+                        '<span class="r">Survival</span></div>', unsafe_allow_html=True)
+
+    if cards:
+        _pick_cards(ctx, sugg, key_prefix=key_prefix, pick_no=pick_no,
+                    next_pick=next_pick, queued=queued, on_star=on_star,
+                    quick_draft=quick_draft, strategy=strategy, pos_var=_POSVAR)
+        return
 
     for s in sugg:
         r, pm = s["row"], s["pm"]
@@ -1125,3 +1136,98 @@ def seat_editor(ctx) -> None:
                  disabled=not any(v != SEAT.UNSET for v in vals)):
         st.session_state[SEAT.gen_key(lk)] = gen + 1
         rerun_here()
+
+
+def _pick_cards(ctx, sugg, *, key_prefix, pick_no, next_pick, queued, on_star,
+                quick_draft, strategy, pos_var) -> None:
+    """The Suggestions list drawn as pick cards, two across.
+
+    Every number and every reason here comes from the same `top_suggestions`
+    result the rows use — the card is a different way of SHOWING that answer, so
+    the two views can never disagree. Anything the model didn't compute (a run,
+    a tier cliff) simply doesn't appear rather than being invented for the layout.
+    """
+    from .. import value as V
+    vm = ctx.get("value")
+    byes = ctx.get("byes", {})
+    n_teams = len(ctx.get("slot_names") or []) or 12
+    queued_s = {str(x) for x in (queued or set())}
+
+    def _pick_label(overall):
+        if not overall:
+            return ""
+        return f"{(int(overall) - 1) // n_teams + 1}.{(int(overall) - 1) % n_teams + 1:02d}"
+
+    for s in sugg:
+        r, pm = s["row"], s["pm"]
+        pid = str(r["pid"])
+        pos = (pm.position or "").upper()
+        v = vm.vorp_of(pid) if vm else None
+        sv, left, mult = s.get("sv"), s.get("left"), s.get("mult", 1.0)
+        adp = ctx["adp_rank"](pm.name, pm.position)
+
+        # --- the four cells, with the one driving the call lit -----------------
+        val_tone = "on" if (v is not None and v >= 45) else ""
+        sv_tone = "" if sv is None else ("on" if sv >= 60 else "warn" if sv >= 30 else "bad")
+        cells = [("ADP", f"{int(adp)}" if adp else "—", ""),
+                 ("Rank", ctx["pos_rank"].get(pid, pos), ""),
+                 ("Value", f"{'+' if (v or 0) >= 0 else ''}{v:.0f}" if v is not None else "—",
+                  val_tone),
+                 ("Survival", f"{sv}%" if sv is not None else "—", sv_tone)]
+
+        # --- the reasons, capped at three so the card stays a glance ----------
+        reasons = []
+        if mult >= 0.999:
+            reasons.append((f"Fills your {pos} starter",
+                            f"the model's strongest roster signal", "fits", "g"))
+        if sv is not None and sv < 45:
+            reasons.append((f"~{100 - sv}% gone by your next pick",
+                            f"{sv}% he lasts to {_pick_label(next_pick) or 'your turn'}",
+                            "won't last", "w"))
+        if left is not None and 1 <= left <= 3:
+            reasons.append((f"{left} startable {pos} left",
+                            "everyone after them is below replacement", "scarce", "w"))
+        if s.get("stack"):
+            reasons.append(("Stacks with your quarterback",
+                            "his ceiling weeks are your ceiling weeks", "stack", "g"))
+        if s.get("bye_clash"):
+            reasons.append((f"Bye {byes.get(pm.team, '')} clashes with a starter",
+                            "you'd be starting a hole that week", "bye", "b"))
+        if not reasons and v is not None:
+            reasons.append((f"{'+' if v >= 0 else ''}{v:.0f} over replacement",
+                            "best player left on your board", "value", "g"))
+        if strategy and strategy != "Balanced" and len(reasons) < 3:
+            reasons.append((strategy, V.STRATEGY_HELP.get(strategy, ''), "strategy", ""))
+
+        note = reach_for(ctx, r, pm, pick=pick_no, survival=sv, next_pick=next_pick)
+        mine = pick_no and s is sugg[0]
+        html = C.pick_card_html(
+            name=r.get("name") or pm.name, pid=pid, pos=pos, team=pm.team or "",
+            bye=byes.get(pm.team, ""),
+            wash=theme.team_wash(pm.team), pos_color=pos_var.get(pos, "var(--panel2)"),
+            clock=(f"{_pick_label(pick_no)} · your pick" if mine else "next best"),
+            clock_live=bool(mine),
+            sit=f"<b>FIT {s.get('fit', '')}%</b> · {ctx['pos_rank'].get(pid, pos)}",
+            big=(f"{'+' if (v or 0) >= 0 else ''}{v:.0f}" if v is not None else "—"),
+            big_label="value", cells=cells, reasons=reasons[:3],
+            foot=(note or ""))
+
+        # The verdict edge, straight off the FIRST reason rather than a second
+        # opinion invented for the border: if the leading reason is a warning, the
+        # card's edge says so, and a card with nothing but value stays neutral.
+        edge = {"g": "var(--green)", "w": "var(--amber)", "b": "var(--red)"}.get(
+            (reasons[0][3] if reasons else ""), "var(--line2)")
+        ckey = f"pcw_{key_prefix}_{pid}"
+        with st.container(key=ckey):
+            st.markdown(f'<style>.st-key-{ckey}{{border-left-color:{edge}}}</style>'
+                        + html, unsafe_allow_html=True)
+            brow = st.columns([2, 1], gap="small")
+            if quick_draft:
+                if brow[0].button("Draft →", key=f"{key_prefix}_pcd_{pid}",
+                                  use_container_width=True):
+                    quick_draft(pid)
+            starred = pid in queued_s
+            if brow[1].button("★" if starred else "☆ Queue",
+                              key=f"{key_prefix}_pcq_{pid}",
+                              use_container_width=True) and on_star:
+                on_star(pid)
