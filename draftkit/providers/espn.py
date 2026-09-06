@@ -92,6 +92,8 @@ class EspnProvider(Provider):
                 "teams": (s.get("scheduleSettings") or {}).get("playoffTeamCount"),
             },
             draft_id=self.league_id,   # ESPN has no separate draft id
+            offline_draft=(str((s.get("draftSettings") or {}).get("type") or "").upper()
+                           == "OFFLINE"),
         )
 
     def get_draft_order(self) -> List[Team]:
@@ -147,6 +149,17 @@ class EspnProvider(Provider):
         picks: List[Pick] = []
         for p in raw:
             espn_pid = p.get("playerId")
+            # ESPN publishes the WHOLE GRID before a pick is made — 204 rows with
+            # playerId -1, one per slot, from the moment the league is created. Read
+            # literally, that is a complete draft: the war room opened on draft day
+            # saying "192 of 192 · no more picks" and offered nothing, because every
+            # empty slot counted as a pick that had happened. An empty slot is not a
+            # pick; drop it and let the app see the draft that is actually there.
+            try:
+                if int(espn_pid) <= 0:
+                    continue
+            except (TypeError, ValueError):
+                continue
             overall = int(p.get("overallPickNumber") or (len(picks) + 1))
             tid = p.get("teamId")
             slot = team_to_slot.get(tid)

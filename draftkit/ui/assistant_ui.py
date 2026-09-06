@@ -89,10 +89,17 @@ def _live(ctx, *, bound_auto: bool) -> None:
         _c[2].caption("your picks: " + C.slot_picks_label(
             slot_names.index(me), len(slot_names), ctx["meta"].draft_rounds))
     with ctrl[0].popover("⚙", use_container_width=True):
+        # An OFFLINE draft (ESPN's own word for it) never puts a pick on the wire —
+        # the room drafts and someone types the results in afterwards. Defaulting
+        # such a league to Live sync means opening the war room on draft night to a
+        # board that will stay empty however many times he hits Refresh.
+        _offline = bool(getattr(ctx["meta"], "offline_draft", False))
         mode = st.radio("Draft source", ["Live sync", "Manual entry"], horizontal=True,
-                        key=f"{akey}_mode",
-                        help="Live sync = pull picks automatically from Sleeper/ESPN. "
-                             "Manual entry = tap the player each team takes.")
+                        key=f"{akey}_mode", index=1 if _offline else 0,
+                        help=("This league drafts OFFLINE, so nothing will ever sync — "
+                              "enter each pick as it is called." if _offline else
+                              "Live sync = pull picks automatically from Sleeper/ESPN. "
+                              "Manual entry = tap the player each team takes."))
         # Default to the strategy this league's own history argues for, rather
         # than making him remember. Still a dropdown — it is a default, not a lock.
         _dflt = PZ.default_strategy(ctx["meta"].league_id)
@@ -440,7 +447,14 @@ def _live(ctx, *, bound_auto: bool) -> None:
                             unsafe_allow_html=True)
             with _rc[1]:
                 # The pick you take most often, one click from the Sleeper draft room.
-                SH.copy_button(rec_row["name"], key=f"rec_sl_{ctx['league_key']}", height=46)
+                # An offline draft has no draft room to hand off to — the useful
+                # action is the name on the clipboard, to read out or type in later.
+                SH.copy_button(rec_row["name"], key=f"rec_sl_{ctx['league_key']}",
+                               height=46,
+                               label=("Copy name"
+                                      if getattr(ctx["meta"], "offline_draft", False)
+                                      or ctx["meta"].platform != "sleeper"
+                                      else "Draft on Sleeper"))
         if strategy and strategy != "Balanced":
             _sg = V.top_suggestions(board_avail, ctx["value"], reg, needs, drafted,
                                     my_pids=my_pids, roster_slots=ctx["roster_slots"], k=3,
@@ -495,7 +509,7 @@ def _live(ctx, *, bound_auto: bool) -> None:
                                              owner_by_slot=ctx["owner_by_slot"], round_no=round_no),
                             unsafe_allow_html=True)
 
-    if not manual:
+    if not manual and ctx["meta"].platform == "sleeper":
         SH.setup_note()
 
     kept_note = (f" {len(kept_pids)} keepers are pre-marked." if kept_pids else "")

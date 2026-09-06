@@ -378,3 +378,62 @@ def board_pool(board: list, base_pool: list, registry) -> list:
         out.append({**p, "adp": rk if rk is not None else (n + i)})
     out.sort(key=lambda x: x["adp"])
     return out
+
+
+def top_up_required(board: list, roster_slots, adp_pool: list, registry,
+                    n_teams: int = 12) -> list:
+    """Append the positions a league FORCES you to draft but your board doesn't rank.
+
+    UDK, FantasyPros' cheat sheets and every board like them stop at the four
+    skill positions. In a league with a bench that is a matter of taste — you take
+    a kicker in the last round off the top of your head. In "Show us your TD's" it
+    is a hole in the middle of the draft: two kickers and two defenses are
+    compulsory, 4 of 16 picks, and once the skill positions are full the roster
+    filter has nothing legal left to show. The rankings panel goes blank in the
+    exact rounds he has no choice about.
+
+    So: any position the ROSTER requires and the BOARD ignores is appended in
+    consensus-ADP order, behind everything he actually ranked, in its own tier.
+    His own ordering is never touched — this only fills a gap he didn't fill.
+    """
+    want = {p for p in (roster_slots or []) if p in ("K", "DST")}
+    if not want or not adp_pool:
+        return board
+    have = set()
+    for r in board or []:
+        try:
+            have.add((registry.meta(r.get("pid")).position or "").upper())
+        except Exception:  # noqa: BLE001
+            continue
+    have = {"DST" if p in ("DEF", "D/ST") else p for p in have}
+    missing = want - have
+    if not missing:
+        return board
+    rows = list(board or [])
+    rank = max((int(r.get("rank") or 0) for r in rows), default=0)
+    tier = max((int(r.get("tier") or 0) for r in rows), default=0) + 1
+    per = {p: sum(1 for s in roster_slots if s == p) for p in missing}
+    seen = {str(r.get("pid")) for r in rows}
+    added = {p: 0 for p in missing}
+    for p in adp_pool:
+        pid = str(p.get("pid") if isinstance(p, dict) else p)
+        if pid in seen:
+            continue
+        try:
+            pos = (registry.meta(pid).position or "").upper()
+        except Exception:  # noqa: BLE001
+            continue
+        pos = "DST" if pos in ("DEF", "D/ST") else pos
+        if pos not in missing:
+            continue
+        # Enough for the whole league to fill the requirement, plus a few — a
+        # shorter list would run out on the last round of a run.
+        cap = per.get(pos, 1) * max(1, int(n_teams or 12)) + 6
+        if added[pos] >= cap:
+            continue
+        added[pos] += 1
+        rank += 1
+        rows.append({"rank": rank, "name": registry.meta(pid).name, "pid": pid,
+                     "tier": tier, "pos_tier": tier, "pos_rank": added[pos]})
+        seen.add(pid)
+    return rows

@@ -29,6 +29,10 @@ class LeagueMeta:
     # {"start": int, "teams": int} — this league's own fantasy-playoff window.
     # Hardcoding weeks 15-17 was wrong for three of the four leagues here.
     playoff_settings: Optional[dict] = None
+    # True when the platform says the draft happens OFF the platform — ESPN's
+    # draftSettings.type == "OFFLINE". Nothing will ever arrive on the wire for
+    # such a draft, so a war room that waits for a live sync waits forever.
+    offline_draft: bool = False
 
 
 @dataclass

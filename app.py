@@ -636,6 +636,16 @@ def main():
     from draftkit import storage
     if ctx["ranks_key"] not in st.session_state:
         st.session_state[ctx["ranks_key"]] = storage.load_rankings(ctx["league_key"])
+    # A fixed-roster league forces kickers and defenses, and no cheat sheet ranks
+    # them — so the board he pulled has four compulsory picks per team it cannot
+    # help with, and the roster filter empties the panel in exactly those rounds.
+    # Top it up from consensus ADP, behind everything he ranked himself.
+    if ctx.get("fixed_roster"):
+        _topped = rankings_mod.top_up_required(
+            st.session_state.get(ctx["ranks_key"]) or [], ctx["roster_slots"],
+            ctx.get("adp_pool") or [], ctx["registry"], len(ctx["slot_names"]))
+        if len(_topped) != len(st.session_state.get(ctx["ranks_key"]) or []):
+            st.session_state[ctx["ranks_key"]] = _topped
 
     # Per-manager AI draft boards, saved per league. Seeded HERE rather than beside
     # the selectboxes because the mock tab owns the widgets but the live tab's pick
