@@ -335,8 +335,6 @@ def render(ctx, state_suffix: str = "") -> None:
     taken = taken_pids()
     board = {**kept_by_overall, **made}
 
-    # ----- slim status header (the full board lives in the center 'Board' tab) -----
-    st.markdown(C.status_html(pick_no, n, slot_names[on_slot], is_my_turn), unsafe_allow_html=True)
     non_keeper = {ov: pid for ov, pid in board.items() if ov not in kept_by_overall}
 
     my_pids = ([pid for ov, pid in made.items() if owner(ov) == my_slot]
@@ -354,6 +352,14 @@ def render(ctx, state_suffix: str = "") -> None:
     while nxt <= total and (owner(nxt) != my_slot or nxt in kept_by_overall):
         nxt += 1
     next_user_pick = nxt if nxt <= total else None
+
+    # ----- the clock strip. Not just who is up: every seat between this pick and
+    # your next one, laid out so the nine picks you have to survive are countable
+    # rather than a number in a sentence. (The full board is the 'Board' tab.)
+    st.markdown(C.clock_strip_html(pick_no, n, rounds, slot_names[on_slot], is_my_turn,
+                                   my_slot, owner, next_user_pick=next_user_pick,
+                                   run=C.run_note(recent_positions)),
+                unsafe_allow_html=True)
 
     # One board-anchored survival model per render, shared by the cheat sheet, the
     # suggestion scorer and the rankings rows so every % on screen agrees.

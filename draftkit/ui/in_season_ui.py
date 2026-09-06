@@ -466,6 +466,53 @@ def _waivers(ctx, g) -> None:
         ("Roster", f"{len(g['mine'])}", "players", "var(--muted)"),
     ])
 
+    # ---- the top add, as the swap it actually is -----------------------------
+    # A waiver claim is two moves, not one: the table below ranks the adds, and
+    # this card names the drop that pays for it — the lowest-projected man who is
+    # NOT in your starting lineup. It is a suggestion, not a rule; a stash you are
+    # holding on purpose is something only you know about.
+    _top = next((r for r in board if r["gain"] > 0.05), None)
+    if _top:
+        _bid = W.bid_guidance(_top["gain"], left, weeks_left)
+        _lc = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"])
+        _bench = sorted(((float(g["proj"].get(str(p), 0) or 0), str(p))
+                         for p in _lc.get("bench") or []))
+        _drop = _bench[0] if _bench else None
+        _weak = W.weakest_slot(g["mine"], g["slots"], g["proj"], reg,
+                               byes=g["byes"], week=g["week"])
+        _own = ((g.get("ros") or {}).get(str(_top["pid"]))
+                or (g.get("ecr") or {}).get(str(_top["pid"])) or {}).get("owned")
+        _reasons = []
+        if _weak:
+            _reasons.append((f'He plays your weakest slot' if _top["pos"] in str(_weak[0])
+                             else 'He cracks your starting lineup',
+                             f'your {_weak[0]} projects {_weak[1]:.1f} · '
+                             f'this adds {_top["gain"]:+.1f} to the week', "starter", "g"))
+        if _own is not None:
+            _reasons.append((f'{_own:.0f}% rostered everywhere',
+                             'under ~40% is a quiet add; over that and you are in a '
+                             'bidding war whether you like it or not',
+                             "contested" if _own >= 40 else "quiet",
+                             "w" if _own >= 40 else ""))
+        st.markdown(C.card_html(
+            wash="var(--green)", wash2="var(--panel2)",
+            left={"crest": "+", "name": _top["name"],
+                  "sub": f'add · {_top["pos"]} · {_top["proj"]:.1f} proj'},
+            right=({"crest": "−", "name": reg.meta(_drop[1]).name,
+                    "sub": f'drop · {(reg.meta(_drop[1]).position or "")} · '
+                           f'{_drop[0]:.1f} proj'} if _drop else None),
+            mid={"pill": (f'${_bid["low"]}–{_bid["high"]} of ${left}' if left
+                          else f'{_top["gain"]:+.1f}/wk'),
+                 "sit": f'<b>{_top["gain"]:+.1f}</b> to your week'},
+            cells=[("Bid", f'${_bid["low"]}–{_bid["high"]}' if left else "—", "on" if left else ""),
+                   ("Gain", f'{_top["gain"]:+.1f}', "on"),
+                   ("Rostered", f'{_own:.0f}%' if _own is not None else "—",
+                    "warn" if (_own or 0) >= 40 else ""),
+                   ("FAAB left", f"${left}" if budget else "—", "")],
+            reasons=_reasons,
+            foot=f'{_bid["note"]} · {weeks_left} weeks left',
+            tone="good"), unsafe_allow_html=True)
+
     st.markdown('<div class="ws-h">Ranked by what they add to YOUR starting lineup</div>',
                 unsafe_allow_html=True)
     rows = []
@@ -569,12 +616,46 @@ def _matchup(ctx, g) -> None:
     wp_best = W.win_prob(bm, bs, obm, obs)
     them = _owner_name(ctx, oid)
 
-    st.markdown(
-        f'<div class="ws-vs"><div><b>You</b><div class="ws-ts">{mm:.1f} ± {ms:.0f}</div></div>'
-        f'<div class="ws-mid">WEEK {g["week"]}</div>'
-        f'<div style="text-align:right"><b>{them}</b><div class="ws-ts">{om:.1f} ± {os_:.0f}</div></div></div>'
-        f'<div class="ws-wp"><i style="width:{100*wp:.0f}%"></i>'
-        f'<span>{100*wp:.0f}% you &nbsp;·&nbsp; {mm:.1f} – {om:.1f}</span></div>',
+    # The matchup as a card. Of everything on this dashboard it is the closest to
+    # an actual game — two sides, two numbers, a probability — so it gets the same
+    # treatment a live game does. The win-probability bar is ours, not a market's:
+    # it comes out of the projection distribution, which is why the spread differs
+    # between a boom/bust roster and a steady one with the same total.
+    swing = W.swing_players(g["mine"], opp, g["slots"], g["proj"], reg,
+                            byes=g["byes"], week=g["week"], top=1)
+    weak = W.weakest_slot(g["mine"], g["slots"], g["proj"], reg,
+                          byes=g["byes"], week=g["week"])
+    _reasons = []
+    if swing:
+        _sw = swing[0]
+        _reasons.append((f'{_sw["name"]} is the game',
+                         f'floor {_sw["floor"]:.0f} → ceiling {_sw["ceiling"]:.0f} · '
+                         f'{_sw["swing"]} points of win probability rest on him',
+                         "watch", "g" if _sw["side"] == "you" else "w"))
+    if weak:
+        _reasons.append((f'Your {weak[0]} slot projects {weak[1]:.1f}',
+                         'weakest starting slot — the first place a waiver add pays',
+                         "fix", "w"))
+    _gap = mm - om
+    st.markdown(C.card_html(
+        wash="var(--accent-fill)", wash2="var(--panel2)",
+        left={"crest": "YOU", "name": "You", "sub": f'set lineup · {ms:.0f} pt spread',
+              "big": f"{mm:.1f}"},
+        right={"crest": "".join(w[0] for w in str(them).split()[:2]).upper() or "OPP",
+               "name": them, "sub": f'set lineup · {os_:.0f} pt spread',
+               "big": f"{om:.1f}", "trail": _gap > 0},
+        mid={"pill": f'week {g["week"]}', "live": True,
+             "sit": f'<b>{"+" if _gap >= 0 else ""}{_gap:.1f}</b> projected margin'},
+        bar={"pct": 100 * wp, "l": f"{100*wp:.0f}% you", "m": "win probability",
+             "r": f"{100*(1-wp):.0f}%",
+             "color": "var(--green)" if wp >= 0.5 else "var(--amber)"},
+        cells=[("You", f"{mm:.1f}", "on" if _gap >= 0 else ""),
+               ("Them", f"{om:.1f}", "" if _gap >= 0 else "bad"),
+               ("Best case", f"{bm:.1f}", "on" if bm > mm + 0.5 else ""),
+               ("If both play best", f"{100*wp_best:.0f}%",
+                "on" if wp_best >= 0.5 else "warn")],
+        reasons=_reasons,
+        tone="good" if wp >= 0.55 else "bad" if wp < 0.45 else "warn"),
         unsafe_allow_html=True)
     st.caption(f"Both lineups as currently **set** on Sleeper. Play your best lineup and he plays "
                f"his and it's {bm:.1f} – {obm:.1f}, {100*wp_best:.0f}% you. Win probability treats "
@@ -891,6 +972,40 @@ def _analyzer(ctx, g, oid, opp) -> None:
 
     tone = {"accept": "var(--green)", "reject": "var(--red)",
             "marginal": "var(--amber)"}.get(r["verdict"], "var(--amber)")
+
+    # ---- the offer as a card: two sides, four numbers, the verdict -----------
+    # A trade is the most two-sided screen in the app, so it takes the card shape
+    # most naturally. The tiles below still carry the detail; this is the sentence
+    # you would say out loud — what goes, what comes back, and whether to do it.
+    _sd = ", ".join(list(send) + list(sendp)) or "—"
+    _gt = ", ".join(list(get) + list(getp)) or "—"
+    _cells = [("This week", f'{r["week"]:+.1f}', "on" if r["week"] > 0 else "bad"),
+              ("Rest of season", f'{r["rest"]:+.0f}', "on" if r["rest"] > 0 else "bad")]
+    if r["keeper"] is not None:
+        _cells.append(("Keeper surplus", f'{r["keeper"]:+d}',
+                       "on" if r["keeper"] > 0 else "bad"))
+    if r["capital"] is not None:
+        _cells.append(("Draft capital", f'{r["capital"]:+d}',
+                       "on" if r["capital"] > 0 else "bad"))
+    _rs = [(f'They gain {r["them"]:+.1f} a week',
+            ("they have a reason to say yes" if r["them"] > 0.05 else
+             (f'lineup no, but {abs(r["capital"])} picks of capital yes'
+              if (r["capital"] or 0) < 0 else
+              "no lineup reason for them to say yes — expect a counter")),
+            "for them", "g" if (r["them"] > 0.05 or (r["capital"] or 0) < 0) else "w")]
+    if r["out_keepers"]:
+        _rs.append((f'{len(r["out_keepers"])} keeper(s) leaving',
+                    "you would be shipping next year's discount with them",
+                    "cost", "b"))
+    st.markdown(C.card_html(
+        wash="var(--wr)", wash2="var(--te)",
+        left={"crest": "OUT", "name": _sd, "sub": "you send"},
+        right={"crest": "IN", "name": _gt, "sub": "you get"},
+        mid={"swap": "⇄", "sit": f'<b>{r["verdict"].upper()}</b>'},
+        cells=_cells, reasons=_rs, foot=r["why"],
+        tone={"accept": "good", "reject": "bad"}.get(r["verdict"], "warn")),
+        unsafe_allow_html=True)
+
     _tiles([
         ("This week", f'{r["week"]:+.1f}', f'{r["mine_before"]:.0f} → {r["mine_after"]:.0f} pts',
          "var(--green)" if r["week"] > 0 else "var(--red)"),

@@ -11,6 +11,7 @@ import streamlit as st
 
 from .. import grades, theme
 from ..providers import EspnAuthError
+from . import components as C
 
 _GRADE_COLOR = {
     "A+": "#22d3aa", "A": "#22d3aa", "A-": "#4ade80", "B+": "#84cc16",
@@ -165,7 +166,55 @@ def render(ctx) -> None:
         _me = st.session_state.get(f"live_{ctx['league_key']}_me")
         if _me in (ctx.get("slot_names") or []):
             my_slot = ctx["slot_names"].index(_me)
+    if my_slot is None:
+        # ...and if he hasn't opened either draft tab this session, the league
+        # itself knows which team is his. Without this the tab graded everyone and
+        # highlighted nobody — including on a live draft he never mocked.
+        my_slot = (ctx.get("owner_slot") or {}).get(str(ctx.get("my_team")))
     champ = max(rows, key=lambda r: r["title_pct"])
+
+    # ---- YOUR draft, as a card ---------------------------------------------
+    # The standings table below answers "how did everyone do". This answers the
+    # question he actually opened the tab with, in the shape the war room now uses
+    # everywhere else: the grade where a score would be, the roster as cells, and
+    # the two picks that moved the needle as reasons.
+    mine = next((r for r in rows if r["slot"] == my_slot), None)
+    if mine is not None:
+        from .. import value as _V
+        my_pids = rosters.get(my_slot) or []
+        gi = _V.grade_team(my_pids, ctx["value"], ctx["registry"], ctx["roster_slots"],
+                           len(slot_names))
+        have = {}
+        for _p in my_pids:
+            _q = (ctx["registry"].meta(_p).position or "").upper()
+            have[_q] = have.get(_q, 0) + 1
+        demand = {}
+        for _s in (ctx["roster_slots"] or []):
+            if _s in ("QB", "RB", "WR", "TE"):
+                demand[_s] = demand.get(_s, 0) + 1
+        cells = [(p, f'{have.get(p, 0)}/{demand.get(p, 0)}',
+                  "on" if have.get(p, 0) >= demand.get(p, 0) else "bad")
+                 for p in ("QB", "RB", "WR", "TE")]
+        reasons = []
+        if gi.get("best_pick"):
+            _b = ctx["registry"].meta(gi["best_pick"])
+            reasons.append((f"Best value · {_b.name}",
+                            f'{ctx["value"].vorp_of(gi["best_pick"]):+.0f} over replacement',
+                            "steal", "g"))
+        reasons.append((f'Projected {mine["exp_wins"]:.0f}–{mine["exp_losses"]:.0f}',
+                        f'playoffs {mine["playoff_pct"]}% · title {mine["title_pct"]:.1f}%',
+                        "season", "" if mine["playoff_pct"] < 50 else "g"))
+        st.markdown(C.card_html(
+            wash="var(--accent-fill)", wash2="var(--panel2)",
+            left={"crest": "".join(w[0] for w in slot_names[my_slot].split()[:2]).upper(),
+                  "name": slot_names[my_slot],
+                  "sub": f'{src.lower()} · {made} picks'},
+            right={"badge": mine["grade"]},
+            mid={"pill": f'projected #{mine["proj_seed"]} of {len(rows)}',
+                 "sit": f'<b>{mine["proj_points"]:.0f} pts/wk</b> · '
+                        f'{gi["starter_vorp"]} starter value'},
+            cells=cells, reasons=reasons,
+            tone="good" if mine["playoff_pct"] >= 50 else ""), unsafe_allow_html=True)
 
     # ---- standings table ----
     head = ("<tr><th>#</th><th>Team</th><th>Grade</th><th>Proj record</th>"

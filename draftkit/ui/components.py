@@ -1803,3 +1803,134 @@ def pick_card_html(*, name, pid, pos, team, bye, wash, pos_color, clock, clock_l
         f'<div class="pc2-cells">{cellhtml}</div>'
         f'<div class="pc2-why">{rs}</div>'
         + (f'<div class="pc2-foot">{foot}</div>' if foot else ""))
+
+
+def _side_html(side: dict, right: bool = False) -> str:
+    """One end of a two-sided hero: crest, name, sub, and the number.
+
+    `crest` may be raw HTML (a headshot) or a short string (initials, a seat
+    number) — a matchup has no logos to show, so initials do the job a crest does
+    on a game card: tell the two ends apart before you read them.
+    """
+    if not side:
+        return "<div></div>"
+    crest = side.get("crest") or ""
+    if crest and not crest.lstrip().startswith("<"):
+        crest = f'<span class="pc2-crest">{_esc(crest)}</span>'
+    who = (f'<div class="pc2-nm"><b>{_esc(side.get("name", ""))}</b>'
+           f'<span>{_esc(side.get("sub", ""))}</span></div>') if side.get("name") else ""
+    big = (f'<span class="pc2-pts{" trail" if side.get("trail") else ""}">'
+           f'{_esc(side["big"])}</span>') if side.get("big") is not None else ""
+    badge = f'<span class="pc2-gb">{_esc(side["badge"])}</span>' if side.get("badge") else ""
+    inner = ([big, who, crest, badge] if right else [crest, who, big, badge])
+    return f'<div class="pc2-side{" r" if right else ""}">{"".join(x for x in inner if x)}</div>'
+
+
+def card_html(*, wash, wash2, left, right=None, mid=None, cells=(), reasons=(),
+              foot="", bar=None, tone="", seats=()) -> str:
+    """A two-sided card in the live view's grammar, standalone.
+
+    The same skeleton as `pick_card_html` — coloured hero, four cells, reason
+    strips with a verdict each — but with two ends, for the screens that have two:
+    a matchup, a trade, a waiver swap. Callers pass values the app already
+    computed; nothing here derives anything.
+    """
+    m = mid or {}
+    pill = ""
+    if m.get("pill"):
+        live = m.get("live")
+        pill = (f'<span class="pc2-clk{"" if live else " soon"}">'
+                f'{"<i></i>" if live else ""}{_esc(m["pill"])}</span>')
+    elif m.get("swap"):
+        pill = f'<span class="pc2-swap">{m["swap"]}</span>'
+    sit = f'<span class="pc2-sit">{m.get("sit", "")}</span>' if m.get("sit") else ""
+    hero = (f'<div class="pc2-hero" style="--c1:{wash};--c2:{wash2}">'
+            f'<div class="pc2-two">{_side_html(left)}'
+            f'<div class="pc2-mid">{pill}{sit}</div>'
+            f'{_side_html(right, right=True)}</div></div>')
+
+    barhtml = ""
+    if bar:
+        pct = max(0, min(100, float(bar.get("pct", 50))))
+        col = bar.get("color", "var(--green)")
+        barhtml = (f'<div class="pc2-wp"><i style="width:{pct:.0f}%;background:{col}"></i>'
+                   f'<i style="width:{100 - pct:.0f}%;background:var(--mut2)"></i></div>'
+                   f'<div class="pc2-wpk"><span>{_esc(bar.get("l", ""))}</span>'
+                   f'<span>{_esc(bar.get("m", ""))}</span>'
+                   f'<span>{_esc(bar.get("r", ""))}</span></div>')
+
+    cellhtml = ""
+    if cells:
+        wide = {3: " three", 2: " two"}.get(len(cells), "")
+        cellhtml = (f'<div class="pc2-cells{wide}">'
+                    + "".join(f'<span>{_esc(l)}</span>' for l, _v, _t in cells)
+                    + "".join(f'<span class="pc2-cell{(" " + t) if t else ""}">{_esc(v)}</span>'
+                              for _l, v, t in cells) + "</div>")
+
+    seathtml = ""
+    if seats:
+        seathtml = ('<div class="pc2-seats">'
+                    + "".join(f'<b class="{c}">{_esc(t)}</b>' for t, c in seats) + "</div>")
+
+    rs = "".join(
+        f'<div class="pc2-r{(" " + t) if t else ""}"><div><div class="v">{_esc(h)}</div>'
+        f'<div class="d">{_esc(d)}</div></div>'
+        f'<span class="pc2-vd{(" " + t) if t else ""}">{_esc(vd)}</span></div>'
+        for h, d, vd, t in reasons)
+    whyhtml = f'<div class="pc2-why">{rs}</div>' if rs else ""
+    foothtml = f'<div class="pc2-foot">{foot}</div>' if foot else ""
+    return (f'<div class="pc2-card{(" " + tone) if tone else ""}">'
+            f'{hero}{barhtml}{seathtml}{cellhtml}{whyhtml}{foothtml}</div>')
+
+
+def clock_strip_html(pick_no, n, rounds, on_clock_name, is_yours, my_slot, owner_fn,
+                     next_user_pick=None, run=None) -> str:
+    """The draft's status bar as a card: who is up, and every seat between your
+    two picks laid out so you can count them.
+
+    "Your next pick is in nine picks" is a sentence you have to trust. The same
+    nine as a row of seats is a thing you can look at — and it answers the
+    question the sentence doesn't, which is WHO those nine are, and therefore how
+    likely the man you want survives them.
+    """
+    rd = (pick_no - 1) // n + 1
+    inrd = (pick_no - 1) % n + 1
+    seats = []
+    if next_user_pick and next_user_pick > pick_no:
+        for k in range(pick_no, min(next_user_pick, pick_no + 26) + 1):
+            krd, kin = (k - 1) // n + 1, (k - 1) % n + 1
+            mine = owner_fn(k) == my_slot
+            cls = "me" if (mine and k == pick_no) else "next" if mine else ""
+            seats.append((f"{krd}.{kin:02d}", cls))
+    left = {"crest": str(inrd), "name": ("You're up" if is_yours else on_clock_name),
+            "sub": f"Round {rd} · pick {rd}.{inrd:02d}"}
+    right = None
+    if next_user_pick and next_user_pick > pick_no:
+        nrd, nin = (next_user_pick - 1) // n + 1, (next_user_pick - 1) % n + 1
+        gap = len([1 for k in range(pick_no, next_user_pick) if owner_fn(k) != my_slot])
+        right = {"name": f"{nrd}.{nin:02d}", "sub": f"next turn · {gap} picks",
+                 "big": str(gap), "trail": True}
+    return card_html(
+        wash="var(--accent-fill)" if is_yours else "var(--panel2)",
+        wash2="var(--panel2)",
+        left=left, right=right,
+        mid={"pill": f"pick {rd}.{inrd:02d}", "live": True,
+             "sit": run or f"{pick_no} of {n * rounds} overall"},
+        seats=seats, tone="good" if is_yours else "")
+
+
+def run_note(recent_positions, window: int = 6) -> str:
+    """"<b>RB run</b> · 5 of last 6", or "" when no position dominates.
+
+    The short form of `run_banner_html` for the clock strip — same reading of the
+    same list, without the scarcity maths the full banner does, because the strip
+    has one line and the banner is still on screen underneath it.
+    """
+    from collections import Counter
+    recent = [p for p in (recent_positions or [])[-window:] if p in ("QB", "RB", "WR", "TE")]
+    if len(recent) < 3:
+        return ""
+    pos, ct = Counter(recent).most_common(1)[0]
+    if ct < 3:
+        return ""
+    return f"<b>{pos} run</b> · {ct} of last {len(recent)}"

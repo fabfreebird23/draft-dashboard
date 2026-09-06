@@ -1390,6 +1390,44 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="st-key-pcw_"] [data-testid="stHorizontalBlock"]{ gap:6px; }
 [class*="st-key-pcw_"] button{ padding:5px 0; font-size:11px; letter-spacing:.1em;
   text-transform:uppercase; }
+
+/* ---- the same grammar for the TWO-SIDED screens: a matchup is a game, a trade
+   is two sides, a waiver is a swap. Standalone (its own border) because these
+   cards carry no Streamlit buttons inside them. ---- */
+.pc2-card{ background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--line2);
+  border-radius:14px; overflow:hidden; box-shadow:var(--shadow-lg); margin:0 0 12px; }
+.pc2-card.good{ border-left-color:var(--green); } .pc2-card.warn{ border-left-color:var(--amber); }
+.pc2-card.bad{ border-left-color:var(--red); }
+.pc2-card .pc2-hero{ margin:0; }
+.pc2-card .pc2-cells, .pc2-card .pc2-why, .pc2-card .pc2-foot{ padding-left:14px; padding-right:14px; }
+.pc2-two{ display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.2fr);
+  align-items:center; gap:12px; }
+.pc2-side{ display:flex; align-items:center; gap:9px; min-width:0; }
+.pc2-side.r{ justify-content:flex-end; text-align:right; }
+.pc2-crest{ width:34px; height:34px; border-radius:9px; flex:none; display:grid; place-items:center;
+  font-family:'Sora',sans-serif; font-weight:800; font-size:12px; color:#141314;
+  background:rgba(255,255,255,.92); box-shadow:inset 0 0 0 1px rgba(0,0,0,.08); }
+.pc2-pts{ font-family:'Sora',sans-serif; font-weight:800; font-size:28px; line-height:1; color:#fff;
+  letter-spacing:-.02em; white-space:nowrap; flex:none; }
+.pc2-pts.trail{ color:rgba(255,255,255,.6); }
+.pc2-swap{ font-size:15px; color:rgba(255,255,255,.65); }
+.pc2-gb{ flex:none; font-family:'Sora',sans-serif; font-weight:800; font-size:28px; line-height:1;
+  color:#fff; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2);
+  border-radius:11px; padding:6px 12px; letter-spacing:-.02em; }
+/* win probability — ours is a projection distribution, not a market */
+.pc2-wp{ display:flex; height:5px; border-radius:999px; overflow:hidden; margin:9px 14px 0;
+  background:rgba(255,255,255,.10); }
+.pc2-wp i{ display:block; height:100%; }
+.pc2-wpk{ display:flex; justify-content:space-between; font-size:9px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--mut2); padding:5px 14px 0; }
+.pc2-cells.three{ grid-template-columns:repeat(3,1fr); }
+.pc2-cells.two{ grid-template-columns:repeat(2,1fr); }
+/* the seat run between your two picks */
+.pc2-seats{ display:flex; gap:5px; padding:9px 14px 0; flex-wrap:wrap; }
+.pc2-seats b{ font-size:9.5px; font-weight:500; letter-spacing:.06em; padding:4px 8px;
+  border-radius:6px; background:var(--panel2); border:1px solid var(--line); color:var(--mut2); }
+.pc2-seats b.me{ color:var(--crimson); border-color:var(--crimson); background:var(--accent-soft); }
+.pc2-seats b.next{ color:var(--ink); border-color:var(--muted); }
 </style>
 
 """
