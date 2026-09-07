@@ -1,0 +1,310 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Rankings, re-mocked</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   MOCK ONLY — the Rankings panel.
+
+   Three things are eating it, and only one of them is the row height:
+
+   1. THE TIER BANDS OUTNUMBER THE PLAYERS. A band is emitted whenever the tier
+      changes, which groups nicely at the top of a draft and collapses completely
+      once the board thins: Tier 4, one player, Tier 5, one player, Tier 6, one
+      player. Half the panel is headings for groups of one.
+   2. THE ROW IS A SENTENCE, NOT A ROW. "#34 WR15 Zay Flowers BAL · ADP 34 · Bye
+      13 V +49 ▼ +13" reads left to right and lines up with nothing above or
+      below it, so comparing two players means reading both.
+   3. THE CONTROLS COST 330px before a single name — source, staleness note,
+      six position pills, a search box, a sort toggle, a drafted toggle and a
+      legend, each on its own line.
+
+   Measured: a row is 56px and its tier band another 26 — 82px a player once every
+   player is its own tier. The line below is 36px.
+
+   The fixes below, in the same order: the tier becomes a coloured edge and a
+   chip ON the row (no bands at all), the row gets columns that align, and the
+   controls fold into two lines.
+   ========================================================================== */
+:root{
+  --bg:#161415; --panel:#232022; --panel2:#2c282a; --line:#332e30; --line2:#3d383a;
+  --ink:#f2eef0; --muted:#a2989c; --mut2:#95898e;
+  --crimson:#ff336c;
+  --green:#7fd8b4; --amber:#f0b357; --red:#ff8fae;
+  --qb:#c98fbb; --rb:#7fd8b4; --wr:#6aa6f0; --te:#f0b357; --k:#95898e; --dst:#8fb8f5;
+  --t1:#8b8bf0; --t2:#5f9df0; --t3:#4fbdb0; --t4:#5fc98a; --t5:#e0a24a; --t6:#e07a4a; --t7:#e05a6a;
+  --f-display:'Sora',system-ui,sans-serif;
+  --f-body:'Inter',system-ui,sans-serif;
+  --f-data:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);margin:0;
+     padding:20px 20px 60px;font-size:13px}
+h1{font-family:var(--f-display);font-weight:800;font-size:24px;margin:0 0 2px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:76ch;line-height:1.5;margin:0 0 18px}
+.cols{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
+.col{width:340px}
+.col.wide{width:420px}
+.hd{display:flex;align-items:baseline;gap:9px;margin:0 0 3px}
+.hd h2{font-family:var(--f-display);font-weight:800;font-size:15px;margin:0;letter-spacing:-.01em}
+.hd em{font-family:var(--f-data);font-size:9px;font-style:normal;letter-spacing:.13em;
+       text-transform:uppercase;color:var(--mut2)}
+.fits{font-family:var(--f-data);font-size:10px;color:var(--green);margin:0 0 9px}
+.fits.bad{color:var(--red)} .fits.mid{color:var(--amber)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:9px;
+  overflow:hidden}
+
+/* ── the controls, folded ─────────────────────────────────────────────── */
+.ctl{display:flex;gap:6px;align-items:center;margin-bottom:7px}
+.src{flex:1;min-width:0;display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:8px;
+  background:var(--panel2);border:1px solid var(--line2);font-size:12px;font-weight:600}
+.src small{font-family:var(--f-data);font-size:9px;color:var(--mut2);font-weight:400;margin-left:auto}
+.ico{padding:6px 9px;border-radius:8px;background:var(--panel2);border:1px solid var(--line2);
+  font-size:12px;color:var(--mut2);cursor:pointer}
+.pills{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.pill{font-family:var(--f-data);font-size:9.5px;letter-spacing:.06em;padding:4px 8px;border-radius:999px;
+  background:var(--panel2);border:1px solid var(--line2);color:var(--mut2);cursor:pointer}
+.pill.on{background:rgba(255,51,108,.14);border-color:var(--crimson);color:var(--crimson)}
+.pill.gh{border-style:dashed}
+
+/* ── A · LINE. 34px. ──────────────────────────────────────────────────── */
+.ln{display:grid;grid-template-columns:16px 28px 1fr 42px 34px 24px;gap:7px;align-items:center;
+  padding:4px 5px;border-radius:8px;border-left:3px solid var(--tier,var(--line2));
+  background:transparent}
+.ln:nth-child(odd){background:rgba(255,255,255,.017)}
+.ln:hover{background:rgba(255,255,255,.05)}
+.st{color:var(--mut2);font-size:12px;cursor:pointer;text-align:center}
+.av{width:26px;height:26px;border-radius:7px;object-fit:cover;background:rgba(255,255,255,.9)}
+.who{min-width:0}
+.who > b{display:block;font-size:12.5px;font-weight:600;line-height:1.15;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.who > span{display:block;font-family:var(--f-data);font-size:9px;color:var(--mut2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.who > span i{font-style:normal}
+.who > span i.wr{color:var(--wr)} .who > span i.rb{color:var(--rb)}
+.who > span i.qb{color:var(--qb)} .who > span i.te{color:var(--te)}
+.v{font-family:var(--f-data);font-size:12.5px;font-weight:600;text-align:right;color:var(--green)}
+.v small{display:block;font-size:8.5px;color:var(--red);font-weight:500}
+.pc{font-family:var(--f-data);font-size:11px;text-align:right;font-weight:600}
+.pc.hi{color:var(--green)} .pc.mid{color:var(--amber)} .pc.lo{color:var(--red)}
+.dr{width:24px;height:24px;border-radius:7px;background:var(--panel2);border:1px solid var(--line2);
+  color:var(--ink);font-size:13px;line-height:1;cursor:pointer;display:grid;place-items:center}
+.dr:hover{border-color:var(--green);color:var(--green)}
+/* the tier, ON the row: a coloured edge plus a chip the first time it appears */
+.tchip{font-family:var(--f-data);font-size:8px;letter-spacing:.06em;padding:1px 4px;border-radius:4px;
+  border:1px solid currentColor;margin-left:5px;vertical-align:1px}
+.cliff{display:flex;align-items:center;gap:7px;margin:5px 2px 4px;font-family:var(--f-data);
+  font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2)}
+.cliff i{height:1px;flex:1;background:var(--line2)}
+.cliff b{color:var(--amber);font-weight:600;letter-spacing:.1em}
+
+/* ── B · TWO-LINE. 46px. ──────────────────────────────────────────────── */
+.tl{display:grid;grid-template-columns:16px 30px 1fr auto 24px;gap:8px;align-items:center;
+  padding:6px 5px;border-radius:9px;border-left:3px solid var(--tier,var(--line2))}
+.tl:nth-child(odd){background:rgba(255,255,255,.017)}
+.tl .av{width:30px;height:30px}
+.tl .who > b{font-size:13px}
+.tl .meta{font-family:var(--f-data);font-size:9px;color:var(--mut2);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl .meta b{display:inline;font-size:9px;color:var(--ink);font-weight:600}
+.tl .rt{text-align:right}
+.tl .rt .v{font-size:14px} .tl .rt .pc{font-size:10px;margin-top:2px}
+
+/* ── C · today ────────────────────────────────────────────────────────── */
+.old-band{font-family:var(--f-data);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  padding:7px 10px;border-radius:8px;margin:8px 0 6px}
+.old-row{display:grid;grid-template-columns:24px 1fr 46px 52px;gap:9px;align-items:center;
+  padding:9px;border-radius:10px;background:var(--panel2);border:1px solid var(--line2)}
+.old-row .txt{font-size:12px;line-height:1.5}
+.old-row .txt b{font-weight:700}
+.old-pc{font-family:var(--f-data);font-size:11px;background:rgba(255,143,174,.16);
+  border-radius:6px;padding:4px 0;text-align:center}
+.old-dr{font-family:var(--f-data);font-size:10px;letter-spacing:.08em;padding:9px 0;text-align:center;
+  border-radius:8px;border:1px solid var(--line2)}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.45;margin-top:9px}
+</style></head><body>
+
+<h1>Rankings, re-mocked</h1>
+<p class="sub">Three things are eating this panel and only one of them is row height.
+<b>The tier bands outnumber the players</b> — a band per tier change means Tier 4, one player,
+Tier 5, one player, once the board thins. <b>The row is a sentence, not a row</b>, so comparing two
+players means reading both. And <b>the controls cost 330px</b> before a single name. Fixed in that
+order below, at the panel's real width.</p>
+
+<div class="cols">
+
+  <!-- ═══════════════════════════════════════════════════════ A · line ═══ -->
+  <div class="col">
+    <div class="hd"><h2>A · Line</h2><em>36px · one row each</em></div>
+    <div class="fits">14 names on screen · tier is an edge, not a heading</div>
+    <div class="panel">
+      <div class="ctl">
+        <div class="src">UDK <small>5d</small></div>
+        <button class="ico">⇅</button><button class="ico">⌕</button>
+      </div>
+      <div class="pills"><span class="pill on">All</span><span class="pill">QB</span>
+        <span class="pill">RB</span><span class="pill">WR</span><span class="pill">TE</span>
+        <span class="pill">K</span><span class="pill">DST</span><span class="pill gh">Rook</span></div>
+
+      <div class="ln" style="--tier:var(--t4)">
+        <span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt="">
+        <div class="who"><b>Zay Flowers</b>
+          <span>#34 · <i class="wr">WR15</i> · BAL · ADP 34<span class="tchip" style="color:var(--t4)">T4</span></span></div>
+        <div class="v">+49<small>▼13</small></div>
+        <div class="pc lo">7%</div>
+        <button class="dr">+</button>
+      </div>
+      <div class="ln" style="--tier:var(--t5)">
+        <span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Tee Higgins</b>
+          <span>#46 · <i class="wr">WR21</i> · CIN · ADP 39<span class="tchip" style="color:var(--t5)">T5</span></span></div>
+        <div class="v">+45<small>▼18</small></div>
+        <div class="pc lo">7%</div>
+        <button class="dr">+</button>
+      </div>
+      <div class="cliff"><i></i><span>tier <b>6</b> starts here — 2 left above it</span><i></i></div>
+      <div class="ln" style="--tier:var(--t6)">
+        <span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/9226.jpg" alt="">
+        <div class="who"><b>Christian Watson</b>
+          <span>#49 · <i class="wr">WR24</i> · GB · ADP 61</span></div>
+        <div class="v">+29<small>▼40</small></div>
+        <div class="pc mid">13%</div>
+        <button class="dr">+</button>
+      </div>
+      <div class="ln" style="--tier:var(--t6)">
+        <span class="st">★</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/3198.jpg" alt="">
+        <div class="who"><b>David Montgomery</b>
+          <span>#51 · <i class="rb">RB24</i> · HOU · ADP 47</span></div>
+        <div class="v">+52<small>▼26</small></div>
+        <div class="pc lo">8%</div>
+        <button class="dr">+</button>
+      </div>
+      <div class="ln" style="--tier:var(--t6)">
+        <span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt="">
+        <div class="who"><b>Rome Odunze</b>
+          <span>#53 · <i class="wr">WR26</i> · CHI · ADP 55</span></div>
+        <div class="v">+27<small>▼2</small></div>
+        <div class="pc mid">31%</div>
+        <button class="dr">+</button>
+      </div>
+      <div class="ln" style="--tier:var(--t7)">
+        <span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Dalton Kincaid</b>
+          <span>#57 · <i class="te">TE9</i> · BUF · ADP 64<span class="tchip" style="color:var(--t7)">T7</span></span></div>
+        <div class="v">+21<small>▼7</small></div>
+        <div class="pc hi">64%</div>
+        <button class="dr">+</button>
+      </div>
+      <div class="ln" style="--tier:var(--t7)">
+        <span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/9226.jpg" alt="">
+        <div class="who"><b>Tony Pollard</b>
+          <span>#59 · <i class="rb">RB27</i> · TEN · ADP 71</span></div>
+        <div class="v">+18<small>▼12</small></div>
+        <div class="pc hi">72%</div>
+        <button class="dr">+</button>
+      </div>
+    </div>
+    <p class="note"><b>The tier moved onto the row</b> — a coloured left edge, plus a small chip the
+      first time each tier appears. No band rows at all, so a run of singletons costs nothing. A real
+      <b>cliff</b> still gets a line, because a tier break that matters is worth interrupting for.</p>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════ B · two-line ═══ -->
+  <div class="col">
+    <div class="hd"><h2>B · Two-line</h2><em>45px · roomier</em></div>
+    <div class="fits mid">11 names on screen</div>
+    <div class="panel">
+      <div class="ctl">
+        <div class="src">UDK <small>5d · 376</small></div>
+        <button class="ico">⇅</button><button class="ico">⌕</button>
+      </div>
+      <div class="pills"><span class="pill on">All</span><span class="pill">QB</span>
+        <span class="pill">RB</span><span class="pill">WR</span><span class="pill">TE</span>
+        <span class="pill">K</span><span class="pill">DST</span></div>
+
+      <div class="tl" style="--tier:var(--t4)">
+        <span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt="">
+        <div class="who"><b>Zay Flowers</b>
+          <div class="meta"><i class="wr">WR15</i> · BAL · ADP <b>34</b> · bye 13 · <b>T4</b></div></div>
+        <div class="rt"><div class="v">+49</div><div class="pc lo">7% lasts</div></div>
+        <button class="dr">+</button>
+      </div>
+      <div class="tl" style="--tier:var(--t5)">
+        <span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Tee Higgins</b>
+          <div class="meta"><i class="wr">WR21</i> · CIN · ADP <b>39</b> · bye 6 · <b>T5</b></div></div>
+        <div class="rt"><div class="v">+45</div><div class="pc lo">7% lasts</div></div>
+        <button class="dr">+</button>
+      </div>
+      <div class="tl" style="--tier:var(--t6)">
+        <span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/9226.jpg" alt="">
+        <div class="who"><b>Christian Watson</b>
+          <div class="meta"><i class="wr">WR24</i> · GB · ADP <b>61</b> · bye 11 · <b>T6</b></div></div>
+        <div class="rt"><div class="v">+29</div><div class="pc mid">13% lasts</div></div>
+        <button class="dr">+</button>
+      </div>
+      <div class="tl" style="--tier:var(--t6)">
+        <span class="st">★</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/3198.jpg" alt="">
+        <div class="who"><b>David Montgomery</b>
+          <div class="meta"><i class="rb">RB24</i> · HOU · ADP <b>47</b> · bye 8</div></div>
+        <div class="rt"><div class="v">+52</div><div class="pc lo">8% lasts</div></div>
+        <button class="dr">+</button>
+      </div>
+      <div class="tl" style="--tier:var(--t7)">
+        <span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Dalton Kincaid</b>
+          <div class="meta"><i class="te">TE9</i> · BUF · ADP <b>64</b> · bye 7 · <b>T7</b></div></div>
+        <div class="rt"><div class="v">+21</div><div class="pc hi">64% lasts</div></div>
+        <button class="dr">+</button>
+      </div>
+    </div>
+    <p class="note">Same structure, one line of air. Better if you keep the panel wide, or on the
+      pre-draft board where you are reading rather than racing.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ C · today ═══ -->
+  <div class="col wide">
+    <div class="hd"><h2>C · Today</h2><em>82px a player · for scale</em></div>
+    <div class="fits bad">6 names — and half the rows are headings</div>
+    <div class="panel">
+      <div class="old-band" style="color:var(--t4);border-left:3px solid var(--t4);background:#5fc98a14">Tier 4</div>
+      <div class="old-row"><span class="st">☆</span>
+        <span class="txt">#34 <b style="color:var(--wr)">WR15</b> <b>Zay Flowers</b> BAL · ADP 34 ·
+          Bye 13 <b style="color:var(--green)">V +49</b> <b style="color:var(--red)">▼ +13</b></span>
+        <span class="old-pc">7%</span><span class="old-dr">DRAFT</span></div>
+      <div class="old-band" style="color:var(--t5);border-left:3px solid var(--t5);background:#e0a24a14">Tier 5</div>
+      <div class="old-row"><span class="st">☆</span>
+        <span class="txt">#46 <b style="color:var(--wr)">WR21</b> <b>Tee Higgins</b> CIN · ADP 39 ·
+          Bye 6 <b style="color:var(--green)">V +45</b> <b style="color:var(--red)">▼ +18</b></span>
+        <span class="old-pc">7%</span><span class="old-dr">DRAFT</span></div>
+      <div class="old-band" style="color:var(--t6);border-left:3px solid var(--t6);background:#e07a4a14">Tier 6</div>
+      <div class="old-row"><span class="st">☆</span>
+        <span class="txt">#49 <b style="color:var(--wr)">WR24</b> <b>Christian Watson</b> GB · ADP 61 ·
+          Bye 11 <b style="color:var(--green)">V +29</b> <b style="color:var(--red)">▼ +40</b></span>
+        <span class="old-pc">13%</span><span class="old-dr">DRAFT</span></div>
+    </div>
+    <p class="note">Every player in its own tier, so every player gets a heading. The line reads left
+      to right and lines up with nothing, so you cannot compare two values without reading two
+      sentences.</p>
+  </div>
+</div>
+
+<p class="note" style="max-width:76ch">My pick is <b>A</b>. The panel's job during a draft is to let
+you find a name fast and see how it compares, and fourteen rows beats four however good the four look.
+<b>B</b> is the same row with breathing room — worth having as the pre-draft default if you want it.
+The controls fold identically in both: source and staleness on one line with sort and search as icons,
+positions as pills, legend on hover.</p>
+
+</body></html>
