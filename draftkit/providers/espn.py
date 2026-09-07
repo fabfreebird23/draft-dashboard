@@ -29,6 +29,18 @@ _SKIP_SLOTS = {20, 21, 24}        # bench, IR, error
 _SLOT_ORDER = [0, 1, 2, 4, 6, 23, 3, 5, 7, 17, 16]   # display order for starters
 _POS = {1: "QB", 2: "RB", 3: "WR", 4: "TE", 5: "K", 16: "DST"}
 
+# ESPN proTeamId -> the abbreviation Sleeper uses as a DEFENSE's player id.
+# Defenses are the one roster entry ESPN gives a NEGATIVE playerId (-16000 minus
+# the pro team), so they resolve through nothing the player index knows about —
+# which is how two D/STs went missing from a sixteen-man roster.
+_PRO_TEAM = {
+    1: "ATL", 2: "BUF", 3: "CHI", 4: "CIN", 5: "CLE", 6: "DAL", 7: "DEN", 8: "DET",
+    9: "GB", 10: "TEN", 11: "IND", 12: "KC", 13: "LV", 14: "LAR", 15: "MIA",
+    16: "MIN", 17: "NE", 18: "NO", 19: "NYG", 20: "NYJ", 21: "PHI", 22: "ARI",
+    23: "PIT", 24: "LAC", 25: "SF", 26: "SEA", 27: "TB", 28: "WAS", 29: "CAR",
+    30: "JAX", 33: "BAL", 34: "HOU",
+}
+
 
 class EspnAuthError(RuntimeError):
     """Raised when a private league rejects the read (missing/expired cookies)."""
@@ -170,6 +182,54 @@ class EspnProvider(Provider):
                 player = self._lazy_player(espn_pid)
             picks.append(Pick(overall=overall, slot=slot, player=player, raw_id=str(espn_pid or "")))
         return picks
+
+    def get_rosters(self) -> dict:
+        """{team_id: {players, starters, ...}} — every roster in the league.
+
+        The in-season screens were built on Sleeper, whose rosters endpoint this
+        mirrors exactly, so they can read an ESPN league without knowing it is one.
+
+        This is also the ONLY honest source of who was drafted in a league that
+        drafts offline. "Show us your TD's" enters its results by adding players to
+        rosters, not into ESPN's draft tool — which is why the draft grid is still
+        204 rows of playerId -1 while all twelve rosters are full.
+
+        `scoringPeriodId` is deliberately omitted: without it ESPN returns the
+        CURRENT week, which is what every caller here means by "the roster".
+        """
+        d = self._read(["mRoster", "mTeam"], fresh=True)
+        out = {}
+        # Starters have to come back in the SAME ORDER as get_roster_slots() lists
+        # the slots, because the lineup screens pair the two lists by position.
+        # ESPN returns roster entries in whatever order it likes, which is how the
+        # Command Center ended up labelling a defense "K" and a kicker "DST".
+        _rank = {sid: i for i, sid in enumerate(_SLOT_ORDER)}
+        for t in d.get("teams") or []:
+            players, starters = [], []
+            for e in ((t.get("roster") or {}).get("entries") or []):
+                espn_pid = e.get("playerId")
+                pid = None
+                if espn_pid is not None and int(espn_pid) < 0:
+                    # A defense. Its id carries the pro team and nothing else, so
+                    # go straight to the abbreviation Sleeper keys defenses by.
+                    _pe = (e.get("playerPoolEntry") or {}).get("player") or {}
+                    pid = _PRO_TEAM.get(int(_pe.get("proTeamId") or 0)) or \
+                        _PRO_TEAM.get(-int(espn_pid) - 16000)
+                if pid is None:
+                    p = self.registry.resolve_espn(espn_pid) if espn_pid else None
+                    if p is None and espn_pid:
+                        p = self._lazy_player(espn_pid)
+                    if p is None or not p.sleeper_pid:
+                        continue
+                    pid = str(p.sleeper_pid)
+                players.append(pid)
+                sid = e.get("lineupSlotId")
+                if sid not in _SKIP_SLOTS:
+                    starters.append((_rank.get(sid, 99), pid))
+            starters = [pid for _r, pid in sorted(starters, key=lambda x: x[0])]
+            out[str(t.get("id"))] = {"players": players, "starters": starters,
+                                     "settings": {}, "roster_id": t.get("id")}
+        return out
 
     # ---- ESPN id -> name (bench/K/DST the headshot board missed) --------
     def _lazy_player(self, espn_pid):

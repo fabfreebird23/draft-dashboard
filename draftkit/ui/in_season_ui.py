@@ -131,6 +131,16 @@ def _alert(kind, icon, html) -> None:
 
 # ------------------------------------------------------------------ data gather
 @st.cache_data(ttl=300, show_spinner=False)
+def _espn_rosters(league_id: str, season: int, _provider):
+    """ESPN rosters, in Sleeper's shape. Cached on (league, season) — the provider
+    is a leading-underscore arg so Streamlit doesn't try to hash it."""
+    try:
+        return _provider.get_rosters() or {}
+    except Exception:  # noqa: BLE001 — a dead read must not take the tab down
+        return {}
+
+
+@st.cache_data(ttl=300, show_spinner=False)
 def _rosters(platform: str, league_id: str, season: int):
     """{owner_id: {players, starters, settings}} for the whole league."""
     if platform != "sleeper":
@@ -189,7 +199,12 @@ def _gather(ctx, week):
     """Everything the tabs share, fetched once."""
     meta, reg = ctx["meta"], ctx["registry"]
     season = config.current_season()
-    rosters = _rosters(meta.platform, str(meta.league_id), season)
+    # ESPN rosters come through the provider (same shape); everything below is
+    # platform-blind from here. Without this the whole in-season tab read an empty
+    # league and every screen drew nothing — for a league whose rosters were full.
+    rosters = (_rosters(meta.platform, str(meta.league_id), season)
+               if meta.platform == "sleeper"
+               else _espn_rosters(str(meta.league_id), season, ctx["provider"]))
     me = str(ctx.get("my_team") or "")
     mine = (rosters.get(me) or {}).get("players") or []
     # the lineup he ACTUALLY has set, not the one we would pick for him
@@ -205,7 +220,11 @@ def _gather(ctx, week):
                       getattr(meta, "draft_rounds", 14) or 14,
                       _json.dumps(sorted(int(x) for x in rids)))
     return {"rosters": rosters, "me": me, "mine": mine, "starters": starters,
-            "proj": proj, "slots": ctx["roster_slots"], "byes": ctx.get("byes"),
+            # The LINEUP, not the draft roster: in-season every question is about
+            # the nine you start, and in a fixed-roster league the two lists are
+            # completely different shapes.
+            "proj": proj, "slots": ctx.get("lineup_slots") or ctx["roster_slots"],
+            "byes": ctx.get("byes"),
             "week": week, "season": season,
             "ecr": ecr["wk"], "ros": ecr["ros"], "picks": book}
 
@@ -325,7 +344,8 @@ def _command(ctx, g) -> None:
 
     left, right = st.columns([1.5, 1])
     with left:
-        hdr = ("Your lineup on Sleeper — and what to change" if lc["have_current"]
+        _plat = "ESPN" if ctx["meta"].platform == "espn" else "Sleeper"
+        hdr = (f"Your lineup on {_plat} — and what to change" if lc["have_current"]
                else "Best available lineup (couldn't read your set lineup)")
         st.markdown(f'<div class="ws-h">{hdr}</div>', unsafe_allow_html=True)
         bench_now = {m["out"]: m for m in lc["moves"]}
@@ -371,7 +391,7 @@ def _command(ctx, g) -> None:
                          widths=["44px", "31%", "56px", "92px", "22%", "54px", "146px"],
                          wide=True), unsafe_allow_html=True)
         if lc["have_current"]:
-            st.caption(f"Read from Sleeper: your lineup projects **{lc['current_total']:.1f}**, "
+            st.caption(f"Read from {_plat}: your lineup projects **{lc['current_total']:.1f}**, "
                        f"the best available is **{lc['optimal_total']:.1f}**. Only changes that "
                        f"alter *who plays* are listed — Sleeper labelling a man RB where the "
                        f"optimiser calls him FLEX is not a move.")
@@ -657,7 +677,8 @@ def _matchup(ctx, g) -> None:
         reasons=_reasons,
         tone="good" if wp >= 0.55 else "bad" if wp < 0.45 else "warn"),
         unsafe_allow_html=True)
-    st.caption(f"Both lineups as currently **set** on Sleeper. Play your best lineup and he plays "
+    _plat = "ESPN" if ctx["meta"].platform == "espn" else "Sleeper"
+    st.caption(f"Both lineups as currently **set** on {_plat}. Play your best lineup and he plays "
                f"his and it's {bm:.1f} – {obm:.1f}, {100*wp_best:.0f}% you. Win probability treats "
                f"each team total as a normal distribution — the spread comes from position-level "
                f"weekly variance, so a boom/bust roster reads differently from a steady one with "

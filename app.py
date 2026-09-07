@@ -492,6 +492,18 @@ def build_context(sel: dict) -> dict:
     if _PZ.is_fixed_roster(meta.league_id):
         meta = dataclasses.replace(meta, draft_rounds=_PZ.rounds(meta.league_id))
 
+    # The platform's own starting lineup, read BEFORE anything overrides it — the
+    # sanity check below and the fixed-roster branch both need it, and it used to
+    # be fetched fifty lines later, which meant `len(roster_slots)` in the bench
+    # fallback referenced a name that did not exist yet. It never fired only
+    # because every provider we have does report a bench.
+    roster_slots = provider.get_roster_slots()
+    # THE WEEKLY LINEUP, kept separate from the draft roster from here on. They are
+    # the same list in most leagues; in a fixed-roster one they are nothing alike —
+    # the roster is the 16 you must END UP HOLDING, the lineup is the 9 you START
+    # (QB/RB/RB/WR/WR/TE/FLEX/K/DST). In-season was reading the roster bag and so
+    # produced advice like "start Denver Broncos at WR", legal in neither.
+    lineup_slots = list(roster_slots)
     try:
         bench_slots = provider.get_bench_count()
     except Exception:  # noqa: BLE001
@@ -521,7 +533,6 @@ def build_context(sel: dict) -> dict:
 
     # Value engine: projected points → VORP vs league-specific replacement level.
     from draftkit import value as value_mod
-    roster_slots = provider.get_roster_slots()
     # Projections come from the league's OWN host: Sleeper for Sleeper, ESPN for
     # ESPN. For the ESPN league that isn't a preference — its 38 scoring items have
     # no per-yard entries, so our own weights can't reproduce it (Gibbs computed
@@ -554,6 +565,7 @@ def build_context(sel: dict) -> dict:
         "registry": registry, "provider": provider, "meta": meta,
         "get_ranks": get_ranks,
         "slot_names": slot_names, "roster_slots": roster_slots,
+        "lineup_slots": lineup_slots,
         # The real manager names, kept separate from the seat labels: the
         # seat editor needs something to offer even when the board is numbered.
         "team_names": team_names, "seat_mode": _seat_mode,
