@@ -1523,6 +1523,46 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .ws2-pj{ font-size:13px; font-weight:700; text-align:right; }
 .ws2-pj.zero{ color:var(--mut2); font-weight:400; }
 .ws-q{ color:var(--amber); font-size:9px; letter-spacing:.1em; margin-left:5px; }
+
+/* ---- PICK STRIP. The pick card, at a tenth of the height. The full card was
+   277px, so the war room's middle column held one and a half of them — and on
+   the clock the job is COMPARISON, which a screen showing one player cannot do.
+   Ten of these fit in the space one card used. What survives: who he is, the
+   value that ranks him, survival (the only figure that says now-or-never), and
+   one reason folded into the subtitle. ---- */
+.pk3{ display:grid; grid-template-columns:34px minmax(0,1fr) auto auto; gap:11px;
+  align-items:center; padding:8px 11px 8px 8px; border-radius:11px; background:var(--panel);
+  border:1px solid var(--line); border-left:4px solid var(--line2);
+  position:relative; overflow:hidden; }
+.pk3:before{ content:""; position:absolute; left:0; top:0; bottom:0; width:120px;
+  pointer-events:none; background:linear-gradient(90deg,var(--tc,transparent),transparent); }
+.pk3 > *{ position:relative; }
+.pk3.go{ border-left-color:var(--green); } .pk3.warn{ border-left-color:var(--amber); }
+.pk3.bad{ border-left-color:var(--red); }
+.pk3 img{ width:34px; height:34px; border-radius:9px; object-fit:cover;
+  background:rgba(255,255,255,.9); }
+.pk3 .nm b{ display:block; font-family:'Sora',sans-serif; font-weight:800; font-size:14.5px;
+  line-height:1.1; letter-spacing:-.01em; white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; }
+.pk3 .nm span{ display:block; font-size:9.5px; color:var(--mut2); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+.pk3 .nm span i{ font-style:normal; color:var(--ink); }
+.pk3 .nm span i.go{ color:var(--green); } .pk3 .nm span i.warn{ color:var(--amber); }
+.pk3 .nm span i.bad{ color:var(--red); }
+.pk3 .sv{ font-size:12px; font-weight:700; width:44px; text-align:right; }
+.pk3 .sv small{ display:block; font-size:8px; font-weight:500; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--mut2); margin-top:2px; }
+.pk3 .sv.hi{ color:var(--green); } .pk3 .sv.mid{ color:var(--amber); }
+.pk3 .sv.lo{ color:var(--red); }
+.pk3 .val{ font-family:'Sora',sans-serif; font-weight:800; font-size:19px; line-height:1;
+  text-align:right; white-space:nowrap; }
+.pk3 .val small{ display:block; font-size:8px; font-weight:500; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--mut2); margin-top:3px; }
+.pk3 .val.on{ color:var(--green); } .pk3 .val.off{ color:var(--mut2); }
+/* The Draft button beside a strip must stay on ONE line — wrapped to "Dra/ft" it
+   is both ugly and taller than the strip it sits next to, which undoes the point. */
+[class*="_pcd2_"] button, [class*="_pcq2_"] button{ white-space:nowrap; padding:6px 2px;
+  font-size:10.5px; letter-spacing:.06em; }
 </style>
 
 """

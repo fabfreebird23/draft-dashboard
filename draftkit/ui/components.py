@@ -2016,3 +2016,28 @@ def lineup_bars_html(rows, *, header="Starting") -> str:
             f'<div class="ws2-mtr"><i style="width:{w:.0f}%;background:{colour}"></i></div>'
             f'<div class="ws2-pj{" zero" if not p else ""}">{p:.1f}</div></div>')
     return "".join(out) + "</div>"
+
+
+def pick_strip_html(*, name, pid, sub, wash, value, survival, tone="") -> str:
+    """One suggestion as a 54px strip — the pick card, compared rather than read.
+
+    `sub` is pre-built HTML: position, team, positional rank, ADP and the ONE
+    reason, as a single clause. The full card gave each of those a box or a strip
+    of its own, which is why it was 277px and why only one of them fit on screen.
+    """
+    from .. import theme as _T
+    sv = "—"
+    sv_cls = ""
+    if survival is not None:
+        sv = f"{survival:.0f}%"
+        sv_cls = " hi" if survival >= 60 else (" mid" if survival >= 30 else " lo")
+    val = "—"
+    val_cls = " off"
+    if value is not None:
+        val = f"{'+' if value >= 0 else ''}{value:.0f}"
+        val_cls = " on" if value >= 45 else ""
+    return (f'<div class="pk3{(" " + tone) if tone else ""}" style="--tc:{wash}">'
+            f'{_T.img_tag(pid, "")}'
+            f'<div class="nm"><b>{_esc(name)}</b><span>{sub}</span></div>'
+            f'<div class="sv{sv_cls}">{sv}<small>lasts</small></div>'
+            f'<div class="val{val_cls}">{val}<small>value</small></div></div>')
