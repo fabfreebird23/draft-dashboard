@@ -143,6 +143,11 @@ def _live(ctx, *, bound_auto: bool) -> None:
                  "0 = off (Suggestions stays a pure second opinion). Raise it to "
                  "let your own tuning pull players up.")
     manual = mode == "Manual entry"
+    # DRAFTING IS NOT MANUAL-ONLY ANY MORE. With a league board wired up, a pick
+    # made here is POSTED to the board — which is the live source — so live sync
+    # is exactly when he wants to draft from this screen. Gating on `manual` is
+    # what left him on the clock with no Draft button anywhere on the page.
+    _can_draft = manual or bool(BS.board_for(ctx["meta"].league_id))
     my_slot = slot_names.index(me)
     auto = False
     if not manual:
@@ -184,7 +189,7 @@ def _live(ctx, *, bound_auto: bool) -> None:
         # THE LEAGUE'S OWN BOARD IS THE SOURCE. This league drafts offline and logs
         # every pick into its keeper app's Live Draft Board; Sleeper's draft stays
         # empty all night, so following Sleeper here would be following nothing.
-        _board = BS.load(ctx["meta"].league_id, _cfg.current_season())
+        _board, _board_taken = BS.load_full(ctx["meta"].league_id, _cfg.current_season())
         # A pick he just made is shown IMMEDIATELY from a local overlay rather than
         # after the next poll — and dropped from the overlay the moment the board
         # reports it, so the two can never drift apart.
@@ -194,7 +199,9 @@ def _live(ctx, *, bound_auto: bool) -> None:
                 made.pop(_ov, None)
         st.session_state[mankey] = made
         pick_pids = {**_board, **{int(k): v for k, v in made.items() if v}}
-        filled = set(pick_pids)
+        # OCCUPANCY, not identity: a pick the board could not name still used the
+        # slot, and treating it as empty stops the clock there forever.
+        filled = set(pick_pids) | _board_taken
         picks_exist = bool(pick_pids)
         st.session_state[f"{mankey}_synced"] = dict(_board)
     else:
@@ -409,7 +416,7 @@ def _live(ctx, *, bound_auto: bool) -> None:
             ranks_active = rankings_tab(
                 ctx, key_prefix=akey, taken=drafted, queued=queued, is_my_turn=True,
                 pick_no=pick_no, next_pick=next_user_pick, on_click=_inspect,
-                on_star=toggle_queue, quick_draft=(draft if manual else None),
+                on_star=toggle_queue, quick_draft=(draft if _can_draft else None),
                 my_pids=my_pids)
         board_avail = [r for r in ranks_active
                        if r.get("pid") and str(r["pid"]) not in drafted]
@@ -423,7 +430,7 @@ def _live(ctx, *, bound_auto: bool) -> None:
         with ltabs[3]:
             queue_manager(ctx, qkey, st.session_state.get(ctx["ranks_key"]) or ranks_active,
                           drafted, reg, f"{akey}_q", on_pick=_inspect,
-                          quick_draft=(draft if manual else None))
+                          quick_draft=(draft if _can_draft else None))
         with ltabs[4]:
             st.markdown(C.buzz_list_html(board_avail, reg, ctx.get("buzz")),
                         unsafe_allow_html=True)
@@ -460,7 +467,7 @@ def _live(ctx, *, bound_auto: bool) -> None:
     _cardpid = st.session_state.pop(f"{akey}_cardpid", None)
     if _cardpid:
         player_card_dialog(
-            ctx, _cardpid, on_draft=(draft if manual else None), on_star=toggle_queue,
+            ctx, _cardpid, on_draft=(draft if _can_draft else None), on_star=toggle_queue,
             queued=queued, next_pick=next_user_pick, survival=surv_fn(_cardpid),
             my_pids=my_pids, needs=needs, taken=drafted,
             board_avail=board_avail, pick=pick_no)
@@ -494,15 +501,25 @@ def _live(ctx, *, bound_auto: bool) -> None:
                             f'— <span class="why">{why}</span></div>',
                             unsafe_allow_html=True)
             with _rc[1]:
-                # The pick you take most often, one click from the Sleeper draft room.
-                # An offline draft has no draft room to hand off to — the useful
-                # action is the name on the clipboard, to read out or type in later.
-                SH.copy_button(rec_row["name"], key=f"rec_sl_{ctx['league_key']}",
-                               height=46,
-                               label=("Copy name"
-                                      if getattr(ctx["meta"], "offline_draft", False)
-                                      or ctx["meta"].platform != "sleeper"
-                                      else "Draft on Sleeper"))
+                if _can_draft and BS.board_for(ctx["meta"].league_id):
+                    # A league with a board does not want a name on the clipboard —
+                    # it wants the pick made. This button IS the draft: it logs to
+                    # the board the whole room is watching.
+                    with st.container(key=f"recdraft_{ctx['league_key']}"):
+                        if st.button(f'Draft {C.short_name(rec_row["name"])}',
+                                     key=f"rec_bd_{ctx['league_key']}", type="primary",
+                                     use_container_width=True):
+                            draft(str(rec_row["pid"]))
+                else:
+                    # The pick you take most often, one click from the Sleeper draft
+                    # room. An offline draft has no room to hand off to — there the
+                    # useful action is the name on the clipboard.
+                    SH.copy_button(rec_row["name"], key=f"rec_sl_{ctx['league_key']}",
+                                   height=46,
+                                   label=("Copy name"
+                                          if getattr(ctx["meta"], "offline_draft", False)
+                                          or ctx["meta"].platform != "sleeper"
+                                          else "Draft on Sleeper"))
         if strategy and strategy != "Balanced":
             _sg = V.top_suggestions(board_avail, ctx["value"], reg, needs, drafted,
                                     my_pids=my_pids, roster_slots=ctx["roster_slots"], k=3,
@@ -516,7 +533,7 @@ def _live(ctx, *, bound_auto: bool) -> None:
         suggestions_tab(ctx, key_prefix=akey, ranks=ranks_active, taken=drafted,
                         my_pids=my_pids, needs=needs, next_pick=next_user_pick,
                         pick_no=pick_no, on_click=None, on_star=toggle_queue,
-                        quick_draft=(draft if manual else None), queued=queued,
+                        quick_draft=(draft if _can_draft else None), queued=queued,
                         strategy=strategy, round_no=round_no, k=12)
 
     # ---- RIGHT: live Picks feed (with predicted picks folded in) + draft intel ----

@@ -102,21 +102,36 @@ def _read_doc(cfg: dict, season: int) -> Optional[dict]:
 
 def load(league_id, season: int) -> Dict[int, str]:
     """{overall pick number: sleeper pid} — every pick the room has logged."""
+    return load_full(league_id, season)[0]
+
+
+def load_full(league_id, season: int):
+    """({pick: pid}, {picks that are TAKEN}) — identity and occupancy, separately.
+
+    They are not the same set and conflating them stopped the draft dead. The
+    keeper app logs a pick it cannot name with an empty `player_id` — Joey's
+    "49ers D/ST" resolved to nothing in ITS name index — and a pick with no name
+    is still a pick. Dropping it left slot 2 looking empty, so the on-the-clock
+    walk halted at 1.02 while the room was in round 3.
+    """
     cfg = board_for(league_id)
     if not cfg:
-        return {}
+        return {}, set()
     doc = _read_doc(cfg, season)
     if doc is None:
-        return {}
+        return {}, set()
     out: Dict[int, str] = {}
+    taken = set()
     for k, v in (doc.get("picks") or {}).items():
         try:
-            pid = str((v or {}).get("player_id") or "")
-            if pid:
-                out[int(k)] = pid
+            ov = int(k)
         except (TypeError, ValueError):
             continue
-    return out
+        taken.add(ov)                      # the slot is used, named or not
+        pid = str((v or {}).get("player_id") or "")
+        if pid:
+            out[ov] = pid
+    return out, taken
 
 
 # ----------------------------------------------------------------------- write
