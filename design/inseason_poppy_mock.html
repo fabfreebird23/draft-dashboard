@@ -1,0 +1,270 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>In-season, with a pulse</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   MOCK ONLY — the in-season screens with a pulse.
+
+   The flat version is not wrong, it is UNRANKED: eight rows of white-on-grey
+   where two of them decide the week and six are "keep". Everything below is the
+   same numbers, sorted by how much they matter and painted accordingly. Three
+   rules did all the work:
+
+     1. ONE HERO PER SCREEN. The week has a single question — am I winning — so
+        it gets the whole top, at a size you can read from the sofa.
+     2. COLOUR MEANS ACT. Green/amber/red are reserved for "do something".
+        A settled lineup is deliberately quiet, so the one live row shouts.
+     3. EVERY NUMBER CARRIES ITS CONSEQUENCE. Not "24.1" but "24.1 — 4 more than
+        the man he'd replace". The flat table has the first; the second is what
+        he actually wants and the app already computes it.
+
+   Nothing here needs a new model: lineup_check, availability_report,
+   team_distribution, win_prob and swing_players between them produce every
+   figure on this page.
+   ========================================================================== */
+:root{
+  --bg:#161415; --panel:#232022; --panel2:#2c282a; --line:#332e30; --line2:#3d383a;
+  --ink:#f2eef0; --muted:#a2989c; --mut2:#95898e;
+  --crimson:#ff336c; --crimson-d:#e02557;
+  --green:#7fd8b4; --amber:#f0b357; --red:#ff8fae;
+  --qb:#c98fbb; --rb:#7fd8b4; --wr:#6aa6f0; --te:#f0b357; --dst:#8fb8f5; --k:#95898e;
+  --f-display:'Sora',system-ui,sans-serif;
+  --f-body:'Inter',system-ui,sans-serif;
+  --f-data:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);margin:0;
+     padding:22px 22px 70px;font-size:13px}
+h1{font-family:var(--f-display);font-weight:800;font-size:26px;margin:0 0 2px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:78ch;line-height:1.5;margin:0 0 20px}
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:28px 0 10px;
+     font-family:var(--f-display);font-weight:800;font-size:17px;letter-spacing:-.01em}
+.bar i{height:1px;background:var(--line2);display:block}
+.bar em{font-family:var(--f-data);font-size:9.5px;font-style:normal;letter-spacing:.14em;
+        text-transform:uppercase;color:var(--mut2);white-space:nowrap}
+
+/* ── 1 · THE WEEK. One hero, scoreboard-sized. ──────────────────────────── */
+.week{position:relative;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.07);
+      box-shadow:0 24px 60px -30px #000}
+.week .top{position:relative;padding:20px 22px 16px;
+  background:radial-gradient(120% 140% at 12% 0%,rgba(224,4,63,.35),transparent 55%),
+             radial-gradient(120% 140% at 88% 0%,rgba(47,111,181,.32),transparent 55%),
+             linear-gradient(180deg,#2a2527,#201d1e)}
+.week .top:after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(0,0,0,.35))}
+.week .top>*{position:relative}
+.score{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px}
+.tm{display:flex;align-items:center;gap:12px;min-width:0}
+.tm.r{justify-content:flex-end;text-align:right}
+.badge{width:46px;height:46px;border-radius:13px;flex:none;display:grid;place-items:center;
+  font-family:var(--f-display);font-weight:800;font-size:15px;color:#141314;background:#fff;
+  box-shadow:0 6px 18px -6px rgba(0,0,0,.8)}
+.tm .who b{display:block;font-family:var(--f-display);font-weight:800;font-size:19px;
+  line-height:1.05;letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm .who span{display:block;font-family:var(--f-data);font-size:9.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--mut2)}
+.num{font-family:var(--f-display);font-weight:900;font-size:56px;line-height:.9;
+  letter-spacing:-.035em;white-space:nowrap;
+  background:linear-gradient(180deg,#fff,#c9c1c4);-webkit-background-clip:text;
+  background-clip:text;color:transparent}
+.num.dn{background:linear-gradient(180deg,#b4aaae,#7a7276);-webkit-background-clip:text;background-clip:text}
+.vs{display:grid;justify-items:center;gap:6px}
+.vs .wk{font-family:var(--f-data);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--crimson);padding:4px 11px;border-radius:999px;background:rgba(255,51,108,.15);
+  border:1px solid rgba(255,51,108,.4);display:inline-flex;align-items:center;gap:6px}
+.vs .wk i{width:5px;height:5px;border-radius:999px;background:var(--crimson);animation:p 1.6s infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.2}}
+.vs .mg{font-family:var(--f-data);font-size:11px;color:var(--ink)}
+/* the probability bar: thick, labelled, and the only full-width thing here */
+.prob{padding:0 22px 16px;background:#201d1e}
+.track{height:12px;border-radius:999px;overflow:hidden;display:flex;background:rgba(255,255,255,.07);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.5)}
+.track i{display:block;height:100%}
+.track .me{background:linear-gradient(90deg,#4fbd97,var(--green));box-shadow:0 0 22px -4px var(--green)}
+.track .them{background:#4a4245}
+.plabels{display:flex;justify-content:space-between;margin-top:7px;font-family:var(--f-data);
+  font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2)}
+.plabels b{color:var(--green);font-size:13px;letter-spacing:0}
+.plabels b.r{color:var(--ink2,#b4aaae)}
+/* four stat tiles under the score */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+  border-top:1px solid var(--line)}
+.tile{background:var(--panel);padding:12px 14px}
+.tile .k{font-family:var(--f-data);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--mut2)}
+.tile .v{font-family:var(--f-display);font-weight:800;font-size:23px;line-height:1.15;margin-top:3px}
+.tile .s{font-size:11px;color:var(--muted);margin-top:1px}
+.v.up{color:var(--green)} .v.dn{color:var(--red)} .v.mid{color:var(--amber)}
+
+/* ── 2 · WHAT TO DO. Ranked, not listed. ───────────────────────────────── */
+.acts{display:grid;gap:8px}
+.act{display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:center;
+  padding:13px 15px;border-radius:13px;background:var(--panel);border:1px solid var(--line);
+  border-left:4px solid var(--line2)}
+.act.go{border-left-color:var(--green);background:linear-gradient(90deg,rgba(127,216,180,.09),var(--panel) 40%)}
+.act.warn{border-left-color:var(--amber);background:linear-gradient(90deg,rgba(240,179,87,.09),var(--panel) 40%)}
+.act.bad{border-left-color:var(--red);background:linear-gradient(90deg,rgba(255,143,174,.09),var(--panel) 40%)}
+.act .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:15px;
+  background:var(--panel2);border:1px solid var(--line2)}
+.act.go .ic{color:var(--green);border-color:var(--green)}
+.act.warn .ic{color:var(--amber);border-color:var(--amber)}
+.act.bad .ic{color:var(--red);border-color:var(--red)}
+.act .t{font-weight:700;font-size:14px}
+.act .d{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.4}
+.act .n{font-family:var(--f-display);font-weight:800;font-size:20px;white-space:nowrap;text-align:right}
+.act .n small{display:block;font-family:var(--f-data);font-size:8.5px;font-weight:500;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--mut2);margin-top:2px}
+.act.go .n{color:var(--green)} .act.warn .n{color:var(--amber)} .act.bad .n{color:var(--red)}
+.quiet{padding:11px 15px;border-radius:13px;background:var(--panel);border:1px dashed var(--line2);
+  color:var(--muted);font-size:12px}
+
+/* ── 3 · THE LINEUP. A bar chart you can read, not a table. ─────────────── */
+.lu{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.lu .hd{display:grid;grid-template-columns:44px 1fr 116px 74px;gap:10px;padding:9px 14px;
+  font-family:var(--f-data);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--mut2);border-bottom:1px solid var(--line)}
+.lu .rw{display:grid;grid-template-columns:44px 1fr 116px 74px;gap:10px;align-items:center;
+  padding:9px 14px;border-bottom:1px solid var(--line2)}
+.lu .rw:last-child{border-bottom:0}
+.lu .rw.hot{background:linear-gradient(90deg,rgba(240,179,87,.10),transparent 60%)}
+.slot{font-family:var(--f-data);font-size:10px;font-weight:600;letter-spacing:.08em;
+  padding:3px 0;text-align:center;border-radius:6px;background:var(--panel2);color:var(--mut2)}
+.slot.qb{color:var(--qb)} .slot.rb{color:var(--rb)} .slot.wr{color:var(--wr)}
+.slot.te{color:var(--te)} .slot.k{color:var(--k)} .slot.dst{color:var(--dst)}
+.slot.flex{color:var(--ink)}
+.pl b{font-weight:600;font-size:13px} .pl span{font-family:var(--f-data);font-size:10px;color:var(--mut2)}
+.pl .q{color:var(--amber);font-size:9px;letter-spacing:.1em;margin-left:6px}
+/* the bar IS the projection — length carries it, so the eye ranks the lineup */
+.mtr{height:8px;border-radius:999px;background:var(--panel2);overflow:hidden}
+.mtr i{display:block;height:100%;border-radius:999px}
+.pj{font-family:var(--f-data);font-size:13px;font-weight:600;text-align:right}
+.pj.zero{color:var(--mut2)}
+
+.two{display:grid;grid-template-columns:1.35fr 1fr;gap:14px;align-items:start}
+@media(max-width:900px){.two{grid-template-columns:1fr}}
+.note{color:var(--mut2);font-size:11.5px;margin-top:8px;line-height:1.45}
+</style></head><body>
+
+<h1>In-season, with a pulse</h1>
+<p class="sub">Same numbers as the flat screen, ranked by how much they matter. The week gets one
+hero; colour is reserved for <b>do something</b>, so a settled lineup stays quiet and the one live
+row shouts; and every figure carries its consequence rather than sitting there as a decimal.</p>
+
+<!-- ═════════════════════════════════════════════════════════ the week ═══ -->
+<div class="bar"><span>Week 1</span><i></i><em>command center · the hero</em></div>
+<div class="week">
+  <div class="top">
+    <div class="score">
+      <div class="tm">
+        <span class="badge">BL</span>
+        <div class="who"><b>Bad Life</b><span>you · 9 starters set</span></div>
+      </div>
+      <div class="vs">
+        <span class="wk"><i></i>week 1 · sun 1:00</span>
+        <span class="mg">projected margin <b>+19.8</b></span>
+      </div>
+      <div class="tm r">
+        <div class="who"><b>Smelly Pitts</b><span>seat 11</span></div>
+        <span class="badge">SP</span>
+      </div>
+    </div>
+    <div class="score" style="margin-top:14px">
+      <div class="num">269.1</div>
+      <div class="vs"><span style="font-family:var(--f-data);font-size:10px;color:var(--mut2);
+        letter-spacing:.14em;text-transform:uppercase">projected</span></div>
+      <div class="num dn" style="text-align:right">249.3</div>
+    </div>
+  </div>
+  <div class="prob">
+    <div class="track"><i class="me" style="width:61%"></i><i class="them" style="width:39%"></i></div>
+    <div class="plabels"><span><b>61%</b> you</span><span>win probability</span><span><b class="r">39%</b></span></div>
+  </div>
+  <div class="tiles">
+    <div class="tile"><div class="k">Lineup</div><div class="v up">Optimal</div>
+      <div class="s">nothing on your bench beats a starter</div></div>
+    <div class="tile"><div class="k">Best available</div><div class="v">269.1</div>
+      <div class="s">you are already playing it</div></div>
+    <div class="tile"><div class="k">Injury risk</div><div class="v mid">1</div>
+      <div class="s">Nabers questionable · −5.5 worst case</div></div>
+    <div class="tile"><div class="k">Bye crunch</div><div class="v dn">Wk 8</div>
+      <div class="s">4 off at once — plan two weeks out</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ what to do now ═══ -->
+<div class="bar"><span>What to do</span><i></i><em>ranked by points, not listed</em></div>
+<div class="two">
+  <div class="acts">
+    <div class="act warn">
+      <span class="ic">!</span>
+      <div><div class="t">Malik Nabers is questionable</div>
+        <div class="d">Knee · ACL surgery. If he sits you lose <b>5.5</b> — Christian Watson covers it
+          from the bench. Decide by 1:00.</div></div>
+      <div class="n">−5.5<small>if he sits</small></div>
+    </div>
+    <div class="act bad">
+      <span class="ic">▲</span>
+      <div><div class="t">Week 8 takes four of yours at once</div>
+        <div class="d">Nabers, Dart, Johnson, Smyth all off. Two waiver claims now cost less than
+          two panic starts then.</div></div>
+      <div class="n">4<small>on bye</small></div>
+    </div>
+    <div class="act go">
+      <span class="ic">✓</span>
+      <div><div class="t">Lineup is the best available</div>
+        <div class="d">All nine slots optimal — no bench player beats the man in front of him.</div></div>
+      <div class="n">0<small>changes</small></div>
+    </div>
+    <div class="quiet">Nothing else needs you this week. Waivers process Wed 3am · $100 FAAB untouched.</div>
+    <div class="note">The flat version listed nine rows and put <b>KEEP</b> beside eight of them.
+      Same information, but you had to read all nine to find the one that mattered.</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ the lineup ═══ -->
+  <div class="lu">
+    <div class="hd"><span>Slot</span><span>Starting</span><span>Projected</span><span>Pts</span></div>
+    <div class="rw"><span class="slot qb">QB</span>
+      <div class="pl"><b>Lamar Jackson</b><br><span>BAL · QB1</span></div>
+      <div class="mtr"><i style="width:100%;background:var(--qb)"></i></div>
+      <div class="pj">66.8</div></div>
+    <div class="rw"><span class="slot rb">RB</span>
+      <div class="pl"><b>Saquon Barkley</b><br><span>PHI · RB6</span></div>
+      <div class="mtr"><i style="width:75%;background:var(--rb)"></i></div>
+      <div class="pj">50.0</div></div>
+    <div class="rw"><span class="slot rb">RB</span>
+      <div class="pl"><b>Omarion Hampton</b><br><span>LAC · RB8</span></div>
+      <div class="mtr"><i style="width:70%;background:var(--rb)"></i></div>
+      <div class="pj">46.9</div></div>
+    <div class="rw"><span class="slot flex">FLEX</span>
+      <div class="pl"><b>Jadarian Price</b><br><span>SEA · RB24</span></div>
+      <div class="mtr"><i style="width:60%;background:var(--rb)"></i></div>
+      <div class="pj">39.9</div></div>
+    <div class="rw hot"><span class="slot wr">WR</span>
+      <div class="pl"><b>Malik Nabers</b><span class="q">QUES</span><br><span>NYG · WR20</span></div>
+      <div class="mtr"><i style="width:38%;background:var(--amber)"></i></div>
+      <div class="pj">25.4</div></div>
+    <div class="rw"><span class="slot wr">WR</span>
+      <div class="pl"><b>Jaylen Waddle</b><br><span>DEN · WR19</span></div>
+      <div class="mtr"><i style="width:34%;background:var(--wr)"></i></div>
+      <div class="pj">22.9</div></div>
+    <div class="rw"><span class="slot te">TE</span>
+      <div class="pl"><b>Juwan Johnson</b><br><span>NO · TE11</span></div>
+      <div class="mtr"><i style="width:26%;background:var(--te)"></i></div>
+      <div class="pj">17.2</div></div>
+    <div class="rw"><span class="slot k">K</span>
+      <div class="pl"><b>Cam Little</b><br><span>JAX · K4</span></div>
+      <div class="mtr"><i style="width:2%;background:var(--k)"></i></div>
+      <div class="pj zero">—</div></div>
+    <div class="rw"><span class="slot dst">DST</span>
+      <div class="pl"><b>Denver Broncos</b><br><span>DEN · DST5</span></div>
+      <div class="mtr"><i style="width:2%;background:var(--dst)"></i></div>
+      <div class="pj zero">—</div></div>
+  </div>
+</div>
+
+<div class="note" style="margin-top:12px">Bars are shares of your biggest starter, so the shape of the
+week is visible before a single number is read — and the two zeroes at the bottom are honestly zero
+(K and D/ST have no projection yet), not hidden behind a dash in a column of decimals.</div>
+
+</body></html>
