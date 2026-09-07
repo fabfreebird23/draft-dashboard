@@ -18,6 +18,7 @@ import time
 import streamlit as st
 
 from .. import config, draft_stages as DS, keepers as K, phase as PH
+from .. import boardsync as _BS
 from . import components as C
 
 _HUBS = {
@@ -185,9 +186,9 @@ def render(ctx, summary=None) -> None:
         st.markdown(
             f'<div class="pk-t">Live Draft</div>'
             f'<div class="pk-m">syncs picks from '
-            f'{"ESPN" if meta.platform == "espn" else "Sleeper"}</div>'
+            f'{_BS.label(meta.league_id) if _BS.board_for(meta.league_id) else ("ESPN" if meta.platform == "espn" else "Sleeper")}</div>'
             f'<div class="pk-n {"pk-red" if live else "pk-nil"}">'
-            f'{"Draft is LIVE — open the war room." if live else ("ESPN has this draft as offline with no date, so there is nothing to sync." if offline else "Arms automatically when the draft opens.")}'
+            f'{"Draft is LIVE — open the war room." if live else (f"Every pick logged on {_BS.label(meta.league_id)} arrives here, and drafting here logs it there." if _BS.board_for(meta.league_id) else ("ESPN has this draft as offline with no date, so there is nothing to sync." if offline else "Arms automatically when the draft opens."))}'
             f'</div>', unsafe_allow_html=True)
         if st.button("Open war room", key=f"pk_go_live_{lid}",
                      type="primary" if live else "secondary", use_container_width=True):

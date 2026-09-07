@@ -624,7 +624,7 @@ def suggestions_tab(ctx, *, key_prefix, ranks, taken, my_pids, needs, next_pick,
     upside = trow[1].toggle("Upside", key=f"{key_prefix}_upside",
                             help="Upside Mode — re-rank toward high-ceiling, younger and "
                                  "rookie players instead of safe floor/value.")
-    cards = trow[1].toggle("Cards", key=f"{key_prefix}_cards",
+    cards = trow[1].toggle("Cards", key=f"{key_prefix}_cards", value=True,
                            help="Show each suggestion as a pick strip — team colour, the "
                                 "value that ranks him, whether he lasts to your next pick, "
                                 "and the one reason. Same players, same order, same maths.")

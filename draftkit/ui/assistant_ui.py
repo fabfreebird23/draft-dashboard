@@ -5,6 +5,8 @@ from __future__ import annotations
 import streamlit as st
 
 from ..providers.espn import EspnAuthError
+from .. import boardsync as BS
+from .. import config as _cfg
 from . import components as C
 from . import sleeper_handoff as SH
 from .widgets import (juice_tab, predict_upcoming, predictor_widget, queue_manager,
@@ -94,6 +96,12 @@ def _live(ctx, *, bound_auto: bool) -> None:
         # such a league to Live sync means opening the war room on draft night to a
         # board that will stay empty however many times he hits Refresh.
         _offline = bool(getattr(ctx["meta"], "offline_draft", False))
+        if BS.board_for(ctx["meta"].league_id):
+            st.toggle(f"Log my picks to {BS.label(ctx['meta'].league_id)}",
+                      key=f"{akey}_post", value=True,
+                      help="Drafting here also logs the pick on the league's own "
+                           "live board, so you don't type it twice with a room "
+                           "waiting. Picks logged there always arrive here.")
         mode = st.radio("Draft source", ["Live sync", "Manual entry"], horizontal=True,
                         key=f"{akey}_mode", index=1 if _offline else 0,
                         help=("This league drafts OFFLINE, so nothing will ever sync — "
@@ -172,6 +180,23 @@ def _live(ctx, *, bound_auto: bool) -> None:
         pick_pids = {ov: pid for ov, pid in made.items()}
         filled = {ov for ov, pid in made.items() if pid}
         picks_exist = bool(made)
+    elif BS.board_for(ctx["meta"].league_id):
+        # THE LEAGUE'S OWN BOARD IS THE SOURCE. This league drafts offline and logs
+        # every pick into its keeper app's Live Draft Board; Sleeper's draft stays
+        # empty all night, so following Sleeper here would be following nothing.
+        _board = BS.load(ctx["meta"].league_id, _cfg.current_season())
+        # A pick he just made is shown IMMEDIATELY from a local overlay rather than
+        # after the next poll — and dropped from the overlay the moment the board
+        # reports it, so the two can never drift apart.
+        made = st.session_state.setdefault(mankey, {})
+        for _ov in list(made):
+            if int(_ov) in _board:
+                made.pop(_ov, None)
+        st.session_state[mankey] = made
+        pick_pids = {**_board, **{int(k): v for k, v in made.items() if v}}
+        filled = set(pick_pids)
+        picks_exist = bool(pick_pids)
+        st.session_state[f"{mankey}_synced"] = dict(_board)
     else:
         try:
             picks = ctx["provider"].get_live_picks()
@@ -284,6 +309,14 @@ def _live(ctx, *, bound_auto: bool) -> None:
                                    run=C.run_note(recent_positions)),
                 unsafe_allow_html=True)
 
+    # Whether the last pick reached the league's board. Loud on failure: a pick the
+    # room does not have is worse than no pick, and the only way he finds out
+    # otherwise is somebody drafting the same player twenty minutes later.
+    _pm = st.session_state.pop(f"{akey}_postmsg", None)
+    if _pm:
+        (st.caption if _pm[0] else st.error)(
+            ("✓ " + _pm[1]) if _pm[0] else (_pm[1] + "  \n" + BS.write_hint(ctx["meta"].league_id)))
+
     # One board-anchored survival model per render, shared by the cheat sheet, the
     # suggestion scorer and the rankings rows so every % on screen agrees.
     # Count the picks that will actually be made before his next one. The pick on
@@ -311,9 +344,24 @@ def _live(ctx, *, bound_auto: bool) -> None:
         rerun_here()
 
     def draft(pid):
-        """Manual mode: record this player at the pick on the clock and advance."""
-        made[pick_no] = str(pid)
-        st.session_state[mankey] = made
+        """Record this player at the pick on the clock — here, and on the league's
+        own board when it has one.
+
+        The post happens FIRST and its result is kept: if the board refuses the
+        write, the war room must say so rather than let him believe the room has
+        the pick. Recording locally either way is deliberate — his own board should
+        not depend on GitHub being reachable mid-draft.
+        """
+        _lid = ctx["meta"].league_id
+        if BS.board_for(_lid) and st.session_state.get(f"{akey}_post", True):
+            ok, why = BS.post_pick(_lid, _cfg.current_season(), pick_no, str(pid), reg)
+            st.session_state[f"{akey}_postmsg"] = (
+                ok, f"{reg.meta(pid).name} → {BS.label(_lid)}" if ok
+                else f"{reg.meta(pid).name} recorded HERE only — {BS.label(_lid)} "
+                     f"refused the write ({why}).")
+        _local = st.session_state.setdefault(mankey, {})
+        _local[pick_no] = str(pid)
+        st.session_state[mankey] = _local
         rerun_here()
 
     round_no = (pick_no - 1) // n + 1
