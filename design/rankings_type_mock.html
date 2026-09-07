@@ -1,0 +1,324 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Rankings row — type study</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   MOCK ONLY — six type treatments of the SAME row (option A, 36px).
+
+   Layout is identical in all six; only the faces, sizes and weights move. Read
+   them down the NUMBER columns rather than across: the row's job is comparison,
+   so the question is which treatment lets you scan +49, +45, +29, +52 without
+   stopping.
+
+   Two things are fixed in every variant, because they are not preferences:
+
+     TABULAR FIGURES. Every number column uses tnum. Without it a 1 is narrower
+     than a 4 and a column of values wobbles — which is the actual reason the
+     current panel is hard to scan, more than the size is.
+     THE NAME IS THE ANCHOR. It is the only thing you search for by eye, so it
+     is the largest and heaviest text on the row in all six.
+
+   The app already loads Sora and Inter. IBM Plex Mono is sportsbot's data face
+   and would be a THIRD family here — worth it only if it earns its keep, which
+   is what 3, 4 and 5 are for.
+   ========================================================================== */
+:root{
+  --bg:#161415; --panel:#232022; --panel2:#2c282a; --line:#332e30; --line2:#3d383a;
+  --ink:#f2eef0; --muted:#a2989c; --mut2:#95898e;
+  --crimson:#ff336c;
+  --green:#7fd8b4; --amber:#f0b357; --red:#ff8fae;
+  --qb:#c98fbb; --rb:#7fd8b4; --wr:#6aa6f0; --te:#f0b357;
+  --t4:#5fc98a; --t5:#e0a24a; --t6:#e07a4a; --t7:#e05a6a;
+  --sora:'Sora',system-ui,sans-serif;
+  --inter:'Inter',system-ui,sans-serif;
+  --plex:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --robo:'Roboto Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--inter);margin:0;
+     padding:20px 20px 60px;font-size:13px}
+h1{font-family:var(--sora);font-weight:800;font-size:24px;margin:0 0 2px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:78ch;line-height:1.5;margin:0 0 18px}
+.grid{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+.card{width:340px}
+.hd{display:flex;align-items:baseline;gap:8px;margin:0 0 2px}
+.hd h2{font-family:var(--sora);font-weight:800;font-size:14px;margin:0;letter-spacing:-.01em}
+.hd em{font-family:var(--plex);font-size:9px;font-style:normal;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--mut2)}
+.spec{font-family:var(--plex);font-size:9.5px;color:var(--mut2);margin:0 0 8px;line-height:1.5}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:7px}
+
+/* ── the row, once. Only type changes between variants. ─────────────────── */
+.ln{display:grid;grid-template-columns:15px 26px 1fr 44px 34px 22px;gap:7px;align-items:center;
+  padding:4px 5px;border-radius:8px;border-left:3px solid var(--tier,var(--line2))}
+.ln:nth-child(odd){background:rgba(255,255,255,.02)}
+.st{color:var(--mut2);font-size:12px;text-align:center}
+.av{width:26px;height:26px;border-radius:7px;object-fit:cover;background:rgba(255,255,255,.9)}
+.who{min-width:0}
+.who > b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.15}
+.who > span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  color:var(--mut2);margin-top:1px}
+.who > span i{font-style:normal}
+.who > span i.wr{color:var(--wr)} .who > span i.rb{color:var(--rb)} .who > span i.te{color:var(--te)}
+.v{text-align:right;color:var(--green);font-variant-numeric:tabular-nums}
+.v small{display:block;color:var(--red)}
+.pc{text-align:right;font-variant-numeric:tabular-nums}
+.pc.hi{color:var(--green)} .pc.mid{color:var(--amber)} .pc.lo{color:var(--red)}
+.dr{width:22px;height:22px;border-radius:6px;background:var(--panel2);border:1px solid var(--line2);
+  color:var(--mut2);font-size:12px;line-height:1;display:grid;place-items:center}
+
+/* 1 · INTER ONLY, compact — no new family, numbers on tnum */
+.f1 .who > b{font-family:var(--inter);font-weight:600;font-size:12.5px}
+.f1 .who > span{font-family:var(--inter);font-weight:500;font-size:9.5px;letter-spacing:.01em;
+  font-variant-numeric:tabular-nums}
+.f1 .v{font-family:var(--inter);font-weight:700;font-size:13px}
+.f1 .v small{font-family:var(--inter);font-weight:600;font-size:9px}
+.f1 .pc{font-family:var(--inter);font-weight:600;font-size:11.5px}
+
+/* 2 · INTER, name up a notch — the anchor gets the size */
+.f2 .who > b{font-family:var(--inter);font-weight:700;font-size:14px;letter-spacing:-.01em}
+.f2 .who > span{font-family:var(--inter);font-weight:500;font-size:9.5px;
+  font-variant-numeric:tabular-nums}
+.f2 .v{font-family:var(--inter);font-weight:700;font-size:13.5px}
+.f2 .v small{font-family:var(--inter);font-weight:600;font-size:9px}
+.f2 .pc{font-family:var(--inter);font-weight:600;font-size:11.5px}
+
+/* 3 · SORA names, INTER data — display face for the thing you hunt for */
+.f3 .who > b{font-family:var(--sora);font-weight:700;font-size:13.5px;letter-spacing:-.02em}
+.f3 .who > span{font-family:var(--inter);font-weight:500;font-size:9.5px;
+  font-variant-numeric:tabular-nums}
+.f3 .v{font-family:var(--inter);font-weight:700;font-size:13.5px}
+.f3 .v small{font-family:var(--inter);font-weight:600;font-size:9px}
+.f3 .pc{font-family:var(--inter);font-weight:600;font-size:11.5px}
+
+/* 4 · SORA names, PLEX data — the sportsbot pairing */
+.f4 .who > b{font-family:var(--sora);font-weight:700;font-size:13.5px;letter-spacing:-.02em}
+.f4 .who > span{font-family:var(--plex);font-weight:400;font-size:9px;letter-spacing:-.01em}
+.f4 .v{font-family:var(--plex);font-weight:600;font-size:12.5px}
+.f4 .v small{font-family:var(--plex);font-weight:500;font-size:8.5px}
+.f4 .pc{font-family:var(--plex);font-weight:600;font-size:11px}
+
+/* 5 · INTER names, PLEX data — what the layout mock used */
+.f5 .who > b{font-family:var(--inter);font-weight:600;font-size:12.5px}
+.f5 .who > span{font-family:var(--plex);font-weight:400;font-size:9px;letter-spacing:-.01em}
+.f5 .v{font-family:var(--plex);font-weight:600;font-size:12.5px}
+.f5 .v small{font-family:var(--plex);font-weight:500;font-size:8.5px}
+.f5 .pc{font-family:var(--plex);font-weight:600;font-size:11px}
+
+/* 6 · BIG — everything up two points, for reading across a room */
+.f6 .who > b{font-family:var(--sora);font-weight:700;font-size:15px;letter-spacing:-.02em}
+.f6 .who > span{font-family:var(--inter);font-weight:500;font-size:10.5px;
+  font-variant-numeric:tabular-nums}
+.f6 .v{font-family:var(--inter);font-weight:800;font-size:15px}
+.f6 .v small{font-family:var(--inter);font-weight:600;font-size:9.5px}
+.f6 .pc{font-family:var(--inter);font-weight:700;font-size:12.5px}
+.f6 .ln{padding:6px 5px}
+.f6 .av{width:30px;height:30px}
+
+.note{color:var(--mut2);font-size:11.5px;line-height:1.45;margin-top:8px}
+.tn{display:flex;gap:26px;margin:22px 0 6px;align-items:flex-start;flex-wrap:wrap}
+.tn div{font-size:12px;color:var(--muted)}
+.tn b{display:block;color:var(--ink);font-size:12px;margin-bottom:4px}
+.tn code{font-family:var(--inter);font-size:15px;font-weight:700;color:var(--green);display:block;
+  line-height:1.5}
+.tn code.no{font-variant-numeric:normal}
+.tn code.yes{font-variant-numeric:tabular-nums}
+</style></head><body>
+
+<h1>Rankings row — type study</h1>
+<p class="sub">Six treatments of the same 36px row. Layout is identical; only faces, sizes and
+weights move. Read <b>down the number columns</b>, not across — the row's job is comparison, so the
+question is which one lets you scan +49, +45, +29, +52 without stopping.</p>
+
+<div class="grid">
+
+  <div class="card f1">
+    <div class="hd"><h2>1 · Inter</h2><em>35px</em></div>
+    <p class="spec">name 12.5/600 · meta 9.5 · value 13/700<br>no new family</p>
+    <div class="panel">
+      <div class="ln" style="--tier:var(--t4)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt="">
+        <div class="who"><b>Zay Flowers</b><span>#34 · <i class="wr">WR15</i> · BAL · ADP 34</span></div>
+        <div class="v">+49<small>▼13</small></div><div class="pc lo">7%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t5)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Tee Higgins</b><span>#46 · <i class="wr">WR21</i> · CIN · ADP 39</span></div>
+        <div class="v">+45<small>▼18</small></div><div class="pc lo">7%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t6)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/9226.jpg" alt="">
+        <div class="who"><b>Christian Watson</b><span>#49 · <i class="wr">WR24</i> · GB · ADP 61</span></div>
+        <div class="v">+29<small>▼40</small></div><div class="pc mid">13%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t6)"><span class="st">★</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/3198.jpg" alt="">
+        <div class="who"><b>David Montgomery</b><span>#51 · <i class="rb">RB24</i> · HOU · ADP 47</span></div>
+        <div class="v">+52<small>▼26</small></div><div class="pc lo">8%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t7)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Dalton Kincaid</b><span>#57 · <i class="te">TE9</i> · BUF · ADP 64</span></div>
+        <div class="v">+21<small>▼7</small></div><div class="pc hi">64%</div><div class="dr">+</div></div>
+    </div>
+    <p class="note">One family, tabular figures. Nothing new to load and it matches every other panel.</p>
+  </div>
+
+  <div class="card f2">
+    <div class="hd"><h2>2 · Inter, big name</h2><em>37px · anchor first</em></div>
+    <p class="spec">name 14/700 · meta 9.5 · value 13.5/700<br>no new family</p>
+    <div class="panel">
+      <div class="ln" style="--tier:var(--t4)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt="">
+        <div class="who"><b>Zay Flowers</b><span>#34 · <i class="wr">WR15</i> · BAL · ADP 34</span></div>
+        <div class="v">+49<small>▼13</small></div><div class="pc lo">7%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t5)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Tee Higgins</b><span>#46 · <i class="wr">WR21</i> · CIN · ADP 39</span></div>
+        <div class="v">+45<small>▼18</small></div><div class="pc lo">7%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t6)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/9226.jpg" alt="">
+        <div class="who"><b>Christian Watson</b><span>#49 · <i class="wr">WR24</i> · GB · ADP 61</span></div>
+        <div class="v">+29<small>▼40</small></div><div class="pc mid">13%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t6)"><span class="st">★</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/3198.jpg" alt="">
+        <div class="who"><b>David Montgomery</b><span>#51 · <i class="rb">RB24</i> · HOU · ADP 47</span></div>
+        <div class="v">+52<small>▼26</small></div><div class="pc lo">8%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t7)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Dalton Kincaid</b><span>#57 · <i class="te">TE9</i> · BUF · ADP 64</span></div>
+        <div class="v">+21<small>▼7</small></div><div class="pc hi">64%</div><div class="dr">+</div></div>
+    </div>
+    <p class="note">Same as 1 with the name pushed up. Costs a point of height and buys the fastest
+      name-finding of the six.</p>
+  </div>
+
+  <div class="card f3">
+    <div class="hd"><h2>3 · Sora + Inter</h2><em>36px · the app's own pair</em></div>
+    <p class="spec">name Sora 13.5/700 · meta Inter 9.5<br>value Inter 13.5/700</p>
+    <div class="panel">
+      <div class="ln" style="--tier:var(--t4)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt="">
+        <div class="who"><b>Zay Flowers</b><span>#34 · <i class="wr">WR15</i> · BAL · ADP 34</span></div>
+        <div class="v">+49<small>▼13</small></div><div class="pc lo">7%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t5)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Tee Higgins</b><span>#46 · <i class="wr">WR21</i> · CIN · ADP 39</span></div>
+        <div class="v">+45<small>▼18</small></div><div class="pc lo">7%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t6)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/9226.jpg" alt="">
+        <div class="who"><b>Christian Watson</b><span>#49 · <i class="wr">WR24</i> · GB · ADP 61</span></div>
+        <div class="v">+29<small>▼40</small></div><div class="pc mid">13%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t6)"><span class="st">★</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/3198.jpg" alt="">
+        <div class="who"><b>David Montgomery</b><span>#51 · <i class="rb">RB24</i> · HOU · ADP 47</span></div>
+        <div class="v">+52<small>▼26</small></div><div class="pc lo">8%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t7)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Dalton Kincaid</b><span>#57 · <i class="te">TE9</i> · BUF · ADP 64</span></div>
+        <div class="v">+21<small>▼7</small></div><div class="pc hi">64%</div><div class="dr">+</div></div>
+    </div>
+    <p class="note">Sora is already the app's display face — headings, the brand, the big numbers. Using
+      it for names ties the row to everything else without a third family.</p>
+  </div>
+
+  <div class="card f4">
+    <div class="hd"><h2>4 · Sora + Plex</h2><em>36px · the sportsbot pair</em></div>
+    <p class="spec">name Sora 13.5/700 · meta Plex 9<br>value Plex 12.5/600 — <b>third family</b></p>
+    <div class="panel">
+      <div class="ln" style="--tier:var(--t4)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt="">
+        <div class="who"><b>Zay Flowers</b><span>#34 · <i class="wr">WR15</i> · BAL · ADP 34</span></div>
+        <div class="v">+49<small>▼13</small></div><div class="pc lo">7%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t5)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Tee Higgins</b><span>#46 · <i class="wr">WR21</i> · CIN · ADP 39</span></div>
+        <div class="v">+45<small>▼18</small></div><div class="pc lo">7%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t6)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/9226.jpg" alt="">
+        <div class="who"><b>Christian Watson</b><span>#49 · <i class="wr">WR24</i> · GB · ADP 61</span></div>
+        <div class="v">+29<small>▼40</small></div><div class="pc mid">13%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t6)"><span class="st">★</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/3198.jpg" alt="">
+        <div class="who"><b>David Montgomery</b><span>#51 · <i class="rb">RB24</i> · HOU · ADP 47</span></div>
+        <div class="v">+52<small>▼26</small></div><div class="pc lo">8%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t7)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Dalton Kincaid</b><span>#57 · <i class="te">TE9</i> · BUF · ADP 64</span></div>
+        <div class="v">+21<small>▼7</small></div><div class="pc hi">64%</div><div class="dr">+</div></div>
+    </div>
+    <p class="note">Mono makes the numbers unmistakably data, and it is the look you liked in the live
+      view. The cost is a third webfont and slightly wider digits, which eats the meta line.</p>
+  </div>
+
+  <div class="card f5">
+    <div class="hd"><h2>5 · Inter + Plex</h2><em>36px · what the layout mock used</em></div>
+    <p class="spec">name Inter 12.5/600 · meta Plex 9<br>value Plex 12.5/600 — <b>third family</b></p>
+    <div class="panel">
+      <div class="ln" style="--tier:var(--t4)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt="">
+        <div class="who"><b>Zay Flowers</b><span>#34 · <i class="wr">WR15</i> · BAL · ADP 34</span></div>
+        <div class="v">+49<small>▼13</small></div><div class="pc lo">7%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t5)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Tee Higgins</b><span>#46 · <i class="wr">WR21</i> · CIN · ADP 39</span></div>
+        <div class="v">+45<small>▼18</small></div><div class="pc lo">7%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t6)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/9226.jpg" alt="">
+        <div class="who"><b>Christian Watson</b><span>#49 · <i class="wr">WR24</i> · GB · ADP 61</span></div>
+        <div class="v">+29<small>▼40</small></div><div class="pc mid">13%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t6)"><span class="st">★</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/3198.jpg" alt="">
+        <div class="who"><b>David Montgomery</b><span>#51 · <i class="rb">RB24</i> · HOU · ADP 47</span></div>
+        <div class="v">+52<small>▼26</small></div><div class="pc lo">8%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t7)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Dalton Kincaid</b><span>#57 · <i class="te">TE9</i> · BUF · ADP 64</span></div>
+        <div class="v">+21<small>▼7</small></div><div class="pc hi">64%</div><div class="dr">+</div></div>
+    </div>
+    <p class="note">The quietest of the mono options — the name stays a body face, so only the numbers
+      change character.</p>
+  </div>
+
+  <div class="card f6">
+    <div class="hd"><h2>6 · Big</h2><em>43px · read from further away</em></div>
+    <p class="spec">name Sora 15/700 · meta 10.5 · value 15/800<br>row grows 36 → 43px · long names start to truncate</p>
+    <div class="panel">
+      <div class="ln" style="--tier:var(--t4)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt="">
+        <div class="who"><b>Zay Flowers</b><span>#34 · <i class="wr">WR15</i> · BAL · ADP 34</span></div>
+        <div class="v">+49<small>▼13</small></div><div class="pc lo">7%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t5)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Tee Higgins</b><span>#46 · <i class="wr">WR21</i> · CIN · ADP 39</span></div>
+        <div class="v">+45<small>▼18</small></div><div class="pc lo">7%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t6)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/9226.jpg" alt="">
+        <div class="who"><b>Christian Watson</b><span>#49 · <i class="wr">WR24</i> · GB · ADP 61</span></div>
+        <div class="v">+29<small>▼40</small></div><div class="pc mid">13%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t6)"><span class="st">★</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/3198.jpg" alt="">
+        <div class="who"><b>David Montgomery</b><span>#51 · <i class="rb">RB24</i> · HOU · ADP 47</span></div>
+        <div class="v">+52<small>▼26</small></div><div class="pc lo">8%</div><div class="dr">+</div></div>
+      <div class="ln" style="--tier:var(--t7)"><span class="st">☆</span>
+        <img class="av" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+        <div class="who"><b>Dalton Kincaid</b><span>#57 · <i class="te">TE9</i> · BUF · ADP 64</span></div>
+        <div class="v">+21<small>▼7</small></div><div class="pc hi">64%</div><div class="dr">+</div></div>
+    </div>
+    <p class="note">Eleven rows instead of fourteen, and legible on a laptop across a table. If the
+      current panel felt small rather than tall, this is the one.</p>
+  </div>
+</div>
+
+<div class="tn">
+  <div><b>Why every variant is on tabular figures</b>
+    <code class="no">+49 &nbsp; +45 &nbsp; +112 &nbsp; +52</code>
+    <span style="font-size:11px">proportional — the column wobbles</span></div>
+  <div><b>&nbsp;</b>
+    <code class="yes">+49 &nbsp; +45 &nbsp; +112 &nbsp; +52</code>
+    <span style="font-size:11px">tabular — digits share a width, so the column is a column</span></div>
+</div>
+
+<p class="note" style="max-width:78ch">My pick is <b>3</b> — Sora names, Inter numbers on tnum. Sora is
+already the app's display face, so the row is tied to the rest of the design and there is no third
+webfont to load; the name reads as a name and the numbers read as a table. If the panel has felt too
+SMALL rather than too tall, take <b>6</b> instead — same treatment, two points up, three fewer rows.</p>
+
+</body></html>
