@@ -31,10 +31,13 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import time
 from typing import Dict, Optional, Tuple
 
 import requests
+
+from .names import normalize_name
 
 _API = "https://api.github.com"
 _RAW = "https://raw.githubusercontent.com/{repo}/{branch}/{path}"
@@ -100,12 +103,42 @@ def _read_doc(cfg: dict, season: int) -> Optional[dict]:
         return None
 
 
-def load(league_id, season: int) -> Dict[int, str]:
+def _resolve(registry, name: str, pos: str) -> str:
+    """A pid for a pick the board could not name itself.
+
+    The keeper app's own index misses DEFENSES — it logged "Rams D/ST" and
+    "49ers D/ST" with an empty player_id — so the pick occupied its slot here but
+    the player stayed on the board as available. In a room calling picks out loud
+    that is how two people draft the same defense.
+
+    Ours can resolve them: the registry calls it "Los Angeles Rams", the board
+    calls it "Rams D/ST", and the NICKNAME is the part both agree on.
+    """
+    if registry is None or not name:
+        return ""
+    try:
+        p = registry.resolve_name(name)
+        if p is not None and p.sleeper_pid:
+            return str(p.sleeper_pid)
+        if (pos or "").upper() in ("DST", "DEF", "D/ST"):
+            nick = normalize_name(re.sub(r"\bd/?st\b|\bdef(ense)?\b", "", name,
+                                         flags=re.I))
+            if nick:
+                for nm, pl in registry.by_norm.items():
+                    if (pl.sleeper_pid and nm.endswith(nick)
+                            and (pl.position or "").upper() in ("DST", "DEF")):
+                        return str(pl.sleeper_pid)
+    except Exception:  # noqa: BLE001 — a name we cannot place must not raise
+        pass
+    return ""
+
+
+def load(league_id, season: int, registry=None) -> Dict[int, str]:
     """{overall pick number: sleeper pid} — every pick the room has logged."""
-    return load_full(league_id, season)[0]
+    return load_full(league_id, season, registry)[0]
 
 
-def load_full(league_id, season: int):
+def load_full(league_id, season: int, registry=None):
     """({pick: pid}, {picks that are TAKEN}) — identity and occupancy, separately.
 
     They are not the same set and conflating them stopped the draft dead. The
@@ -129,6 +162,9 @@ def load_full(league_id, season: int):
             continue
         taken.add(ov)                      # the slot is used, named or not
         pid = str((v or {}).get("player_id") or "")
+        if not pid:
+            pid = _resolve(registry, (v or {}).get("player_name"),
+                           (v or {}).get("position"))
         if pid:
             out[ov] = pid
     return out, taken

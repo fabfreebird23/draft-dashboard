@@ -189,7 +189,7 @@ def _live(ctx, *, bound_auto: bool) -> None:
         # THE LEAGUE'S OWN BOARD IS THE SOURCE. This league drafts offline and logs
         # every pick into its keeper app's Live Draft Board; Sleeper's draft stays
         # empty all night, so following Sleeper here would be following nothing.
-        _board, _board_taken = BS.load_full(ctx["meta"].league_id, _cfg.current_season())
+        _board, _board_taken = BS.load_full(ctx["meta"].league_id, _cfg.current_season(), reg)
         # A pick he just made is shown IMMEDIATELY from a local overlay rather than
         # after the next poll — and dropped from the overlay the moment the board
         # reports it, so the two can never drift apart.
