@@ -249,6 +249,18 @@ def _opponent(ctx, g):
     keepers — only ever want the roster.
     """
     meta = ctx["meta"]
+    # ESPN keeps the schedule somewhere Sleeper's client cannot reach, so ask the
+    # provider. Skipping this is not a cosmetic loss: the fallback below picks the
+    # closest-strength team as a STAND-IN, which produces a scoreboard, a win
+    # probability and a swing player for a game that is not being played.
+    if meta.platform != "sleeper":
+        try:
+            _pairs = ctx["provider"].get_week_pairs(g["week"]) or {}
+            _oid = _pairs.get(str(g["me"]))
+            if _oid and (g["rosters"].get(str(_oid)) or {}).get("players"):
+                return str(_oid), g["rosters"][str(_oid)]["players"]
+        except Exception:  # noqa: BLE001 — fall through to the stand-in
+            pass
     try:
         ms = api.get_matchups(str(meta.league_id), g["week"]) or []
         rid_me = (g["rosters"].get(g["me"]) or {}).get("roster_id")
@@ -322,32 +334,161 @@ def _command(ctx, g) -> None:
     wp = W.win_prob(_now, lc["sd"], om, os_) if opp else None
     wp_fixed = (W.win_prob(_now + lc["gain"], lc["sd"], om, os_) if (opp and lc["gain"]) else wp)
 
-    _tiles([
-        ("Lineup", (f"{len(lc['moves'])} change{'s' if len(lc['moves']) != 1 else ''}"
-                    if lc["moves"] else ("Optimal" if lc["have_current"] else "Unknown")),
-         (f"worth +{lc['gain']} pts" if lc["moves"] else
-          ("your lineup is the best available" if lc["have_current"]
-           else "couldn't read your lineup")),
-         "var(--amber)" if lc["moves"] else
-         ("var(--green)" if lc["have_current"] else "var(--muted)")),
-        ("Projected", f"{lc['current_total']:.1f}" if lc["have_current"] else f"{lc['mean']:.1f}",
-         f"vs {_owner_name(ctx, oid)} · {om:.1f}" if opp else "no opponent yet", "var(--ink)"),
-        ("Win prob", f"{100*wp:.0f}%" if wp is not None else "—",
-         (f"{100*wp_fixed:.0f}% if you make the change{'s' if len(lc['moves']) != 1 else ''}"
-          if lc["moves"] else "lineup already set"),
-         "var(--green)" if (wp or 0) >= .5 else "var(--red)"),
-        ("Injury risk", f'{avail["n_risky_starters"]}' if avail["n_risky_starters"] else "clear",
-         (f'starters flagged · {avail["cost_if_all_out"]:+.1f} worst case'
-          if avail["n_risky_starters"] else "nobody flagged"),
-         "var(--red)" if avail["n_risky_starters"] else "var(--green)"),
-    ])
+    # ---- THE WEEK, as one hero -------------------------------------------
+    # Four equal tiles used to carry this, which made "am I winning" the same size
+    # as "how many are on bye". The week asks one question; it gets the screen.
+    _me_pts = lc["current_total"] if lc["have_current"] else lc["mean"]
+    _tone_lineup = ("mid" if lc["moves"] else ("up" if lc["have_current"] else ""))
+    st.markdown(C.week_hero_html(
+        me_name=_owner_name(ctx, g["me"]) or "You",
+        me_sub=f'you · {len([1 for _s, p in lc["current"] if p])} starters set',
+        me_pts=f"{_me_pts:.1f}",
+        opp_name=(_owner_name(ctx, oid) if opp else "No opponent"),
+        opp_sub=("their set lineup" if opp else "none scheduled"),
+        opp_pts=(f"{om:.1f}" if opp else "—"),
+        week=g["week"],
+        margin=(_me_pts - om) if opp else None,
+        win_pct=(100 * wp) if wp is not None else None,
+        tiles=[
+            ("Lineup", (f"{len(lc['moves'])} change{'s' if len(lc['moves']) != 1 else ''}"
+                        if lc["moves"] else ("Optimal" if lc["have_current"] else "Unknown")),
+             (f"worth +{lc['gain']} pts" if lc["moves"] else
+              ("nothing on your bench beats a starter" if lc["have_current"]
+               else "couldn't read your lineup")), _tone_lineup),
+            ("Best available", f"{lc['optimal_total']:.1f}",
+             ("you are already playing it" if not lc["moves"]
+              else f"+{lc['gain']} above what you have set"),
+             "up" if lc["moves"] else ""),
+            ("Injury risk", f'{avail["n_risky_starters"]}' if avail["n_risky_starters"] else "Clear",
+             (f'starters flagged · {avail["cost_if_all_out"]:+.1f} worst case'
+              if avail["n_risky_starters"] else "nobody flagged"),
+             "mid" if avail["n_risky_starters"] else "up"),
+            ("Win prob if fixed", f"{100*wp_fixed:.0f}%" if wp_fixed is not None else "—",
+             ("no change to make" if not lc["moves"]
+              else f"from {100*wp:.0f}% as the lineup stands"),
+             "up" if (wp_fixed or 0) >= .5 else "dn"),
+        ]), unsafe_allow_html=True)
 
-    left, right = st.columns([1.5, 1])
+    # ---- WHAT TO DO, ranked by what it is worth ---------------------------
+    # The old version listed every alert it could find in a fixed order and put
+    # "keep" beside eight of nine lineup rows. Same facts, but you had to read all
+    # of them to find the one that mattered. These are sorted by points at stake,
+    # so the top row is always the biggest thing you can do about this week.
+    byes = ctx.get("byes") or {}
+    acts = []
+    for a in avail["at_risk"][:3]:
+        cost = a.get("cost_if_out")
+        if cost is None:
+            body, num, lab = "", None, ""
+        elif cost > 0.05:
+            body = (f'If he sits you lose <b>{cost:.1f}</b> and '
+                    f'<b>{a["replacement"] or "nobody"}</b> covers.')
+            num, lab = f"-{cost:.1f}", "if he sits"
+        else:
+            body = (f'<b>You would gain {abs(cost):.1f}</b> by starting '
+                    f'{a["replacement"]} regardless.')
+            num, lab = f"+{abs(cost):.1f}", "by benching"
+        if a.get("replacement_shared"):
+            body += (" That same body is covering another questionable starter — "
+                     "only one of them can.")
+        acts.append((abs(cost or 0), "bad" if a["severity"] >= 3 else "warn", "\u2695",
+                     f'{a["name"]} — {a["status"]}'
+                     + (f' <span class="ws-fnt">({a["detail"]})</span>' if a["detail"] else ""),
+                     body, num, lab))
+    for m in lc["moves"][:3]:
+        _in, _out = reg.meta(m["in"]), reg.meta(m["out"])
+        # The panel is a second opinion on how far out on a limb the swap is.
+        _v = ECR.verdict((g.get("ecr") or {}).get(str(m["out"])),
+                         (g.get("ecr") or {}).get(str(m["in"])))
+        _note = {"against": " The expert panel sees it the other way.",
+                 "split": " The panel is split — call it a coin flip."}.get(_v, "")
+        acts.append((float(m["gain"]), "warn", "\u2191",
+                     f'Start {_in.name}, bench {_out.name}',
+                     f'Worth <b>+{m["gain"]}</b> to your total this week.{_note}',
+                     f'+{m["gain"]}', "points"))
+    on_bye = [p for p in g["mine"] if byes.get(reg.meta(p).team) == g["week"]]
+    if on_bye:
+        acts.append((99.0, "bad", "\u2298", f'{len(on_bye)} on bye this week',
+                     ", ".join(reg.meta(p).name for p in on_bye[:4]),
+                     str(len(on_bye)), "out"))
+    fut = {}
+    for p in g["mine"]:
+        b = byes.get(reg.meta(p).team)
+        if b and b > g["week"]:
+            fut.setdefault(b, []).append(p)
+    if fut:
+        worst = max(fut.items(), key=lambda kv: len(kv[1]))
+        if len(worst[1]) >= 3:
+            acts.append((float(len(worst[1])), "bad", "\u25b2",
+                         f'Week {worst[0]} takes {len(worst[1])} of yours at once',
+                         ", ".join(reg.meta(p).name for p in worst[1][:4])
+                         + ". Two waiver claims now cost less than two panic starts then.",
+                         str(len(worst[1])), "on bye"))
+    acts.sort(key=lambda a: -a[0])
+    if not lc["moves"]:
+        head = (("go", "\u2713", "Lineup is the best available",
+                 "All slots optimal — no bench player beats the man in front of him.",
+                 "0", "changes") if lc["have_current"] else
+                ("warn", "?", "Couldn't read your set lineup",
+                 "So this shows the best available one instead. Everything else on "
+                 "this screen is unaffected.", None, ""))
+        # A confirmation, not an action: it goes last when there is anything to do,
+        # and stands alone when there isn't.
+        acts.append((0.0, *head)) if acts else acts.insert(0, (0.0, *head))
+
+    left, right = st.columns([1.15, 1])
     with left:
+        st.markdown('<div class="ws-h">What to do</div>', unsafe_allow_html=True)
+        for _w, tone, icon, title, detail, num, lab in acts[:5]:
+            st.markdown(C.action_html(tone, icon, title, detail, num, lab),
+                        unsafe_allow_html=True)
+        _fa = inseason.faab(ctx["meta"]) or {}
+        _budget = int(_fa.get("budget") or 0)
+        _left_faab = max(0, _budget - int((_fa.get("by_owner") or {}).get(str(g["me"]), 0) or 0))
+        st.markdown(f'<div class="ws2-quiet">Nothing else needs you this week.'
+                    + (f' Waivers · <b>${_left_faab}</b> of ${_budget} FAAB left.'
+                       if _budget else "")
+                    + '</div>', unsafe_allow_html=True)
+        st.markdown('<div class="ws-h" style="margin-top:12px">Your bench</div>',
+                    unsafe_allow_html=True)
+        brows = sorted(((float(g["proj"].get(p, 0) or 0), p) for p in lc["bench"]), reverse=True)
+        st.markdown(_tbl(["Player", "~Proj"],
+                         [[f'{reg.meta(p).name} {_pos_pill(reg.meta(p).position)}', f"{v:.1f}"]
+                          for v, p in brows[:8]]), unsafe_allow_html=True)
+
+    with right:
         _plat = "ESPN" if ctx["meta"].platform == "espn" else "Sleeper"
-        hdr = (f"Your lineup on {_plat} — and what to change" if lc["have_current"]
-               else "Best available lineup (couldn't read your set lineup)")
-        st.markdown(f'<div class="ws-h">{hdr}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="ws-h">Your lineup on {_plat}</div>' if lc["have_current"]
+                    else '<div class="ws-h">Best available lineup</div>',
+                    unsafe_allow_html=True)
+        _risky = {str(a["pid"]): a for a in avail["at_risk"] if a.get("pid")}
+        _moves = {str(m["out"]): m for m in lc["moves"]}
+        rows = []
+        for slot, pid in lc["current"]:
+            if not pid:
+                rows.append((slot, '<span class="ws-dim">(empty)</span>', "nobody set",
+                             0.0, "var(--mut2)", True))
+                continue
+            pm = reg.meta(pid)
+            av = W.availability(pm)
+            nm = f'{pm.name}'
+            if av["status"]:
+                nm += f' <span class="ws-q">{av["status"][:4].upper()}</span>'
+            rows.append((slot, nm,
+                         f'{pm.team} · {(g.get("ecr") or {}).get(str(pid), {}).get("pos_rank", "") or pm.position}',
+                         float(g["proj"].get(str(pid), 0) or 0),
+                         _POSC.get(pm.position, "var(--mut2)"),
+                         bool(av["status"]) or str(pid) in _moves))
+        st.markdown(C.lineup_bars_html(rows), unsafe_allow_html=True)
+        st.caption(f"Bars are shares of your biggest starter. Read from {_plat}: your lineup "
+                   f"projects **{lc['current_total']:.1f}**, the best available is "
+                   f"**{lc['optimal_total']:.1f}**."
+                   if lc["have_current"] else
+                   "Couldn't read the lineup you have set, so this shows the best available one.")
+
+    # The full slot-by-slot table, with the expert panel, for when he wants the
+    # detail rather than the shape. Nothing was removed — it was demoted.
+    with st.expander("Slot by slot, with the expert panel"):
         bench_now = {m["out"]: m for m in lc["moves"]}
         ecr = g.get("ecr") or {}
         rows = []
@@ -364,9 +505,6 @@ def _command(ctx, g) -> None:
                 better = (f'<b>{inm.name}</b> {_pos_pill(inm.position)} '
                           f'<span class="ws-fnt">{inm.team}</span>')
                 delta = f'<b class="ws-up">+{mv["gain"]}</b>'
-                # Our projection says swap; the panel is a second opinion on how far
-                # out on a limb that is. "against" is not a veto — it is the fact
-                # that eight people who do this for a living see it the other way.
                 v = ECR.verdict(ecr.get(str(pid)), ecr.get(str(mv["in"])))
                 verdict = _chip(f'start {inm.name.split()[-1]}',
                                 {"against": "warn", "split": "warn"}.get(v, "ok"))
@@ -390,69 +528,10 @@ def _command(ctx, g) -> None:
                          rows,
                          widths=["44px", "31%", "56px", "92px", "22%", "54px", "146px"],
                          wide=True), unsafe_allow_html=True)
-        if lc["have_current"]:
-            st.caption(f"Read from {_plat}: your lineup projects **{lc['current_total']:.1f}**, "
-                       f"the best available is **{lc['optimal_total']:.1f}**. Only changes that "
-                       f"alter *who plays* are listed — Sleeper labelling a man RB where the "
-                       f"optimiser calls him FLEX is not a move.")
-        else:
-            st.caption("Couldn't read the lineup you have set, so this shows the best available "
-                       "one instead. Everything else on this screen is unaffected.")
+        st.caption("Only changes that alter *who plays* are listed — the platform labelling a "
+                   "man RB where the optimiser calls him FLEX is not a move.")
         if _ecr_missing(g):
             st.caption(_ecr_missing(g))
-
-    with right:
-        st.markdown('<div class="ws-h">Needs a decision</div>', unsafe_allow_html=True)
-        # Availability first: it is the thing most likely to change a lineup, and
-        # until now the screen could not see it at all.
-        for a in avail["at_risk"][:3]:
-            cost = a.get("cost_if_out")
-            if cost is None:
-                body = ""
-            elif cost > 0.05:
-                body = (f'If he sits you lose <b>{cost:.1f}</b> and '
-                        f'<b>{a["replacement"] or "nobody"}</b> covers.')
-            else:
-                body = (f'<b>You would gain {abs(cost):.1f}</b> by starting '
-                        f'{a["replacement"]} regardless.')
-            extra = (" That same body is covering another questionable starter — "
-                     "only one of them can.") if a.get("replacement_shared") else ""
-            _alert("red" if a["severity"] >= 3 else "amb", "\u2695",
-                   f'<b>{a["name"]} — {a["status"]}</b>'
-                   + (f' <span class="ws-fnt">({a["detail"]})</span>' if a["detail"] else "")
-                   + f'. {body}{extra}')
-        if lc["moves"]:
-            for m in lc["moves"][:3]:
-                _alert("amb", "↑", f'<b>Start {reg.meta(m["in"]).name}, bench '
-                                   f'{reg.meta(m["out"]).name}</b> — worth <b>+{m["gain"]}</b> '
-                                   f'to your total this week.')
-        elif lc["have_current"]:
-            _alert("ok", "✓", "<b>The lineup you have set is the best available.</b> Nothing on "
-                              "your bench beats a starter this week.")
-        else:
-            _alert("amb", "?", "<b>Couldn't read your set lineup</b> from the platform, so there "
-                               "is nothing to compare against.")
-        byes = ctx.get("byes") or {}
-        on_bye = [p for p in g["mine"] if byes.get(reg.meta(p).team) == g["week"]]
-        if on_bye:
-            _alert("red", "⊘", f'<b>{len(on_bye)} on bye</b>: '
-                               + ", ".join(reg.meta(p).name for p in on_bye[:4]))
-        fut = {}
-        for p in g["mine"]:
-            b = byes.get(reg.meta(p).team)
-            if b and b > g["week"]:
-                fut.setdefault(b, []).append(p)
-        if fut:
-            worst = max(fut.items(), key=lambda kv: len(kv[1]))
-            if len(worst[1]) >= 3:
-                _alert("amb", "!", f'<b>Week {worst[0]} is your bye crunch</b> — {len(worst[1])} '
-                                   f'players off: ' + ", ".join(reg.meta(p).name for p in worst[1][:4])
-                                   + ". Plan the waiver two weeks out.")
-        st.markdown('<div class="ws-h" style="margin-top:12px">Your bench</div>', unsafe_allow_html=True)
-        brows = sorted(((float(g["proj"].get(p, 0) or 0), p) for p in lc["bench"]), reverse=True)
-        st.markdown(_tbl(["Player", "~Proj"],
-                         [[f'{reg.meta(p).name} {_pos_pill(reg.meta(p).position)}', f"{v:.1f}"]
-                          for v, p in brows[:8]]), unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------------- 2 waivers

@@ -372,7 +372,18 @@ def build_context(sel: dict) -> dict:
     # the provider's order exactly.
     _lk = f"{meta.platform}_{meta.league_id}"
     team_names = [t.name for t in order]
-    _seat_mode = st.session_state.get(_SEAT.mode_key(_lk)) or _SEAT.default_mode(meta.league_id)
+    # Numbered seats are a DRAFT-NIGHT device: they exist because the order is
+    # drawn at the table. Once the league has drafted, the chart is history and the
+    # real names are the useful labels — a matchup headed "Seat 7 vs Seat 11" is
+    # worse than no chart at all. His own choice still wins; this is the default.
+    _drafted = False
+    try:
+        _drafted = bool(get_league_phase(meta.platform, str(meta.league_id),
+                                         config.current_season()).drafted)
+    except Exception:  # noqa: BLE001 — never let a phase read break the board
+        pass
+    _seat_mode = (st.session_state.get(_SEAT.mode_key(_lk))
+                  or (_SEAT.NAMES if _drafted else _SEAT.default_mode(meta.league_id)))
     _gen = int(st.session_state.get(_SEAT.gen_key(_lk), 0))
     order = _SEAT.apply(order, _seat_mode,
                         [st.session_state.get(_SEAT.seat_key(_lk, i, _gen))

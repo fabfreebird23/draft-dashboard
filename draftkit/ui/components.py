@@ -1934,3 +1934,85 @@ def run_note(recent_positions, window: int = 6) -> str:
     if ct < 3:
         return ""
     return f"<b>{pos} run</b> · {ct} of last {len(recent)}"
+
+
+def _initials(name: str) -> str:
+    parts = [w for w in str(name or "").split() if w[:1].isalnum()]
+    return ("".join(w[0] for w in parts[:2]) or "??").upper()
+
+
+def week_hero_html(*, me_name, me_sub, me_pts, opp_name, opp_sub, opp_pts, week,
+                   margin=None, win_pct=None, tiles=()) -> str:
+    """The week as one scoreboard, because the week asks one question.
+
+    Four tiles used to carry this at equal weight, which meant the number that
+    decides the day — am I winning — was the same size as the number of players
+    on bye. Here the score is the screen and everything else hangs off it.
+    """
+    lead = (me_pts or 0) >= (opp_pts or 0)
+    mg = (f'<span class="ws2-mg">projected margin <b>{margin:+.1f}</b></span>'
+          if margin is not None else "")
+    bar = ""
+    if win_pct is not None:
+        p = max(0.0, min(100.0, float(win_pct)))
+        bar = (f'<div class="ws2-prob"><div class="ws2-track">'
+               f'<i class="me" style="width:{p:.0f}%"></i>'
+               f'<i class="them" style="width:{100 - p:.0f}%"></i></div>'
+               f'<div class="ws2-pl"><span><b>{p:.0f}%</b> you</span>'
+               f'<span>win probability</span>'
+               f'<span><b class="r">{100 - p:.0f}%</b></span></div></div>')
+    th = "".join(f'<div class="ws2-tile"><div class="k">{_esc(k)}</div>'
+                 f'<div class="v{(" " + tone) if tone else ""}">{_esc(v)}</div>'
+                 f'<div class="s">{_esc(s)}</div></div>' for k, v, s, tone in tiles)
+    return (
+        '<div class="ws2-week"><div class="ws2-top">'
+        '<div class="ws2-score">'
+        f'<div class="ws2-tm"><span class="ws2-badge">{_esc(_initials(me_name))}</span>'
+        f'<div class="ws2-who"><b>{_esc(me_name)}</b><span>{_esc(me_sub)}</span></div></div>'
+        f'<div class="ws2-vs"><span class="ws2-wk"><i></i>week {_esc(week)}</span>{mg}</div>'
+        f'<div class="ws2-tm r"><div class="ws2-who"><b>{_esc(opp_name)}</b>'
+        f'<span>{_esc(opp_sub)}</span></div>'
+        f'<span class="ws2-badge">{_esc(_initials(opp_name))}</span></div></div>'
+        '<div class="ws2-score" style="margin-top:12px">'
+        f'<div class="ws2-num{"" if lead else " dn"}">{_esc(me_pts)}</div>'
+        '<div class="ws2-vs"><span class="ws2-lab">projected</span></div>'
+        f'<div class="ws2-num{" dn" if lead else ""}" style="text-align:right">'
+        f'{_esc(opp_pts)}</div></div>'
+        f'</div>{bar}'
+        + (f'<div class="ws2-tiles">{th}</div>' if th else "") + '</div>')
+
+
+def action_html(tone, icon, title, detail, number=None, number_label="") -> str:
+    """One thing to do, with the number that says how much it is worth.
+
+    Colour is spent ONLY here and only on tone — which is what lets a settled
+    lineup read quiet and a questionable starter catch the eye.
+    """
+    n = (f'<div class="n">{_esc(number)}<small>{_esc(number_label)}</small></div>'
+         if number is not None else '<div class="n"></div>')
+    return (f'<div class="ws2-act{(" " + tone) if tone else ""}">'
+            f'<span class="ws2-ic">{icon}</span>'
+            f'<div><div class="t">{title}</div><div class="d">{detail}</div></div>{n}</div>')
+
+
+def lineup_bars_html(rows, *, header="Starting") -> str:
+    """The lineup as a bar chart: length is the projection, so the shape of the
+    week lands before a decimal is read.
+
+    `rows` is [(slot, name, sub, proj, colour, hot)]. A projection of zero stays
+    zero rather than hiding behind a dash — for a kicker in week 1 that IS the
+    number, and pretending otherwise is how a screen loses trust.
+    """
+    top = max([float(r[3] or 0) for r in rows] or [1.0]) or 1.0
+    out = [f'<div class="ws2-lu"><div class="hd"><span>Slot</span><span>{_esc(header)}</span>'
+           f'<span>Projected</span><span style="text-align:right">Pts</span></div>']
+    for slot, name, sub, proj, colour, hot in rows:
+        p = float(proj or 0)
+        w = max(2.0, 100.0 * p / top) if p else 2.0
+        out.append(
+            f'<div class="rw{" hot" if hot else ""}">'
+            f'<span class="ws2-slot" style="color:{colour}">{_esc(slot)}</span>'
+            f'<div class="ws2-pl2"><b>{name}</b><br><span>{_esc(sub)}</span></div>'
+            f'<div class="ws2-mtr"><i style="width:{w:.0f}%;background:{colour}"></i></div>'
+            f'<div class="ws2-pj{" zero" if not p else ""}">{p:.1f}</div></div>')
+    return "".join(out) + "</div>"

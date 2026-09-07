@@ -231,6 +231,32 @@ class EspnProvider(Provider):
                                      "settings": {}, "roster_id": t.get("id")}
         return out
 
+    def get_week_pairs(self, week: int) -> dict:
+        """{team_id: opponent_team_id} for one week, as strings.
+
+        Read from mMatchupScore, which is where ESPN actually keeps the schedule —
+        the obvious `mSchedule` view returns an empty list for this league. Without
+        it the in-season screens fell back to "the closest-strength team as a
+        stand-in", which draws a very convincing scoreboard for a game that is not
+        happening.
+        """
+        try:
+            d = self._read(["mMatchupScore"])
+        except Exception:  # noqa: BLE001
+            return {}
+        pairs = {}
+        for gme in d.get("schedule") or []:
+            try:
+                if int(gme.get("matchupPeriodId") or 0) != int(week):
+                    continue
+            except (TypeError, ValueError):
+                continue
+            home = str((gme.get("home") or {}).get("teamId") or "")
+            away = str((gme.get("away") or {}).get("teamId") or "")
+            if home and away:
+                pairs[home], pairs[away] = away, home
+        return pairs
+
     # ---- ESPN id -> name (bench/K/DST the headshot board missed) --------
     def _lazy_player(self, espn_pid):
         if not self._players_loaded:

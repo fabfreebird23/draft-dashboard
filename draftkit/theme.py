@@ -1428,6 +1428,101 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   border-radius:6px; background:var(--panel2); border:1px solid var(--line); color:var(--mut2); }
 .pc2-seats b.me{ color:var(--crimson); border-color:var(--crimson); background:var(--accent-soft); }
 .pc2-seats b.next{ color:var(--ink); border-color:var(--muted); }
+
+/* ---- IN-SEASON, with a pulse. The flat screen was not wrong, it was UNRANKED:
+   nine rows of the same weight where two decide the week. One hero, colour spent
+   only on "do something", and every number next to its consequence. ---- */
+.ws2-week{ position:relative; border-radius:18px; overflow:hidden;
+  border:1px solid var(--line); box-shadow:var(--shadow-lg); margin:0 0 14px; }
+.ws2-top{ position:relative; padding:18px 20px 14px;
+  background:
+    radial-gradient(120% 140% at 12% 0%, var(--accent-soft), transparent 55%),
+    radial-gradient(120% 140% at 88% 0%, rgba(47,111,181,.28), transparent 55%),
+    var(--panel2); }
+.ws2-score{ display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center; gap:16px; }
+.ws2-tm{ display:flex; align-items:center; gap:12px; min-width:0; }
+.ws2-tm.r{ justify-content:flex-end; text-align:right; }
+.ws2-badge{ width:44px; height:44px; border-radius:13px; flex:none; display:grid;
+  place-items:center; font-family:'Sora',sans-serif; font-weight:800; font-size:14px;
+  color:#141314; background:#fff; box-shadow:0 6px 18px -6px rgba(0,0,0,.7); }
+.ws2-who{ min-width:0; }
+.ws2-who b{ display:block; font-family:'Sora',sans-serif; font-weight:800; font-size:18px;
+  line-height:1.05; letter-spacing:-.015em; white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; }
+.ws2-who span{ display:block; font-size:9.5px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--mut2); white-space:nowrap; }
+.ws2-num{ font-family:'Sora',sans-serif; font-weight:900; font-size:48px; line-height:.92;
+  letter-spacing:-.035em; white-space:nowrap; }
+.ws2-num.dn{ color:var(--mut2); }
+.ws2-vs{ display:grid; justify-items:center; gap:6px; min-width:0; }
+.ws2-wk{ font-size:9.5px; letter-spacing:.15em; text-transform:uppercase; color:var(--crimson);
+  padding:4px 11px; border-radius:999px; background:var(--accent-soft);
+  border:1px solid var(--accent-line); display:inline-flex; align-items:center; gap:6px;
+  white-space:nowrap; }
+.ws2-wk i{ width:5px; height:5px; border-radius:999px; background:var(--crimson);
+  animation:pcpulse 1.6s infinite; }
+.ws2-mg{ font-size:11px; color:var(--ink); white-space:nowrap; }
+.ws2-lab{ font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--mut2); }
+.ws2-prob{ padding:0 20px 15px; background:var(--panel2); }
+.ws2-track{ height:11px; border-radius:999px; overflow:hidden; display:flex;
+  background:var(--panel); box-shadow:inset 0 1px 3px rgba(0,0,0,.35); }
+.ws2-track i{ display:block; height:100%; }
+.ws2-track .me{ background:var(--green); }
+.ws2-track .them{ background:var(--line2); }
+.ws2-pl{ display:flex; justify-content:space-between; margin-top:7px; font-size:10px;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--mut2); }
+.ws2-pl b{ color:var(--green); font-size:13px; letter-spacing:0; }
+.ws2-pl b.r{ color:var(--muted); }
+.ws2-tiles{ display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line);
+  border-top:1px solid var(--line); }
+.ws2-tile{ background:var(--panel); padding:11px 13px; }
+.ws2-tile .k{ font-size:8.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--mut2); }
+.ws2-tile .v{ font-family:'Sora',sans-serif; font-weight:800; font-size:21px; line-height:1.15;
+  margin-top:3px; }
+.ws2-tile .s{ font-size:11px; color:var(--muted); margin-top:1px; }
+.ws2-tile .v.up{ color:var(--green); } .ws2-tile .v.dn{ color:var(--red); }
+.ws2-tile .v.mid{ color:var(--amber); }
+/* ranked actions */
+.ws2-act{ display:grid; grid-template-columns:auto 1fr auto; gap:13px; align-items:center;
+  padding:12px 14px; border-radius:13px; background:var(--panel); border:1px solid var(--line);
+  border-left:4px solid var(--line2); margin-bottom:8px; }
+.ws2-act.go{ border-left-color:var(--green); }
+.ws2-act.warn{ border-left-color:var(--amber); }
+.ws2-act.bad{ border-left-color:var(--red); }
+.ws2-ic{ width:32px; height:32px; border-radius:10px; display:grid; place-items:center;
+  font-size:14px; background:var(--panel2); border:1px solid var(--line2); }
+.ws2-act.go .ws2-ic{ color:var(--green); border-color:var(--green); }
+.ws2-act.warn .ws2-ic{ color:var(--amber); border-color:var(--amber); }
+.ws2-act.bad .ws2-ic{ color:var(--red); border-color:var(--red); }
+.ws2-act .t{ font-weight:700; font-size:13.5px; }
+.ws2-act .d{ font-size:11.5px; color:var(--muted); margin-top:2px; line-height:1.4; }
+.ws2-act .n{ font-family:'Sora',sans-serif; font-weight:800; font-size:19px; white-space:nowrap;
+  text-align:right; }
+.ws2-act .n small{ display:block; font-size:8.5px; font-weight:500; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--mut2); margin-top:2px; }
+.ws2-act.go .n{ color:var(--green); } .ws2-act.warn .n{ color:var(--amber); }
+.ws2-act.bad .n{ color:var(--red); }
+.ws2-quiet{ padding:10px 14px; border-radius:13px; background:var(--panel);
+  border:1px dashed var(--line2); color:var(--muted); font-size:12px; }
+/* the lineup as bars */
+.ws2-lu{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+.ws2-lu .hd, .ws2-lu .rw{ display:grid; grid-template-columns:42px 1fr 96px 62px; gap:10px;
+  align-items:center; padding:9px 13px; }
+.ws2-lu .hd{ font-size:8.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--mut2);
+  border-bottom:1px solid var(--line); }
+.ws2-lu .rw{ border-bottom:1px solid var(--line2); }
+.ws2-lu .rw:last-child{ border-bottom:0; }
+.ws2-lu .rw.hot{ background:var(--amber-bg, rgba(240,179,87,.10)); }
+.ws2-slot{ font-size:10px; font-weight:700; letter-spacing:.08em; padding:3px 0; text-align:center;
+  border-radius:6px; background:var(--panel2); color:var(--mut2); }
+.ws2-pl2 b{ font-weight:600; font-size:13px; }
+.ws2-pl2 span{ font-size:10px; color:var(--mut2); }
+.ws2-mtr{ height:8px; border-radius:999px; background:var(--panel2); overflow:hidden; }
+.ws2-mtr i{ display:block; height:100%; border-radius:999px; }
+.ws2-pj{ font-size:13px; font-weight:700; text-align:right; }
+.ws2-pj.zero{ color:var(--mut2); font-weight:400; }
+.ws-q{ color:var(--amber); font-size:9px; letter-spacing:.1em; margin-left:5px; }
 </style>
 
 """
