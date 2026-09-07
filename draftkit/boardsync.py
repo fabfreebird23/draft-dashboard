@@ -62,26 +62,51 @@ def _path(cfg: dict, season: int) -> str:
 
 
 # ------------------------------------------------------------------------ read
-def load(league_id, season: int) -> Dict[int, str]:
-    """{overall pick number: sleeper pid} — every pick the room has logged.
+def _read_doc(cfg: dict, season: int) -> Optional[dict]:
+    """The board file, preferring the API and falling back to the raw URL.
 
-    Read from the PUBLIC raw URL rather than the API: it needs no token (so this
-    works on a deploy that has none), and it is the same read the keeper app's own
-    readers do. A cache-buster is essential — raw.githubusercontent serves a CDN
-    copy for up to five minutes otherwise, which on draft night is four picks of
-    lag.
+    THE API FIRST, and this is not a preference. raw.githubusercontent serves a
+    cached copy that a query-string cache-buster does NOT defeat — measured: a
+    pick deleted through the API was still coming back from the raw URL a full
+    minute later, while the API copy was already correct. On draft night that is
+    picks arriving late, or a player showing as available after somebody took him,
+    which is the one failure this whole feature exists to prevent.
+
+    The raw URL stays as the fallback for a deploy with no token, where slightly
+    stale is still enormously better than nothing.
     """
-    cfg = board_for(league_id)
-    if not cfg:
-        return {}
+    tok = _token()
+    if tok:
+        try:
+            r = requests.get(
+                f"{_API}/repos/{cfg['repo']}/contents/{_path(cfg, season)}",
+                headers={**_headers(tok), "Cache-Control": "no-cache"},
+                params={"ref": cfg["branch"]}, timeout=12)
+            if r.status_code == 200:
+                body = base64.b64decode(r.json()["content"]).decode()
+                return json.loads(body) if body.strip() else {}
+            if r.status_code == 404:
+                return {}
+        except Exception:  # noqa: BLE001 — fall through to raw
+            pass
     url = _RAW.format(repo=cfg["repo"], branch=cfg["branch"], path=_path(cfg, season))
     try:
         r = requests.get(url, params={"t": int(time.time())},
                          headers={"Cache-Control": "no-cache"}, timeout=12)
         if r.status_code != 200:
-            return {}
-        doc = json.loads(r.text or "{}") or {}
-    except Exception:  # noqa: BLE001 — a dead read must never stop the war room
+            return None
+        return json.loads(r.text or "{}") or {}
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def load(league_id, season: int) -> Dict[int, str]:
+    """{overall pick number: sleeper pid} — every pick the room has logged."""
+    cfg = board_for(league_id)
+    if not cfg:
+        return {}
+    doc = _read_doc(cfg, season)
+    if doc is None:
         return {}
     out: Dict[int, str] = {}
     for k, v in (doc.get("picks") or {}).items():
