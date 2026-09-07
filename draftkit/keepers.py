@@ -449,7 +449,8 @@ def predict_keepers(league_id: str, value, current_season: int,
 
 
 def build_placements(keepers: Dict[str, List[dict]], owner_slot: Dict[str, int],
-                     n_teams: int, rounds: int, pick_owner_slot=None) -> dict:
+                     n_teams: int, rounds: int, pick_owner_slot=None,
+                     taken_picks=None) -> dict:
     """Map each keeper onto the draft board.
 
     Returns {
@@ -459,11 +460,16 @@ def build_placements(keepers: Dict[str, List[dict]], owner_slot: Dict[str, int],
     }
     A keeper occupies one of its owner's *actual* picks nearest `cost_round`. When
     `pick_owner_slot(overall)` is given it respects traded picks (an owner may hold
-    two picks in a round, or none) — and when they hold more than one in that
-    round, the keeper takes the LAST of them, not the first, so the owner's
-    earliest pick in the round stays free for the live draft. Otherwise it falls
-    back to a plain snake.
+    two picks in a round, or none).
+
+    `taken_picks` is the set of overall picks the live draft has ALREADY used. It
+    matters when an owner holds two picks in a round: guessing which one the keeper
+    sits on put Trevor's Kenneth Walker on a different pick than the board the room
+    was looking at. With the live picks known there is nothing to guess — the
+    keeper takes the owner's EARLIEST pick in that round that the draft has not
+    already spent, which is what "he costs a third" means to everyone at the table.
     """
+    _spent = {int(x) for x in (taken_picks or ())}
     by_overall: Dict[int, str] = {}
     kept_pids = set()
     by_owner: Dict[str, list] = {}
@@ -506,13 +512,13 @@ def build_placements(keepers: Dict[str, List[dict]], owner_slot: Dict[str, int],
                     if not (1 <= cand <= rounds):
                         continue
                     if pick_owner_slot:
-                        free = [o for o in slot_owned.get(cand, []) if o not in used_ov]
+                        free = [o for o in slot_owned.get(cand, [])
+                                if o not in used_ov and o not in _spent]
                         if free:
-                            # when this owner holds MULTIPLE picks in the round
-                            # (via trade), the keeper takes the LAST one — the
-                            # owner keeps their earliest pick free for the live
-                            # draft instead of losing it to the keeper.
-                            ov = free[-1]
+                            # The EARLIEST of the owner's remaining picks in that
+                            # round. Picks the live draft has already used are out
+                            # of the running entirely, so this no longer guesses.
+                            ov = free[0]
                             break
                     else:
                         cov = snake_overall(slot, cand)

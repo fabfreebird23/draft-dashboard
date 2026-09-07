@@ -12,6 +12,7 @@ import streamlit as st
 
 from draftkit import positional as _PZ
 from draftkit import seating as _SEAT
+from draftkit import boardsync as _BS
 
 from draftkit import config, players, theme
 from draftkit.adp import consensus
@@ -539,9 +540,19 @@ def build_context(sel: dict) -> dict:
 
     # Keepers (from the league's companion keeper dashboard) + placements.
     keepers_raw = get_keepers(meta.platform, meta.league_id, config.current_season())
+    # The picks the league's live board has already used, so a keeper is never
+    # placed on a pick somebody has actually spent. Without this the placement had
+    # to guess which of an owner's two picks in a round the keeper sat on, and it
+    # guessed differently from the board the whole room was reading.
+    _spent_picks = set()
+    if _BS.board_for(meta.league_id):
+        try:
+            _spent_picks = _BS.load_full(meta.league_id, config.current_season())[1]
+        except Exception:  # noqa: BLE001 — never let this break the board
+            _spent_picks = set()
     placements = keepers_mod.build_placements(
         keepers_raw, owner_slot, meta.num_teams, meta.draft_rounds,
-        pick_owner_slot=pick_owner_slot)
+        pick_owner_slot=pick_owner_slot, taken_picks=_spent_picks)
     # Deep draft-history scouting profiles per manager (archetype, reach, fav
     # teams, predictability) + the round→position model the AI/predictor consumes.
     # Keepers are excluded from profiles, so derive cleaner tendencies from them;
