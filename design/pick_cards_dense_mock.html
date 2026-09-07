@@ -1,0 +1,262 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Pick cards, made dense</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   MOCK ONLY — the pick card at three densities, because the shipped one is too
+   tall: 277px each (measured), so one player fills the war room's middle column and you
+   scroll to compare two.
+
+   The column that matters is ~560px wide and about 620px tall before you have to
+   scroll. That is the budget. Each option below is shown AT THAT WIDTH with the
+   number of cards it fits.
+
+   What had to survive the shrink, in order:
+     1. WHO — headshot, name, position/team. Recognition is the whole point.
+     2. THE NUMBER that ranks him against the others (value).
+     3. SURVIVAL, because it is the only figure that says "now or never".
+     4. ONE reason. Three reasons is a card you read; one is a card you glance at.
+   ADP and positional rank get demoted to small type — they are context, not the
+   call, and they are still on the row beneath in the table view.
+   ========================================================================== */
+:root{
+  --bg:#161415; --panel:#232022; --panel2:#2c282a; --line:#332e30; --line2:#3d383a;
+  --ink:#f2eef0; --muted:#a2989c; --mut2:#95898e;
+  --crimson:#ff336c;
+  --green:#7fd8b4; --amber:#f0b357; --red:#ff8fae;
+  --qb:#c98fbb; --rb:#7fd8b4; --wr:#6aa6f0; --te:#f0b357; --dst:#8fb8f5; --k:#95898e;
+  --f-display:'Sora',system-ui,sans-serif;
+  --f-body:'Inter',system-ui,sans-serif;
+  --f-data:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);margin:0;
+     padding:20px 20px 60px;font-size:13px}
+h1{font-family:var(--f-display);font-weight:800;font-size:24px;margin:0 0 2px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:74ch;line-height:1.5;margin:0 0 18px}
+.cols{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.col{width:560px;max-width:100%}
+.hd{display:flex;align-items:baseline;gap:10px;margin:0 0 4px}
+.hd h2{font-family:var(--f-display);font-weight:800;font-size:16px;margin:0;letter-spacing:-.01em}
+.hd em{font-family:var(--f-data);font-size:9.5px;font-style:normal;letter-spacing:.13em;
+       text-transform:uppercase;color:var(--mut2)}
+.fits{font-family:var(--f-data);font-size:10px;color:var(--green);margin:0 0 10px}
+.fits.bad{color:var(--red)} .fits.mid{color:var(--amber)}
+.rule{height:1px;background:var(--line);margin:0 0 12px}
+
+/* ── A · STRIP. One line. 62px. ─────────────────────────────────────────── */
+.strip{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto auto;gap:11px;align-items:center;
+  padding:9px 11px 9px 8px;border-radius:11px;background:var(--panel);
+  border:1px solid var(--line);border-left:4px solid var(--line2);margin-bottom:7px;
+  position:relative;overflow:hidden}
+.strip:before{content:"";position:absolute;left:0;top:0;bottom:0;width:120px;pointer-events:none;
+  background:linear-gradient(90deg,var(--tc,transparent),transparent)}
+.strip.go{border-left-color:var(--green)} .strip.warn{border-left-color:var(--amber)}
+.strip.bad{border-left-color:var(--red)}
+.strip>*{position:relative}
+.face{width:34px;height:34px;border-radius:9px;object-fit:cover;background:rgba(255,255,255,.9)}
+.nm b{display:block;font-family:var(--f-display);font-weight:800;font-size:14.5px;line-height:1.1;
+  letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm span{display:block;font-family:var(--f-data);font-size:9.5px;color:var(--mut2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.nm span i{font-style:normal;color:var(--ink)}
+.val{font-family:var(--f-display);font-weight:800;font-size:19px;line-height:1;text-align:right;
+  white-space:nowrap}
+.val small{display:block;font-family:var(--f-data);font-size:8px;font-weight:500;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--mut2);margin-top:2px}
+.sv{font-family:var(--f-data);font-size:12px;font-weight:600;width:46px;text-align:right}
+.sv small{display:block;font-size:8px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--mut2);margin-top:2px}
+.sv.hi{color:var(--green)} .sv.mid{color:var(--amber)} .sv.lo{color:var(--red)}
+.btns{display:flex;gap:5px}
+.b{font-family:var(--f-data);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+  padding:6px 9px;border-radius:7px;background:var(--panel2);border:1px solid var(--line2);
+  color:var(--ink);cursor:pointer;white-space:nowrap}
+.b.go{background:rgba(127,216,180,.14);border-color:var(--green);color:var(--green)}
+.b.ic{padding:6px 8px}
+
+/* ── B · COMPACT. Two lines + one reason. 104px. ────────────────────────── */
+.cc{border-radius:12px;background:var(--panel);border:1px solid var(--line);
+  border-left:4px solid var(--line2);margin-bottom:8px;overflow:hidden}
+.cc.go{border-left-color:var(--green)} .cc.warn{border-left-color:var(--amber)}
+.cc.bad{border-left-color:var(--red)}
+.cc .top{display:grid;grid-template-columns:36px 1fr auto;gap:11px;align-items:center;
+  padding:9px 12px 8px;position:relative;
+  background:linear-gradient(100deg,var(--tc,transparent) 0%,transparent 46%)}
+.cc .top>*{position:relative}
+.cc .face{width:36px;height:36px}
+.chips{display:flex;gap:5px;margin-top:3px;flex-wrap:wrap}
+.chip{font-family:var(--f-data);font-size:9.5px;padding:2px 6px;border-radius:5px;
+  background:var(--panel2);border:1px solid var(--line2);color:var(--mut2);white-space:nowrap}
+.chip b{color:var(--ink);font-weight:600}
+.chip.on{border-color:var(--green);color:var(--green)} .chip.on b{color:var(--green)}
+.chip.warn{border-color:var(--amber);color:var(--amber)} .chip.warn b{color:var(--amber)}
+.cc .why{display:grid;grid-template-columns:1fr auto auto;gap:9px;align-items:center;
+  padding:7px 12px 9px;border-top:1px solid var(--line2);font-size:11.5px;color:var(--muted)}
+.cc .why b{color:var(--ink);font-weight:600}
+.vd{font-family:var(--f-data);font-size:9px;letter-spacing:.09em;text-transform:uppercase;
+  padding:3px 7px;border-radius:5px;border:1px solid var(--line2);color:var(--mut2);white-space:nowrap}
+.vd.g{color:var(--green);border-color:var(--green)} .vd.w{color:var(--amber);border-color:var(--amber)}
+.vd.b{color:var(--red);border-color:var(--red)}
+
+/* ── C · the shipped one, for scale ────────────────────────────────────── */
+.big{border-radius:14px;background:var(--panel);border:1px solid var(--line);
+  border-left:4px solid var(--green);overflow:hidden;margin-bottom:10px}
+.big .hero{padding:12px 14px 10px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) auto;
+  gap:12px;align-items:center;
+  background:linear-gradient(100deg,var(--tc) 0%,var(--panel) 42%,var(--panel) 58%,var(--rb) 100%)}
+.big .who{display:flex;gap:9px;align-items:center;min-width:0}
+.big .who b{font-family:var(--f-display);font-weight:800;font-size:18px;color:#fff}
+.big .who span{display:block;font-family:var(--f-data);font-size:10px;color:rgba(255,255,255,.75)}
+.big .mid{text-align:center;font-family:var(--f-data);font-size:10px;color:rgba(255,255,255,.85)}
+.big .n{font-family:var(--f-display);font-weight:800;font-size:29px;color:#fff;text-align:right}
+.big .cells{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:9px 14px 0;
+  font-family:var(--f-data);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--mut2);text-align:center}
+.big .cell{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 4px;
+  color:var(--ink);font-size:13px;font-weight:700;letter-spacing:0;text-transform:none}
+.big .rs{padding:10px 14px 4px;display:grid;gap:6px}
+.big .r{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:8px 11px;
+  border-radius:10px;background:var(--panel2);border:1px solid var(--line2)}
+.big .r .v{font-weight:700;font-size:13px} .big .r .d{font-family:var(--f-data);font-size:10.5px;color:var(--muted)}
+.big .ft{padding:6px 14px 12px;display:flex;gap:6px}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.45;margin-top:10px}
+</style></head><body>
+
+<h1>Pick cards, made dense</h1>
+<p class="sub">The shipped card is <b>277px</b> tall, so the war room's middle column holds one and a
+half of them. Below, the same four players at three densities, drawn at the real column width. What
+survives the shrink, in order: <b>who</b>, the <b>value</b> that ranks him, <b>survival</b> — the only
+number that says now-or-never — and <b>one</b> reason. ADP and positional rank drop to small type;
+they are context, and the table row underneath still carries them.</p>
+
+<div class="cols">
+
+  <!-- ═══════════════════════════════════════════════════ A · the strip ═══ -->
+  <div class="col">
+    <div class="hd"><h2>A · Strip</h2><em>54px · one line</em></div>
+    <div class="fits">10 fit in the space one card used — the whole shortlist at once</div>
+    <div class="rule"></div>
+
+    <div class="strip go" style="--tc:rgba(0,142,151,.35)">
+      <img class="face" src="https://sleepercdn.com/content/nfl/players/thumb/9226.jpg" alt="">
+      <div class="nm"><b>De'Von Achane</b>
+        <span>RB · MIA · <i>RB6</i> · ADP 14 · fills RB starter</span></div>
+      <div class="sv mid">41%<small>lasts</small></div>
+      <div class="val" style="color:var(--green)">+286<small>value</small></div>
+      <div class="btns"><button class="b ic">☆</button><button class="b go">Draft</button></div>
+    </div>
+
+    <div class="strip warn" style="--tc:rgba(36,23,115,.5)">
+      <img class="face" src="https://sleepercdn.com/content/nfl/players/thumb/3198.jpg" alt="">
+      <div class="nm"><b>Derrick Henry</b>
+        <span>RB · BAL · <i>RB10</i> · ADP 17 · tier 2 cliff after him</span></div>
+      <div class="sv mid">53%<small>lasts</small></div>
+      <div class="val" style="color:var(--green)">+287<small>value</small></div>
+      <div class="btns"><button class="b ic">☆</button><button class="b go">Draft</button></div>
+    </div>
+
+    <div class="strip" style="--tc:rgba(11,34,101,.5)">
+      <img class="face" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt="">
+      <div class="nm"><b>Malik Nabers</b>
+        <span>WR · NYG · <i>WR9</i> · ADP 26 · best WR left</span></div>
+      <div class="sv hi">62%<small>lasts</small></div>
+      <div class="val">+244<small>value</small></div>
+      <div class="btns"><button class="b ic">☆</button><button class="b go">Draft</button></div>
+    </div>
+
+    <div class="strip bad" style="--tc:rgba(16,16,16,.5)">
+      <img class="face" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg" alt="">
+      <div class="nm"><b>Brock Bowers</b>
+        <span>TE · LV · <i>TE2</i> · ADP 21 · <i style="color:var(--red)">TE 2/2 — can't roster</i></span></div>
+      <div class="sv lo">—<small>lasts</small></div>
+      <div class="val" style="color:var(--mut2)">+201<small>value</small></div>
+      <div class="btns"><button class="b ic">☆</button><button class="b">Why?</button></div>
+    </div>
+    <p class="note">The team colour survives as a wash off the left edge, so you still recognise a card
+      before reading it. The reason is folded into the subtitle — one clause, not a strip.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ B · the compact ═══ -->
+  <div class="col">
+    <div class="hd"><h2>B · Compact</h2><em>116px · two lines</em></div>
+    <div class="fits mid">5 fit before you scroll</div>
+    <div class="rule"></div>
+
+    <div class="cc go">
+      <div class="top" style="--tc:rgba(0,142,151,.30)">
+        <img class="face" src="https://sleepercdn.com/content/nfl/players/thumb/9226.jpg" alt="">
+        <div class="nm"><b>De'Von Achane</b>
+          <div class="chips"><span class="chip">RB · MIA</span><span class="chip"><b>RB6</b></span>
+            <span class="chip">ADP <b>14</b></span><span class="chip warn">lasts <b>41%</b></span></div></div>
+        <div class="val" style="color:var(--green)">+286<small>value</small></div>
+      </div>
+      <div class="why"><span><b>Fills your RB starter</b> · ~3 gone by your next pick</span>
+        <span class="vd g">take him</span>
+        <span class="btns"><button class="b ic">☆</button><button class="b go">Draft</button></span></div>
+    </div>
+
+    <div class="cc warn">
+      <div class="top" style="--tc:rgba(36,23,115,.45)">
+        <img class="face" src="https://sleepercdn.com/content/nfl/players/thumb/3198.jpg" alt="">
+        <div class="nm"><b>Derrick Henry</b>
+          <div class="chips"><span class="chip">RB · BAL</span><span class="chip"><b>RB10</b></span>
+            <span class="chip">ADP <b>17</b></span><span class="chip">lasts <b>53%</b></span></div></div>
+        <div class="val" style="color:var(--green)">+287<small>value</small></div>
+      </div>
+      <div class="why"><span><b>Tier 2 cliff after him</b> · same value, three picks later</span>
+        <span class="vd w">coin flip</span>
+        <span class="btns"><button class="b ic">☆</button><button class="b go">Draft</button></span></div>
+    </div>
+
+    <div class="cc">
+      <div class="top" style="--tc:rgba(11,34,101,.45)">
+        <img class="face" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt="">
+        <div class="nm"><b>Malik Nabers</b>
+          <div class="chips"><span class="chip">WR · NYG</span><span class="chip"><b>WR9</b></span>
+            <span class="chip">ADP <b>26</b></span><span class="chip on">lasts <b>62%</b></span></div></div>
+        <div class="val">+244<small>value</small></div>
+      </div>
+      <div class="why"><span><b>Best receiver left</b> · likely still there next turn</span>
+        <span class="vd">can wait</span>
+        <span class="btns"><button class="b ic">☆</button><button class="b go">Draft</button></span></div>
+    </div>
+    <p class="note">Keeps a real reason line and a verdict, at 40% of the height. The four numbers
+      become chips on the subtitle instead of four boxes of their own.</p>
+  </div>
+
+  <!-- ═════════════════════════════════════════ C · what ships today ═══ -->
+  <div class="col">
+    <div class="hd"><h2>C · Today</h2><em>277px · for scale</em></div>
+    <div class="fits bad">1.5 fit — the problem</div>
+    <div class="rule"></div>
+    <div class="big">
+      <div class="hero" style="--tc:#008E97">
+        <div class="who"><img class="face" src="https://sleepercdn.com/content/nfl/players/thumb/9226.jpg" alt="">
+          <div><b>De'Von Achane</b><span>RB · MIA · BYE 6</span></div></div>
+        <div class="mid">1.08 · your pick<br>FIT 17% · RB6</div>
+        <div class="n">+286</div>
+      </div>
+      <div class="cells"><span>ADP</span><span>Rank</span><span>Value</span><span>Survival</span>
+        <span class="cell">14</span><span class="cell">RB6</span><span class="cell">+286</span><span class="cell">41%</span></div>
+      <div class="rs">
+        <div class="r"><div><div class="v">Fills your RB starter</div>
+          <div class="d">the model's strongest roster signal</div></div><span class="vd g">fits</span></div>
+        <div class="r"><div><div class="v">~59% gone by your next pick</div>
+          <div class="d">41% he lasts to 2.05</div></div><span class="vd w">won't last</span></div>
+      </div>
+      <div class="ft"><button class="b go" style="flex:2">Draft →</button><button class="b" style="flex:1">☆ Queue</button></div>
+    </div>
+    <p class="note">Everything is here and nothing is ranked against anything else, because you can only
+      see one of them.</p>
+  </div>
+</div>
+
+<p class="note" style="max-width:74ch">My pick is <b>A for the war room</b> — on the clock you are
+comparing four players, and the strip is the only one that lets you see four. <b>B</b> is the better
+default on a wide screen or the mock tab, where the column is roomier and a real reason line earns its
+height. They share every class, so shipping both as a density toggle is a few lines rather than a
+second component.</p>
+
+</body></html>
