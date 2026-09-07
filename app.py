@@ -439,10 +439,20 @@ def build_context(sel: dict) -> dict:
             return adp_lk[key]
         return adp_lk.get(normalize_name(name))
 
-    # A league that forces kickers and defenses needs them in the AI's pool, or
-    # the mock runs dry in the rounds where they are the only legal pick.
+    # ANY league that STARTS a kicker or a defense needs them in the pool. Gating
+    # this on fixed-roster leagues was too narrow: Babies and Boomer starts a K and
+    # a D-ST over 16 rounds, so the AI would never draft one, the mock would end
+    # with ten illegal lineups, and nothing on his board could fill the two slots
+    # he has to fill. `lineup_slots` is the platform's own starting lineup.
+    # Read the lineup from the provider here rather than the local `lineup_slots`,
+    # which is assigned further down — the pool is built before it exists.
+    try:
+        _needs_kd = {p for p in (provider.get_roster_slots() or []) if p in ("K", "DST")}
+    except Exception:  # noqa: BLE001
+        _needs_kd = set()
     _pool_pos = (("QB", "RB", "WR", "TE", "K", "DST")
-                 if _PZ.is_fixed_roster(meta.league_id) else ("QB", "RB", "WR", "TE"))
+                 if (_needs_kd or _PZ.is_fixed_roster(meta.league_id))
+                 else ("QB", "RB", "WR", "TE"))
     try:
         adp_pool = rankings_mod.adp_pool(registry, adp_df, positions=_pool_pos)
     except TypeError:
@@ -659,16 +669,15 @@ def main():
     from draftkit import storage
     if ctx["ranks_key"] not in st.session_state:
         st.session_state[ctx["ranks_key"]] = storage.load_rankings(ctx["league_key"])
-    # A fixed-roster league forces kickers and defenses, and no cheat sheet ranks
-    # them — so the board he pulled has four compulsory picks per team it cannot
-    # help with, and the roster filter empties the panel in exactly those rounds.
-    # Top it up from consensus ADP, behind everything he ranked himself.
-    if ctx.get("fixed_roster"):
-        _topped = rankings_mod.top_up_required(
-            st.session_state.get(ctx["ranks_key"]) or [], ctx["roster_slots"],
-            ctx.get("adp_pool") or [], ctx["registry"], len(ctx["slot_names"]))
-        if len(_topped) != len(st.session_state.get(ctx["ranks_key"]) or []):
-            st.session_state[ctx["ranks_key"]] = _topped
+    # No cheat sheet ranks kickers or defenses, so any league that STARTS one has
+    # rounds his board cannot help with — and in a fixed-roster league the filter
+    # empties the panel entirely there. Top it up from consensus ADP, behind
+    # everything he ranked himself. No-ops when the board already covers them.
+    _topped = rankings_mod.top_up_required(
+        st.session_state.get(ctx["ranks_key"]) or [], ctx["roster_slots"],
+        ctx.get("adp_pool") or [], ctx["registry"], len(ctx["slot_names"]))
+    if len(_topped) != len(st.session_state.get(ctx["ranks_key"]) or []):
+        st.session_state[ctx["ranks_key"]] = _topped
 
     # Per-manager AI draft boards, saved per league. Seeded HERE rather than beside
     # the selectboxes because the mock tab owns the widgets but the live tab's pick
