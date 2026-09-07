@@ -93,6 +93,40 @@ def player_label(ctx, r, pm, *, pick=None, my_pids=None, survival=None,
     return f'{rk_s}:{pc}[**{pr}**] {stk}**{r["name"]}**{rook} {meta}{vchip}{vt}'
 
 
+def board_label(ctx, r, pm, *, pick=None, my_pids=None, tier_chip=None) -> str:
+    """The dense board row: the NAME on one line, everything else on a second.
+
+    The old label was one sentence — "#34 WR15 Zay Flowers BAL · ADP 34 · Bye 13
+    V +49 ▼ +13" — which reads left to right and lines up with nothing above or
+    below it, so comparing two players meant reading both. Here the name is the
+    anchor and the rest is meta; value and survival are painted in fixed columns
+    on the right by the caller, where the eye can run straight down them.
+
+    `*...*` around the meta is not italics — it is the only wrapper a markdown
+    button label can produce, and the stylesheet hangs the mono face on it.
+    """
+    pos_rank, adp_rank = ctx["pos_rank"], ctx.get("adp_rank")
+    pid = str(r["pid"])
+    pr = pos_rank.get(pid, pm.position)
+    pc = _POSCOL.get(pm.position, "gray")
+    adp = adp_rank(pm.name, pm.position) if adp_rank else None
+    rk = r.get("rank")
+    bits = []
+    if rk:
+        bits.append(f"#{rk}")
+    bits.append(f":{pc}[**{pr}**]")
+    if pm.team:
+        bits.append(pm.team)
+    bits.append(f"ADP {int(adp)}" if adp else "ADP —")
+    if tier_chip is not None:
+        # The tier, said ONCE where it appears, instead of a heading row above
+        # every player who happens to be the last of his.
+        bits.append(f"T{tier_chip}")
+    rook = " :violet[**R**]" if getattr(pm, "years_exp", None) == 0 else ""
+    stk = stack_badge(pm, my_pids, ctx["registry"])
+    return f'{stk}**{r["name"]}**{rook}  \n*{" · ".join(bits)}*'
+
+
 def _headshot_css(container_key, pid) -> str:
     """Inline CSS that paints a player's headshot into a `_brow_`-styled row."""
     return (f'.st-key-{container_key} .stButton button::before{{'
@@ -189,9 +223,8 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
     # the rank / name / meta / value visually distinct instead of one flat string.
     poscol = _POSCOL
 
-    def label(r, pm, survival=None):
-        return player_label(ctx, r, pm, pick=pick, my_pids=my_pids,
-                            survival=survival, next_pick=next_pick)
+    def label(r, pm, survival=None, tier_chip=None):
+        return board_label(ctx, r, pm, pick=pick, my_pids=my_pids, tier_chip=tier_chip)
 
     def compact_label(r, pm):
         """Short label for the narrow by-position columns: rank, short name, value."""
@@ -224,7 +257,7 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
                                    horizon=ctx.get("survival_horizon"))
                if (next_pick and pick) else None)
 
-    def emit_row(r, compact=False):
+    def emit_row(r, compact=False, tier_chip=None):
         pm = reg.meta(r["pid"])
         rk = f'{key_prefix}_brow_{pm.position}_{r["pid"]}'
         # drafted players (Show-drafted mode): keep them in their tier, struck-through
@@ -241,6 +274,21 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         # the button in tooltip divs, so a direct-child selector wouldn't match.
         css = (f'.st-key-{rk} .stButton button::before{{'
                f'background-image:url("{theme.headshot_src(r["pid"])}")}}')
+        # The left edge is the TIER, not the position — the position is already
+        # colour-coded in the meta line, and the tier is the thing that used to
+        # cost a whole heading row to say.
+        _tc = C.tier_color(r.get("tier"))
+        css += f'.st-key-{rk} .stButton button{{border-left-color:{_tc}}}'
+        # VALUE, painted in its own column so it can be scanned down the list, with
+        # the ADP fall under it. Both were buried mid-sentence before.
+        _v = vm.vorp_of(r["pid"]) if vm else None
+        if _v is not None and not compact:
+            _adp = adp_rank(pm.name, pm.position)
+            _d = (_adp - pick) if (_adp and pick) else 0
+            _fall = f"\\A ▼{int(_d)}" if _d >= 8 else ""
+            _vc = "var(--green)" if _v >= 0 else "var(--red)"
+            css += (f'.st-key-{rk}::after{{content:"{"+" if _v >= 0 else ""}{_v:.0f}{_fall}";'
+                    f'color:{_vc}}}')
         _sv = None                       # this row's survival %, reused by the reach chip
         if next_pick:
             adp = adp_rank(pm.name, pm.position)
@@ -251,7 +299,8 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
                 css += (f'.st-key-{rk} .stButton button::after{{content:"{pct}%";'
                         f'background:{sc[0]};color:{sc[1]}}}')
         pid = str(r["pid"])
-        text = compact_label(r, pm) if compact else label(r, pm, survival=_sv)
+        text = (compact_label(r, pm) if compact
+                else label(r, pm, survival=_sv, tier_chip=tier_chip))
 
         # Hover explanation for the ❗ chip. Attached ONLY on a reach: a tooltip on
         # every row would be noise, and the rest of the detail lives in the card.
@@ -276,7 +325,9 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
 
         def _draft_btn():
             with st.container(key=f"{key_prefix}_qdraft_{pid}"):
-                if st.button("Draft", key=f"{key_prefix}_qd_{pid}",
+                # "+" not "Draft": this column is ~40px in the war room's left
+                # panel, and the word was wrapping to one letter per line.
+                if st.button("＋", key=f"{key_prefix}_qd_{pid}", help="Draft him",
                              use_container_width=True):
                     quick_draft(pid)
 
@@ -284,7 +335,7 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         show_draft = quick_draft is not None and not compact
         # Layout the row: optional ★ (queue) · player (opens card) · optional Draft.
         if show_star and show_draft:
-            sc_ = st.columns([0.5, 7.1, 1.1], gap="small")
+            sc_ = st.columns([0.6, 7.8, 0.8], gap="small")
             with sc_[0]:
                 _star_btn()
             with sc_[1]:
@@ -328,11 +379,32 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
             last = None
             if not show_bands:
                 st.markdown(C.tier_band("Sorted by value (VORP)", 1), unsafe_allow_html=True)
-            for r in board_avail[:limit]:
-                if show_bands and r["tier"] != last:
-                    st.markdown(C.tier_band(f"Tier {r['tier']}", r["tier"]), unsafe_allow_html=True)
-                    last = r["tier"]
-                emit_row(r)
+            rows = board_avail[:limit]
+            # A band per tier change groups nicely at the top of a draft and
+            # collapses completely once the board thins — Tier 4, one player, Tier
+            # 5, one player. The tier now rides the row (a coloured left edge, and
+            # a chip the first time it appears), and only a REAL cliff earns a
+            # line: a tier that ends with several of its players still on the board
+            # is a decision point, one that ends with a single straggler is not.
+            sizes = {}
+            for r in rows:
+                sizes[r.get("tier")] = sizes.get(r.get("tier"), 0) + 1
+            # ...and only the FIRST couple of them get a line. Seventy rows span a
+            # dozen tiers, so a line at every boundary is thirty-seven headings —
+            # the same disease as the bands, in a thinner font. The next cliff or
+            # two is what he is deciding against; the rest is the chip's job.
+            cliffs_left = 2
+            for r in rows:
+                t = r.get("tier")
+                if show_bands and t != last:
+                    if last is not None and cliffs_left > 0 and sizes.get(last, 0) >= 3:
+                        cliffs_left -= 1
+                        st.markdown(f'<div class="rk-cliff"><i></i><span>tier <b>{t}</b> '
+                                    f'starts here</span><i></i></div>', unsafe_allow_html=True)
+                    last = t
+                    emit_row(r, tier_chip=t)
+                else:
+                    emit_row(r)
 
 
 def _position_tiers(rows):

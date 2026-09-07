@@ -45,7 +45,7 @@ NAVY = "#16263f"
 
 CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Sora:wght@600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 /* ===== Night Draft — light variant (teal accent) ===== */
 :root{
   /* --- Bloody Sunday. Crimson has exactly TWO jobs: the brand, and genuine
@@ -1074,11 +1074,29 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="_board_"] [data-testid="stVerticalBlock"]{ gap:3px; }
 [class*="_brow_"]{ margin:0 !important; }
 [class*="_brow_"] .stButton{ margin:0; }
+/* ---- THE BOARD ROW, dense. Two lines inside one button: the NAME (Inter, the
+   thing you hunt for) and a META line (IBM Plex Mono, so the numbers read as
+   data). Value and survival are painted on the right as pseudo-elements, which
+   is the only way to get real columns out of a Streamlit button label — and
+   columns are the point: the panel's job is comparison, and a run-on sentence
+   cannot be compared to the sentence above it. ---- */
 [class*="_brow_"] .stButton button{ width:100%; text-align:left !important;
   justify-content:flex-start !important; align-items:center;
-  padding:8px 58px 8px 46px; font-size:13px; font-weight:700; min-height:42px; line-height:1.25;
-  border:1px solid var(--line); border-left-width:5px; border-radius:7px; background:#fff;
+  padding:3px 74px 3px 38px; font-size:12.5px; font-weight:600; min-height:34px;
+  line-height:1.15;
+  border:1px solid var(--line); border-left-width:3px; border-radius:8px; background:var(--panel);
   color:var(--ink); white-space:normal; position:relative; }
+/* the name */
+[class*="_brow_"] .stButton button p{ white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; max-width:100%; }
+[class*="_brow_"] .stButton button p strong{ font-family:'Inter',sans-serif; font-weight:600;
+  font-size:12.5px; }
+/* the meta line — em is the only wrapper a markdown label can give us, so it
+   carries the mono face rather than italics */
+[class*="_brow_"] .stButton button p em{ font-style:normal; font-family:'IBM Plex Mono',monospace;
+  font-size:9px; letter-spacing:-.01em; color:var(--mut2); }
+[class*="_brow_"] .stButton button p em strong{ font-family:'IBM Plex Mono',monospace;
+  font-size:9px; font-weight:600; }
 /* keep the label left-aligned no matter how Streamlit wraps the button content.
    Streamlit 1.58 nests it as button(flex) > div(flex,justify:center) > span(flex)
    > markdown > p — so a plain text-align can't win; we force flex-start on the
@@ -1090,13 +1108,30 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="_brow_"] .stButton button [data-testid="stMarkdownContainer"]{
   text-align:left !important; }
 /* player headshot as a ::before circle (per-row background-image injected inline) */
-[class*="_brow_"] .stButton button::before{ content:""; position:absolute; left:9px; top:50%;
-  transform:translateY(-50%); width:28px; height:28px; border-radius:50%; background:#eef1f5 center/cover no-repeat;
-  border:1px solid var(--line); }
+[class*="_brow_"] .stButton button::before{ content:""; position:absolute; left:7px; top:50%;
+  transform:translateY(-50%); width:26px; height:26px; border-radius:7px;
+  background:#eef1f5 center/cover no-repeat; border:1px solid var(--line); }
 /* availability % as a shaded ::after box (per-row content+colors injected inline) */
-[class*="_brow_"] .stButton button::after{ position:absolute; right:7px; top:50%;
-  transform:translateY(-50%); font-size:11px; font-weight:800; padding:3px 6px; border-radius:5px;
-  line-height:1.1; min-width:34px; text-align:center; }
+[class*="_brow_"] .stButton button::after{ position:absolute; right:6px; top:50%;
+  transform:translateY(-50%); font-family:'IBM Plex Mono',monospace; font-size:11px;
+  font-weight:600; padding:2px 4px; border-radius:5px; line-height:1.1; min-width:30px;
+  text-align:center; }
+/* the value, painted on the CONTAINER so the button's own two pseudo-elements stay
+   free for the headshot and the survival box. Two lines: value, then the fall. */
+[class*="_brow_"]{ position:relative; }
+[class*="_brow_"]::after{ position:absolute; right:44px; top:50%; transform:translateY(-50%);
+  font-family:'IBM Plex Mono',monospace; font-size:12.5px; font-weight:600; line-height:1.25;
+  text-align:right; white-space:pre; pointer-events:none; z-index:2; }
+/* the tier, as a chip the first time it appears — no band rows at all, so a run of
+   one-player tiers costs nothing */
+.rk-tchip{ display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:8px;
+  letter-spacing:.06em; padding:0 4px; border-radius:4px; border:1px solid currentColor;
+  margin-left:4px; }
+.rk-cliff{ display:flex; align-items:center; gap:7px; margin:5px 2px 4px;
+  font-family:'IBM Plex Mono',monospace; font-size:8.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--mut2); }
+.rk-cliff i{ height:1px; flex:1; background:var(--line2); }
+.rk-cliff b{ color:var(--amber); font-weight:600; }
 [class*="_brow_"] .stButton button:hover{ border-color:var(--ink); box-shadow:0 2px 8px rgba(0,0,0,.10); }
 [class*="_brow_QB"] .stButton button{ border-left-color:var(--qb); }
 [class*="_brow_QB"] .stButton button:hover{ background:#fdf2f2; }
