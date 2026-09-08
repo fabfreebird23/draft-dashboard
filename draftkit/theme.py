@@ -1532,7 +1532,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .dayband .n small{ display:block; font-family:'IBM Plex Mono',ui-monospace,monospace;
   font-size:8.5px; font-weight:500; letter-spacing:.13em; text-transform:uppercase;
   color:var(--mut2); margin-top:3px; }
-.lg{ display:grid; grid-template-columns:150px 1fr 150px; gap:14px; align-items:center;
+.lg{ display:grid; grid-template-columns:150px 1fr 168px; gap:14px; align-items:center;
   padding:10px 14px; border-radius:12px; background:var(--panel); border:1px solid var(--line);
   border-left:4px solid var(--line2); margin:0 0 4px; }
 .lg.go{ border-left-color:var(--green); } .lg.warn{ border-left-color:var(--amber); }
@@ -1555,14 +1555,20 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .lg .wp{ height:5px; border-radius:999px; background:var(--line2); overflow:hidden; width:110px;
   margin:3px auto 0; }
 .lg .wp i{ display:block; height:100%; background:var(--green); }
-.lg .chips{ display:flex; flex-direction:column; gap:4px; }
-.lg .chip{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9px; letter-spacing:.06em;
-  padding:3px 7px; border-radius:5px; border:1px solid var(--line2); color:var(--mut2);
-  white-space:nowrap; text-align:center; overflow:hidden; text-overflow:ellipsis; }
-.lg .chip.g{ color:var(--green); border-color:var(--green); }
-.lg .chip.w{ color:var(--amber); border-color:var(--amber); }
-.lg .chip.b{ color:var(--red); border-color:var(--red); }
-.lg .chip.l{ color:var(--crimson); border-color:var(--crimson); }
+/* the chips are a LIST, not badges: Inter, left-aligned, a coloured dot for
+   tone and no border. Chosen over eight alternatives on 2026-09-08 — the mono
+   badges read like a terminal, and three of them stacked were unreadable. */
+.lg .chips{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.lg .chip{ font-family:'Inter',system-ui,sans-serif; font-size:11px; font-weight:500;
+  color:var(--ink); padding:1px 0; display:flex; align-items:center; gap:6px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.lg .chip::before{ content:""; width:6px; height:6px; border-radius:50%; background:var(--line2);
+  flex:none; }
+.lg .chip.g::before{ background:var(--green); }
+.lg .chip.w::before{ background:var(--amber); }
+.lg .chip.b::before{ background:var(--red); }
+.lg .chip.l::before{ background:var(--crimson); }
+.lg .chip:not(.g):not(.w):not(.b):not(.l){ color:var(--mut2); }
 [class*="st-key-hmrow_"]{ margin-bottom:8px; }
 [class*="st-key-hmrow_"] [data-testid="stHorizontalBlock"]{ align-items:center; }
 [class*="st-key-hmrow_"] .stButton button{ font-family:'IBM Plex Mono',ui-monospace,monospace;

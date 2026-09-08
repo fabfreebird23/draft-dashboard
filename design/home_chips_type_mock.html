@@ -1,0 +1,81 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Home chips · type</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#161415;--panel:#232022;--panel2:#2c282a;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;
+ --muted:#a2989c;--mut2:#95898e;--crimson:#ff336c;--green:#7fd8b4;--amber:#f0b357;--red:#ff8fae;--blue:#6aa6f0}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;margin:0;padding:22px 22px 60px;font-size:13px}
+h1{font-family:Sora;font-weight:800;font-size:24px;margin:0 0 4px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:78ch;line-height:1.5;margin:0 0 20px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.opt{background:#1b1819;border:1px solid var(--line);border-radius:14px;padding:14px}
+.opt h2{font-family:Sora;font-size:15px;margin:0 0 2px}
+.opt h2 span{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;background:var(--crimson);color:#fff;font-size:12px;margin-right:8px}
+.opt p{color:var(--mut2);font-size:11.5px;line-height:1.45;margin:0 0 12px;min-height:34px}
+.rows{display:flex;flex-direction:column;gap:7px}
+.lg{display:grid;grid-template-columns:118px 1fr 150px;gap:12px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--amber)}
+.lg .nm b{display:block;font-family:Sora;font-weight:800;font-size:13px}
+.lg .nm span{display:block;font-family:'IBM Plex Mono';font-size:9px;color:var(--mut2);margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
+.mu{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;min-width:0}
+.mu b{display:block;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mu span{font-family:'IBM Plex Mono';font-size:14px;font-weight:600}
+.mu .r{text-align:right}.mu .r span{color:var(--muted)}
+.mu small{font-family:'IBM Plex Mono';font-size:8.5px;color:var(--mut2);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.wp{height:5px;border-radius:999px;background:var(--line2);overflow:hidden;width:90px;margin:3px auto 0}.wp i{display:block;height:100%;width:55%;background:var(--green)}
+.chips{display:flex;flex-direction:column;gap:4px}
+.chip{padding:3px 8px;border-radius:5px;border:1px solid var(--line2);color:var(--mut2);white-space:nowrap;text-align:center;overflow:hidden;text-overflow:ellipsis}
+.chip.w{color:var(--amber);border-color:var(--amber)} .chip.g{color:var(--green);border-color:var(--green)} .chip.b{color:var(--red);border-color:var(--red)}
+/* 1 · as built: Plex Mono, letterspaced */
+.t1 .chip{font-family:'IBM Plex Mono';font-size:9px;letter-spacing:.06em}
+/* 2 · Inter 600 — the body face, no mono */
+.t2 .chip{font-family:Inter;font-size:10.5px;font-weight:600;letter-spacing:0}
+/* 3 · Inter words + mono numbers */
+.t3 .chip{font-family:Inter;font-size:10.5px;font-weight:600}
+.t3 .chip em{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-size:10px;margin-left:3px}
+/* 4 · JetBrains Mono, larger, no tracking */
+.t4 .chip{font-family:'JetBrains Mono';font-size:10px;font-weight:500;letter-spacing:0}
+/* 5 · Barlow Condensed caps — the sportsbot scoreboard look */
+.t5 .chip{font-family:'Barlow Condensed';font-size:12.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px}
+/* 6 · DM Sans, softer, pill, filled tint instead of outline */
+.t6 .chip{font-family:'DM Sans';font-size:10.5px;font-weight:600;border-radius:999px;border-color:transparent;background:rgba(255,255,255,.05)}
+.t6 .chip.w{background:rgba(240,179,87,.13)} .t6 .chip.g{background:rgba(127,216,180,.13)} .t6 .chip.b{background:rgba(255,143,174,.13)}
+/* 7 · Inter, left-aligned with a dot instead of a border — reads as a list */
+.t7 .chips{gap:2px}
+.t7 .chip{font-family:Inter;font-size:11px;font-weight:500;border:0;padding:1px 0;text-align:left;color:var(--ink);display:flex;align-items:center;gap:6px}
+.t7 .chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--line2);flex:none}
+.t7 .chip.w{color:var(--ink)} .t7 .chip.w::before{background:var(--amber)}
+.t7 .chip.g::before{background:var(--green)} .t7 .chip.b::before{background:var(--red)}
+.t7 .chip.n{color:var(--mut2)}
+/* 8 · Sora 700 small — the display face, tiny */
+.t8 .chip{font-family:Sora;font-size:9.5px;font-weight:700;letter-spacing:.01em}
+/* 9 · Plex Sans 600 with mono numbers, tabular */
+.t9 .chip{font-family:'IBM Plex Sans';font-size:10.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.t9 .chip em{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-size:10px;margin-left:3px}
+</style></head><body>
+<h1>Home chips · nine ways to set the type</h1>
+<p class="sub">Same four rows, same words. Only the chips change. 1 is what's live now (Plex Mono, tracked, 9px) — it reads as a terminal. The rest try the body face, the display face, a condensed scoreboard face, and a "list, not badges" layout.</p>
+<div class="grid" id="g"></div>
+<script>
+const opts=[
+ [1,"As built","IBM Plex Mono 9px, tracked. Data-face for everything, including the words."],
+ [2,"Inter 600","The body face, a little bigger, no tracking. Words read as words."],
+ [3,"Inter + mono numbers","Inter for the name, Plex Mono for the number — the treatment you picked for Rankings."],
+ [4,"JetBrains Mono","Still mono, but rounder and 10px with no tracking. Less terminal, still data."],
+ [5,"Barlow Condensed caps","The sportsbot scoreboard face. Loud, fits long text, very sports."],
+ [6,"DM Sans pills","Soft face, filled tint instead of outline. Quieter, more app-like."],
+ [7,"List, not badges","Inter, left-aligned, a coloured dot instead of a border. Reads top-down like the mock's action list."],
+ [8,"Sora 700 small","The display face at chip size. Ties the chips to the league name above."],
+ [9,"Plex Sans + mono","Plex Sans for words, Plex Mono numbers, tabular. Same family as the data everywhere else."]];
+const rows=[["The Kreeper League","Sleeper · 8 · 0–0","FAABfreebird","144.4","Old Man Mike","140.1",[["1 change","+0.6","w"],["Love Q","−1.5","w"],["wire: nothing","","n"]]],
+ ["7½ Men","Sleeper · 8 · 0–0","Clayton's Kids","144.6","Taco Bandit","143.3",[["Williams → RB","Thu","w"],["Burden Q","−7.5 +2","w"],["wire: nothing","","n"]]],
+ ["Babies and Boomer","Sleeper · 10 · 0–0","Guys who Fuck","134.6","Too Many Rooks","137.4",[["1 change","+0.7","w"],["Egbuka Q","−1.2 +2","w"],["Andrews","+1.3 · $20–31","w"]]],
+ ["Show us your TD's","ESPN · 12","Bad Life","269.1","Smelly Pitts","256.6",[["Price → RB","Wed","w"],["Nabers Q","−5.7","w"],["wire: nothing","","n"]]]];
+const g=document.getElementById('g');
+for(const [n,t,d] of opts){
+ const el=document.createElement('div');el.className='opt t'+n;
+ el.innerHTML=`<h2><span>${n}</span>${t}</h2><p>${d}</p><div class="rows">`+rows.map(r=>`<div class="lg"><div class="nm"><b>${r[0]}</b><span>${r[1]}</span></div>
+ <div class="mu"><div><b>${r[2]}</b><span>${r[3]}</span></div><div style="text-align:center"><small>NEXT · 55% YOU</small><div class="wp"><i></i></div></div><div class="r"><b>${r[4]}</b><span>${r[5]}</span></div></div>
+ <div class="chips">${r[6].map(c=>`<span class="chip ${c[2]}">${c[0]}${c[1]?` <em>·&nbsp;${c[1]}</em>`:''}</span>`).join('')}</div></div>`).join('')+`</div>`;
+ g.appendChild(el);}
+</script></body></html>
