@@ -2087,3 +2087,36 @@ def still_to_play_html(cols) -> str:
             out.append(f'<div class="pl {state}"><b>{_esc(name)}</b><span>{_esc(sub)}</span></div>')
         out.append('</div>')
     return "".join(out) + "</div>"
+
+
+def lineup_compare_html(*, now_rows, set_rows, now_total, set_total, marks) -> str:
+    """The lineup on the platform beside the one to set, slot by slot.
+
+    `now_rows` / `set_rows` are [(slot, colour, name, sub, kick, kick_tone, proj,
+    state)] with state in "", "out", "in", "mv". `marks` is the column between
+    them: one glyph per row ("·", "⇄", "↑") with a tone ("", "on", "g").
+    """
+    def col(title, sub, total, rows, tot_cls=""):
+        out = [f'<div class="lc-col"><div class="hd"><div><b>{_esc(title)}</b> '
+               f'<span>· {_esc(sub)}</span></div><div class="tot{tot_cls}">{_esc(total)}</div></div>']
+        for slot, colour, name, subtxt, kick, ktone, proj, state in rows:
+            out.append(
+                f'<div class="rw{(" " + state) if state else ""}">'
+                f'<span class="sl" style="color:{colour}">{_esc(slot)}</span>'
+                f'<div class="pl"><b>{name}</b><span>{subtxt}</span></div>'
+                f'<span class="kick{(" " + ktone) if ktone else ""}">{_esc(kick)}</span>'
+                f'<span class="pj">{_esc(proj)}</span></div>')
+        return "".join(out) + "</div>"
+    mid = ('<div class="lc-mid">'
+           + "".join(f'<div class="a{(" " + t) if t else ""}">{g}</div>' for g, t in marks)
+           + '</div>')
+    # now_total / set_total are (title, sub, total-string)
+    return ('<div class="lc-two">'
+            + col(*now_total, now_rows) + mid + col(*set_total, set_rows, " up")
+            + '</div>')
+
+
+def steps_html(title, steps) -> str:
+    """A numbered list of the taps to make on the platform, in order."""
+    li = "".join(f'<li>{s}</li>' for s in steps)
+    return (f'<div class="lc-steps"><div class="k">{_esc(title)}</div><ol>{li}</ol></div>')

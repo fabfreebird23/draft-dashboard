@@ -1,0 +1,127 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Lineup · now vs advised</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#161415;--panel:#232022;--panel2:#2c282a;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#95898e;
+ --crimson:#ff336c;--green:#7fd8b4;--amber:#f0b357;--red:#ff8fae;--blue:#6aa6f0;
+ --qb:#e879a6;--rb:#7fd8b4;--wr:#6aa6f0;--te:#f0b357;--k:#c9c2c5;--dst:#b59cf0;
+ --fd:'Sora',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);margin:0;padding:22px 22px 70px;font-size:13px}
+h1{font-family:var(--fd);font-weight:800;font-size:24px;margin:0 0 4px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:84ch;line-height:1.5;margin:0 0 18px}
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:28px 0 10px;font-family:var(--fd);font-weight:800;font-size:16px}
+.bar i{height:1px;background:var(--line2)} .bar em{font-family:var(--fm);font-size:9.5px;font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2)}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.45;margin-top:8px;max-width:84ch}
+.day{font-family:var(--fm);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2);margin-bottom:8px}
+.day b{color:var(--ink);font-weight:600} .day .on{color:var(--crimson)}
+/* ── A · two columns, slot by slot ─────────────────────────────── */
+.wrap{max-width:1040px}
+.two{display:grid;grid-template-columns:1fr 54px 1fr;gap:0;align-items:start}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.col .hd{display:flex;justify-content:space-between;align-items:baseline;padding:10px 14px;background:var(--panel2);border-bottom:1px solid var(--line)}
+.col .hd b{font-family:var(--fd);font-size:13px} .col .hd span{font-family:var(--fm);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2)}
+.col .hd .tot{font-family:var(--fd);font-weight:800;font-size:18px}
+.rw{display:grid;grid-template-columns:44px 1fr 74px 52px;gap:10px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line);min-height:52px}
+.rw:last-child{border-bottom:0}
+.sl{font-family:var(--fm);font-size:10px;font-weight:600;letter-spacing:.06em}
+.pl b{display:block;font-size:13px;font-weight:600} .pl span{display:block;font-size:11px;color:var(--mut2);margin-top:1px}
+.kick{font-family:var(--fm);font-size:10.5px;color:var(--muted);text-align:right;white-space:nowrap}
+.kick.early{color:var(--amber)} .kick.late{color:var(--blue)}
+.pj{font-family:var(--fm);font-size:12px;font-weight:600;text-align:right}
+.rw.out{background:rgba(255,143,174,.07)} .rw.out .pl b{color:var(--red);text-decoration:line-through;text-decoration-thickness:1px}
+.rw.in{background:rgba(127,216,180,.08);border-left:3px solid var(--green);padding-left:11px}
+.rw.mv{background:rgba(106,166,240,.08);border-left:3px solid var(--blue);padding-left:11px}
+.tag{font-family:var(--fm);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
+.tag.in{color:var(--green);border:1px solid var(--green)} .tag.mv{color:var(--blue);border:1px solid var(--blue)} .tag.out{color:var(--red);border:1px solid var(--red)}
+.mid{display:grid;align-content:start;padding-top:44px}
+.mid .a{height:52px;display:grid;place-items:center;font-family:var(--fm);font-size:11px;color:var(--mut2)}
+.mid .a.on{color:var(--blue)} .mid .a.g{color:var(--green)}
+/* the change list */
+.todo{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.act{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;padding:11px 13px;border-radius:12px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--line2)}
+.act.g{border-left-color:var(--green)} .act.b{border-left-color:var(--blue)}
+.act .ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:13px;background:var(--panel2);border:1px solid var(--line2)}
+.act.g .ic{color:var(--green);border-color:var(--green)} .act.b .ic{color:var(--blue);border-color:var(--blue)}
+.act .t{font-weight:700;font-size:12.5px} .act .d{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4}
+.act .n{font-family:var(--fd);font-weight:800;font-size:17px;text-align:right;white-space:nowrap}
+.act .n small{display:block;font-family:var(--fm);font-size:8px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2);margin-top:2px}
+.act.g .n{color:var(--green)} .act.b .n{color:var(--blue)}
+.steps{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.steps .k{font-family:var(--fm);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2);margin-bottom:6px}
+.steps ol{margin:0;padding-left:18px;font-size:12.5px;line-height:1.7} .steps li b{font-weight:600}
+.steps li em{font-family:var(--fm);font-style:normal;font-size:10.5px;color:var(--mut2)}
+/* ── B · one list, now → advised in the row ───────────────────── */
+.one{max-width:760px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.one .rw{grid-template-columns:44px 1fr 24px 1fr 74px 52px}
+.one .arr{font-family:var(--fm);color:var(--mut2);text-align:center} .one .arr.on{color:var(--blue)} .one .arr.g{color:var(--green)}
+.one .pl.dim b{color:var(--mut2);font-weight:500}
+.leg{display:flex;gap:16px;font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2);margin:10px 0}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:6px}
+</style></head><body>
+<h1>Lineup · what's on Sleeper vs what to set</h1>
+<p class="sub">Babies and Boomer, week 1, as it is right now. Left is the lineup Sleeper has. Right is the same nine plus the one bench move, <b>seated by kickoff</b>: the earliest game goes into the rigid RB/WR/TE slot, the FLEX keeps the latest game so it is still open when Sunday's inactives land. Every difference is marked, and the list underneath is the exact moves to make on Sleeper, in the order Sleeper will let you make them.</p>
+
+<div class="bar"><span>A · side by side</span><i></i><em>slot by slot, changes marked, moves listed</em></div>
+<div class="wrap">
+<div class="day"><b>Tuesday</b> · set your lineup · first lock <b>Wed 8:20</b> in <span class="on">31h</span> · 2 moves, 3 re-seats</div>
+<div class="two">
+ <div class="col"><div class="hd"><div><b>On Sleeper now</b> <span>· as set</span></div><div class="tot">134.6</div></div>
+  <div class="rw"><span class="sl" style="color:var(--qb)">QB</span><div class="pl"><b>Justin Herbert</b><span>LAC · vs KC</span></div><span class="kick">Sun 4:25</span><span class="pj">21.4</span></div>
+  <div class="rw"><span class="sl" style="color:var(--rb)">RB</span><div class="pl"><b>Bijan Robinson</b><span>ATL · @ TB</span></div><span class="kick early">Sun 1:00</span><span class="pj">19.8</span></div>
+  <div class="rw"><span class="sl" style="color:var(--rb)">RB</span><div class="pl"><b>De'Von Achane</b><span>MIA · vs LV</span></div><span class="kick late">Sun 4:25</span><span class="pj">16.9</span></div>
+  <div class="rw"><span class="sl" style="color:var(--wr)">WR</span><div class="pl"><b>A.J. Brown</b><span>PHI · @ WAS</span></div><span class="kick">Sun 4:25</span><span class="pj">17.1</span></div>
+  <div class="rw"><span class="sl" style="color:var(--wr)">WR</span><div class="pl"><b>Emeka Egbuka</b><span>TB · vs ATL · <span style="color:var(--amber)">QUES</span></span></div><span class="kick">Sun 1:00</span><span class="pj">12.6</span></div>
+  <div class="rw out"><span class="sl" style="color:var(--te)">TE</span><div class="pl"><b>Isaiah Likely</b><span style="color:var(--red)">bench him · Andrews +0.7</span></div><span class="kick">Sun 8:20</span><span class="pj">9.4</span></div>
+  <div class="rw"><span class="sl" style="color:var(--mut2)">FLEX</span><div class="pl"><b>Breece Hall</b><span>NYJ · @ BUF</span></div><span class="kick early">Sun 1:00</span><span class="pj">14.0</span></div>
+  <div class="rw"><span class="sl" style="color:var(--mut2)">FLEX</span><div class="pl"><b>Jadarian Price</b><span>SEA · vs NE</span></div><span class="kick early">Wed 8:20</span><span class="pj">12.1</span></div>
+  <div class="rw"><span class="sl" style="color:var(--mut2)">FLEX</span><div class="pl"><b>Jacory Croskey-Merritt</b><span>WAS · vs PHI</span></div><span class="kick late">Sun 4:25</span><span class="pj">11.3</span></div>
+  <div class="rw"><span class="sl" style="color:var(--dst)">DST</span><div class="pl"><b>Steelers</b><span>PIT · vs NYG</span></div><span class="kick">Sun 1:00</span><span class="pj">7.0</span></div>
+ </div>
+ <div class="mid">
+  <div class="a">·</div><div class="a on">⇄</div><div class="a on">⇄</div><div class="a">·</div><div class="a">·</div><div class="a g">↑</div><div class="a on">⇄</div><div class="a on">⇄</div><div class="a">·</div><div class="a">·</div>
+ </div>
+ <div class="col"><div class="hd"><div><b>Set this</b> <span>· seated by kickoff</span></div><div class="tot" style="color:var(--green)">135.3</div></div>
+  <div class="rw"><span class="sl" style="color:var(--qb)">QB</span><div class="pl"><b>Justin Herbert</b><span>LAC · vs KC</span></div><span class="kick">Sun 4:25</span><span class="pj">21.4</span></div>
+  <div class="rw mv"><span class="sl" style="color:var(--rb)">RB</span><div class="pl"><b>Jadarian Price<span class="tag mv">from FLEX</span></b><span>plays first — Wednesday</span></div><span class="kick early">Wed 8:20</span><span class="pj">12.1</span></div>
+  <div class="rw mv"><span class="sl" style="color:var(--rb)">RB</span><div class="pl"><b>Breece Hall<span class="tag mv">from FLEX</span></b><span>1:00 — before the late games</span></div><span class="kick early">Sun 1:00</span><span class="pj">14.0</span></div>
+  <div class="rw"><span class="sl" style="color:var(--wr)">WR</span><div class="pl"><b>A.J. Brown</b><span>PHI · @ WAS</span></div><span class="kick">Sun 4:25</span><span class="pj">17.1</span></div>
+  <div class="rw"><span class="sl" style="color:var(--wr)">WR</span><div class="pl"><b>Emeka Egbuka</b><span>TB · vs ATL · <span style="color:var(--amber)">QUES</span> · if he's out, Rashid Shaheed covers</span></div><span class="kick">Sun 1:00</span><span class="pj">12.6</span></div>
+  <div class="rw in"><span class="sl" style="color:var(--te)">TE</span><div class="pl"><b>Mark Andrews<span class="tag in">start</span></b><span>BAL · vs IND · from the bench, +0.7</span></div><span class="kick">Sun 1:00</span><span class="pj">10.1</span></div>
+  <div class="rw mv"><span class="sl" style="color:var(--mut2)">FLEX</span><div class="pl"><b>Bijan Robinson<span class="tag mv">from RB</span></b><span>same 1:00 kickoff as Hall — either way</span></div><span class="kick early">Sun 1:00</span><span class="pj">19.8</span></div>
+  <div class="rw mv"><span class="sl" style="color:var(--mut2)">FLEX</span><div class="pl"><b>De'Von Achane<span class="tag mv">from RB</span></b><span>4:25 — keeps this FLEX open till the late slate</span></div><span class="kick late">Sun 4:25</span><span class="pj">16.9</span></div>
+  <div class="rw"><span class="sl" style="color:var(--mut2)">FLEX</span><div class="pl"><b>Jacory Croskey-Merritt</b><span>WAS · vs PHI · latest game stays here</span></div><span class="kick late">Sun 4:25</span><span class="pj">11.3</span></div>
+  <div class="rw"><span class="sl" style="color:var(--dst)">DST</span><div class="pl"><b>Steelers</b><span>PIT · vs NYG</span></div><span class="kick">Sun 1:00</span><span class="pj">7.0</span></div>
+ </div>
+</div>
+
+<div class="todo">
+ <div class="act g"><span class="ic">↑</span><div><div class="t">Start Mark Andrews, bench Isaiah Likely</div><div class="d">Worth +0.7 this week. The panel agrees (TE9 vs TE14).</div></div><div class="n">+0.7<small>points</small></div></div>
+ <div class="act b"><span class="ic">⇄</span><div><div class="t">Price and Hall to RB · Robinson and Achane to FLEX</div><div class="d">Price plays <b>Wednesday</b> and Hall at <b>1:00</b>; Achane not until <b>4:25</b>. Same starters — but two of your three flexes stay open until the late slate if news breaks.</div></div><div class="n">Wed<small>first kickoff</small></div></div>
+</div>
+<div class="steps"><div class="k">On Sleeper, in this order</div>
+ <ol>
+  <li>Bench <b>Likely</b>, start <b>Andrews</b> at TE <em>· lineup change</em></li>
+  <li>Swap <b>Price</b> (FLEX) with <b>Robinson</b> (RB) <em>· tap one, tap the other</em></li>
+  <li>Swap <b>Hall</b> (FLEX) with <b>Achane</b> (RB)</li>
+ </ol>
+</div>
+<p class="note">Sleeper's app swaps two players when you tap them in turn, so re-seating is always a pair — the steps are written as pairs. Ties in kickoff (Hall and Robinson both 1:00) are not moves; the optimiser is told so. The totals differ only by the Andrews move: seating never changes the points, only how much of the week stays open.</p>
+</div>
+
+<div class="bar"><span>B · one list</span><i></i><em>now → set this, in the row</em></div>
+<div class="leg"><span><i style="background:var(--green)"></i>start / bench</span><span><i style="background:var(--blue)"></i>re-seat by kickoff</span><span><i style="background:var(--line2)"></i>no change</span></div>
+<div class="one">
+  <div class="rw"><span class="sl" style="color:var(--qb)">QB</span><div class="pl dim"><b>Justin Herbert</b></div><span class="arr">·</span><div class="pl"><b>Justin Herbert</b><span>LAC · vs KC</span></div><span class="kick">Sun 4:25</span><span class="pj">21.4</span></div>
+  <div class="rw mv"><span class="sl" style="color:var(--rb)">RB</span><div class="pl dim"><b>Bijan Robinson</b></div><span class="arr on">⇄</span><div class="pl"><b>Jadarian Price</b><span>from FLEX · plays Wednesday</span></div><span class="kick early">Wed 8:20</span><span class="pj">12.1</span></div>
+  <div class="rw mv"><span class="sl" style="color:var(--rb)">RB</span><div class="pl dim"><b>De'Von Achane</b></div><span class="arr on">⇄</span><div class="pl"><b>Breece Hall</b><span>from FLEX · 1:00</span></div><span class="kick early">Sun 1:00</span><span class="pj">14.0</span></div>
+  <div class="rw"><span class="sl" style="color:var(--wr)">WR</span><div class="pl dim"><b>A.J. Brown</b></div><span class="arr">·</span><div class="pl"><b>A.J. Brown</b><span>PHI · @ WAS</span></div><span class="kick">Sun 4:25</span><span class="pj">17.1</span></div>
+  <div class="rw"><span class="sl" style="color:var(--wr)">WR</span><div class="pl dim"><b>Emeka Egbuka</b></div><span class="arr">·</span><div class="pl"><b>Emeka Egbuka</b><span>TB · vs ATL · <span style="color:var(--amber)">QUES</span></span></div><span class="kick">Sun 1:00</span><span class="pj">12.6</span></div>
+  <div class="rw in"><span class="sl" style="color:var(--te)">TE</span><div class="pl dim"><b style="text-decoration:line-through">Isaiah Likely</b></div><span class="arr g">↑</span><div class="pl"><b>Mark Andrews</b><span>from the bench · +0.7</span></div><span class="kick">Sun 1:00</span><span class="pj">10.1</span></div>
+  <div class="rw mv"><span class="sl" style="color:var(--mut2)">FLEX</span><div class="pl dim"><b>Breece Hall</b></div><span class="arr on">⇄</span><div class="pl"><b>Bijan Robinson</b><span>from RB</span></div><span class="kick early">Sun 1:00</span><span class="pj">19.8</span></div>
+  <div class="rw mv"><span class="sl" style="color:var(--mut2)">FLEX</span><div class="pl dim"><b>Jadarian Price</b></div><span class="arr on">⇄</span><div class="pl"><b>De'Von Achane</b><span>from RB · 4:25 keeps the flex open</span></div><span class="kick late">Sun 4:25</span><span class="pj">16.9</span></div>
+  <div class="rw"><span class="sl" style="color:var(--mut2)">FLEX</span><div class="pl dim"><b>J. Croskey-Merritt</b></div><span class="arr">·</span><div class="pl"><b>Jacory Croskey-Merritt</b><span>WAS · vs PHI</span></div><span class="kick late">Sun 4:25</span><span class="pj">11.3</span></div>
+  <div class="rw"><span class="sl" style="color:var(--dst)">DST</span><div class="pl dim"><b>Steelers</b></div><span class="arr">·</span><div class="pl"><b>Steelers</b><span>PIT · vs NYG</span></div><span class="kick">Sun 1:00</span><span class="pj">7.0</span></div>
+</div>
+<p class="note">Half the width of A, and it reads as one lineup with corrections rather than two lineups to compare. Loses the two totals side by side. Either way the change list and the numbered Sleeper steps from A sit underneath.</p>
+</body></html>

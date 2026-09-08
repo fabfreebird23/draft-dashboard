@@ -145,7 +145,7 @@ _RIGID = {"QB", "RB", "WR", "TE", "K", "DST", "DEF", "D/ST"}
 
 
 def place_by_kickoff(chosen: Dict[int, str], slots: List[str], registry,
-                     kickoff_of) -> Dict[int, str]:
+                     kickoff_of, current: Optional[Dict[str, int]] = None) -> Dict[int, str]:
     """Same starters, re-seated so the EARLIEST kickoffs sit in the rigid slots.
 
     Who starts is settled by points; WHERE they sit is not, and it matters on a
@@ -168,22 +168,40 @@ def place_by_kickoff(chosen: Dict[int, str], slots: List[str], registry,
         pos_of = {pid: (registry.meta(pid).position or "").upper() for pid in chosen.values()}
     except Exception:  # noqa: BLE001
         return chosen
-    order = sorted(chosen.values(), key=lambda p: (kickoff_of(p), p))
+    # `current` is {pid: slot index} as he has it set. Ties in kickoff keep
+    # their seats — two 1:00 receivers are the same lock, and swapping them
+    # would be a move for its own sake. Among ties the man already in a rigid
+    # slot is placed first so he keeps it, and a man is put back in his own
+    # slot whenever it is free.
+    current = current or {}
+
+    def _is_rigid_now(p):
+        i = current.get(p)
+        return i is not None and (start_slots[i] or "").upper() in _RIGID
+
+    order = sorted(chosen.values(),
+                   key=lambda p: (kickoff_of(p), 0 if _is_rigid_now(p) else 1, p))
     free = set(range(len(start_slots)))
     out: Dict[int, str] = {}
     for pid in order:
         pos = pos_of.get(pid, "")
-        # rigid first: a slot whose label IS his position
+        own = current.get(pid)
+        # rigid first: a slot whose label IS his position — his own if it's free
         rigid = [i for i in sorted(free) if (start_slots[i] or "").upper() == pos]
         if rigid:
-            i = rigid[0]
+            # Not his own slot? Take the one whose CURRENT occupant kicks off
+            # latest — he is the man who belongs in the flex, so the swap that
+            # results is one tap, not a chain through a third player.
+            occupant = {i_: p_ for p_, i_ in current.items()}
+            rigid.sort(key=lambda i_: -kickoff_of(occupant[i_]) if i_ in occupant else 0)
+            i = own if (own in rigid) else rigid[0]
         else:
             flex = [i for i in sorted(free)
                     if (start_slots[i] or "").upper() not in _RIGID
                     and slot_accepts(start_slots[i], pos)]
             if not flex:
                 return chosen           # can't seat him this way — keep the original
-            i = flex[0]
+            i = own if (own in flex) else flex[0]
         out[i] = pid
         free.discard(i)
     return out if len(out) == len(chosen) else chosen
@@ -202,7 +220,8 @@ def slot_moves(current, slots: List[str], registry, kickoff_of, label_of=None) -
         return []
     chosen = {i: p for i, (_s, p) in enumerate(cur)}
     cur_slots = [s for s, _p in cur]
-    seated = place_by_kickoff(chosen, cur_slots, registry, kickoff_of)
+    seated = place_by_kickoff(chosen, cur_slots, registry, kickoff_of,
+                              current={p: i for i, p in chosen.items()})
     if seated == chosen:
         return []
     by_pid_now = {p: i for i, p in chosen.items()}
@@ -214,6 +233,8 @@ def slot_moves(current, slots: List[str], registry, kickoff_of, label_of=None) -
         other = chosen.get(i)
         if not other or other in seen:
             continue
+        if (cur_slots[i] or "").upper() == (cur_slots[j] or "").upper():
+            continue                    # RB1 ↔ RB2 is not a move
         seen.update({pid, other})
         lab = label_of(pid) if label_of else ""
         moves.append({"pid": pid, "from_slot": cur_slots[j], "to_slot": cur_slots[i],

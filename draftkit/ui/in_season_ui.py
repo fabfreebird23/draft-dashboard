@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import streamlit as st
 
-from .. import (config, ecr as ECR, gametime as GT, inseason, keepers as K, phase as PH,
+from .. import (config, ecr as ECR, gametime as GT, inseason, keepers as K, lineup as LU, phase as PH,
                 picks as PK, projections as PJ, schedule as SCH, sleeper_client as api,
                 weekly as W, weekview as WV)
 from . import components as C
 
-TABS = ["Command Center", "Waivers", "Matchup", "Trades", "Playoffs", "League", "Keepers"]
+TABS = ["Command Center", "Lineup", "Waivers", "Matchup", "Trades", "Playoffs", "League", "Keepers"]
 
 _POSC = {"QB": "var(--qb)", "RB": "var(--rb)", "WR": "var(--wr)", "TE": "var(--te)",
          "K": "var(--k)", "DST": "var(--dst)"}
@@ -317,6 +317,8 @@ def render(ctx, summary=None, tab="Command Center") -> None:
 
     if tab == "Command Center":
         _command(ctx, g)
+    elif tab == "Lineup":
+        _lineup(ctx, g)
     elif tab == "Waivers":
         _waivers(ctx, g)
     elif tab == "Matchup":
@@ -717,6 +719,267 @@ def _command(ctx, g) -> None:
                    "man RB where the optimiser calls him FLEX is not a move.")
         if _ecr_missing(g):
             st.caption(_ecr_missing(g))
+
+
+
+
+# --------------------------------------------------------------- 1b lineup
+def _panels(ctx, g) -> dict:
+    """{"fp": ecr rows, "flock": rows, "ffb": rows} — the three expert panels,
+    every one optional."""
+    from .. import panels as P
+    meta, reg = ctx["meta"], ctx["registry"]
+    out = {"fp": g.get("ecr") or {}}
+    try:
+        out["flock"] = _flock(g["season"], g["week"], reg)
+    except Exception:  # noqa: BLE001
+        out["flock"] = {}
+    try:
+        w = getattr(meta, "scoring_weights", None) or {}
+        if not w and meta.platform == "sleeper":
+            # Sleeper's scoring_settings use the same keys the Ballers' stats
+            # are mapped to (pass_yd, rec, ...), so the league's own book scores
+            # their projections directly.
+            w = (api.get_league(str(meta.league_id)) or {}).get("scoring_settings") or {}
+        out["ffb"] = _ffb(g["season"], g["week"], reg, tuple(sorted(w.items())),
+                          f'{meta.platform}_{meta.league_id}')
+    except Exception:  # noqa: BLE001
+        out["ffb"] = {}
+    return out
+
+
+@st.cache_data(ttl=3600, show_spinner=False, hash_funcs={"builtins.object": id})
+def _flock(season: int, week: int, _registry):
+    from .. import panels as P
+    return P.flock_weekly(season, week, _registry)
+
+
+@st.cache_data(ttl=3600, show_spinner=False, hash_funcs={"builtins.object": id})
+def _ffb(season: int, week: int, _registry, weights, tag: str):
+    from .. import panels as P
+    return P.ffb_weekly(season, week, _registry, dict(weights), tag=tag)
+
+
+def _panel_cell(pn: dict, pid) -> str:
+    """"FP WR12 · Flock WR9 · Ballers WR14" for one man, only the panels that
+    have him."""
+    bits = []
+    fp = (pn.get("fp") or {}).get(str(pid))
+    if fp and fp.get("pos_rank"):
+        bits.append(f'<span title="FantasyPros">FP <b>{fp["pos_rank"]}</b></span>')
+    fl = (pn.get("flock") or {}).get(str(pid))
+    if fl and fl.get("pos_rank") is not None:
+        bits.append(f'<span title="Flock · {fl.get("n", 0)} analysts">Flock <b>{fl["pos"]}{float(fl["pos_rank"]):.0f}</b></span>')
+    fb = (pn.get("ffb") or {}).get(str(pid))
+    if fb and fb.get("pos_rank"):
+        bits.append(f'<span title="The Ballers · {", ".join(f"{k} {v}" for k, v in (fb.get("pts_by") or {}).items())}">'
+                    f'Ballers <b>{fb["pos"]}{fb["pos_rank"]}</b> · {fb["pts"]}</span>')
+    return " · ".join(bits) if bits else '<span class="ws-fnt">—</span>'
+
+
+def _panel_verdicts(pn: dict, out_pid, in_pid) -> list:
+    """[(panel, verdict)] for "start IN over OUT" across the three panels."""
+    from .. import panels as P
+    v = []
+    fp = pn.get("fp") or {}
+    r = ECR.verdict(fp.get(str(out_pid)), fp.get(str(in_pid)))
+    if r:
+        v.append(("FP", r))
+    for key, label in (("flock", "Flock"), ("ffb", "Ballers")):
+        rows = pn.get(key) or {}
+        r = P.verdict(rows.get(str(out_pid)), rows.get(str(in_pid)))
+        if r:
+            v.append((label, r))
+    return v
+
+
+def _verdict_chips(vs: list) -> str:
+    return " ".join(_chip(f'{p} {"agrees" if v == "for" else "disagrees" if v == "against" else "split"}',
+                          {"for": "ok", "against": "bad", "split": "warn"}[v]) for p, v in vs)
+
+
+def _lineup(ctx, g) -> None:
+    """What is on the platform beside what to set, slot by slot, seated by
+    kickoff, with the taps to make in the order the platform will take them."""
+    reg = ctx["registry"]
+    games = g.get("games") or {}
+    lc = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"],
+                        current=g.get("starters"))
+    if not lc["have_current"]:
+        st.warning("Couldn't read the lineup you have set, so there is nothing to compare "
+                   "against. The Command Center shows the best available lineup.")
+        return
+    pn = _panels(ctx, g)
+    cur = lc["current"]
+    slots = [s for s, _p in cur]
+    # The set to start: the optimiser's. Then SEAT it by kickoff.
+    chosen = {i: str(p) for i, (_s, p) in enumerate(lc["optimal"]) if p}
+    # A slot the optimiser leaves EMPTY while the platform has a man in it
+    # (a defense with no projection, say) keeps that man: "bench him for
+    # nobody" is not advice. Sleeper-projection gaps are at K and D/ST.
+    _used = set(chosen.values())
+    for i, (_s, p) in enumerate(cur):
+        if i not in chosen and p and str(p) not in _used:
+            chosen[i] = str(p)
+            _used.add(str(p))
+    opt_pids = list(chosen.values())
+    _cur_idx = {str(p): i for i, (_s, p) in enumerate(cur) if p}
+    seated = (LU.place_by_kickoff(chosen, slots, reg, WV.kickoff_of(reg, games), current=_cur_idx)
+              if games else chosen)
+    # men the current lineup benches / starts
+    cur_set = {p for _s, p in cur if p}
+    opt_set = set(opt_pids)
+    ins, outs = opt_set - cur_set, cur_set - opt_set
+    _pos_of = {}
+    for i, (s, p) in enumerate(cur):
+        if p:
+            _pos_of[p] = s
+    # the slot each man ends up in
+    end_slot = {pid: slots[i] for i, pid in seated.items()}
+    _kick = WV.kickoff_of(reg, games)
+    _kicks = sorted({_kick(p) for p in (cur_set | opt_set)} - {float("inf")})
+    _early, _late = (_kicks[0] if _kicks else None), (_kicks[-1] if _kicks else None)
+
+    def _ktone(p):
+        k = _kick(p)
+        if k == float("inf") or len(_kicks) < 2:
+            return ""
+        return "early" if k == _early else "late" if k == _late else ""
+
+    def _row(slot, pid, *, state="", sub_extra=""):
+        colour = _POSC.get(slot, "var(--mut2)")
+        if not pid:
+            return (slot, colour, '<span class="ws-dim">(empty)</span>', "nobody set", "—", "", "0.0", state)
+        pm = reg.meta(pid)
+        gm = WV.game_of(reg, games, pid)
+        opp = (("vs " if gm.get("home") else "@ ") + gm["opp"]) if gm else "bye"
+        av = W.availability(pm)
+        sub = f'{pm.team} · {opp}'
+        if av["status"]:
+            sub += f' · <span style="color:var(--amber)">{av["status"][:4].upper()}</span>'
+        if sub_extra:
+            sub += f' · {sub_extra}'
+        pj = float(g["proj"].get(str(pid), 0) or 0)
+        return (slot, colour, pm.name + (f'<span class="lc-tag {state}">' +
+                                        ("start" if state == "in" else f'from {_pos_of.get(pid, "bench")}')
+                                        + '</span>' if state in ("in", "mv") else ""),
+                sub, GT.day_label(gm), _ktone(pid), f"{pj:.1f}", state)
+
+    now_rows, set_rows, marks = [], [], []
+    for i, (slot, pid) in enumerate(cur):
+        new = seated.get(i)
+        # NOW column
+        if pid and pid in outs and any(m["out"] == pid for m in lc["moves"]):
+            repl = next((q for q in ins if reg.meta(q).position == reg.meta(pid).position), None) or (next(iter(ins)) if ins else None)
+            gain = next((m["gain"] for m in lc["moves"] if m["out"] == pid), None)
+            now_rows.append(_row(slot, pid, state="out",
+                                 sub_extra=(f'bench him · {reg.meta(repl).name.split()[-1]} +{gain}'
+                                            if repl and gain is not None else "bench him")))
+        else:
+            now_rows.append(_row(slot, pid))
+        # SET column
+        if not new:
+            set_rows.append(_row(slot, None)); marks.append(("·", "")); continue
+        if new in ins:
+            set_rows.append(_row(slot, new, state="in", sub_extra="from the bench"))
+            marks.append(("↑", "g"))
+        elif new != pid and _pos_of.get(new) != slot:
+            why = ""
+            gm = WV.game_of(reg, games, new)
+            if gm:
+                why = f'plays {GT.day_label(gm)}'
+            set_rows.append(_row(slot, new, state="mv", sub_extra=why))
+            marks.append(("⇄", "on"))
+        else:
+            set_rows.append(_row(slot, new)); marks.append(("·", ""))
+
+    n_moves, n_seat = len(lc["moves"]), sum(1 for m in marks if m[0] == "⇄")
+    _plat = "ESPN" if ctx["meta"].platform == "espn" else "Sleeper"
+    st.markdown(_day_line(g, cur, reg).replace("</div>",
+                f' · <b>{n_moves}</b> move{"s" if n_moves != 1 else ""}, <b>{n_seat}</b> re-seat{"s" if n_seat != 1 else ""}</div>'),
+                unsafe_allow_html=True)
+    st.markdown(C.lineup_compare_html(
+        now_rows=now_rows, set_rows=set_rows,
+        now_total=(f"On {_plat} now", "as set", f'{lc["current_total"]:.1f}'),
+        set_total=("Set this", "seated by kickoff", f'{lc["optimal_total"]:.1f}'),
+        marks=marks), unsafe_allow_html=True)
+
+    # ---- the moves, and what each panel thinks -----------------------------
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown('<div class="ws-h" style="margin-top:14px">Start / bench</div>', unsafe_allow_html=True)
+        if not lc["moves"]:
+            st.markdown(C.action_html("go", "✓", "Nobody on the bench beats a starter",
+                                      "The nine you have set are the nine to play.", "0", "moves"),
+                        unsafe_allow_html=True)
+        for m in lc["moves"]:
+            _in, _out = reg.meta(m["in"]), reg.meta(m["out"])
+            vs = _panel_verdicts(pn, m["out"], m["in"])
+            st.markdown(C.action_html("go", "↑", f'Start {_in.name}, bench {_out.name}',
+                                      f'Worth <b>+{m["gain"]}</b> this week. '
+                                      + (_verdict_chips(vs) if vs else "No panel ranks both."),
+                                      f'+{m["gain"]}', "points"), unsafe_allow_html=True)
+    with c2:
+        st.markdown('<div class="ws-h" style="margin-top:14px">Seat by kickoff</div>', unsafe_allow_html=True)
+        pairs = []
+        for i, (slot, pid) in enumerate(cur):
+            new = seated.get(i)
+            if (new and pid and new != pid and new not in ins and pid not in outs
+                    and _pos_of.get(new) != slot):
+                pairs.append((pid, slot, new))
+        if not pairs:
+            st.markdown(C.action_html("go", "✓", "Every flex holds the latest game",
+                                      "Earliest kickoffs are already in the rigid slots.", "0", "re-seats"),
+                        unsafe_allow_html=True)
+        seen = set()
+        for pid, slot, new in pairs:
+            if new in seen or pid in seen:
+                continue
+            seen.update({pid, new})
+            g1, g2 = WV.game_of(reg, games, new), WV.game_of(reg, games, pid)
+            st.markdown(C.action_html(
+                "info", "⇄", f'{reg.meta(new).name} to {slot}, {reg.meta(pid).name} to {end_slot.get(pid, "FLEX")}',
+                f'{reg.meta(new).name.split()[-1]} plays <b>{GT.day_label(g1)}</b>; '
+                f'{reg.meta(pid).name.split()[-1]} not until <b>{GT.day_label(g2)}</b>. Same starters — '
+                f'the {end_slot.get(pid, "FLEX")} stays open for the later game.',
+                GT.day_label(g1).split()[0], "first kickoff"), unsafe_allow_html=True)
+
+    # ---- the taps, in order -------------------------------------------------
+    steps = []
+    for m in lc["moves"]:
+        steps.append(f'Bench <b>{reg.meta(m["out"]).name}</b>, start <b>{reg.meta(m["in"]).name}</b> '
+                     f'<em>· lineup change · +{m["gain"]}</em>')
+    seen = set()
+    for pid, slot, new in pairs:
+        if new in seen or pid in seen:
+            continue
+        seen.update({pid, new})
+        steps.append(f'Swap <b>{reg.meta(new).name}</b> ({_pos_of.get(new, "?")}) with '
+                     f'<b>{reg.meta(pid).name}</b> ({slot}) <em>· tap one, then the other</em>')
+    if steps:
+        st.markdown(C.steps_html(f"On {_plat}, in this order", steps), unsafe_allow_html=True)
+        st.caption(f"{_plat} swaps two players when you tap them in turn, so every re-seat is written "
+                   "as a pair. Ties in kickoff are not moves. Seating never changes the points, "
+                   "only how much of the week stays open.")
+
+    # ---- every starter against the three panels -----------------------------
+    st.markdown('<div class="ws-h" style="margin-top:14px">The panels on your starters</div>',
+                unsafe_allow_html=True)
+    rows = []
+    for i, (slot, pid) in enumerate(cur):
+        new = seated.get(i)
+        if not new:
+            continue
+        pm = reg.meta(new)
+        rows.append([f'<b class="ws-sl">{slot}</b>', f'<b>{pm.name}</b> {_pos_pill(pm.position)}',
+                     f'{float(g["proj"].get(str(new), 0) or 0):.1f}', _panel_cell(pn, new)])
+    st.markdown(_tbl(["", "Set this", "~Proj", "FantasyPros · Flock · The Ballers"], rows,
+                     widths=["44px", "30%", "60px", "auto"], wide=True), unsafe_allow_html=True)
+    _n = {k: len(v) for k, v in pn.items()}
+    st.caption(f"Positional rank on each panel. FantasyPros {_n.get('fp', 0)} players · "
+               f"Flock {_n.get('flock', 0)} ({', '.join(sorted({a for r in (pn.get('flock') or {}).values() for a in (r.get('ranks') or {})}))}) · "
+               f"The Ballers {_n.get('ffb', 0)} (Andy, Mike, Jason — their projections scored under this "
+               f"league's settings). Neither Flock nor the Ballers rank K or D/ST.")
 
 
 # ------------------------------------------------------------------- 2 waivers
