@@ -257,6 +257,66 @@ class EspnProvider(Provider):
                 pairs[home], pairs[away] = away, home
         return pairs
 
+    def get_live_scores(self, week: int) -> dict:
+        """Actual points this week, per team and per player.
+
+        Two views in one call: mMatchupScore carries each side's `totalPointsLive`,
+        and mRoster (with `scoringPeriodId`) carries every entry's stats for that
+        week, where statSourceId 0 is the ACTUAL line and 1 the projection. The
+        matchup view's own roster entries have no player id, so they cannot be
+        used for the per-player map — that is why both views are needed.
+        """
+        url = _LEAGUE_URL.format(season=self.season, lid=self.league_id)
+        try:
+            r = requests.get(url, headers=BROWSER_HEADERS,
+                             params={"view": ["mMatchupScore", "mRoster"],
+                                     "scoringPeriodId": int(week)},
+                             cookies=self._cookies(), timeout=20)
+            r.raise_for_status()
+            d = r.json() or {}
+        except Exception:  # noqa: BLE001 — live is a bonus, never a crash
+            return {}
+        out = {}
+        for gme in d.get("schedule") or []:
+            if int(gme.get("matchupPeriodId") or 0) != int(week):
+                continue
+            for side in ("home", "away"):
+                t = gme.get(side) or {}
+                tid = str(t.get("teamId") or "")
+                if not tid:
+                    continue
+                pts = t.get("totalPointsLive")
+                if pts is None:
+                    pts = (t.get("pointsByScoringPeriod") or {}).get(str(week), t.get("totalPoints"))
+                out[tid] = {"points": float(pts or 0), "players": {}}
+        for t in d.get("teams") or []:
+            tid = str(t.get("id"))
+            slot = out.setdefault(tid, {"points": 0.0, "players": {}})
+            for e in ((t.get("roster") or {}).get("entries") or []):
+                espn_pid = e.get("playerId")
+                pe = (e.get("playerPoolEntry") or {}).get("player") or {}
+                actual = None
+                for st_ in pe.get("stats") or []:
+                    if (int(st_.get("scoringPeriodId") or 0) == int(week)
+                            and int(st_.get("statSourceId") or 0) == 0):
+                        actual = st_.get("appliedTotal")
+                        break
+                if actual is None:
+                    continue
+                pid = None
+                if espn_pid is not None and int(espn_pid) < 0:
+                    pid = _PRO_TEAM.get(int(pe.get("proTeamId") or 0)) or \
+                        _PRO_TEAM.get(-int(espn_pid) - 16000)
+                if pid is None:
+                    p = self.registry.resolve_espn(espn_pid) if espn_pid else None
+                    if p is None and espn_pid:
+                        p = self._lazy_player(espn_pid)
+                    if p is None or not p.sleeper_pid:
+                        continue
+                    pid = str(p.sleeper_pid)
+                slot["players"][str(pid)] = float(actual or 0)
+        return out
+
     # ---- ESPN id -> name (bench/K/DST the headshot board missed) --------
     def _lazy_player(self, espn_pid):
         if not self._players_loaded:

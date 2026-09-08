@@ -139,7 +139,21 @@ def render(presets, on_pick, board_age_fn=None) -> None:
                 "**No leagues in this phase.**")
         return
 
-    hero, rest = rows[0], rows[1:]
+    # IN SEASON, HOME IS ONE SCREEN. Not four cards to open one at a time, but
+    # one row per league that already shows the week's answer — matchup, lineup
+    # state, injuries, the claim — so "does anything need me" is answered without
+    # a click. Leagues still waiting to draft keep the pre-season cards below.
+    live_rows = [r for r in rows if r[1].phase in (PH.IN, PH.DONE) and not r[1].error]
+    pre_rows = [r for r in rows if r not in live_rows]
+    if live_rows and not _nfl_pre():
+        _render_pulse([r[0] for r in live_rows], on_pick)
+    else:
+        pre_rows = rows
+    if not pre_rows:
+        return
+    if live_rows and not _nfl_pre():
+        st.markdown('<div class="hm-h">Still to draft</div>', unsafe_allow_html=True)
+    hero, rest = pre_rows[0], pre_rows[1:]
     _render_hero(*hero, on_pick=on_pick)
     if rest:
         st.markdown('<div class="hm-h">Your other leagues</div>', unsafe_allow_html=True)
@@ -147,6 +161,80 @@ def render(presets, on_pick, board_age_fn=None) -> None:
         for col, (preset, s, age) in zip(cols, rest):
             with col:
                 _render_quiet(preset, s, on_pick)
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def _pulses(presets_json: str, week: int):
+    """Every league's week, cached two minutes — the one Home read that must be
+    fresh on a Sunday and cheap on a Tuesday. The leagues load IN PARALLEL: each
+    is four to eight seconds of host round trips, and four in a row is a Home
+    that takes twenty seconds to say "nothing needs you"."""
+    import json as _json
+    from concurrent.futures import ThreadPoolExecutor
+    from .. import players as PL, weekpulse as WP, config, udk as _udk
+    presets = _json.loads(presets_json)
+    try:
+        reg = PL.build_registry(config.current_season())
+    except Exception as e:  # noqa: BLE001
+        return [{"ok": False, "name": p.get("label"), "error": type(e).__name__, "chips": [],
+                 "tone": "", "action": "Open", "nav": "Command Center"} for p in presets]
+    try:
+        byes = _udk.ensure_byes(None, config.current_season())
+    except Exception:  # noqa: BLE001
+        byes = None
+
+    def _one(p):
+        try:
+            return WP.pulse(p, reg, week, byes)
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "name": p.get("label"), "error": type(e).__name__, "chips": [],
+                    "tone": "", "action": "Open", "nav": "Command Center"}
+    # weekpulse and everything under it is Streamlit-free, so threads are safe —
+    # st.cache_data inside a worker thread is the trap this deliberately avoids.
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        return list(ex.map(_one, presets))
+
+
+def _render_pulse(presets, on_pick) -> None:
+    from .. import gametime as GT, weekpulse as WP
+    from . import components as C
+    import json as _json
+    week = _nfl_week()
+    pulses = _pulses(_json.dumps(presets, sort_keys=True, default=str), week)
+    from .. import config
+    games = GT.load_week(config.current_season(), week)
+    phase = GT.week_phase(games)
+    band = WP.day_band(pulses, week, phase)
+    st.markdown(C.day_band_html(kicker=band["kicker"], title=band["title"], sub=band["sub"],
+                                number=band.get("number"), number_label=band.get("label", "")),
+                unsafe_allow_html=True)
+    for preset, p in zip(presets, pulses):
+        lkey = f"{preset['platform']}_{preset['league_id']}"
+        with st.container(key=f"hmrow_{lkey}"):
+            c1, c2 = st.columns([8.2, 1.1])
+            with c1:
+                if not p.get("ok"):
+                    st.markdown(C.league_row_html(
+                        name=p.get("name") or preset.get("label"),
+                        meta=f'{preset["platform"]} · {p.get("error") or "unavailable"}',
+                        me_name="—", me_pts="", opp_name="—", opp_pts="", mid_label="",
+                        chips=[("couldn't load", "")], tone=""), unsafe_allow_html=True)
+                else:
+                    meta = " · ".join(x for x in (
+                        "ESPN" if p["platform"] == "espn" else "Sleeper",
+                        str(p.get("n_teams") or ""), p.get("record") or "") if x)
+                    st.markdown(C.league_row_html(
+                        name=p["name"], meta=meta, me_name=p["me_name"], me_pts=p.get("me_pts", ""),
+                        opp_name=p["opp_name"], opp_pts=p.get("opp_pts", ""),
+                        mid_label=p.get("mid", ""), win_pct=p.get("win_pct"),
+                        chips=p.get("chips") or [], tone=p.get("tone", "")),
+                        unsafe_allow_html=True)
+            with c2:
+                hot = p.get("action") in ("Fix lineup", "Decide", "Claim")
+                if st.button(p.get("action") or "Open", key=f"hmrow_go_{lkey}",
+                             type="primary" if hot else "secondary", use_container_width=True):
+                    st.session_state[f"nav_in_{lkey}"] = p.get("nav") or "Command Center"
+                    on_pick(preset)
 
 
 def _render_hero(preset, s, age, on_pick) -> None:

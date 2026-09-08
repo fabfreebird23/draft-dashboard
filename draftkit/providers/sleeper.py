@@ -163,3 +163,24 @@ class SleeperProvider(Provider):
 def _snake_slot(i: int, n: int) -> int:
     rd, j = divmod(i, n)
     return j if rd % 2 == 0 else n - 1 - j
+
+
+def _live_scores(league_id: str, week: int) -> dict:
+    """Sleeper's matchup feed, read FRESH (60s) rather than through the 5-minute
+    matchups cache: on a Sunday afternoon five minutes is a touchdown ago."""
+    ms = api._disk(f"live_{league_id}_{week}", 60,
+                   lambda: api._get(f"league/{league_id}/matchups/{week}")) or []
+    rosters = api.get_rosters(league_id) or []
+    rid_to_uid = {r.get("roster_id"): str(r.get("owner_id")) for r in rosters}
+    out = {}
+    for m in ms:
+        uid = rid_to_uid.get(m.get("roster_id"))
+        if not uid:
+            continue
+        pp = {str(k): float(v or 0) for k, v in (m.get("players_points") or {}).items()}
+        out[uid] = {"points": float(m.get("points") or 0), "players": pp,
+                    "matchup_id": m.get("matchup_id")}
+    return out
+
+
+SleeperProvider.get_live_scores = lambda self, week: _live_scores(self.league_id, int(week))

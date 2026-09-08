@@ -138,3 +138,86 @@ def optimize(roster_pids, starters, slots, projections, registry, byes=None,
             lu.problems.append(f"{len(moved)} change{'s' if len(moved) != 1 else ''} "
                                f"worth +{lu.gain:.1f}")
     return lu
+
+
+# ------------------------------------------------------------- slot placement
+_RIGID = {"QB", "RB", "WR", "TE", "K", "DST", "DEF", "D/ST"}
+
+
+def place_by_kickoff(chosen: Dict[int, str], slots: List[str], registry,
+                     kickoff_of) -> Dict[int, str]:
+    """Same starters, re-seated so the EARLIEST kickoffs sit in the rigid slots.
+
+    Who starts is settled by points; WHERE they sit is not, and it matters on a
+    Sunday. A receiver who plays Thursday and a receiver who plays Sunday night
+    are both "WR", but only one of them can still be swapped after Thursday. If
+    the Thursday man is parked in FLEX, the FLEX is spent before the week's news
+    arrives; if he takes the rigid WR slot, the FLEX is still open at 4:25 for
+    whoever the inactives leave standing.
+
+    `kickoff_of(pid)` returns a sortable kickoff (earlier = smaller). Players are
+    placed earliest first, each into a rigid slot of his own position if one is
+    free, else into a flex he is eligible for. The set of starters — and so the
+    total — never changes; if the greedy pass cannot seat everyone (a roster
+    shape it doesn't fit), the original placement is returned untouched.
+    """
+    if not chosen:
+        return chosen
+    start_slots = list(slots)
+    try:
+        pos_of = {pid: (registry.meta(pid).position or "").upper() for pid in chosen.values()}
+    except Exception:  # noqa: BLE001
+        return chosen
+    order = sorted(chosen.values(), key=lambda p: (kickoff_of(p), p))
+    free = set(range(len(start_slots)))
+    out: Dict[int, str] = {}
+    for pid in order:
+        pos = pos_of.get(pid, "")
+        # rigid first: a slot whose label IS his position
+        rigid = [i for i in sorted(free) if (start_slots[i] or "").upper() == pos]
+        if rigid:
+            i = rigid[0]
+        else:
+            flex = [i for i in sorted(free)
+                    if (start_slots[i] or "").upper() not in _RIGID
+                    and slot_accepts(start_slots[i], pos)]
+            if not flex:
+                return chosen           # can't seat him this way — keep the original
+            i = flex[0]
+        out[i] = pid
+        free.discard(i)
+    return out if len(out) == len(chosen) else chosen
+
+
+def slot_moves(current, slots: List[str], registry, kickoff_of, label_of=None) -> List[dict]:
+    """Re-seatings worth making in the lineup he has SET, by kickoff.
+
+    `current` is [(slot, pid)] as the platform reports it. Returns
+    [{pid, from_slot, to_slot, swap_pid, why}] — only swaps that change which slot
+    an early-kickoff player occupies, never who starts. Empty when his placement
+    already keeps every flex for the latest game.
+    """
+    cur = [(s, str(p)) for s, p in (current or []) if p and str(p) not in ("0", "None", "")]
+    if not cur:
+        return []
+    chosen = {i: p for i, (_s, p) in enumerate(cur)}
+    cur_slots = [s for s, _p in cur]
+    seated = place_by_kickoff(chosen, cur_slots, registry, kickoff_of)
+    if seated == chosen:
+        return []
+    by_pid_now = {p: i for i, p in chosen.items()}
+    moves, seen = [], set()
+    for i, pid in seated.items():
+        j = by_pid_now.get(pid)
+        if j is None or j == i or pid in seen:
+            continue
+        other = chosen.get(i)
+        if not other or other in seen:
+            continue
+        seen.update({pid, other})
+        lab = label_of(pid) if label_of else ""
+        moves.append({"pid": pid, "from_slot": cur_slots[j], "to_slot": cur_slots[i],
+                      "swap_pid": other, "swap_from": cur_slots[i], "swap_to": cur_slots[j],
+                      "why": (f"plays {lab} — keep the {cur_slots[j]} open for a later game"
+                              if lab else "plays earlier — keep the flex open")})
+    return moves

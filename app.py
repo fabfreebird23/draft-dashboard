@@ -792,6 +792,7 @@ def main():
                         f'<span class="tb-sep"></span>'
                         f'<span class="tb-name">{meta.name}</span></div>',
                         unsafe_allow_html=True)
+        _drafted = lg_sum.phase in (PH.IN, PH.DONE)
         with head[1], st.container(key="tb_phase"):
             # st.segmented_control, NOT a styled radio. Hiding a radio's glyph means
             # selecting on Streamlit's internal DOM, and that DOM is not stable: on
@@ -799,9 +800,17 @@ def main():
             # nested div behind a visually-hidden a11y span. Two attempts to pin it
             # with CSS both worked locally and failed on Cloud. This widget IS a
             # segmented control, so there is nothing to hide.
-            ph_sel = st.segmented_control(
-                "phase", ["Pre-season", "In-season"], key=pkey,
-                selection_mode="single", label_visibility="collapsed") or st.session_state[pkey]
+            # Once the league has drafted the toggle goes away: the season is the
+            # season, and the draft screens live under More → Draft until August.
+            if _drafted:
+                ph_sel = "In-season"
+                st.markdown('<div class="ph-note" style="text-align:right">'
+                            f'in season · week {in_season_ui.current_week()}</div>',
+                            unsafe_allow_html=True)
+            else:
+                ph_sel = st.segmented_control(
+                    "phase", ["Pre-season", "In-season"], key=pkey,
+                    selection_mode="single", label_visibility="collapsed") or st.session_state[pkey]
         with head[2]:
             st.markdown(f'<div class="tb-row tb-pills">{pills}{cluster}</div>',
                         unsafe_allow_html=True)
@@ -832,18 +841,41 @@ def main():
         # than a quiet visual regression. app.py itself always reloads, so reading
         # cross-module constants through getattr means a stale submodule degrades to
         # the old single-tab behaviour instead of crashing the page.
-        nav = getattr(in_season_ui, "TABS", ["This Week"])
+        tabs_all = getattr(in_season_ui, "TABS", ["This Week"])
+        # FOUR TABS AND A MENU, not seven. The week is Command Center · Waivers ·
+        # Matchup · Trades; Playoffs, League and Keepers are looked at once a
+        # month and the draft screens once a year, so they sit under More.
+        main = [t for t in tabs_all if t in ("Command Center", "Waivers", "Matchup", "Trades")]
+        more = [t for t in tabs_all if t not in main] + ["Draft"]
+        if not (st.session_state.get("league") or {}).get("keeper", True):
+            # a redraft league has no keepers to look at
+            more = [t for t in more if t != "Keepers"]
+        nav = main + ["More"]
         ikey = f"nav_in_{ctx['league_key']}"
         st.session_state.setdefault(ikey, nav[0])
+        # Home may have parked a tab that lives under More ("Keepers"): open the
+        # menu on it rather than silently landing on the Command Center.
+        _want = st.session_state.get(ikey)
+        mkey = f"nav_more_{ctx['league_key']}"
+        if _want in more:
+            st.session_state[ikey] = "More"
+            st.session_state[mkey] = _want
         with st.container(key="navbar"):
             itab = st.segmented_control("nav", nav, key=ikey, selection_mode="single",
                                         label_visibility="collapsed") or nav[0]
-        try:
-            in_season_ui.render(ctx, summary=lg_sum, tab=itab)
-        except TypeError:
-            # Same cause: an older render() has no `tab` parameter.
-            in_season_ui.render(ctx, summary=lg_sum)
-        return
+        if itab == "More":
+            st.session_state.setdefault(mkey, more[0])
+            with st.container(key="navbar_more"):
+                itab = st.segmented_control("more", more, key=mkey, selection_mode="single",
+                                            label_visibility="collapsed") or more[0]
+        if itab != "Draft":
+            try:
+                in_season_ui.render(ctx, summary=lg_sum, tab=itab)
+            except TypeError:
+                # Same cause: an older render() has no `tab` parameter.
+                in_season_ui.render(ctx, summary=lg_sum)
+            return
+        # "Draft" falls through to the pre-season sections below.
 
     # Persisted nav (st.tabs resets to the first tab on every rerun — drafting
     # triggers reruns, so we use a keyed radio styled as tabs instead).
@@ -858,7 +890,10 @@ def main():
     if _goto in nav:
         st.session_state["nav_section"] = _goto
     st.session_state.setdefault("nav_section", nav[0])
-    with st.container(key="navbar"):
+    # A drafted league reaches this through More → Draft, with the in-season
+    # navbar already on the page — a second container under the same key is a
+    # StreamlitDuplicateElementKey, so the draft strip gets its own.
+    with st.container(key=("navbar_draft" if ph_sel == "In-season" else "navbar")):
         # Same reasoning as the phase control. `or` guards the deselect case:
         # segmented_control returns None when you click the active segment, and the
         # nav must never resolve to nothing mid-draft.

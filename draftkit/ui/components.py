@@ -1942,7 +1942,7 @@ def _initials(name: str) -> str:
 
 
 def week_hero_html(*, me_name, me_sub, me_pts, opp_name, opp_sub, opp_pts, week,
-                   margin=None, win_pct=None, tiles=()) -> str:
+                   margin=None, win_pct=None, tiles=(), live=False, final=False) -> str:
     """The week as one scoreboard, because the week asks one question.
 
     Four tiles used to carry this at equal weight, which meant the number that
@@ -1950,8 +1950,14 @@ def week_hero_html(*, me_name, me_sub, me_pts, opp_name, opp_sub, opp_pts, week,
     on bye. Here the score is the screen and everything else hangs off it.
     """
     lead = (me_pts or 0) >= (opp_pts or 0)
-    mg = (f'<span class="ws2-mg">projected margin <b>{margin:+.1f}</b></span>'
+    _ml = "final margin" if final else ("projected final margin" if live else "projected margin")
+    mg = (f'<span class="ws2-mg">{_ml} <b>{margin:+.1f}</b></span>'
           if margin is not None else "")
+    _wk = (f'<span class="ws2-wk"><i></i>live · week {_esc(week)}</span>' if live else
+           f'<span class="ws2-wk" style="animation:none"><i style="animation:none"></i>'
+           f'final · week {_esc(week)}</span>' if final else
+           f'<span class="ws2-wk"><i></i>week {_esc(week)}</span>')
+    _lab = "final" if final else ("actual" if live else "projected")
     bar = ""
     if win_pct is not None:
         p = max(0.0, min(100.0, float(win_pct)))
@@ -1969,13 +1975,13 @@ def week_hero_html(*, me_name, me_sub, me_pts, opp_name, opp_sub, opp_pts, week,
         '<div class="ws2-score">'
         f'<div class="ws2-tm"><span class="ws2-badge">{_esc(_initials(me_name))}</span>'
         f'<div class="ws2-who"><b>{_esc(me_name)}</b><span>{_esc(me_sub)}</span></div></div>'
-        f'<div class="ws2-vs"><span class="ws2-wk"><i></i>week {_esc(week)}</span>{mg}</div>'
+        f'<div class="ws2-vs">{_wk}{mg}</div>'
         f'<div class="ws2-tm r"><div class="ws2-who"><b>{_esc(opp_name)}</b>'
         f'<span>{_esc(opp_sub)}</span></div>'
         f'<span class="ws2-badge">{_esc(_initials(opp_name))}</span></div></div>'
         '<div class="ws2-score" style="margin-top:12px">'
         f'<div class="ws2-num{"" if lead else " dn"}">{_esc(me_pts)}</div>'
-        '<div class="ws2-vs"><span class="ws2-lab">projected</span></div>'
+        f'<div class="ws2-vs"><span class="ws2-lab">{_lab}</span></div>'
         f'<div class="ws2-num{" dn" if lead else ""}" style="text-align:right">'
         f'{_esc(opp_pts)}</div></div>'
         f'</div>{bar}'
@@ -1995,7 +2001,7 @@ def action_html(tone, icon, title, detail, number=None, number_label="") -> str:
             f'<div><div class="t">{title}</div><div class="d">{detail}</div></div>{n}</div>')
 
 
-def lineup_bars_html(rows, *, header="Starting") -> str:
+def lineup_bars_html(rows, *, header="Starting", proj_label="Projected") -> str:
     """The lineup as a bar chart: length is the projection, so the shape of the
     week lands before a decimal is read.
 
@@ -2005,7 +2011,7 @@ def lineup_bars_html(rows, *, header="Starting") -> str:
     """
     top = max([float(r[3] or 0) for r in rows] or [1.0]) or 1.0
     out = [f'<div class="ws2-lu"><div class="hd"><span>Slot</span><span>{_esc(header)}</span>'
-           f'<span>Projected</span><span style="text-align:right">Pts</span></div>']
+           f'<span>{_esc(proj_label)}</span><span style="text-align:right">Pts</span></div>']
     for slot, name, sub, proj, colour, hot in rows:
         p = float(proj or 0)
         w = max(2.0, 100.0 * p / top) if p else 2.0
@@ -2041,3 +2047,43 @@ def pick_strip_html(*, name, pid, sub, wash, value, survival, tone="") -> str:
             f'<div class="nm"><b>{_esc(name)}</b><span>{sub}</span></div>'
             f'<div class="sv{sv_cls}">{sv}<small>lasts</small></div>'
             f'<div class="val{val_cls}">{val}<small>value</small></div></div>')
+
+
+# ------------------------------------------------------------- in-season, arranged
+def day_band_html(*, kicker, title, sub, number=None, number_label="") -> str:
+    """The day's one line across every league — "Tuesday · two claims worth
+    making" — above the league rows on Home."""
+    n = (f'<div class="n">{_esc(number)}<small>{_esc(number_label)}</small></div>'
+         if number is not None else "<div></div>")
+    return (f'<div class="dayband"><div><div class="k">{_esc(kicker)}</div>'
+            f'<div class="t">{_esc(title)}<small>{sub}</small></div></div><div></div>{n}</div>')
+
+
+def league_row_html(*, name, meta, me_name, me_pts, opp_name, opp_pts, mid_label,
+                    win_pct=None, chips=(), tone="") -> str:
+    """One league as one row: matchup, lineup state, the claim — so "does anything
+    need me" is answered without a click. `chips` is [(text, kind)] with kind in
+    g/w/b/"" and the row's left edge is the WORST chip."""
+    ch = "".join(f'<span class="chip{(" " + k) if k else ""}">{_esc(t)}</span>' for t, k in chips)
+    wp = ""
+    if win_pct is not None:
+        p = max(0.0, min(100.0, float(win_pct)))
+        wp = f'<div class="wp"><i style="width:{p:.0f}%"></i></div>'
+    return (f'<div class="lg{(" " + tone) if tone else ""}">'
+            f'<div class="nm"><b>{_esc(name)}</b><span>{_esc(meta)}</span></div>'
+            f'<div class="mu"><div class="side"><b>{_esc(me_name)}</b><span>{_esc(me_pts)}</span></div>'
+            f'<div class="mid"><small>{mid_label}</small>{wp}</div>'
+            f'<div class="side r"><b>{_esc(opp_name)}</b><span>{_esc(opp_pts)}</span></div></div>'
+            f'<div class="chips">{ch}</div></div>')
+
+
+def still_to_play_html(cols) -> str:
+    """Two columns — yours, theirs — of who has played and who is still to go.
+    `cols` is [(heading, [(name, sub, state)])] with state now/done/pre/bye."""
+    out = ['<div class="ws2-left">']
+    for head, rows in cols:
+        out.append(f'<div><div class="k">{_esc(head)}</div>')
+        for name, sub, state in rows:
+            out.append(f'<div class="pl {state}"><b>{_esc(name)}</b><span>{_esc(sub)}</span></div>')
+        out.append('</div>')
+    return "".join(out) + "</div>"
