@@ -297,6 +297,47 @@ def _opp_starters(g, oid) -> list:
     return (g["rosters"].get(str(oid)) or {}).get("starters") or []
 
 
+# ------------------------------------------------------------------ deep links
+def _links(ctx, week: int) -> dict:
+    """{key: (label, url)} into the league's own site — the page each tab is
+    about, so the app never makes him hunt for where to actually click."""
+    meta = ctx["meta"]
+    lid, me, season = str(meta.league_id), str(ctx.get("my_team") or ""), config.current_season()
+    if meta.platform == "espn":
+        q = f"leagueId={lid}&seasonId={season}"
+        return {"team": ("My team", f"https://fantasy.espn.com/football/team?{q}&teamId={me}"),
+                "waivers": ("Free agents", f"https://fantasy.espn.com/football/players/add?leagueId={lid}"),
+                "matchup": ("Matchup", f"https://fantasy.espn.com/football/boxscore?{q}&teamId={me}"
+                                       f"&matchupPeriodId={week}&scoringPeriodId={week}&view=scoringperiod"),
+                "trades": ("Trade", f"https://fantasy.espn.com/football/team/tradecenter?{q}&teamId={me}"),
+                "league": ("League", f"https://fantasy.espn.com/football/league?leagueId={lid}"),
+                "standings": ("Standings", f"https://fantasy.espn.com/football/league/standings?leagueId={lid}")}
+    base = f"https://sleeper.com/leagues/{lid}"
+    return {"team": ("My team", f"{base}/team"),
+            "waivers": ("Players", f"{base}/players"),
+            "matchup": ("Matchup", f"{base}/matchup"),
+            "trades": ("Trades", f"{base}/trades"),
+            "league": ("League", f"{base}"),
+            "standings": ("Standings", f"{base}/standings")}
+
+
+_TAB_LINK = {"Command Center": "team", "Lineup": "team", "Waivers": "waivers", "Matchup": "matchup",
+             "Trades": "trades", "Playoffs": "standings", "League": "league", "Keepers": "team"}
+
+
+def _link_bar(ctx, tab: str, week: int) -> str:
+    ln = _links(ctx, week)
+    plat = "ESPN" if ctx["meta"].platform == "espn" else "Sleeper"
+    lead = _TAB_LINK.get(tab, "team")
+    order = [lead] + [k for k in ("team", "waivers", "matchup", "trades", "league") if k != lead]
+    parts = []
+    for k in order:
+        lab, url = ln[k]
+        cls = ' class="on"' if k == lead else ""
+        parts.append(f'<a{cls} href="{url}" target="_blank" rel="noopener">{lab} ↗</a>')
+    return (f'<div class="ws-ext"><span>on {plat}</span>' + "".join(parts) + '</div>')
+
+
 # ---------------------------------------------------------------------- render
 def render(ctx, summary=None, tab="Command Center") -> None:
     meta = ctx["meta"]
@@ -315,6 +356,7 @@ def render(ctx, summary=None, tab="Command Center") -> None:
         st.caption("**Preseason** — projections are live, but records, results and "
                    "transactions stay empty until week 1 kicks off.")
 
+    st.markdown(_link_bar(ctx, tab, week), unsafe_allow_html=True)
     if tab == "Command Center":
         _command(ctx, g)
     elif tab == "Lineup":
@@ -794,8 +836,49 @@ def _panel_verdicts(pn: dict, out_pid, in_pid) -> list:
 
 
 def _verdict_chips(vs: list) -> str:
-    return " ".join(_chip(f'{p} {"agrees" if v == "for" else "disagrees" if v == "against" else "split"}',
-                          {"for": "ok", "against": "bad", "split": "warn"}[v]) for p, v in vs)
+    def _n(v):
+        return "for" if v in ("for", "agree", "agrees") else "against" if v in ("against", "disagree") else "split"
+    return " ".join(_chip(f'{p} {"agrees" if _n(v) == "for" else "disagrees" if _n(v) == "against" else "split"}',
+                          {"for": "ok", "against": "bad", "split": "warn"}[_n(v)]) for p, v in vs)
+
+
+def _source_scores(pn: dict, g: dict, src: str):
+    """(score {pid: higher-is-better}, label(pid) -> str) for one ranking source.
+
+    Projections score in points. FantasyPros ranks RB/WR/TE together on its FLEX
+    list and QB/K/DST on their own, so a rank becomes `1000 - rank` — only ever
+    compared within a slot's eligible positions, where the scales agree. Flock's
+    weekly OVERALL rank does the same job across RB/WR/TE/QB. The Ballers project
+    points, so those are used as they are. K and D/ST fall back to projections on
+    every panel, because no panel but FantasyPros ranks them.
+    """
+    proj = g["proj"] or {}
+    if src == "Projections":
+        return proj, (lambda pid: f'{float(proj.get(str(pid), 0) or 0):.1f}')
+    reg = None
+    score, labels = {}, {}
+    if src == "The Ballers":
+        rows = pn.get("ffb") or {}
+        for pid, r in rows.items():
+            if r.get("pts") is not None:
+                score[pid] = float(r["pts"])
+                labels[pid] = f'{r["pts"]:.1f}'
+    else:
+        key = "fp" if src == "FantasyPros" else "flock"
+        rows = pn.get(key) or {}
+        for pid, r in rows.items():
+            rk = r.get("ecr") if key == "fp" else (r.get("rank") or r.get("pos_rank"))
+            if rk is None:
+                continue
+            score[pid] = 1000.0 - float(rk)
+            labels[pid] = (f'{r.get("pos_rank") or ""}' if key == "fp"
+                           else f'{r.get("pos") or ""}{float(r.get("pos_rank") or 0):.0f}')
+    # K / D/ST: projections, scaled so they never outrank a ranked skill player
+    # (they never compete for the same slot anyway).
+    for pid, v in proj.items():
+        if pid not in score:
+            score[pid] = 0.0
+    return score, (lambda pid: labels.get(str(pid)) or f'{float(proj.get(str(pid), 0) or 0):.1f}')
 
 
 def _lineup(ctx, g) -> None:
@@ -810,6 +893,35 @@ def _lineup(ctx, g) -> None:
                    "against. The Command Center shows the best available lineup.")
         return
     pn = _panels(ctx, g)
+    # ---- which panel decides ---------------------------------------------
+    # Projections are the default; the others rank instead of scoring, so the
+    # optimiser is fed "rank turned into a score" and the POINTS shown are still
+    # the projection for whatever set that panel picks — the two panels are
+    # then comparable on one number.
+    _srcs = ["Projections", "FantasyPros", "Flock", "The Ballers"]
+    _skey = f"lineup_src_{ctx['league_key']}"
+    with st.container(key="lineup_src"):
+        src = st.segmented_control("Rank by", _srcs, key=_skey, selection_mode="single",
+                                   label_visibility="collapsed") or _srcs[0]
+    score, score_label = _source_scores(pn, g, src)
+    if src != "Projections":
+        lc_src = W.lineup_check(g["mine"], g["slots"], score, reg, g["byes"], g["week"],
+                                current=g.get("starters"))
+        # points, not rank units, for the totals and the gains
+        _p = g["proj"]
+        _opt_set = [str(p) for _s, p in lc_src["optimal"] if p]
+        lc_src["optimal_total"] = round(sum(float(_p.get(x, 0) or 0) for x in _opt_set), 1)
+        lc_src["current_total"] = round(sum(float(_p.get(str(x), 0) or 0)
+                                            for _s, x in lc_src["current"] if x), 1)
+        for m in lc_src["moves"]:
+            m["gain"] = round(float(_p.get(m["in"], 0) or 0) - float(_p.get(m["out"], 0) or 0), 1)
+        lc_src["gain"] = round(lc_src["optimal_total"] - lc_src["current_total"], 1)
+        missing = [p for p in g["mine"] if str(p) not in score and reg.meta(p).position in ("QB", "RB", "WR", "TE")]
+        if missing:
+            st.caption(f"{src} doesn't rank " + ", ".join(reg.meta(p).name for p in missing[:5])
+                       + (" and others" if len(missing) > 5 else "")
+                       + " — they sort behind everyone it does.")
+        lc = lc_src
     cur = lc["current"]
     slots = [s for s, _p in cur]
     # The set to start: the optimiser's. Then SEAT it by kickoff.
@@ -859,11 +971,11 @@ def _lineup(ctx, g) -> None:
             sub += f' · <span style="color:var(--amber)">{av["status"][:4].upper()}</span>'
         if sub_extra:
             sub += f' · {sub_extra}'
-        pj = float(g["proj"].get(str(pid), 0) or 0)
+        pj = score_label(pid)
         return (slot, colour, pm.name + (f'<span class="lc-tag {state}">' +
                                         ("start" if state == "in" else f'from {_pos_of.get(pid, "bench")}')
                                         + '</span>' if state in ("in", "mv") else ""),
-                sub, GT.day_label(gm), _ktone(pid), f"{pj:.1f}", state)
+                sub, GT.day_label(gm), _ktone(pid), pj, state)
 
     now_rows, set_rows, marks = [], [], []
     for i, (slot, pid) in enumerate(cur):
@@ -873,7 +985,7 @@ def _lineup(ctx, g) -> None:
             repl = next((q for q in ins if reg.meta(q).position == reg.meta(pid).position), None) or (next(iter(ins)) if ins else None)
             gain = next((m["gain"] for m in lc["moves"] if m["out"] == pid), None)
             now_rows.append(_row(slot, pid, state="out",
-                                 sub_extra=(f'bench him · {reg.meta(repl).name.split()[-1]} +{gain}'
+                                 sub_extra=(f'bench him · {reg.meta(repl).name.split()[-1]} {float(gain):+.1f}'
                                             if repl and gain is not None else "bench him")))
         else:
             now_rows.append(_row(slot, pid))
@@ -901,7 +1013,8 @@ def _lineup(ctx, g) -> None:
     st.markdown(C.lineup_compare_html(
         now_rows=now_rows, set_rows=set_rows,
         now_total=(f"On {_plat} now", "as set", f'{lc["current_total"]:.1f}'),
-        set_total=("Set this", "seated by kickoff", f'{lc["optimal_total"]:.1f}'),
+        set_total=("Set this", ("seated by kickoff" if src == "Projections" else f"per {src} · by kickoff"),
+                   f'{lc["optimal_total"]:.1f}'),
         marks=marks), unsafe_allow_html=True)
 
     # ---- the moves, and what each panel thinks -----------------------------
@@ -915,10 +1028,11 @@ def _lineup(ctx, g) -> None:
         for m in lc["moves"]:
             _in, _out = reg.meta(m["in"]), reg.meta(m["out"])
             vs = _panel_verdicts(pn, m["out"], m["in"])
-            st.markdown(C.action_html("go", "↑", f'Start {_in.name}, bench {_out.name}',
-                                      f'Worth <b>+{m["gain"]}</b> this week. '
+            st.markdown(C.action_html("go" if float(m["gain"]) >= 0 else "warn", "↑",
+                                      f'Start {_in.name}, bench {_out.name}',
+                                      f'Worth <b>{float(m["gain"]):+.1f}</b> this week by our projections. '
                                       + (_verdict_chips(vs) if vs else "No panel ranks both."),
-                                      f'+{m["gain"]}', "points"), unsafe_allow_html=True)
+                                      f'{float(m["gain"]):+.1f}', "points"), unsafe_allow_html=True)
     with c2:
         st.markdown('<div class="ws-h" style="margin-top:14px">Seat by kickoff</div>', unsafe_allow_html=True)
         pairs = []
@@ -948,7 +1062,7 @@ def _lineup(ctx, g) -> None:
     steps = []
     for m in lc["moves"]:
         steps.append(f'Bench <b>{reg.meta(m["out"]).name}</b>, start <b>{reg.meta(m["in"]).name}</b> '
-                     f'<em>· lineup change · +{m["gain"]}</em>')
+                     f'<em>· lineup change · {float(m["gain"]):+.1f}</em>')
     seen = set()
     for pid, slot, new in pairs:
         if new in seen or pid in seen:

@@ -1,0 +1,116 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Rankings · in season</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#161415;--panel:#232022;--panel2:#2c282a;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#95898e;
+ --crimson:#ff336c;--green:#7fd8b4;--amber:#f0b357;--red:#ff8fae;--blue:#6aa6f0;
+ --qb:#e879a6;--rb:#7fd8b4;--wr:#6aa6f0;--te:#f0b357;--k:#c9c2c5;--dst:#b59cf0;
+ --fd:'Sora',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);margin:0;padding:22px 22px 70px;font-size:13px}
+h1{font-family:var(--fd);font-weight:800;font-size:24px;margin:0 0 4px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:86ch;line-height:1.5;margin:0 0 18px}
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:28px 0 10px;font-family:var(--fd);font-weight:800;font-size:16px}
+.bar i{height:1px;background:var(--line2)} .bar em{font-family:var(--fm);font-size:9.5px;font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2)}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.45;margin-top:8px;max-width:86ch}
+/* chrome */
+.nav{display:flex;gap:6px;margin-bottom:10px;align-items:center}
+.nav span{padding:6px 12px;border-radius:8px;border:1px solid var(--line2);font-size:12px;font-weight:600;color:var(--muted)}
+.nav span.on{border-color:var(--crimson);color:var(--ink);background:rgba(255,51,108,.10)}
+.ext{margin-left:auto;display:flex;gap:8px;font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase}
+.ext a{color:var(--muted);padding:3px 8px;border-radius:6px;border:1px solid var(--line2);text-decoration:none}
+.ext a.on{color:var(--crimson);border-color:var(--crimson);background:rgba(255,51,108,.12)}
+/* controls strip */
+.ctl{display:grid;grid-template-columns:auto auto 1fr auto;gap:14px;align-items:center;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:12px}
+.seg{display:flex;gap:2px;background:var(--panel2);border-radius:8px;padding:2px}
+.seg span{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;color:var(--muted)}
+.seg span.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+.seg.src span.on{color:var(--crimson)}
+.pos{display:flex;gap:4px}
+.pos span{font-family:var(--fm);font-size:10px;padding:4px 9px;border-radius:6px;border:1px solid var(--line2);color:var(--mut2)}
+.pos span.on{color:var(--ink);border-color:var(--mut2);background:var(--panel2)}
+.tog{font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2);display:flex;gap:14px}
+.tog b{color:var(--ink);font-weight:600} .tog i{display:inline-block;width:22px;height:12px;border-radius:999px;background:var(--green);vertical-align:-2px;margin-right:6px;position:relative}
+.tog i::after{content:"";position:absolute;right:1px;top:1px;width:10px;height:10px;border-radius:50%;background:#141314}
+.tog i.off{background:var(--line2)} .tog i.off::after{left:1px;right:auto}
+.meta{font-family:var(--fm);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);text-align:right;line-height:1.6}
+.meta b{color:var(--ink);font-weight:600}
+/* table */
+.tbl{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.tbl th{font-family:var(--fm);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--panel2);font-weight:500}
+.tbl td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle;font-size:12.5px}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .n{font-family:var(--fm);text-align:right;font-variant-numeric:tabular-nums}
+.tbl .rk{font-family:var(--fd);font-weight:800;font-size:14px;width:40px}
+.tier{width:4px;padding:0!important}
+.t1{background:var(--green)}.t2{background:var(--blue)}.t3{background:var(--amber)}.t4{background:var(--line2)}
+.pl b{font-weight:600} .pl small{display:block;font-size:10.5px;color:var(--mut2);margin-top:1px}
+.pp{font-family:var(--fm);font-size:9px;padding:2px 5px;border-radius:4px;margin-left:6px;vertical-align:1px}
+.pp.rb{background:rgba(127,216,180,.15);color:var(--rb)}.pp.wr{background:rgba(106,166,240,.15);color:var(--wr)}.pp.qb{background:rgba(232,121,166,.15);color:var(--qb)}.pp.te{background:rgba(240,179,87,.15);color:var(--te)}
+.own{font-family:var(--fm);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:5px;border:1px solid var(--line2);color:var(--mut2);white-space:nowrap}
+.own.me{color:var(--crimson);border-color:var(--crimson)} .own.fa{color:var(--green);border-color:var(--green)}
+.own.st{color:var(--ink);border-color:var(--mut2)}
+tr.mine td{background:rgba(255,51,108,.05)}
+.spread{display:inline-flex;align-items:center;gap:6px;font-family:var(--fm);font-size:10.5px;color:var(--muted)}
+.spread i{display:block;height:5px;border-radius:999px;background:var(--line2);width:70px;position:relative}
+.spread i::after{content:"";position:absolute;top:0;height:100%;border-radius:999px;background:var(--blue);left:var(--l);right:var(--r)}
+.vs{font-family:var(--fm);font-size:10.5px;white-space:nowrap}
+.vs b{font-weight:600} .vs .up{color:var(--green)} .vs .dn{color:var(--red)}
+.an{display:flex;gap:3px}
+.an span{font-family:var(--fm);font-size:9.5px;width:26px;text-align:center;padding:2px 0;border-radius:4px;background:var(--panel2);color:var(--muted)}
+.an span.hi{color:var(--green)} .an span.lo{color:var(--red)}
+.kick{font-family:var(--fm);font-size:10.5px;color:var(--muted);white-space:nowrap}
+.kick.early{color:var(--amber)}
+/* compare view */
+.cmp td.n{width:76px}
+.cmp .dlt{font-family:var(--fm);font-size:10px;color:var(--mut2)}
+.leg{display:flex;gap:16px;font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2);margin:10px 0}
+</style></head><body>
+<h1>Rankings · in season</h1>
+<p class="sub">One page, three panels. Switch the source at the top and the same table re-ranks; the columns to the right of the rank never change, so you read <b>who owns him</b>, <b>when he plays</b> and <b>what the other two panels think</b> without leaving the row. Your players are tinted; "start" means he is in your set lineup. The controls fold into one strip (the Option-A rankings treatment you picked, with Inter names and Plex Mono numbers).</p>
+
+<div class="bar"><span>A · one panel at a time</span><i></i><em>source switch · position · league lens</em></div>
+<div class="nav"><span>Command Center</span><span>Lineup</span><span class="on">Rankings</span><span>Waivers</span><span>Matchup</span><span>Trades</span><span>More ▾</span>
+ <div class="ext"><a class="on">Players ↗</a><a>My team ↗</a><a>Matchup ↗</a></div></div>
+<div class="ctl">
+ <div class="seg src"><span>FantasyPros</span><span class="on">Flock</span><span>The Ballers</span></div>
+ <div class="pos"><span class="on">ALL</span><span>QB</span><span>RB</span><span>WR</span><span>TE</span><span>FLEX</span><span>K</span><span>DST</span></div>
+ <div class="tog"><span><i></i><b>Babies and Boomer</b> lens</span><span><i class="off"></i>free agents only</span><span><i class="off"></i>mine only</span></div>
+ <div class="meta"><b>Flock · week 1</b> · 6 analysts<br>updated Mon 8:00pm · 301 players</div>
+</div>
+<table class="tbl">
+<tr><th></th><th>#</th><th>Player</th><th>Game</th><th>Rank</th><th>Spread</th><th>Analysts <small style="letter-spacing:0;text-transform:none">MD · NS · ZS · AH · DM · SS</small></th><th>vs FP · Ballers</th><th>B&amp;B</th></tr>
+<tr><td class="tier t1"></td><td class="rk">1</td><td class="pl"><b>Jahmyr Gibbs</b><span class="pp rb">RB</span><small>DET · RB1</small></td><td class="kick">vs NO · Sun 1:00</td><td class="n">1.0</td><td><span class="spread"><i style="--l:0%;--r:96%"></i>1–1</span></td><td><div class="an"><span>1</span><span>1</span><span>1</span><span>1</span><span>1</span><span>1</span></div></td><td class="vs">FP <b>RB1</b> · Ballers <b>RB1</b> 22.4</td><td><span class="own">Too Many Rooks</span></td></tr>
+<tr class="mine"><td class="tier t1"></td><td class="rk">2</td><td class="pl"><b>Bijan Robinson</b><span class="pp rb">RB</span><small>ATL · RB2</small></td><td class="kick">@ PIT · Sun 1:00</td><td class="n">2.5</td><td><span class="spread"><i style="--l:2%;--r:90%"></i>2–4</span></td><td><div class="an"><span>2</span><span class="lo">4</span><span>2</span><span>3</span><span>2</span><span>2</span></div></td><td class="vs">FP <b>RB2</b> · Ballers <b>RB2</b> 20.3</td><td><span class="own me">you · start</span></td></tr>
+<tr><td class="tier t1"></td><td class="rk">3</td><td class="pl"><b>Ja'Marr Chase</b><span class="pp wr">WR</span><small>CIN · WR1</small></td><td class="kick">vs TB · Sun 1:00</td><td class="n">1.2</td><td><span class="spread"><i style="--l:0%;--r:94%"></i>1–2</span></td><td><div class="an"><span>1</span><span>1</span><span>2</span><span>1</span><span>1</span><span>1</span></div></td><td class="vs">FP <b>WR1</b> · Ballers <b>WR2</b> 19.1</td><td><span class="own">Old Man Mike</span></td></tr>
+<tr><td class="tier t2"></td><td class="rk">7</td><td class="pl"><b>Jayden Daniels</b><span class="pp qb">QB</span><small>WAS · QB6</small></td><td class="kick">@ PHI · Sun 4:25</td><td class="n">6.5</td><td><span class="spread"><i style="--l:8%;--r:70%"></i>4–11</span></td><td><div class="an"><span class="hi">4</span><span>6</span><span>5</span><span class="lo">11</span><span>7</span><span>6</span></div></td><td class="vs">FP <b>QB5</b> · Ballers <b class="dn">QB13</b> 17.4</td><td><span class="own">Taco Bandit</span></td></tr>
+<tr class="mine"><td class="tier t2"></td><td class="rk">17</td><td class="pl"><b>De'Von Achane</b><span class="pp rb">RB</span><small>MIA · RB7</small></td><td class="kick">@ LV · Sun 4:25</td><td class="n">7.2</td><td><span class="spread"><i style="--l:10%;--r:66%"></i>5–12</span></td><td><div class="an"><span>6</span><span>8</span><span class="hi">5</span><span class="lo">12</span><span>6</span><span>6</span></div></td><td class="vs">FP <b>RB4</b> · Ballers <b>RB6</b> 17.9</td><td><span class="own me">you · start</span></td></tr>
+<tr><td class="tier t3"></td><td class="rk">31</td><td class="pl"><b>Malik Nabers</b><span class="pp wr">WR</span><small>NYG · WR17 · <span style="color:var(--amber)">QUES</span></small></td><td class="kick">vs DAL · Sun 8:20</td><td class="n">17.2</td><td><span class="spread"><i style="--l:22%;--r:40%"></i>12–28</span></td><td><div class="an"><span class="hi">12</span><span>16</span><span>15</span><span class="lo">28</span><span>17</span><span>15</span></div></td><td class="vs">FP <b>WR14</b> · Ballers <b class="dn">WR24</b> 13.9</td><td><span class="own">Smelly Pitts</span></td></tr>
+<tr class="mine"><td class="tier t3"></td><td class="rk">44</td><td class="pl"><b>Breece Hall</b><span class="pp rb">RB</span><small>NYJ · RB15 · <span style="color:var(--amber)">QUES</span></small></td><td class="kick early">@ TEN · Sun 1:00</td><td class="n">15.3</td><td><span class="spread"><i style="--l:20%;--r:48%"></i>11–24</span></td><td><div class="an"><span>14</span><span class="lo">24</span><span>13</span><span>16</span><span class="hi">11</span><span>14</span></div></td><td class="vs">FP <b>RB16</b> · Ballers <b>RB15</b> 14.8</td><td><span class="own me">you · start</span></td></tr>
+<tr class="mine"><td class="tier t3"></td><td class="rk">58</td><td class="pl"><b>Jadarian Price</b><span class="pp rb">RB</span><small>SEA · RB21</small></td><td class="kick early">vs NE · Wed 8:20</td><td class="n">21.0</td><td><span class="spread"><i style="--l:28%;--r:38%"></i>16–30</span></td><td><div class="an"><span>18</span><span>22</span><span class="hi">16</span><span class="lo">30</span><span>20</span><span>20</span></div></td><td class="vs">FP <b>RB19</b> · Ballers <b>RB22</b> 12.6</td><td><span class="own me">you · bench</span></td></tr>
+<tr><td class="tier t3"></td><td class="rk">66</td><td class="pl"><b>Rashid Shaheed</b><span class="pp wr">WR</span><small>SEA · WR38</small></td><td class="kick early">vs NE · Wed 8:20</td><td class="n">38.5</td><td><span class="spread"><i style="--l:40%;--r:20%"></i>29–52</span></td><td><div class="an"><span>33</span><span>41</span><span class="hi">29</span><span class="lo">52</span><span>36</span><span>40</span></div></td><td class="vs">FP <b>WR41</b> · Ballers <b class="up">WR33</b> 11.2</td><td><span class="own fa">free agent · +1.1 to you</span></td></tr>
+<tr class="mine"><td class="tier t4"></td><td class="rk">71</td><td class="pl"><b>Brian Thomas Jr.</b><span class="pp wr">WR</span><small>JAX · WR32</small></td><td class="kick">vs CLE · Sun 1:00</td><td class="n">32.0</td><td><span class="spread"><i style="--l:34%;--r:26%"></i>24–46</span></td><td><div class="an"><span>28</span><span>35</span><span class="hi">24</span><span class="lo">46</span><span>30</span><span>29</span></div></td><td class="vs">FP <b class="dn">WR41</b> · Ballers <b class="dn">WR42</b> 10.7</td><td><span class="own me">you · bench</span></td></tr>
+</table>
+<p class="note">The <b>league lens</b> is the whole reason to have this page instead of opening Flock: every row already says who owns him in <i>this</i> league (and, for a free agent, what he'd add to your lineup). Colour on the analyst cells marks the high and low vote, and the spread bar is the same one the Command Center uses to call a start/sit a coin flip. Tier edge follows the source's own tiers where it has them (Flock does; FantasyPros and the Ballers get tiers by rank gap).</p>
+
+<div class="bar"><span>B · all three at once</span><i></i><em>the compare view · same row, three ranks</em></div>
+<div class="ctl" style="grid-template-columns:auto auto 1fr auto">
+ <div class="seg src"><span>FantasyPros</span><span>Flock</span><span>The Ballers</span><span class="on">Compare</span></div>
+ <div class="pos"><span>ALL</span><span>QB</span><span class="on">RB</span><span>WR</span><span>TE</span><span>FLEX</span></div>
+ <div class="tog"><span><i></i><b>Babies and Boomer</b> lens</span><span><i class="off"></i>disagreements only</span></div>
+ <div class="meta"><b>RB · week 1</b> · sorted by consensus<br>FP 8 experts · Flock 6 · Ballers 3</div>
+</div>
+<div class="leg"><span>· sorted by the average of the three</span><span>· green/red = a panel 5+ places off the other two</span></div>
+<table class="tbl cmp">
+<tr><th></th><th>#</th><th>Player</th><th>Game</th><th>FantasyPros</th><th>Flock</th><th>The Ballers</th><th>Consensus</th><th>Disagreement</th><th>B&amp;B</th></tr>
+<tr><td class="tier t1"></td><td class="rk">1</td><td class="pl"><b>Jahmyr Gibbs</b><small>DET</small></td><td class="kick">vs NO · Sun 1:00</td><td class="n">RB1</td><td class="n">RB1</td><td class="n">RB1 <span class="dlt">22.4</span></td><td class="n"><b>1.0</b></td><td class="dlt">agree</td><td><span class="own">Too Many Rooks</span></td></tr>
+<tr class="mine"><td class="tier t1"></td><td class="rk">2</td><td class="pl"><b>Bijan Robinson</b><small>ATL</small></td><td class="kick">@ PIT · Sun 1:00</td><td class="n">RB2</td><td class="n">RB2.5</td><td class="n">RB2 <span class="dlt">20.3</span></td><td class="n"><b>2.2</b></td><td class="dlt">agree</td><td><span class="own me">you · start</span></td></tr>
+<tr class="mine"><td class="tier t2"></td><td class="rk">6</td><td class="pl"><b>De'Von Achane</b><small>MIA</small></td><td class="kick">@ LV · Sun 4:25</td><td class="n">RB4</td><td class="n">RB7.2</td><td class="n">RB6 <span class="dlt">17.9</span></td><td class="n"><b>5.7</b></td><td class="dlt">agree</td><td><span class="own me">you · start</span></td></tr>
+<tr><td class="tier t2"></td><td class="rk">9</td><td class="pl"><b>Jonathan Taylor</b><small>IND</small></td><td class="kick">vs BAL · Sun 1:00</td><td class="n"><span class="up">RB5</span></td><td class="n">RB11.0</td><td class="n">RB12 <span class="dlt">15.1</span></td><td class="n"><b>9.3</b></td><td class="dlt"><span class="up">FP high</span> · 7 places</td><td><span class="own">Clayton's Kids</span></td></tr>
+<tr class="mine"><td class="tier t3"></td><td class="rk">15</td><td class="pl"><b>Breece Hall</b><small>NYJ · <span style="color:var(--amber)">QUES</span></small></td><td class="kick early">@ TEN · Sun 1:00</td><td class="n">RB16</td><td class="n">RB15.3</td><td class="n">RB15 <span class="dlt">14.8</span></td><td class="n"><b>15.4</b></td><td class="dlt">agree</td><td><span class="own me">you · start</span></td></tr>
+<tr><td class="tier t3"></td><td class="rk">18</td><td class="pl"><b>Tyrone Tracy</b><small>NYG</small></td><td class="kick">vs DAL · Sun 8:20</td><td class="n">RB22</td><td class="n">RB19.8</td><td class="n"><span class="up">RB13</span> <span class="dlt">15.0</span></td><td class="n"><b>18.3</b></td><td class="dlt"><span class="up">Ballers high</span> · 8 places</td><td><span class="own fa">free agent · +0.4 to you</span></td></tr>
+<tr class="mine"><td class="tier t3"></td><td class="rk">21</td><td class="pl"><b>Jadarian Price</b><small>SEA</small></td><td class="kick early">vs NE · Wed 8:20</td><td class="n">RB19</td><td class="n">RB21.0</td><td class="n">RB22 <span class="dlt">12.6</span></td><td class="n"><b>20.7</b></td><td class="dlt">agree</td><td><span class="own me">you · bench</span></td></tr>
+<tr><td class="tier t4"></td><td class="rk">27</td><td class="pl"><b>Jaylen Warren</b><small>PIT</small></td><td class="kick early">vs ATL · Sun 1:00</td><td class="n">RB24</td><td class="n">RB25.3</td><td class="n"><span class="dn">RB31</span> <span class="dlt">11.9</span></td><td class="n"><b>26.8</b></td><td class="dlt"><span class="dn">Ballers low</span> · 6 places</td><td><span class="own">Old Man Mike</span></td></tr>
+</table>
+<p class="note">The compare view is where a lineup call gets decided: <b>Tracy is a free agent the Ballers like eight places more than the other two</b>, which is exactly the kind of thing that never surfaces when you read one site. "Disagreements only" filters the table to rows where a panel is 5+ places off. The Lineup tab's new <b>Rank by</b> switch (Projections · FantasyPros · Flock · The Ballers) is already built and uses these same three feeds — this page is the browse side of it.</p>
+</body></html>

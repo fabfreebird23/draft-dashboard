@@ -1644,6 +1644,17 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .lc-steps li b{ font-weight:600; }
 .lc-steps li em{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-style:normal; font-size:10.5px;
   color:var(--mut2); }
+/* ---- deep links into the league's own site ---- */
+.ws-ext{ display:flex; gap:12px; align-items:center; justify-content:flex-end; margin:-4px 0 8px;
+  font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9.5px; letter-spacing:.1em;
+  text-transform:uppercase; }
+.ws-ext span{ color:var(--mut2); }
+.ws-ext a{ color:var(--muted); text-decoration:none; padding:3px 8px; border-radius:6px;
+  border:1px solid var(--line2); }
+.ws-ext a:hover{ color:var(--ink); border-color:var(--mut2); }
+.ws-ext a.on{ color:var(--crimson); border-color:var(--crimson); background:var(--accent-soft); }
+[class*="st-key-lineup_src"]{ margin-bottom:6px; }
+[class*="st-key-lineup_src"] [role="radiogroup"] label{ font-size:11.5px; padding:4px 12px; }
 /* ranked actions */
 .ws2-act{ display:grid; grid-template-columns:auto 1fr auto; gap:13px; align-items:center;
   padding:12px 14px; border-radius:13px; background:var(--panel); border:1px solid var(--line);
