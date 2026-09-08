@@ -1,0 +1,350 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>In-season, arranged</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   MOCK ONLY — how the app should be ARRANGED now that every league is in season.
+
+   The app was built for a draft: one league at a time, a phase toggle at the
+   top, and a home page that counts down to a draft that has now happened. For
+   the next four months the shape of his week is different and repeats:
+
+     Tue/Wed   waivers      — claims process Wed 3am
+     Thu       TNF lock     — one lineup decision, early
+     Sat/Sun   lineups      — injuries resolve, decide by 1:00
+     Sun/Mon   live         — watch, and know what is still to play
+
+   ...and he has FOUR teams doing it at once. So the two changes that matter:
+
+     1. HOME IS ONE SCREEN, ALL LEAGUES. Not four cards to open one at a time,
+        but four rows that already show the week's answer for each — matchup,
+        lineup state, injuries, the one waiver claim — so the question "does
+        anything need me" is answered without a click.
+     2. THE APP KNOWS WHAT DAY IT IS. The Command Center's action list already
+        ranks by points at stake; the top item should also follow the calendar.
+        A waiver claim is the top item on Tuesday and noise on Sunday morning.
+
+   Everything else is demotion: the draft tabs go under "More", the phase toggle
+   goes away, and the seven-tab nav becomes four-and-a-menu.
+   ========================================================================== */
+:root{
+  --bg:#161415; --panel:#232022; --panel2:#2c282a; --line:#332e30; --line2:#3d383a;
+  --ink:#f2eef0; --muted:#a2989c; --mut2:#95898e;
+  --crimson:#ff336c;
+  --green:#7fd8b4; --amber:#f0b357; --red:#ff8fae; --blue:#6aa6f0;
+  --f-display:'Sora',system-ui,sans-serif;
+  --f-body:'Inter',system-ui,sans-serif;
+  --f-data:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);margin:0;
+     padding:22px 22px 70px;font-size:13px}
+h1{font-family:var(--f-display);font-weight:800;font-size:26px;margin:0 0 2px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:80ch;line-height:1.5;margin:0 0 22px}
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:30px 0 10px;
+     font-family:var(--f-display);font-weight:800;font-size:17px;letter-spacing:-.01em}
+.bar i{height:1px;background:var(--line2);display:block}
+.bar em{font-family:var(--f-data);font-size:9.5px;font-style:normal;letter-spacing:.14em;
+        text-transform:uppercase;color:var(--mut2);white-space:nowrap}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.45;margin-top:8px;max-width:80ch}
+
+/* ── the app chrome, as it would be ───────────────────────────────────── */
+.top{display:flex;align-items:center;gap:14px;padding:10px 14px;background:#1b1819;
+     border:1px solid var(--line);border-radius:12px;margin-bottom:10px}
+.brand{font-family:var(--f-display);font-weight:800;font-size:17px;letter-spacing:-.01em}
+.brand em{color:var(--crimson);font-style:normal}
+.day{margin-left:auto;font-family:var(--f-data);font-size:9.5px;letter-spacing:.14em;
+     text-transform:uppercase;color:var(--mut2)}
+.day b{color:var(--ink);font-weight:600}
+.nav{display:flex;gap:6px;margin-bottom:12px}
+.nav span{padding:6px 12px;border-radius:8px;border:1px solid var(--line2);font-size:12px;
+          font-weight:600;color:var(--muted)}
+.nav span.on{border-color:var(--crimson);color:var(--ink);background:rgba(255,51,108,.10)}
+.nav span.more{margin-left:auto;color:var(--mut2)}
+
+/* ── 1 · SUNDAY home: one row per league ─────────────────────────────── */
+.dayband{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;
+  padding:11px 15px;border-radius:12px;margin-bottom:12px;
+  background:linear-gradient(90deg,rgba(255,51,108,.16),var(--panel) 55%);border:1px solid var(--line)}
+.dayband .k{font-family:var(--f-data);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--crimson)}
+.dayband .t{font-weight:700;font-size:14px}
+.dayband .t small{display:block;font-weight:400;font-size:11.5px;color:var(--muted);margin-top:2px}
+.dayband .n{font-family:var(--f-display);font-weight:800;font-size:22px;color:var(--amber);
+  text-align:right;line-height:1}
+.dayband .n small{display:block;font-family:var(--f-data);font-size:8.5px;font-weight:500;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--mut2);margin-top:3px}
+
+.lg{display:grid;grid-template-columns:150px 1fr 118px auto;gap:14px;align-items:center;
+  padding:10px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line);
+  border-left:4px solid var(--line2);margin-bottom:7px}
+.lg.go{border-left-color:var(--green)} .lg.warn{border-left-color:var(--amber)}
+.lg.bad{border-left-color:var(--red)}
+.lg .nm b{display:block;font-family:var(--f-display);font-weight:800;font-size:14px;letter-spacing:-.01em}
+.lg .nm span{display:block;font-family:var(--f-data);font-size:9px;color:var(--mut2);margin-top:2px;
+  letter-spacing:.06em;text-transform:uppercase}
+.mu{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;min-width:0}
+.mu .side{min-width:0}
+.mu .side b{display:block;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.mu .side span{font-family:var(--f-data);font-size:15px;font-weight:600}
+.mu .side.r{text-align:right}
+.mu .side.r span{color:var(--muted)}
+.mu .mid{text-align:center;min-width:0}
+.wp{height:5px;border-radius:999px;background:var(--line2);overflow:hidden;width:110px;margin:3px auto 0}
+.wp i{display:block;height:100%;background:var(--green)}
+.mu .mid small{font-family:var(--f-data);font-size:9px;color:var(--mut2);letter-spacing:.08em}
+.chips{display:flex;flex-direction:column;gap:4px}
+.chip{font-family:var(--f-data);font-size:9px;letter-spacing:.06em;padding:3px 7px;border-radius:5px;
+  border:1px solid var(--line2);color:var(--mut2);white-space:nowrap;text-align:center}
+.chip.g{color:var(--green);border-color:var(--green)}
+.chip.w{color:var(--amber);border-color:var(--amber)}
+.chip.b{color:var(--red);border-color:var(--red)}
+.open{font-family:var(--f-data);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  padding:8px 12px;border-radius:8px;background:var(--panel2);border:1px solid var(--line2);
+  color:var(--ink);white-space:nowrap}
+.open.hot{background:rgba(255,51,108,.14);border-color:var(--crimson);color:var(--crimson)}
+
+/* ── 2 · day-aware Command Center top item ───────────────────────────── */
+.days{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.dcol .dh{font-family:var(--f-data);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--mut2);margin-bottom:6px}
+.dcol .dh b{color:var(--ink);font-weight:600}
+.act{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;padding:11px 13px;
+  border-radius:12px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--line2);
+  margin-bottom:7px}
+.act.go{border-left-color:var(--green)} .act.warn{border-left-color:var(--amber)}
+.act.bad{border-left-color:var(--red)} .act.live{border-left-color:var(--crimson)}
+.act .ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:13px;
+  background:var(--panel2);border:1px solid var(--line2)}
+.act .t{font-weight:700;font-size:12.5px} .act .d{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4}
+.act .n{font-family:var(--f-display);font-weight:800;font-size:17px;white-space:nowrap;text-align:right}
+.act .n small{display:block;font-family:var(--f-data);font-size:8px;font-weight:500;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--mut2);margin-top:2px}
+.act.go .n{color:var(--green)} .act.warn .n{color:var(--amber)} .act.bad .n{color:var(--red)}
+.act.live .n{color:var(--crimson)}
+.act.dim{opacity:.5}
+
+/* ── 3 · live Sunday matchup ─────────────────────────────────────────── */
+.live{border-radius:16px;overflow:hidden;border:1px solid var(--line);max-width:760px}
+.live .hero{padding:16px 18px 12px;position:relative;
+  background:radial-gradient(120% 140% at 10% 0%,rgba(224,4,63,.32),transparent 55%),
+             radial-gradient(120% 140% at 90% 0%,rgba(47,111,181,.28),transparent 55%),#231f21}
+.live .row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px}
+.live .tm b{display:block;font-family:var(--f-display);font-weight:800;font-size:17px}
+.live .tm span{display:block;font-family:var(--f-data);font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--mut2);margin-top:2px}
+.live .tm.r{text-align:right}
+.big{font-family:var(--f-display);font-weight:900;font-size:44px;line-height:.92;letter-spacing:-.03em}
+.big small{display:block;font-family:var(--f-data);font-size:9px;font-weight:500;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--mut2);margin-top:5px}
+.big.dn{color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--f-data);font-size:9.5px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--crimson);padding:4px 11px;border-radius:999px;
+  background:rgba(255,51,108,.14);border:1px solid rgba(255,51,108,.4)}
+.pill i{width:5px;height:5px;border-radius:999px;background:var(--crimson);animation:p 1.6s infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.2}}
+.live .mid{display:grid;justify-items:center;gap:6px}
+.live .mid small{font-family:var(--f-data);font-size:10px;color:var(--ink)}
+.track{height:10px;border-radius:999px;overflow:hidden;display:flex;background:rgba(255,255,255,.07);
+  margin:0 18px}
+.track i{display:block;height:100%} .track .me{background:var(--green)} .track .th{background:#4a4245}
+.tk{display:flex;justify-content:space-between;padding:6px 18px 12px;font-family:var(--f-data);
+  font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2);background:#231f21}
+.tk b{color:var(--green);font-size:12px;letter-spacing:0}
+.left{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}
+.left>div{background:var(--panel);padding:10px 14px}
+.left .k{font-family:var(--f-data);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--mut2);margin-bottom:6px}
+.pl{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--line2)}
+.pl:last-child{border-bottom:0}
+.pl b{font-weight:600} .pl span{font-family:var(--f-data);color:var(--muted);font-size:10.5px}
+.pl.done b{color:var(--mut2);font-weight:500}
+.pl.done span{color:var(--ink)}
+.pl.now span{color:var(--crimson)}
+
+/* ── 4 · features ────────────────────────────────────────────────────── */
+.feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}
+.fc{padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line);
+  border-left:4px solid var(--line2)}
+.fc.big1{border-left-color:var(--crimson)} .fc.yes{border-left-color:var(--green)}
+.fc.maybe{border-left-color:var(--amber)}
+.fc b{display:block;font-size:13px;margin-bottom:3px}
+.fc p{margin:0;font-size:11.5px;color:var(--muted);line-height:1.45}
+.fc .tag{font-family:var(--f-data);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--mut2);margin-top:6px;display:block}
+.fc.big1 .tag{color:var(--crimson)} .fc.yes .tag{color:var(--green)} .fc.maybe .tag{color:var(--amber)}
+</style></head><body>
+
+<h1>In-season, arranged</h1>
+<p class="sub">The app was built for a draft: one league at a time, a phase toggle, a home page
+counting down to something that has now happened. For the next four months the week has a shape
+that repeats — <b>Tue/Wed waivers · Thu lock · Sat/Sun lineups · Sun/Mon live</b> — and you have four
+teams doing it at once. Two changes carry the rest: <b>home is one screen across every league</b>,
+and <b>the app knows what day it is</b>.</p>
+
+<!-- ═══════════════════════════════════════════════════════════ 1 · home ═══ -->
+<div class="bar"><span>Home · every league, one screen</span><i></i><em>replaces the league cards</em></div>
+
+<div class="top"><span class="brand">Bloody<em>Sunday</em></span>
+  <span class="day"><b>Tuesday</b> · week 1 done · waivers Wed 3:00am</span></div>
+
+<div class="dayband">
+  <div><div class="k">This week</div>
+    <div class="t">Two claims worth making before Wednesday
+      <small>Hockenson for B&amp;B, Bhayshul Tuten for 7½ — both start for you, both under 20% rostered</small></div></div>
+  <div></div>
+  <div class="n">2<small>claims</small></div>
+</div>
+
+<div class="lg go">
+  <div class="nm"><b>Babies and Boomer</b><span>Sleeper · 10 · 1–0</span></div>
+  <div class="mu">
+    <div class="side"><b>Brandon Clifton</b><span>131.4</span></div>
+    <div class="mid"><small>WON · 61% pre</small><div class="wp"><i style="width:100%"></i></div></div>
+    <div class="side r"><b>Joey Strelow</b><span>118.2</span></div>
+  </div>
+  <div class="chips"><span class="chip g">lineup optimal</span><span class="chip w">1 claim · $14–21</span></div>
+  <span class="open">Open</span>
+</div>
+
+<div class="lg warn">
+  <div class="nm"><b>7½ Men</b><span>Sleeper · 8 · 0–1</span></div>
+  <div class="mu">
+    <div class="side"><b>Clayton's Kids</b><span>144.6</span></div>
+    <div class="mid"><small>NEXT · vs Taco Bandit</small><div class="wp"><i style="width:57%"></i></div></div>
+    <div class="side r"><b>Taco Bandit</b><span>143.3</span></div>
+  </div>
+  <div class="chips"><span class="chip w">3 questionable</span><span class="chip w">1 claim · $4–7</span></div>
+  <span class="open hot">Decide</span>
+</div>
+
+<div class="lg go">
+  <div class="nm"><b>The Kreeper League</b><span>Sleeper · 8 · 1–0</span></div>
+  <div class="mu">
+    <div class="side"><b>Brandon</b><span>—</span></div>
+    <div class="mid"><small>NEXT · 66% you</small><div class="wp"><i style="width:66%"></i></div></div>
+    <div class="side r"><b>Ned</b><span>—</span></div>
+  </div>
+  <div class="chips"><span class="chip g">lineup optimal</span><span class="chip">nothing on the wire</span></div>
+  <span class="open">Open</span>
+</div>
+
+<div class="lg bad">
+  <div class="nm"><b>Show us your TD's</b><span>ESPN · 12 · 0–1</span></div>
+  <div class="mu">
+    <div class="side"><b>Bad Life</b><span>—</span></div>
+    <div class="mid"><small>NEXT · 57% you</small><div class="wp"><i style="width:57%"></i></div></div>
+    <div class="side r"><b>Smelly Pitts</b><span>—</span></div>
+  </div>
+  <div class="chips"><span class="chip b">Nabers ? · −5.5</span><span class="chip">no waivers here</span></div>
+  <span class="open hot">Fix lineup</span>
+</div>
+<p class="note">Four rows answer "does anything need me" without a click. The button says what
+the click will DO — Open, Decide, Fix lineup — and the left edge is the worst thing in the row. The
+pre-season / in-season toggle is gone; the draft tabs live under <b>More</b> until next August.</p>
+
+<!-- ═══════════════════════════════════════════════════════ 2 · the nav ═══ -->
+<div class="bar"><span>Inside a league</span><i></i><em>four tabs and a menu, not seven</em></div>
+<div class="nav"><span class="on">Command Center</span><span>Waivers</span><span>Matchup</span>
+  <span>Trades</span><span class="more">More ▾ &nbsp; Playoffs · League · Keepers · Draft</span></div>
+
+<div class="bar"><span>Command Center · the top item follows the calendar</span><i></i><em>same list, different day</em></div>
+<div class="days">
+  <div class="dcol"><div class="dh"><b>Tuesday</b> · waivers open</div>
+    <div class="act go"><span class="ic">+</span><div><div class="t">Claim T.J. Hockenson</div>
+      <div class="d">$14–21 of $100 · +8.5 to your week · 8% rostered, so bid low</div></div>
+      <div class="n">+8.5<small>a week</small></div></div>
+    <div class="act warn dim"><span class="ic">!</span><div><div class="t">Nabers questionable</div>
+      <div class="d">Nothing to decide until Sunday</div></div><div class="n">−5.5<small>if out</small></div></div>
+  </div>
+  <div class="dcol"><div class="dh"><b>Sunday 10:40</b> · locks 1:00</div>
+    <div class="act warn"><span class="ic">!</span><div><div class="t">Nabers is OUT — start Watson</div>
+      <div class="d">Declared inactive 10:31 · Watson covers 5.5 of it · decide before 1:00</div></div>
+      <div class="n">20m<small>to lock</small></div></div>
+    <div class="act go dim"><span class="ic">✓</span><div><div class="t">Claim went through</div>
+      <div class="d">Hockenson for $16 · starting at TE</div></div><div class="n">✓<small>done</small></div></div>
+  </div>
+  <div class="dcol"><div class="dh"><b>Sunday 3:15</b> · live</div>
+    <div class="act live"><span class="ic">●</span><div><div class="t">Up 14 · four to play</div>
+      <div class="d">Nacua, Waddle, Broncos D and Little still to go · 68% now</div></div>
+      <div class="n">86.4<small>vs 72.1</small></div></div>
+    <div class="act go dim"><span class="ic">→</span><div><div class="t">Next week's waiver</div>
+      <div class="d">Two targets already on the board · opens Tue</div></div><div class="n">2<small>queued</small></div></div>
+  </div>
+</div>
+<p class="note">The list already ranks by points at stake. Adding the calendar just changes what
+counts as "at stake" today: a claim is the top item Tuesday and greyed out Sunday, an injury is
+greyed out Tuesday and the top item at 10:40 Sunday with a clock on it.</p>
+
+<!-- ═════════════════════════════════════════════════ 3 · live matchup ═══ -->
+<div class="bar"><span>Matchup · Sunday afternoon</span><i></i><em>actual points, not projections</em></div>
+<div class="live">
+  <div class="hero">
+    <div class="row">
+      <div class="tm"><b>Bad Life</b><span>you · 5 of 9 played</span></div>
+      <div class="mid"><span class="pill"><i></i>live · 3:15</span><small>proj final <b>134</b> – 119</small></div>
+      <div class="tm r"><b>Smelly Pitts</b><span>6 of 9 played</span></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div class="big">86.4</div>
+      <div></div>
+      <div class="big dn" style="text-align:right">72.1</div>
+    </div>
+  </div>
+  <div class="track"><i class="me" style="width:68%"></i><i class="th" style="width:32%"></i></div>
+  <div class="tk"><span><b>68%</b> you · was 57% at kickoff</span><span>win probability, live</span><span>32%</span></div>
+  <div class="left">
+    <div><div class="k">Yours still to play · 4</div>
+      <div class="pl now"><b>Puka Nacua</b><span>4:25 · proj 18</span></div>
+      <div class="pl now"><b>Jaylen Waddle</b><span>4:25 · proj 14</span></div>
+      <div class="pl now"><b>Denver Broncos</b><span>SNF · proj 8</span></div>
+      <div class="pl now"><b>Cam Little</b><span>SNF · proj 8</span></div>
+      <div class="pl done"><b>Lamar Jackson</b><span>31.2</span></div>
+      <div class="pl done"><b>Saquon Barkley</b><span>22.8</span></div></div>
+    <div><div class="k">Theirs still to play · 3</div>
+      <div class="pl now"><b>CeeDee Lamb</b><span>4:25 · proj 17</span></div>
+      <div class="pl now"><b>Josh Jacobs</b><span>SNF · proj 15</span></div>
+      <div class="pl now"><b>Jake Elliott</b><span>SNF · proj 8</span></div>
+      <div class="pl done"><b>Jalen Hurts</b><span>24.6</span></div>
+      <div class="pl done"><b>Bijan Robinson</b><span>19.0</span></div></div>
+  </div>
+</div>
+<p class="note">Sleeper's matchup feed carries <code>points</code> and <code>players_points</code>
+per roster and ESPN's <code>mMatchupScore</code> has the same, so this is real data, not a design.
+The number that matters on a Sunday is not the projection — it is the score, who is left, and
+whether the win probability has moved since kickoff.</p>
+
+<!-- ═════════════════════════════════════════════════════ 4 · features ═══ -->
+<div class="bar"><span>Features</span><i></i><em>what's missing, ranked by how much it would change the week</em></div>
+<div class="feat">
+  <div class="fc big1"><b>Multi-league home</b>
+    <p>Section 1 above. Four teams, one glance. Every number already exists per league — this is
+       arrangement, not modelling.</p><span class="tag">do first</span></div>
+  <div class="fc big1"><b>Live scoring</b>
+    <p>Actual points and players-remaining on Sunday, both platforms. The matchup card is
+       projections today, which is the wrong number once kickoff happens.</p><span class="tag">do first</span></div>
+  <div class="fc yes"><b>Day-aware priority</b>
+    <p>Section 2. The action list ranks by points; add the calendar so waivers lead on Tuesday
+       and injuries lead at 10:40 Sunday with a countdown to lock.</p><span class="tag">small</span></div>
+  <div class="fc yes"><b>Streaming D/ST and K</b>
+    <p>Rank the wire's defenses and kickers by THIS week's opponent — implied total, sacks
+       allowed, Vegas line. Nothing in the engine does matchup-based streaming yet, and it is the
+       cheapest weekly edge there is.</p><span class="tag">new model, small</span></div>
+  <div class="fc yes"><b>Points left on the bench</b>
+    <p>After each week: what your set lineup scored vs the best you could have started. Season
+       running total. The single stat that says whether the app is earning its keep.</p><span class="tag">small</span></div>
+  <div class="fc maybe"><b>Lineup alerts</b>
+    <p>A push when a starter is ruled out inside two hours of lock. sportsbot already has the
+       notification path; this would ride it.</p><span class="tag">worth it, needs plumbing</span></div>
+  <div class="fc maybe"><b>Trade block</b>
+    <p>Who in the league is thin where you are deep. Positional strength across the league is
+       already computed on the League tab — turn it into "these three managers need a RB and
+       you have four".</p><span class="tag">arrangement</span></div>
+  <div class="fc"><b>Not worth it</b>
+    <p>Rest-of-season schedule strength, expert consensus start/sit grades, news feeds. The first
+       is noise past week 3, the second you already have via ECR, the third is Sleeper's job.</p><span class="tag">skip</span></div>
+</div>
+
+</body></html>
