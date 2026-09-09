@@ -318,11 +318,22 @@ def snapshot_all(season: int, week: int, panels: dict) -> None:
             if day not in days:
                 _S.save_doc("panel_snap", f"{kind}_{season}_w{week}_{day}", slim)
                 _S.save_doc("panel_snap", _idx_key(kind, season, week), sorted(set(days) | {day}))
+            _IDX_MEMO.pop(_idx_key(kind, season, week), None)
         except Exception:  # noqa: BLE001
             pass
 
 
+_IDX_MEMO: Dict[str, tuple] = {}
+_IDX_TTL = 900
+
+
 def _snap_days(kind: str, season: int, week: int) -> list:
+    """Days with a snapshot, from disk and from the doc store's index.
+
+    The index read is a GitHub API round trip (~0.6s) and this is asked five
+    times per Rankings click, which was the entire three seconds that tab took.
+    Memoised in-process for a quarter hour; a new day's snapshot invalidates it.
+    """
     pat = f"panel_snap_{kind}_{season}_w{week}_"
     days = set()
     try:
@@ -330,12 +341,18 @@ def _snap_days(kind: str, season: int, week: int) -> list:
             days.add(p.stem[len(pat):])
     except Exception:  # noqa: BLE001
         pass
-    try:
-        from . import storage as _S
-        days |= set(_S.load_doc("panel_snap", _idx_key(kind, season, week), []) or [])
-    except Exception:  # noqa: BLE001
-        pass
-    return sorted(days)
+    k = _idx_key(kind, season, week)
+    hit = _IDX_MEMO.get(k)
+    if hit and (time.time() - hit[0]) < _IDX_TTL:
+        remote = hit[1]
+    else:
+        try:
+            from . import storage as _S
+            remote = list(_S.load_doc("panel_snap", k, []) or [])
+        except Exception:  # noqa: BLE001
+            remote = []
+        _IDX_MEMO[k] = (time.time(), remote)
+    return sorted(days | set(remote))
 
 
 def _snap_read(kind: str, season: int, week: int, day: str) -> Optional[dict]:
