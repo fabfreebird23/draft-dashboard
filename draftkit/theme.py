@@ -1655,6 +1655,59 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .ws-ext a.on{ color:var(--crimson); border-color:var(--crimson); background:var(--accent-soft); }
 [class*="st-key-lineup_src"]{ margin-bottom:6px; }
 [class*="st-key-lineup_src"] [role="radiogroup"] label{ font-size:11.5px; padding:4px 12px; }
+/* ---- Rankings tab: the board ---- */
+[class*="st-key-rk_ctl"]{ background:var(--panel); border:1px solid var(--line); border-radius:12px;
+  padding:8px 12px 2px; margin-bottom:10px; }
+[class*="st-key-rk_ctl"] [role="radiogroup"] label{ font-size:11px; padding:4px 10px; }
+.rk{ --cols:330px 92px 76px 76px 84px 92px 84px 72px 1fr; }
+.rk-hd, .rk-row, .rk-tier{ display:grid; grid-template-columns:var(--cols); gap:10px; align-items:center; }
+.rk-hd{ padding:0 0 8px; }
+.rk-hd span{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--mut2); text-align:center; padding:6px 0; border-radius:999px;
+  background:var(--panel); border:1px solid var(--line); }
+.rk-hd span:first-child{ visibility:hidden; }
+.rk-hd span.on{ color:var(--ink); border-color:var(--mut2); }
+.rk-hd span.lbl{ text-align:left; padding-left:12px; border:0; background:none; }
+.rk-tier{ grid-template-columns:330px 1fr; margin:8px 0 4px; }
+.rk-tier .band{ border-radius:999px; padding:5px 12px; font-family:'Sora',sans-serif; font-weight:800;
+  font-size:14px; color:#141314; }
+.rk-tier .band em{ display:inline-grid; place-items:center; width:22px; height:22px; border-radius:6px;
+  background:rgba(0,0,0,.35); color:#fff; font-style:normal; font-size:12px; margin-right:8px; }
+.rk-tier .band small{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-weight:500; font-size:9px;
+  letter-spacing:.1em; text-transform:uppercase; margin-left:10px; opacity:.75; }
+.rk-tier .tS{ background:#ff6b57; } .rk-tier .tA{ background:#f5a04a; } .rk-tier .tB{ background:#f0c14a; }
+.rk-tier .tC{ background:#e9df4f; } .rk-tier .tD{ background:#8ed0a5; }
+.rk-tier i{ border-top:1px dashed var(--line2); margin-top:14px; }
+.rk-row{ margin:4px 0; }
+.rk-row .pl{ display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--line);
+  border-radius:999px; padding:4px 14px 4px 5px; min-width:0; }
+.rk-row .pl img{ width:32px; height:32px; border-radius:50%; object-fit:cover; background:var(--panel2);
+  border:2px solid var(--line2); flex:none; }
+.rk-row .pl b{ font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rk-row .pl b small{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-weight:500; font-size:10px;
+  color:var(--mut2); margin-left:6px; }
+.rk-row .pl .tag{ margin-left:auto; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:8.5px;
+  letter-spacing:.1em; text-transform:uppercase; padding:2px 7px; border-radius:5px; white-space:nowrap; }
+.rk-row .pl .tag.me{ color:var(--crimson); border:1px solid var(--crimson); }
+.rk-row .pl .tag.st{ color:var(--ink); border:1px solid var(--mut2); }
+.rk-row .pl .tag.fa{ color:#5fdc8f; border:1px solid #5fdc8f; }
+.rk-row.me .pl{ background:rgba(255,51,108,.07); border-color:rgba(255,51,108,.35); }
+.rk-row.fa .pl{ border-color:rgba(95,220,143,.35); }
+.rk-row .c{ font-family:'IBM Plex Mono',ui-monospace,monospace; text-align:center; font-size:13px;
+  font-weight:500; padding:7px 0; border-radius:9px; background:var(--panel); }
+.rk-row .c.g{ color:#5fdc8f; background:rgba(95,220,143,.08); }
+.rk-row .c.y{ color:#e7c24a; background:rgba(231,194,74,.08); }
+.rk-row .c.r{ color:#ff6b6b; background:rgba(255,107,107,.09); }
+.rk-row .c.dim{ color:var(--mut2); }
+.rk-row .c small{ display:block; font-size:8.5px; letter-spacing:.06em; color:var(--mut2); margin-top:1px; }
+.rk-row .opp{ font-family:'IBM Plex Mono',ui-monospace,monospace; text-align:center; font-size:12px; }
+.rk-row .opp small{ display:block; font-size:9.5px; color:var(--mut2); }
+.rk-row .opp.early small{ color:var(--amber); }
+.rk-row .own{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9.5px; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--mut2); padding-left:6px; white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; }
+.rk-row .own b{ color:var(--ink); font-weight:600; } .rk-row .own .me{ color:var(--crimson); }
+.rk-row .own .fa{ color:#5fdc8f; }
 /* ranked actions */
 .ws2-act{ display:grid; grid-template-columns:auto 1fr auto; gap:13px; align-items:center;
   padding:12px 14px; border-radius:13px; background:var(--panel); border:1px solid var(--line);

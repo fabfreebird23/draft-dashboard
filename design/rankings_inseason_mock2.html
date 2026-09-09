@@ -1,0 +1,104 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Rankings · in season · v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141314;--panel:#1f1d1e;--panel2:#292627;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#8c8286;
+ --crimson:#ff336c;--green:#7fd8b4;--amber:#f0b357;--red:#ff8fae;--blue:#6aa6f0;
+ --g:#5fdc8f;--y:#e7c24a;--r:#ff6b6b;
+ --fd:'Sora',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);margin:0;padding:22px 22px 70px;font-size:13px}
+h1{font-family:var(--fd);font-weight:800;font-size:24px;margin:0 0 4px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:88ch;line-height:1.5;margin:0 0 18px}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.45;margin-top:10px;max-width:88ch}
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:26px 0 10px;font-family:var(--fd);font-weight:800;font-size:16px}
+.bar i{height:1px;background:var(--line2)} .bar em{font-family:var(--fm);font-size:9.5px;font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2)}
+.nav{display:flex;gap:6px;margin-bottom:10px;align-items:center}
+.nav span{padding:6px 12px;border-radius:8px;border:1px solid var(--line2);font-size:12px;font-weight:600;color:var(--muted)}
+.nav span.on{border-color:var(--crimson);color:var(--ink);background:rgba(255,51,108,.10)}
+.ext{margin-left:auto;display:flex;gap:8px;font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase}
+.ext a{color:var(--muted);padding:3px 8px;border-radius:6px;border:1px solid var(--line2);text-decoration:none}
+.ext a.on{color:var(--crimson);border-color:var(--crimson);background:rgba(255,51,108,.12)}
+/* control strip */
+.ctl{display:grid;grid-template-columns:auto auto auto 1fr auto;gap:12px;align-items:center;padding:9px 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:10px}
+.dd{display:flex;align-items:center;gap:10px;background:#fff;color:#141314;border-radius:10px;padding:8px 14px;font-weight:600;font-size:13px;min-width:230px}
+.dd i{width:14px;height:14px;border-radius:3px;background:#141314;opacity:.8} .dd b{margin-left:auto;font-size:10px}
+.seg{display:flex;gap:2px;background:var(--panel2);border-radius:8px;padding:2px}
+.seg span{padding:5px 11px;border-radius:6px;font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap}
+.seg span.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+.seg.who span.on{color:var(--crimson)}
+.pos{display:flex;gap:4px}
+.pos span{font-family:var(--fm);font-size:10px;padding:4px 9px;border-radius:6px;border:1px solid var(--line2);color:var(--mut2)}
+.pos span.on{color:var(--ink);border-color:var(--mut2);background:var(--panel2)}
+.meta{font-family:var(--fm);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);text-align:right;line-height:1.6}
+.meta b{color:var(--ink);font-weight:600}
+/* the board */
+.hd{display:grid;grid-template-columns:330px 92px 86px 86px 86px 96px 92px 86px 1fr;gap:12px;padding:0 0 8px;align-items:center}
+.hd span{font-family:var(--fm);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2);text-align:center;padding:6px 0;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
+.hd span:first-child{visibility:hidden}
+.hd span.on{color:var(--ink);border-color:var(--mut2)}
+.tier{display:grid;grid-template-columns:330px 1fr;gap:12px;margin:6px 0}
+.tier .band{border-radius:999px;padding:5px 12px;font-family:var(--fd);font-weight:800;font-size:15px;color:#141314}
+.tier .band em{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;background:rgba(0,0,0,.35);color:#fff;font-style:normal;font-size:12px;margin-right:8px}
+.tier .band small{font-family:var(--fm);font-weight:500;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;margin-left:10px;opacity:.75}
+.S{background:#ff6b57}.A{background:#f5a04a}.B{background:#f0c14a}.C{background:#e9df4f}.D{background:#8ed0a5}
+.tier i{border-top:1px dashed var(--line2);margin-top:14px}
+.row{display:grid;grid-template-columns:330px 92px 86px 86px 86px 96px 92px 86px 1fr;gap:12px;align-items:center;margin:4px 0}
+.pl{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 14px 5px 6px;min-width:0}
+.pl .av{width:32px;height:32px;border-radius:50%;background:var(--panel2);display:grid;place-items:center;font-family:var(--fm);font-size:9px;color:var(--mut2);flex:none;border:2px solid var(--line2)}
+.pl .av.qb{border-color:#e879a6}.pl .av.rb{border-color:#7fd8b4}.pl .av.wr{border-color:#6aa6f0}.pl .av.te{border-color:#f0b357}
+.pl b{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl b small{font-family:var(--fm);font-weight:500;font-size:10px;color:var(--mut2);margin-left:6px}
+.pl .tag{margin-left:auto;font-family:var(--fm);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:5px;white-space:nowrap}
+.pl .tag.me{color:var(--crimson);border:1px solid var(--crimson)} .pl .tag.st{color:var(--ink);border:1px solid var(--mut2)}
+.pl .tag.fa{color:var(--g);border:1px solid var(--g)}
+.row.me .pl{background:rgba(255,51,108,.07);border-color:rgba(255,51,108,.35)}
+.row.fa .pl{border-color:rgba(95,220,143,.35)}
+.c{font-family:var(--fm);text-align:center;font-size:13.5px;font-weight:500;padding:8px 0;border-radius:9px;background:var(--panel)}
+.c.g{color:var(--g);background:rgba(95,220,143,.08)} .c.y{color:var(--y);background:rgba(231,194,74,.08)} .c.r{color:var(--r);background:rgba(255,107,107,.09)}
+.c.dim{color:var(--muted)} .c small{display:block;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);margin-top:1px}
+.opp{font-family:var(--fm);text-align:center;font-size:12.5px;color:var(--ink)} .opp small{display:block;font-size:9.5px;color:var(--mut2)}
+.opp.early small{color:var(--amber)}
+.own{font-family:var(--fm);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut2);padding-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.own b{color:var(--ink);font-weight:600} .own .me{color:var(--crimson)} .own .fa{color:var(--g)}
+.leg{display:flex;gap:18px;font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2);margin:8px 0 0}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:6px}
+</style></head><body>
+<h1>Rankings · in season · v2</h1>
+<p class="sub">Every ranked player, in tiers, Flock-style. The source dropdown has a fourth option — <b>Consensus</b>, the average of FantasyPros, Flock and the Ballers — and the <b>who</b> toggle cuts the same board to <b>Mine + free agents</b> (the default, because that is the only list a lineup or a claim can come from), <b>Mine</b>, or <b>Free agents</b>. The stat columns stay put whichever source is on top, so you always see all three ranks side by side; the column that is driving the sort is lit.</p>
+
+<div class="nav"><span>Command Center</span><span>Lineup</span><span class="on">Rankings</span><span>Waivers</span><span>Matchup</span><span>Trades</span><span>More ▾</span>
+ <div class="ext"><a class="on">Players ↗</a><a>My team ↗</a><a>Matchup ↗</a></div></div>
+<div class="ctl">
+ <div class="dd"><i></i>Consensus · all three<b>▼</b></div>
+ <div class="seg who"><span>All</span><span class="on">Mine + FA</span><span>Mine</span><span>Free agents</span></div>
+ <div class="pos"><span>ALL</span><span>QB</span><span>RB</span><span class="on">WR</span><span>TE</span><span>FLEX</span><span>K</span><span>DST</span></div>
+ <div></div>
+ <div class="meta"><b>Babies and Boomer · week 1</b> · WR · 19 of 118<br>FP 8 experts · Flock 6 · Ballers 3 · updated 8:00pm</div>
+</div>
+
+<div class="hd"><span></span><span>Opp</span><span>FP</span><span>Flock</span><span>Ballers</span><span class="on">Consensus</span><span>Spread</span><span>Proj</span><span style="text-align:left;padding-left:12px;border:0;background:none">Owner · B&amp;B</span></div>
+
+<div class="tier"><div class="band S"><em>S</em>Tier 1 <small>every panel agrees</small></div><i></i></div>
+<div class="row me"><div class="pl"><span class="av wr">AB</span><b>1. Amon-Ra St. Brown<small>DET</small></b><span class="tag st">you · start</span></div><div class="opp">vs NO<small>Sun 1:00</small></div><div class="c g">3</div><div class="c g">4</div><div class="c g">2</div><div class="c g">3.0</div><div class="c g">2–4</div><div class="c g">19.8</div><div class="own"><b class="me">You</b> · WR</div></div>
+<div class="row"><div class="pl"><span class="av wr">JC</span><b>2. Ja'Marr Chase<small>CIN</small></b></div><div class="opp">vs TB<small>Sun 1:00</small></div><div class="c g">1</div><div class="c g">1</div><div class="c g">2</div><div class="c g">1.3</div><div class="c g">1–2</div><div class="c g">19.1</div><div class="own"><b>Old Man Mike</b></div></div>
+<div class="row"><div class="pl"><span class="av wr">PN</span><b>3. Puka Nacua<small>LAR</small></b></div><div class="opp early">vs SF<small>Thu 8:35</small></div><div class="c g">2</div><div class="c g">2</div><div class="c g">1</div><div class="c g">1.7</div><div class="c g">1–3</div><div class="c g">21.2</div><div class="own"><b>Too Many Rooks</b></div></div>
+
+<div class="tier"><div class="band A"><em>A</em>Tier 2 <small>start without thinking</small></div><i></i></div>
+<div class="row"><div class="pl"><span class="av wr">JS</span><b>4. Jaxon Smith-Njigba<small>SEA</small></b></div><div class="opp early">vs NE<small>Wed 8:20</small></div><div class="c g">4</div><div class="c g">3</div><div class="c g">4</div><div class="c g">3.7</div><div class="c g">3–5</div><div class="c g">18.4</div><div class="own"><b>Clayton's Kids</b></div></div>
+<div class="row"><div class="pl"><span class="av wr">CL</span><b>5. CeeDee Lamb<small>DAL</small></b></div><div class="opp">@ NYG<small>Sun 8:20</small></div><div class="c y">9</div><div class="c g">5</div><div class="c y">12</div><div class="c g">8.7</div><div class="c y">5–14</div><div class="c y">14.4</div><div class="own"><b>Taco Bandit</b></div></div>
+<div class="row me"><div class="pl"><span class="av wr">EE</span><b>6. Emeka Egbuka<small>TB · Q</small></b><span class="tag st">you · start</span></div><div class="opp">@ CIN<small>Sun 1:00</small></div><div class="c y">22</div><div class="c y">22</div><div class="c y">23</div><div class="c y">22.3</div><div class="c g">20–24</div><div class="c y">11.7</div><div class="own"><b class="me">You</b> · WR</div></div>
+
+<div class="tier"><div class="band B"><em>B</em>Tier 3 <small>flex calls · the panels split</small></div><i></i></div>
+<div class="row me"><div class="pl"><span class="av wr">BT</span><b>7. Brian Thomas Jr.<small>JAX</small></b><span class="tag me">you · bench</span></div><div class="opp">vs CLE<small>Sun 1:00</small></div><div class="c r">41</div><div class="c g">32</div><div class="c r">42</div><div class="c y">38.3</div><div class="c r">24–52</div><div class="c y">10.7</div><div class="own"><b class="me">You</b> · bench · <span class="g" style="color:var(--g)">Flock says start</span></div></div>
+<div class="row fa"><div class="pl"><span class="av wr">RS</span><b>8. Rashid Shaheed<small>SEA</small></b><span class="tag fa">free agent</span></div><div class="opp early">vs NE<small>Wed 8:20</small></div><div class="c y">41</div><div class="c y">38</div><div class="c g">33</div><div class="c y">37.3</div><div class="c y">29–52</div><div class="c y">11.2</div><div class="own"><b class="fa">Free agent</b> · +1.1 to your week · $8–12</div></div>
+<div class="row fa"><div class="pl"><span class="av wr">TT</span><b>9. Tyrone Tracy<small>NYG · RB</small></b><span class="tag fa">free agent</span></div><div class="opp">vs DAL<small>Sun 8:20</small></div><div class="c y">22</div><div class="c y">20</div><div class="c g">13</div><div class="c y">18.3</div><div class="c r">13–24</div><div class="c y">15.0</div><div class="own"><b class="fa">Free agent</b> · +0.4 · <span style="color:var(--g)">Ballers 8 places high</span></div></div>
+<div class="row fa"><div class="pl"><span class="av wr">KA</span><b>10. Keenan Allen<small>LAC</small></b><span class="tag fa">free agent</span></div><div class="opp">vs ARI<small>Sun 4:25</small></div><div class="c r">66</div><div class="c r">58</div><div class="c r">61</div><div class="c r">61.7</div><div class="c g">58–66</div><div class="c r">9.8</div><div class="own"><b class="fa">Free agent</b> · no upgrade</div></div>
+
+<div class="tier"><div class="band C"><em>C</em>Tier 4 <small>bench · streamers</small></div><i></i></div>
+<div class="row me"><div class="pl"><span class="av wr">JM</span><b>11. Jordan Mason<small>MIN · RB</small></b><span class="tag me">you · bench</span></div><div class="opp">vs GB<small>Sun 4:25</small></div><div class="c r">44</div><div class="c y">32</div><div class="c r">48</div><div class="c y">41.3</div><div class="c r">32–48</div><div class="c y">9.1</div><div class="own"><b class="me">You</b> · bench</div></div>
+<div class="row fa"><div class="pl"><span class="av wr">DB</span><b>12. Denzel Boston<small>SEA</small></b><span class="tag fa">free agent</span></div><div class="opp early">vs NE<small>Wed 8:20</small></div><div class="c r">57</div><div class="c r">60</div><div class="c y">49</div><div class="c r">55.3</div><div class="c y">49–60</div><div class="c r">7.8</div><div class="own"><b class="fa">Free agent</b> · no upgrade</div></div>
+
+<div class="leg"><span><i style="background:var(--g)"></i>top third of the position</span><span><i style="background:var(--y)"></i>middle</span><span><i style="background:var(--r)"></i>bottom third</span><span>Spread = best–worst of the three panels · green when they agree</span></div>
+<p class="note">What changed from v1: the <b>full list</b> instead of a sample, in tier bands with a one-line reason per tier; the <b>who</b> toggle (Mine + FA is the default and drops the rest of the league's rostered players so the board is only ever men you can actually start or claim); the <b>Consensus</b> source, which averages the three positional ranks and sorts by it — its Spread column is the disagreement, so a green 1–2 and a red 13–24 mean different things even at the same average. Colour is by <i>third of the position</i> on each column, the way Flock does it, so a yellow 22 at WR is not a warning, it is a WR2. Owner column keeps the league lens, with the waiver bid and what a free agent adds to your week when it is one.</p>
+</body></html>

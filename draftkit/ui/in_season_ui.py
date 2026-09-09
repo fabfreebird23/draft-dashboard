@@ -12,14 +12,17 @@ Heavy lifting lives in ``draftkit.weekly``; this module gathers and paints.
 """
 from __future__ import annotations
 
+from typing import Optional
+
 import streamlit as st
 
 from .. import (config, ecr as ECR, gametime as GT, inseason, keepers as K, lineup as LU, phase as PH,
                 picks as PK, projections as PJ, schedule as SCH, sleeper_client as api,
                 weekly as W, weekview as WV)
 from . import components as C
+from .. import theme as _T
 
-TABS = ["Command Center", "Lineup", "Waivers", "Matchup", "Trades", "Playoffs", "League", "Keepers"]
+TABS = ["Command Center", "Lineup", "Rankings", "Waivers", "Matchup", "Trades", "Playoffs", "League", "Keepers"]
 
 _POSC = {"QB": "var(--qb)", "RB": "var(--rb)", "WR": "var(--wr)", "TE": "var(--te)",
          "K": "var(--k)", "DST": "var(--dst)"}
@@ -321,7 +324,7 @@ def _links(ctx, week: int) -> dict:
             "standings": ("Standings", f"{base}/standings")}
 
 
-_TAB_LINK = {"Command Center": "team", "Lineup": "team", "Waivers": "waivers", "Matchup": "matchup",
+_TAB_LINK = {"Command Center": "team", "Lineup": "team", "Rankings": "waivers", "Waivers": "waivers", "Matchup": "matchup",
              "Trades": "trades", "Playoffs": "standings", "League": "league", "Keepers": "team"}
 
 
@@ -361,6 +364,8 @@ def render(ctx, summary=None, tab="Command Center") -> None:
         _command(ctx, g)
     elif tab == "Lineup":
         _lineup(ctx, g)
+    elif tab == "Rankings":
+        _rankings(ctx, g)
     elif tab == "Waivers":
         _waivers(ctx, g)
     elif tab == "Matchup":
@@ -1094,6 +1099,259 @@ def _lineup(ctx, g) -> None:
                f"Flock {_n.get('flock', 0)} ({', '.join(sorted({a for r in (pn.get('flock') or {}).values() for a in (r.get('ranks') or {})}))}) · "
                f"The Ballers {_n.get('ffb', 0)} (Andy, Mike, Jason — their projections scored under this "
                f"league's settings). Neither Flock nor the Ballers rank K or D/ST.")
+
+
+
+
+# ------------------------------------------------------------- 1c rankings
+_RK_SRC = ["Consensus", "FantasyPros", "Flock", "The Ballers"]
+_RK_WHO = ["Mine + FA", "All", "Mine", "Free agents"]
+_RK_POS = ["ALL", "QB", "RB", "WR", "TE", "FLEX", "K", "DST"]
+# Tier cuts by how deep the position is: a WR22 is a WR2, a TE22 is a bench man.
+_TIERS_DEEP = ((5, "S", "elite"), (12, "A", "start without thinking"),
+               (24, "B", "solid start · flex"), (36, "C", "flex call · bench"),
+               (10 ** 6, "D", "deep"))
+_TIERS_POS = ((3, "S", "elite"), (8, "A", "start without thinking"),
+              (14, "B", "streamable"), (20, "C", "bench"),
+              (10 ** 6, "D", "deep"))
+_TIERS_ALL = ((6, "S", "every panel agrees"), (18, "A", "start without thinking"),
+              (40, "B", "flex calls · the panels split"), (80, "C", "bench · streamers"),
+              (10 ** 6, "D", "deep"))
+
+
+def _pos_rank_num(r: Optional[dict], key: str):
+    """A positional rank as a number from any panel row, or None."""
+    if not r:
+        return None
+    if key == "fp":
+        pr = str(r.get("pos_rank") or "")
+        digits = "".join(ch for ch in pr if ch.isdigit())
+        return float(digits) if digits else None
+    v = r.get("pos_rank")
+    return float(v) if v is not None else None
+
+
+def _overall_num(r: Optional[dict], key: str):
+    if not r:
+        return None
+    if key == "fp":
+        return float(r["ecr"]) if r.get("ecr") is not None and r.get("scale") == "flex" else None
+    if key == "flock":
+        return float(r["rank"]) if r.get("rank") is not None else None
+    return None
+
+
+def _third(v, pool: list) -> str:
+    """g / y / r by which third of `pool` (sorted ascending = better) `v` sits in."""
+    if v is None or not pool:
+        return "dim"
+    n = len(pool)
+    i = sum(1 for x in pool if x < v)
+    return "g" if i < n / 3 else ("y" if i < 2 * n / 3 else "r")
+
+
+def _rankings(ctx, g) -> None:
+    """Every ranked player, in tiers, on any of three panels or their consensus,
+    cut to the men you can actually start or claim."""
+    reg = ctx["registry"]
+    games = g.get("games") or {}
+    pn = _panels(ctx, g)
+    fp, fl, fb = pn.get("fp") or {}, pn.get("flock") or {}, pn.get("ffb") or {}
+    lk = ctx["league_key"]
+    with st.container(key="rk_ctl"):
+        c = st.columns([1.4, 1.6, 2.4, 1.2])
+        src = c[0].selectbox("Source", _RK_SRC, key=f"rk_src_{lk}", label_visibility="collapsed")
+        who = c[1].segmented_control("Who", _RK_WHO, key=f"rk_who_{lk}", selection_mode="single",
+                                     label_visibility="collapsed") or _RK_WHO[0]
+        # FLEX by default: the cross-position list is the one a lineup or a
+        # claim is decided from. ALL is every position by projection.
+        st.session_state.setdefault(f"rk_pos_{lk}", "FLEX")
+        pos = c[2].segmented_control("Pos", _RK_POS, key=f"rk_pos_{lk}", selection_mode="single",
+                                     label_visibility="collapsed") or "FLEX"
+        limit = c[3].selectbox("Rows", [40, 80, 150, 400], key=f"rk_n_{lk}",
+                               label_visibility="collapsed",
+                               format_func=lambda n: f"top {n}")
+
+    # ---- ownership, the league lens -----------------------------------------
+    owner_of = {}
+    for oid, r in g["rosters"].items():
+        for p in r.get("players") or []:
+            owner_of[str(p)] = str(oid)
+    me = str(g["me"])
+    started = {str(p) for p in (g.get("starters") or []) if p and str(p) != "0"}
+    # what a free agent adds to YOUR week — the waiver board's number
+    fa_gain = {}
+    try:
+        taken = set(owner_of)
+        fas = inseason.free_agents(ctx["meta"], reg, g["proj"], taken, limit=150, ecr=g.get("ros"))
+        for r in W.waiver_board(g["mine"], g["slots"], g["proj"], reg, fas, byes=g["byes"],
+                                week=g["week"], limit=150, ecr=g.get("ros")):
+            fa_gain[str(r["pid"])] = float(r["gain"])
+    except Exception:  # noqa: BLE001
+        pass
+
+    # ---- the universe: every pid any panel ranks, plus my roster ------------
+    pids = set(fp) | set(fl) | set(fb) | {str(p) for p in g["mine"]}
+    want = {"ALL": None, "FLEX": {"RB", "WR", "TE"}}.get(pos, {pos, "DEF"} if pos == "DST" else {pos})
+    rows = []
+    for pid in pids:
+        try:
+            pm = reg.meta(pid)
+        except Exception:  # noqa: BLE001
+            continue
+        p_pos = (pm.position or "").upper()
+        p_pos = "DST" if p_pos == "DEF" else p_pos
+        if want and p_pos not in want:
+            continue
+        if p_pos not in ("QB", "RB", "WR", "TE", "K", "DST"):
+            continue
+        a, b, cc = fp.get(pid), fl.get(pid), fb.get(pid)
+        pr = {"fp": _pos_rank_num(a, "fp"), "flock": _pos_rank_num(b, "flock"),
+              "ffb": _pos_rank_num(cc, "ffb")}
+        ov = {"fp": _overall_num(a, "fp"), "flock": _overall_num(b, "flock"), "ffb": None}
+        rows.append({"pid": pid, "name": pm.name, "pos": p_pos, "team": pm.team or "",
+                     "pr": pr, "ov": ov, "pts": (cc or {}).get("pts"),
+                     "proj": float(g["proj"].get(pid, 0) or 0),
+                     "owner": owner_of.get(pid), "tier_flock": (b or {}).get("tier"),
+                     "inj": W.availability(pm)})
+    if not rows:
+        st.info("Nothing ranked for that position yet.")
+        return
+    # Cross-position ranks for the FLEX view, RB/WR/TE against each other on
+    # every panel: FantasyPros' FLEX list already is; Flock's overall rank is
+    # re-ranked with the quarterbacks taken out so its numbers mean the same
+    # thing as FantasyPros'; the Ballers rank by their points.
+    _skill = [r for r in rows if r["pos"] in ("RB", "WR", "TE")]
+    for i, r in enumerate(sorted((r for r in _skill if r["pts"] is not None), key=lambda r: -r["pts"]), 1):
+        r["ov"]["ffb"] = float(i)
+    for i, r in enumerate(sorted((r for r in _skill if r["ov"]["flock"] is not None),
+                                 key=lambda r: r["ov"]["flock"]), 1):
+        r["ov"]["flock"] = float(i)
+    cross = pos in ("ALL", "FLEX")
+    # ALL mixes positions no panel ranks against each other, so it sorts by
+    # projection and shows the positional ranks; pick a position to rank by a panel.
+    all_view = pos == "ALL"
+    if all_view:
+        cross = False
+    for r in rows:
+        vals = [v for v in (r["ov"] if cross else r["pr"]).values() if v is not None]
+        r["cons"] = (sum(vals) / len(vals)) if vals else None
+        r["best"] = min(vals) if vals else None
+        r["worst"] = max(vals) if vals else None
+        r["n"] = len(vals)
+    # projected points, unranked men sort last; K/DST in ALL sort by proj after the skill men
+    key_src = {"Consensus": "cons", "FantasyPros": "fp", "Flock": "flock", "The Ballers": "ffb"}[src]
+
+    def _sort_val(r):
+        if all_view:
+            return (False, -r["proj"], 0.0)
+        if key_src == "cons":
+            v = r["cons"]
+        else:
+            v = (r["ov"] if cross else r["pr"]).get(key_src)
+        return (v is None, v if v is not None else 0.0, -r["proj"])
+    rows.sort(key=_sort_val)
+    # colour thirds are computed on the WHOLE position pool, before the who-cut
+    pools = {}
+    for k in ("fp", "flock", "ffb"):
+        for r in rows:
+            v = (r["ov"] if cross else r["pr"]).get(k)
+            if v is not None:
+                pools.setdefault((r["pos"] if not cross else "*", k), []).append(v)
+    for r in rows:
+        pools.setdefault((r["pos"] if not cross else "*", "cons"), []).append(r["cons"]) if r["cons"] is not None else None
+        pools.setdefault((r["pos"] if not cross else "*", "proj"), []).append(-r["proj"])
+    # the who-cut
+    if who == "Mine":
+        rows = [r for r in rows if r["owner"] == me]
+    elif who == "Free agents":
+        rows = [r for r in rows if not r["owner"]]
+    elif who == "Mine + FA":
+        rows = [r for r in rows if r["owner"] in (None, me)]
+    total = len(rows)
+    rows = rows[:limit]
+
+    # ---- render ---------------------------------------------------------------
+    st.markdown(_day_line(g, list(zip(g["slots"], g.get("starters") or [])), reg)
+                .replace("</div>", f' · <b>{src}</b> · {pos} · {who} · {min(limit, total)} of {total}</div>'),
+                unsafe_allow_html=True)
+    lit = "proj" if all_view else {"cons": "cons", "fp": "fp", "flock": "flock", "ffb": "ffb"}[key_src]
+    head = ("", "Opp", "FP", "Flock", "Ballers", "Consensus", "Spread", "Proj", "Owner")
+    keys = ("", "", "fp", "flock", "ffb", "cons", "", "proj", "")
+    out = ['<div class="rk"><div class="rk-hd">'
+           + "".join(f'<span class="{"on" if k and k == lit else ""}{" lbl" if h == "Owner" else ""}">{h}</span>'
+                     for h, k in zip(head, keys)) + '</div>']
+    tiers = (_TIERS_ALL if (cross or all_view)
+             else _TIERS_DEEP if pos in ("RB", "WR") else _TIERS_POS)
+    band_i = -1
+    for idx, r in enumerate(rows, 1):
+        rank_for_tier = (float(idx) if all_view else
+                         (_sort_val(r)[1] if _sort_val(r)[0] is False else 10 ** 6))
+        if src == "Flock" and r["tier_flock"] and not all_view:
+            ti = min(int(r["tier_flock"]) - 1, len(tiers) - 1)
+        else:
+            ti = next(i for i, (cut, _l, _w) in enumerate(tiers) if rank_for_tier <= cut)
+        if ti != band_i:
+            band_i = ti
+            _cut, lab, why = tiers[ti]
+            out.append(f'<div class="rk-tier"><div class="band t{lab}"><em>{lab}</em>Tier {ti + 1}'
+                       f'<small>{_esc_(why)}</small></div><i></i></div>')
+        gm = WV.game_of(reg, games, r["pid"])
+        opp = (("vs " if gm.get("home") else "@ ") + gm["opp"]) if gm else "bye"
+        k_lab = GT.day_label(gm)
+        early = bool(gm) and GT.kickoff_ts(gm) == min((GT.kickoff_ts(x) for x in games.values()), default=0)
+        pool_key = (r["pos"] if not cross else "*")
+        vals = r["ov"] if cross else r["pr"]
+
+        def cell(k, v, fmt="{:.0f}"):
+            if v is None:
+                return '<div class="c dim">—</div>'
+            return f'<div class="c {_third(v, pools.get((pool_key, k), []))}">{fmt.format(v)}</div>'
+        fp_c = cell("fp", vals["fp"])
+        fl_c = cell("flock", vals["flock"], "{:.1f}" if not cross else "{:.0f}")
+        fb_c = (f'<div class="c {_third(vals["ffb"], pools.get((pool_key, "ffb"), []))}">'
+                f'{vals["ffb"]:.0f}<small>{r["pts"]:.1f}</small></div>'
+                if vals["ffb"] is not None else '<div class="c dim">—</div>')
+        cons_c = cell("cons", r["cons"], "{:.1f}")
+        if r["n"] >= 2:
+            wide = (r["worst"] - r["best"]) > max(4.0, 0.35 * (r["cons"] or 0))
+            sp = f'<div class="c {"r" if wide else "g"}">{r["best"]:.0f}–{r["worst"]:.0f}</div>'
+        else:
+            sp = '<div class="c dim">—</div>'
+        proj_c = f'<div class="c {_third(-r["proj"], pools.get((pool_key, "proj"), []))}">{r["proj"]:.1f}</div>'
+        # owner
+        if r["owner"] == me:
+            tag = ('<span class="tag st">you · start</span>' if r["pid"] in started
+                   else '<span class="tag me">you · bench</span>')
+            own = f'<b class="me">You</b> · {"starting" if r["pid"] in started else "bench"}'
+            cls = "me"
+        elif r["owner"]:
+            tag, cls = "", ""
+            own = f'<b>{_esc_(_owner_name(ctx, r["owner"]))}</b>'
+        else:
+            tag, cls = '<span class="tag fa">free agent</span>', "fa"
+            gn = fa_gain.get(r["pid"])
+            own = '<b class="fa">Free agent</b>' + (f' · +{gn:.1f} to your week' if (gn or 0) > 0.05
+                                                    else ' · no upgrade')
+        inj = (f'<small style="color:var(--amber)"> {r["inj"]["status"][:1].upper()}</small>'
+               if r["inj"].get("status") else "")
+        out.append(
+            f'<div class="rk-row {cls}"><div class="pl">{_T.img_tag(r["pid"], "")}'
+            f'<b>{idx}. {_esc_(r["name"])}<small>{_esc_(r["team"])}{" · " + r["pos"] if cross else ""}{inj}</small></b>{tag}</div>'
+            f'<div class="opp{" early" if early else ""}">{_esc_(opp)}<small>{_esc_(k_lab)}</small></div>'
+            f'{fp_c}{fl_c}{fb_c}{cons_c}{sp}{proj_c}<div class="own">{own}</div></div>')
+    out.append("</div>")
+    st.markdown("".join(out), unsafe_allow_html=True)
+    _n = {"fp": len(fp), "flock": len(fl), "ffb": len(fb)}
+    st.caption(f"Colour is by third of the position on each column — a yellow 22 at WR is a WR2, not a "
+               f"warning. **Spread** is best–worst across the panels, red when they disagree. "
+               f"{'ALL sorts by projection and shows positional ranks — pick a position to rank by a panel.' if all_view else ('Cross-position ranks, RB/WR/TE against each other (FantasyPros FLEX list, Flock with the QBs taken out, the Ballers by points).' if cross else 'Positional ranks.')} "
+               f"FantasyPros {_n['fp']} · Flock {_n['flock']} · the Ballers {_n['ffb']} players; "
+               f"only FantasyPros ranks K and D/ST.")
+
+
+def _esc_(s) -> str:
+    return C._esc(s)
 
 
 # ------------------------------------------------------------------- 2 waivers

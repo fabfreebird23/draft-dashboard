@@ -845,7 +845,7 @@ def main():
         # FOUR TABS AND A MENU, not seven. The week is Command Center · Waivers ·
         # Matchup · Trades; Playoffs, League and Keepers are looked at once a
         # month and the draft screens once a year, so they sit under More.
-        main = [t for t in tabs_all if t in ("Command Center", "Lineup", "Waivers", "Matchup", "Trades")]
+        main = [t for t in tabs_all if t in ("Command Center", "Lineup", "Rankings", "Waivers", "Matchup", "Trades")]
         more = [t for t in tabs_all if t not in main] + ["Draft"]
         if not (st.session_state.get("league") or {}).get("keeper", True):
             # a redraft league has no keepers to look at
