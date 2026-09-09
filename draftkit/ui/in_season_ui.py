@@ -1299,8 +1299,26 @@ def _rankings(ctx, g) -> None:
     for r in rows:
         r["mv"] = mv.get(r["pid"])
     if movers_view:
+        if base_day is None:
+            # Nothing to diff against yet. Say so rather than draw an empty board.
+            _when = {"yesterday": "yesterday", "week": "Tuesday", "last": "last week"}[since]
+            _days = P._snap_days("flock", g["season"], g["week"]) or P._snap_days("fp", g["season"], g["week"])
+            st.markdown(C.action_html(
+                "info", "▲▼", f"No snapshot to compare against for '{_when}' yet",
+                (f"The panels are photographed once a day; the first one this week was taken "
+                 f"{'today' if _days else 'just now'}. Moves since yesterday show from tomorrow, "
+                 f"since Tuesday from Thursday, and 'last week' from week 2 on. Every rank cell on "
+                 f"the board picks up its ▲/▼ at the same time."),
+                str(len(_days)), "snapshots"), unsafe_allow_html=True)
+            return
         _depth = 30
         rows = [r for r in rows if P.is_mover(r.get("mv"), _depth)]
+        if not rows:
+            _since_txt0 = {"yesterday": "since yesterday", "week": "since Tuesday", "last": "since last week"}[since]
+            st.markdown(C.action_html("go", "✓", f"Nobody moved {_since_txt0}",
+                                      "No consensus move of 3+ places and no panel moved anyone 6+.",
+                                      "0", "movers"), unsafe_allow_html=True)
+            return
     for r in rows:
         vals = [v for v in (r["ov"] if cross else r["pr"]).values() if v is not None]
         r["cons"] = (sum(vals) / len(vals)) if vals else None
