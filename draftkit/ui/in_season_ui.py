@@ -359,7 +359,6 @@ def render(ctx, summary=None, tab="Command Center") -> None:
         st.caption("**Preseason** — projections are live, but records, results and "
                    "transactions stay empty until week 1 kicks off.")
 
-    st.markdown(_link_bar(ctx, tab, week), unsafe_allow_html=True)
     if tab == "Command Center":
         _command(ctx, g)
     elif tab == "Lineup":
@@ -1158,11 +1157,16 @@ def _rankings(ctx, g) -> None:
     pn = _panels(ctx, g)
     fp, fl, fb = pn.get("fp") or {}, pn.get("flock") or {}, pn.get("ffb") or {}
     lk = ctx["league_key"]
+    # The column headers ARE the source switch (a click on FP / Flock / Ballers /
+    # Consensus / Proj sorts by it), so the strip is only who + position.
+    skey = f"rk_src_{lk}"
+    st.session_state.setdefault(skey, "Consensus")
+    src = st.session_state[skey]
     with st.container(key="rk_ctl"):
-        c = st.columns([1.4, 1.6, 2.4, 1.2])
-        src = c[0].selectbox("Source", _RK_SRC, key=f"rk_src_{lk}", label_visibility="collapsed")
-        who = c[1].segmented_control("Who", _RK_WHO, key=f"rk_who_{lk}", selection_mode="single",
+        c = st.columns([1.6, 2.4, 1.2])
+        who = c[0].segmented_control("Who", _RK_WHO, key=f"rk_who_{lk}", selection_mode="single",
                                      label_visibility="collapsed") or _RK_WHO[0]
+        c = [None] + list(c)
         # FLEX by default: the cross-position list is the one a lineup or a
         # claim is decided from. ALL is every position by projection.
         st.session_state.setdefault(f"rk_pos_{lk}", "FLEX")
@@ -1240,10 +1244,11 @@ def _rankings(ctx, g) -> None:
         r["worst"] = max(vals) if vals else None
         r["n"] = len(vals)
     # projected points, unranked men sort last; K/DST in ALL sort by proj after the skill men
-    key_src = {"Consensus": "cons", "FantasyPros": "fp", "Flock": "flock", "The Ballers": "ffb"}[src]
+    key_src = {"Consensus": "cons", "FantasyPros": "fp", "Flock": "flock", "The Ballers": "ffb",
+               "Proj": "proj"}[src]
 
     def _sort_val(r):
-        if all_view:
+        if all_view or key_src == "proj":
             return (False, -r["proj"], 0.0)
         if key_src == "cons":
             v = r["cons"]
@@ -1272,15 +1277,34 @@ def _rankings(ctx, g) -> None:
     rows = rows[:limit]
 
     # ---- render ---------------------------------------------------------------
+    lit = "proj" if (all_view or key_src == "proj") else key_src
+    # The header row is real buttons in columns of the SAME weights as the
+    # board's grid, so they sit over their columns. Opp, Spread and Owner are
+    # labels; the rest switch the source.
+    head = (("", None), ("Opp", None), ("FP", "FantasyPros"), ("Flock", "Flock"),
+            ("Ballers", "The Ballers"), ("Consensus", "Consensus"), ("Spread", None),
+            ("Proj", "Proj"), ("Owner", None))
+    _lit_label = {"fp": "FantasyPros", "flock": "Flock", "ffb": "The Ballers",
+                  "cons": "Consensus", "proj": "Proj"}[lit]
+    with st.container(key="rk_hd"):
+        hc = st.columns([330, 92, 76, 76, 84, 92, 84, 72, 260])
+        for col, (label, source) in zip(hc, head):
+            with col:
+                if source is None:
+                    st.markdown(f'<div class="rk-hl{" lbl" if label == "Owner" else ""}">{label}</div>',
+                                unsafe_allow_html=True)
+                    continue
+                on = source == _lit_label
+                if st.button(("● " if on else "○ ") + label + (" ▾" if on else ""),
+                             key=f"rk_h_{lk}_{source}", use_container_width=True,
+                             type="primary" if on else "secondary",
+                             disabled=(all_view and source != "Proj")):
+                    st.session_state[skey] = source
+                    st.rerun()
     st.markdown(_day_line(g, list(zip(g["slots"], g.get("starters") or [])), reg)
-                .replace("</div>", f' · <b>{src}</b> · {pos} · {who} · {min(limit, total)} of {total}</div>'),
+                .replace("</div>", f' · sorted by <b>{_lit_label if not all_view else "projection"}</b> · {pos} · {who} · {min(limit, total)} of {total}</div>'),
                 unsafe_allow_html=True)
-    lit = "proj" if all_view else {"cons": "cons", "fp": "fp", "flock": "flock", "ffb": "ffb"}[key_src]
-    head = ("", "Opp", "FP", "Flock", "Ballers", "Consensus", "Spread", "Proj", "Owner")
-    keys = ("", "", "fp", "flock", "ffb", "cons", "", "proj", "")
-    out = ['<div class="rk"><div class="rk-hd">'
-           + "".join(f'<span class="{"on" if k and k == lit else ""}{" lbl" if h == "Owner" else ""}">{h}</span>'
-                     for h, k in zip(head, keys)) + '</div>']
+    out = ['<div class="rk">']
     tiers = (_TIERS_ALL if (cross or all_view)
              else _TIERS_DEEP if pos in ("RB", "WR") else _TIERS_POS)
     band_i = -1
@@ -1306,10 +1330,11 @@ def _rankings(ctx, g) -> None:
         def cell(k, v, fmt="{:.0f}"):
             if v is None:
                 return '<div class="c dim">—</div>'
-            return f'<div class="c {_third(v, pools.get((pool_key, k), []))}">{fmt.format(v)}</div>'
+            return (f'<div class="c {_third(v, pools.get((pool_key, k), []))}'
+                    f'{" sort" if k == lit else ""}">{fmt.format(v)}</div>')
         fp_c = cell("fp", vals["fp"])
         fl_c = cell("flock", vals["flock"], "{:.1f}" if not cross else "{:.0f}")
-        fb_c = (f'<div class="c {_third(vals["ffb"], pools.get((pool_key, "ffb"), []))}">'
+        fb_c = (f'<div class="c {_third(vals["ffb"], pools.get((pool_key, "ffb"), []))}{" sort" if lit == "ffb" else ""}">'
                 f'{vals["ffb"]:.0f}<small>{r["pts"]:.1f}</small></div>'
                 if vals["ffb"] is not None else '<div class="c dim">—</div>')
         cons_c = cell("cons", r["cons"], "{:.1f}")
@@ -1318,7 +1343,8 @@ def _rankings(ctx, g) -> None:
             sp = f'<div class="c {"r" if wide else "g"}">{r["best"]:.0f}–{r["worst"]:.0f}</div>'
         else:
             sp = '<div class="c dim">—</div>'
-        proj_c = f'<div class="c {_third(-r["proj"], pools.get((pool_key, "proj"), []))}">{r["proj"]:.1f}</div>'
+        proj_c = (f'<div class="c {_third(-r["proj"], pools.get((pool_key, "proj"), []))}'
+                  f'{" sort" if lit == "proj" else ""}">{r["proj"]:.1f}</div>')
         # owner
         if r["owner"] == me:
             tag = ('<span class="tag st">you · start</span>' if r["pid"] in started

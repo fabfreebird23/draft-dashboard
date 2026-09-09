@@ -648,6 +648,55 @@ def build_context(sel: dict) -> dict:
     }
 
 
+def _week_line() -> str:
+    """"Week 1 · Tuesday · waivers open" for the header."""
+    import datetime as _dt
+    from draftkit import gametime as _GT, weekview as _WV
+    wk = in_season_ui.current_week()
+    try:
+        from zoneinfo import ZoneInfo
+        day = _dt.datetime.now(ZoneInfo("America/New_York")).strftime("%A")
+    except Exception:  # noqa: BLE001
+        day = _dt.datetime.now().strftime("%A")
+    try:
+        ph = _GT.week_phase(_GT.load_week(config.current_season(), wk))
+    except Exception:  # noqa: BLE001
+        ph = ""
+    lab = _WV.phase_label(ph)
+    live = ph in ("live", "late")
+    return (f'<b>Week {wk}</b> · {day}' + (f' · <span class="{"on" if live else ""}">{lab}</span>' if lab else ""))
+
+
+_DOT = {"go": "🟢", "warn": "🟡", "bad": "🔴", "live": "🔥", "": "⚪"}
+
+
+def _league_switcher(ctx) -> None:
+    """The saved leagues as one control, with each one's Home dot."""
+    import json as _json
+    from draftkit.ui import home_ui as _H
+    cur_lid = str(ctx["meta"].league_id)
+    presets = [p for p in SAVED_LEAGUES]
+    try:
+        pulses = _H._pulses(_json.dumps(presets, sort_keys=True, default=str),
+                            in_season_ui.current_week())
+    except Exception:  # noqa: BLE001
+        pulses = [{} for _ in presets]
+    labels, by_label = [], {}
+    for p, pu in zip(presets, pulses):
+        tone = (pu or {}).get("tone", "") if (pu or {}).get("ok") else ""
+        short = {"The Kreeper League": "Kreeper", "Show us your TD's": "TD's"}.get(p["label"], p["label"])
+        lab = f'{_DOT.get(tone, "⚪")} {short}'
+        labels.append(lab)
+        by_label[lab] = p
+    cur = next((l for l, p in by_label.items() if str(p["league_id"]) == cur_lid), labels[0])
+    key = "tb_league_pick"
+    st.session_state[key] = cur
+    pick = st.segmented_control("league", labels, key=key, selection_mode="single",
+                                label_visibility="collapsed") or cur
+    if pick != cur:
+        _select_league(by_label[pick])
+
+
 def main():
     if "league" not in st.session_state:
         league_picker()
@@ -784,15 +833,22 @@ def main():
         st.session_state[pkey] = ("In-season" if lg_sum.phase in (PH.IN, PH.DONE)
                                   else "Pre-season")
 
+    _drafted = lg_sum.phase in (PH.IN, PH.DONE)
     with st.container(key="dr_topbar"):
-        head = st.columns([3.35, 1.7, 2.15, 0.4])
+        # In season the header carries the OTHER leagues too: one click to
+        # switch, and each with the dot Home uses, so "does another league need
+        # me" is answered without going Home. Pre-season keeps the plain name.
+        head = st.columns([1.15, 3.0, 1.35, 1.7, 0.4] if _drafted else [3.35, 1.7, 2.15, 0.4])
         with head[0]:
             st.markdown(f'<div class="tb-row tb-id">{theme.cherry_svg(19)}'
                         f'<span class="bs-word">Bloody<em>Sunday</em></span>'
-                        f'<span class="tb-sep"></span>'
-                        f'<span class="tb-name">{meta.name}</span></div>',
-                        unsafe_allow_html=True)
-        _drafted = lg_sum.phase in (PH.IN, PH.DONE)
+                        + ("" if _drafted else f'<span class="tb-sep"></span>'
+                                               f'<span class="tb-name">{meta.name}</span>')
+                        + '</div>', unsafe_allow_html=True)
+        if _drafted:
+            with head[1], st.container(key="tb_leagues"):
+                _league_switcher(ctx)
+            head = [head[0], head[2], head[3], head[4]]
         with head[1], st.container(key="tb_phase"):
             # st.segmented_control, NOT a styled radio. Hiding a radio's glyph means
             # selecting on Streamlit's internal DOM, and that DOM is not stable: on
@@ -804,8 +860,7 @@ def main():
             # season, and the draft screens live under More → Draft until August.
             if _drafted:
                 ph_sel = "In-season"
-                st.markdown('<div class="ph-note" style="text-align:right">'
-                            f'in season · week {in_season_ui.current_week()}</div>',
+                st.markdown('<div class="ph-note tb-wk">' + _week_line() + '</div>',
                             unsafe_allow_html=True)
             else:
                 ph_sel = st.segmented_control(
@@ -861,13 +916,23 @@ def main():
             st.session_state[ikey] = "More"
             st.session_state[mkey] = _want
         with st.container(key="navbar"):
-            itab = st.segmented_control("nav", nav, key=ikey, selection_mode="single",
-                                        label_visibility="collapsed") or nav[0]
+            _nc = st.columns([3.4, 2.4])
+            with _nc[0]:
+                itab = st.segmented_control("nav", nav, key=ikey, selection_mode="single",
+                                            label_visibility="collapsed") or nav[0]
+            _links_here = _nc[1]
         if itab == "More":
             st.session_state.setdefault(mkey, more[0])
             with st.container(key="navbar_more"):
                 itab = st.segmented_control("more", more, key=mkey, selection_mode="single",
                                             label_visibility="collapsed") or more[0]
+        # the league's own site, on the nav row: the tab's page highlighted
+        with _links_here:
+            try:
+                st.markdown(in_season_ui._link_bar(ctx, itab, in_season_ui.current_week()),
+                            unsafe_allow_html=True)
+            except Exception:  # noqa: BLE001 — an old submodule on Cloud has no _link_bar
+                pass
         if itab != "Draft":
             try:
                 in_season_ui.render(ctx, summary=lg_sum, tab=itab)

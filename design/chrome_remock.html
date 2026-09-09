@@ -1,0 +1,138 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Chrome · league switch, links row, clickable rank headers</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141314;--panel:#1f1d1e;--panel2:#292627;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#8c8286;
+ --crimson:#ff336c;--green:#7fd8b4;--amber:#f0b357;--red:#ff8fae;--blue:#6aa6f0;--g:#5fdc8f;--y:#e7c24a;--r:#ff6b6b;
+ --fd:'Sora',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);margin:0;padding:22px 22px 70px;font-size:13px}
+h1{font-family:var(--fd);font-weight:800;font-size:24px;margin:0 0 4px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:88ch;line-height:1.5;margin:0 0 18px}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.45;margin-top:10px;max-width:88ch}
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:26px 0 10px;font-family:var(--fd);font-weight:800;font-size:16px}
+.bar i{height:1px;background:var(--line2)} .bar em{font-family:var(--fm);font-size:9.5px;font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2)}
+.frame{background:#171516;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px}
+/* topbar */
+.top{display:grid;grid-template-columns:auto auto 1fr auto auto;gap:14px;align-items:center;padding:8px 12px;background:#1b1819;border:1px solid var(--line);border-radius:12px}
+.brand{font-family:var(--fd);font-weight:800;font-size:17px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.brand i{width:14px;height:14px;border-radius:4px;background:var(--crimson)}
+.brand em{color:var(--crimson);font-style:normal}
+.sep{width:1px;height:22px;background:var(--line2)}
+.lgs{display:flex;gap:4px}
+.lgs span{padding:5px 11px;border-radius:8px;font-size:12px;font-weight:600;color:var(--muted);border:1px solid transparent;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.lgs span.on{color:var(--ink);background:var(--panel2);border-color:var(--line2)}
+.lgs span i{width:7px;height:7px;border-radius:50%;background:var(--line2)}
+.lgs span i.g{background:var(--green)} .lgs span i.w{background:var(--amber)} .lgs span i.b{background:var(--red)} .lgs span i.l{background:var(--crimson);box-shadow:0 0 0 3px rgba(255,51,108,.25)}
+.lgs span small{font-family:var(--fm);font-size:9px;color:var(--mut2);letter-spacing:.06em}
+.wk{font-family:var(--fm);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2);white-space:nowrap}
+.wk b{color:var(--ink);font-weight:600}
+.pills{display:flex;gap:6px}
+.pill{font-family:var(--fm);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:4px 9px;border-radius:999px;border:1px solid var(--line2);color:var(--mut2)}
+.pill.h{color:var(--green);border-color:rgba(127,216,180,.4)}
+/* nav row */
+.navrow{display:flex;align-items:center;gap:6px;margin-top:10px;border-bottom:2px solid var(--line);padding-bottom:0}
+.navrow .t{padding:9px 16px;font-weight:800;font-size:13.5px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px}
+.navrow .t.on{color:var(--ink);border-bottom-color:var(--crimson)}
+.navrow .ext{margin-left:auto;display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding-bottom:6px}
+.navrow .ext span{color:var(--mut2);margin-right:4px}
+.navrow .ext a{color:var(--muted);padding:5px 10px;border-radius:7px;border:1px solid var(--line2);text-decoration:none;white-space:nowrap}
+.navrow .ext a.on{color:var(--crimson);border-color:var(--crimson);background:rgba(255,51,108,.12)}
+.body{padding:14px 4px 4px;color:var(--mut2);font-family:var(--fm);font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+/* rankings header */
+.ctl{display:grid;grid-template-columns:auto auto 1fr auto;gap:12px;align-items:center;padding:9px 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin:12px 0 10px}
+.seg{display:flex;gap:2px;background:var(--panel2);border-radius:8px;padding:2px}
+.seg span{padding:5px 11px;border-radius:6px;font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap}
+.seg span.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+.seg.who span.on{color:var(--crimson)}
+.pos{display:flex;gap:4px}
+.pos span{font-family:var(--fm);font-size:10px;padding:4px 9px;border-radius:6px;border:1px solid var(--line2);color:var(--mut2)}
+.pos span.on{color:var(--ink);border-color:var(--mut2);background:var(--panel2)}
+.meta{font-family:var(--fm);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);text-align:right;line-height:1.6}
+.day{font-family:var(--fm);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2);margin:0 0 8px}
+.day b{color:var(--ink);font-weight:600} .day .on{color:var(--crimson)}
+.hd{display:grid;grid-template-columns:330px 92px 76px 76px 84px 92px 84px 72px 1fr;gap:10px;padding:0 0 8px;align-items:center}
+.hd span{font-family:var(--fm);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2);text-align:center;padding:7px 0;border-radius:999px;background:var(--panel);border:1px solid var(--line);position:relative}
+.hd span:first-child{visibility:hidden}
+.hd span.lbl{text-align:left;padding-left:12px;border:0;background:none}
+.hd span.click{cursor:pointer;color:var(--muted);border-color:var(--line2)}
+.hd span.click:hover{color:var(--ink);border-color:var(--mut2)}
+.hd span.on{color:var(--ink);border-color:var(--crimson);background:rgba(255,51,108,.10)}
+.hd span.on::after{content:"▼";position:absolute;right:9px;top:8px;font-size:7px;color:var(--crimson)}
+.hd span.click::before{content:"";position:absolute;left:8px;top:11px;width:5px;height:5px;border-radius:50%;background:var(--line2)}
+.hd span.on::before{background:var(--crimson)}
+.row{display:grid;grid-template-columns:330px 92px 76px 76px 84px 92px 84px 72px 1fr;gap:10px;align-items:center;margin:4px 0}
+.pl{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 14px 4px 5px}
+.pl .av{width:30px;height:30px;border-radius:50%;background:var(--panel2);border:2px solid #6aa6f0;flex:none}
+.pl b{font-size:13.5px;font-weight:600} .pl b small{font-family:var(--fm);font-weight:500;font-size:10px;color:var(--mut2);margin-left:6px}
+.c{font-family:var(--fm);text-align:center;font-size:13px;font-weight:500;padding:7px 0;border-radius:9px;background:var(--panel)}
+.c.g{color:var(--g);background:rgba(95,220,143,.08)} .c.y{color:var(--y);background:rgba(231,194,74,.08)} .c.r{color:var(--r);background:rgba(255,107,107,.09)}
+.c.sort{outline:1px solid rgba(255,51,108,.35)}
+.opp{font-family:var(--fm);text-align:center;font-size:12px} .opp small{display:block;font-size:9.5px;color:var(--mut2)}
+.own{font-family:var(--fm);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut2);padding-left:6px}
+.own b{color:var(--ink)} .own .me{color:var(--crimson)}
+.hint{font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2);margin:4px 0 0 336px}
+.hint b{color:var(--crimson);font-weight:600}
+</style></head><body>
+<h1>Chrome · three changes</h1>
+<p class="sub">1 · your leagues sit in the header next to the wordmark, one click to switch, each with its "does anything need me" dot. 2 · the "on Sleeper" links move onto the nav row, same height as the tabs, right-aligned. 3 · on Rankings the column headers <i>are</i> the source switch — click FP, Flock, Ballers, Consensus or Proj and the board re-sorts; the dropdown goes away.</p>
+
+<div class="bar"><span>1 + 2 · header and nav row</span><i></i><em>league switcher · links on the nav row</em></div>
+<div class="frame">
+ <div class="top">
+  <div class="brand"><i></i>Bloody<em>Sunday</em></div>
+  <div class="sep"></div>
+  <div class="lgs">
+   <span><i class="w"></i>Kreeper</span>
+   <span><i class="w"></i>7½ Men</span>
+   <span class="on"><i class="w"></i>Babies and Boomer</span>
+   <span><i class="w"></i>Show us your TD's <small>ESPN</small></span>
+  </div>
+  <div class="wk"><b>Week 1</b> · Tuesday · waivers open</div>
+  <div class="pills"><span class="pill">10 teams</span><span class="pill">PPR</span><span class="pill h">● ● ● healthy</span><span class="pill">⋯</span></div>
+ </div>
+ <div class="navrow">
+  <span class="t on">Command Center</span><span class="t">Lineup</span><span class="t">Rankings</span><span class="t">Waivers</span><span class="t">Matchup</span><span class="t">Trades</span><span class="t">More ▾</span>
+  <div class="ext"><span>on Sleeper</span><a class="on">My team ↗</a><a>Players ↗</a><a>Matchup ↗</a><a>Trades ↗</a><a>League ↗</a></div>
+ </div>
+ <div class="body">↓ page body starts here, no extra strip above it</div>
+</div>
+<p class="note">The league dot is the same tone the Home row uses (green fine · amber something to decide · red a starter out · crimson pulsing when a game is live), so the header answers "does another league need me" without going Home. The wordmark still goes Home. Week and day replace the old "in season · week 1" text. On a Sunday the ESPN league's dot would be crimson while its game is on.</p>
+
+<div class="frame">
+ <div class="top">
+  <div class="brand"><i></i>Bloody<em>Sunday</em></div>
+  <div class="sep"></div>
+  <div class="lgs">
+   <span><i class="g"></i>Kreeper</span>
+   <span class="on"><i class="l"></i>7½ Men</span>
+   <span><i class="l"></i>Babies and Boomer</span>
+   <span><i class="b"></i>Show us your TD's <small>ESPN</small></span>
+  </div>
+  <div class="wk"><b>Week 1</b> · Sunday 3:15 · <span style="color:var(--crimson)">live</span></div>
+  <div class="pills"><span class="pill">8 teams</span><span class="pill">½ PPR</span><span class="pill h">● ● ● healthy</span><span class="pill">⋯</span></div>
+ </div>
+ <div class="navrow">
+  <span class="t">Command Center</span><span class="t">Lineup</span><span class="t">Rankings</span><span class="t">Waivers</span><span class="t on">Matchup</span><span class="t">Trades</span><span class="t">More ▾</span>
+  <div class="ext"><span>on Sleeper</span><a>My team ↗</a><a>Players ↗</a><a class="on">Matchup ↗</a><a>Trades ↗</a><a>League ↗</a></div>
+ </div>
+ <div class="body">same chrome on a Sunday · two leagues live, one with a starter out</div>
+</div>
+
+<div class="bar"><span>3 · Rankings · the headers are the switch</span><i></i><em>click a column to sort by it · no dropdown</em></div>
+<div class="frame">
+ <div class="ctl">
+  <div class="seg who"><span>All</span><span class="on">Mine + FA</span><span>Mine</span><span>Free agents</span></div>
+  <div class="pos"><span>ALL</span><span>QB</span><span>RB</span><span class="on">WR</span><span>TE</span><span>FLEX</span><span>K</span><span>DST</span></div>
+  <div></div>
+  <div class="meta"><b>Babies and Boomer · week 1</b> · WR · 21 of 118<br>FP 8 · Flock 6 · Ballers 3 · updated 8:00pm</div>
+ </div>
+ <div class="day"><b>Tuesday</b> · waivers open · first lock <b>Wed 8:20</b> in <span class="on">21h</span> · sorted by <b>The Ballers</b></div>
+ <div class="hd"><span></span><span>Opp</span><span class="click">FP</span><span class="click">Flock</span><span class="click on">Ballers</span><span class="click">Consensus</span><span>Spread</span><span class="click">Proj</span><span class="lbl">Owner</span></div>
+ <div class="row"><div class="pl"><span class="av"></span><b>1. Amon-Ra St. Brown<small>DET</small></b></div><div class="opp">vs NO<small>Sun 1:00</small></div><div class="c g">3</div><div class="c g">3.5</div><div class="c g sort">2<br><small style="font-size:8.5px;color:var(--mut2)">19.8</small></div><div class="c g">2.8</div><div class="c g">2–4</div><div class="c g">19.8</div><div class="own"><b class="me">You</b> · starting</div></div>
+ <div class="row"><div class="pl"><span class="av"></span><b>2. Emeka Egbuka<small>TB · Q</small></b></div><div class="opp">@ CIN<small>Sun 1:00</small></div><div class="c y">22</div><div class="c y">21.5</div><div class="c y sort">23<br><small style="font-size:8.5px;color:var(--mut2)">14.1</small></div><div class="c y">22.2</div><div class="c g">22–23</div><div class="c y">11.7</div><div class="own"><b class="me">You</b> · starting</div></div>
+ <div class="row"><div class="pl"><span class="av"></span><b>3. Brian Thomas Jr.<small>JAX</small></b></div><div class="opp">vs CLE<small>Sun 1:00</small></div><div class="c r">41</div><div class="c y">32</div><div class="c r sort">42<br><small style="font-size:8.5px;color:var(--mut2)">10.7</small></div><div class="c y">38.4</div><div class="c r">32–42</div><div class="c y">10.5</div><div class="own"><b class="me">You</b> · bench</div></div>
+ <div class="hint">↑ click <b>Consensus</b> to average the three · click <b>Proj</b> to sort by our projection · the dot marks a sortable column</div>
+</div>
+<p class="note">Sorting by a column is the natural way to switch source on a board — it is what every spreadsheet does — and it frees the control strip to just who + position. The lit header carries a ▾ and the sorted column gets a faint outline so the sort is readable from across the room. Spread and Opp are not sortable (grey, no dot). The Lineup tab's "Rank by" strip stays a strip, because there it changes the recommendation rather than the sort.</p>
+</body></html>

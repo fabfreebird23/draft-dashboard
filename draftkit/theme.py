@@ -1645,11 +1645,12 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .lc-steps li em{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-style:normal; font-size:10.5px;
   color:var(--mut2); }
 /* ---- deep links into the league's own site ---- */
-.ws-ext{ display:flex; gap:12px; align-items:center; justify-content:flex-end; margin:-4px 0 8px;
+.ws-ext{ display:flex; gap:6px; align-items:center; justify-content:flex-end; margin:6px 0 0;
   font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9.5px; letter-spacing:.1em;
   text-transform:uppercase; }
 .ws-ext span{ color:var(--mut2); }
-.ws-ext a{ color:var(--muted); text-decoration:none; padding:3px 8px; border-radius:6px;
+.ws-ext span{ margin-right:4px; }
+.ws-ext a{ color:var(--muted); text-decoration:none; padding:5px 9px; border-radius:7px;
   border:1px solid var(--line2); }
 .ws-ext a:hover{ color:var(--ink); border-color:var(--mut2); }
 .ws-ext a.on{ color:var(--crimson); border-color:var(--crimson); background:var(--accent-soft); }
@@ -1659,8 +1660,22 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="st-key-rk_ctl"]{ background:var(--panel); border:1px solid var(--line); border-radius:12px;
   padding:8px 12px 2px; margin-bottom:10px; }
 [class*="st-key-rk_ctl"] [role="radiogroup"] label{ font-size:11px; padding:4px 10px; }
-.rk{ --cols:330px 92px 76px 76px 84px 92px 84px 72px 1fr; }
-.rk-hd, .rk-row, .rk-tier{ display:grid; grid-template-columns:var(--cols); gap:10px; align-items:center; }
+/* the same WEIGHTS as the header's st.columns, and the same 1rem gap, so the
+   header buttons sit over their columns */
+.rk{ --cols:330fr 92fr 76fr 76fr 84fr 92fr 84fr 72fr 260fr; }
+.rk-hd, .rk-row, .rk-tier{ display:grid; grid-template-columns:var(--cols); gap:1rem; align-items:center; }
+[class*="st-key-rk_hd"]{ margin-bottom:6px; }
+[class*="st-key-rk_hd"] .stButton button{ font-family:'IBM Plex Mono',ui-monospace,monospace;
+  font-size:9px; letter-spacing:.1em; text-transform:uppercase; border-radius:999px; padding:5px 0;
+  min-height:0; border:1px solid var(--line2); color:var(--muted); background:var(--panel); }
+[class*="st-key-rk_hd"] .stButton button[kind="primary"]{ color:var(--ink); border-color:var(--crimson);
+  background:var(--accent-soft); }
+[class*="st-key-rk_hd"] .stButton button:disabled{ opacity:.35; }
+.rk-hl{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--mut2); text-align:center; padding:6px 0; border-radius:999px;
+  background:var(--panel); border:1px solid var(--line); }
+.rk-hl.lbl{ text-align:left; padding-left:12px; border:0; background:none; }
+.rk-row .c.sort{ outline:1px solid rgba(255,51,108,.35); }
 .rk-hd{ padding:0 0 8px; }
 .rk-hd span{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9px; letter-spacing:.12em;
   text-transform:uppercase; color:var(--mut2); text-align:center; padding:6px 0; border-radius:999px;
@@ -1668,7 +1683,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .rk-hd span:first-child{ visibility:hidden; }
 .rk-hd span.on{ color:var(--ink); border-color:var(--mut2); }
 .rk-hd span.lbl{ text-align:left; padding-left:12px; border:0; background:none; }
-.rk-tier{ grid-template-columns:330px 1fr; margin:8px 0 4px; }
+.rk-tier{ grid-template-columns:330fr 836fr; margin:8px 0 4px; }
 .rk-tier .band{ border-radius:999px; padding:5px 12px; font-family:'Sora',sans-serif; font-weight:800;
   font-size:14px; color:#141314; }
 .rk-tier .band em{ display:inline-grid; place-items:center; width:22px; height:22px; border-radius:6px;
@@ -1708,6 +1723,14 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   text-overflow:ellipsis; }
 .rk-row .own b{ color:var(--ink); font-weight:600; } .rk-row .own .me{ color:var(--crimson); }
 .rk-row .own .fa{ color:#5fdc8f; }
+/* ---- header: league switcher + week line ---- */
+[class*="st-key-tb_leagues"] [data-testid="stButtonGroup"]{ gap:2px; }
+[class*="st-key-tb_leagues"] [data-testid="stButtonGroup"] button{ padding:4px 10px; font-size:12px;
+  font-weight:600; border-radius:8px; }
+.tb-wk{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--mut2); white-space:nowrap; text-align:right; }
+.tb-wk b{ color:var(--ink); font-weight:600; } .tb-wk .on{ color:var(--crimson); }
+[class*="st-key-navbar"] [data-testid="stHorizontalBlock"]{ align-items:flex-end; }
 /* ranked actions */
 .ws2-act{ display:grid; grid-template-columns:auto 1fr auto; gap:13px; align-items:center;
   padding:12px 14px; border-radius:13px; background:var(--panel); border:1px solid var(--line);
