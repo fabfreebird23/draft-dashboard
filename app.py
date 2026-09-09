@@ -690,7 +690,12 @@ def _league_switcher(ctx) -> None:
         by_label[lab] = p
     cur = next((l for l, p in by_label.items() if str(p["league_id"]) == cur_lid), labels[0])
     key = "tb_league_pick"
-    st.session_state[key] = cur
+    # Seed the control only when the league actually changed; writing it every
+    # run resets the widget to the current league before its click is read,
+    # which is how the switcher looked fine and did nothing.
+    if st.session_state.get("tb_league_cur") != cur_lid:
+        st.session_state["tb_league_cur"] = cur_lid
+        st.session_state[key] = cur
     pick = st.segmented_control("league", labels, key=key, selection_mode="single",
                                 label_visibility="collapsed") or cur
     if pick != cur:
