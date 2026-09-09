@@ -1205,6 +1205,11 @@ def _rankings(ctx, g) -> None:
         # FLEX by default: the cross-position list is the one a lineup or a
         # claim is decided from. ALL is every position by projection.
         st.session_state.setdefault(f"rk_pos_{lk}", "FLEX")
+        # "all ↗" on the ticker parks a request here; it can only be applied
+        # BEFORE the control exists for this run.
+        _goto = st.session_state.pop(f"rk_pos_goto_{lk}", None)
+        if _goto in _RK_POS:
+            st.session_state[f"rk_pos_{lk}"] = _goto
         pos = c[1].segmented_control("Pos", _RK_POS, key=f"rk_pos_{lk}", selection_mode="single",
                                      label_visibility="collapsed") or "FLEX"
         _since_labels = [b for _a, b in _RK_SINCE]
@@ -1366,7 +1371,7 @@ def _rankings(ctx, g) -> None:
                         st.session_state[fkey] = r["pid"]
                         st.rerun()
                 if tc[-1].button("all ↗", key=f"rk_tk_all_{lk}", use_container_width=True):
-                    st.session_state[f"rk_pos_{lk}"] = "▲▼ Movers"
+                    st.session_state[f"rk_pos_goto_{lk}"] = "▲▼ Movers"
                     st.rerun()
     # The header row is real buttons in columns of the SAME weights as the
     # board's grid, so they sit over their columns. Opp, Spread and Owner are
