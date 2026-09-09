@@ -1184,6 +1184,36 @@ def _third(v, pool: list) -> str:
     return "g" if i < n / 3 else ("y" if i < 2 * n / 3 else "r")
 
 
+@st.cache_data(show_spinner=False, max_entries=24, hash_funcs={"builtins.object": id})
+def _rk_rows_cached(league_key: str, week: int, bucket: int, pos: str, _reg, _g, _pn, _owner_of):
+    reg, g, owner_of = _reg, _g, _owner_of
+    fp, fl, fb = _pn.get("fp") or {}, _pn.get("flock") or {}, _pn.get("ffb") or {}
+    pids = set(fp) | set(fl) | set(fb) | {str(p) for p in g["mine"]}
+    want = {"ALL": None, "FLEX": {"RB", "WR", "TE"}}.get(pos, {pos, "DEF"} if pos == "DST" else {pos})
+    rows = []
+    for pid in pids:
+        try:
+            pm = reg.meta(pid)
+        except Exception:  # noqa: BLE001
+            continue
+        p_pos = (pm.position or "").upper()
+        p_pos = "DST" if p_pos == "DEF" else p_pos
+        if want and p_pos not in want:
+            continue
+        if p_pos not in ("QB", "RB", "WR", "TE", "K", "DST"):
+            continue
+        a, b, cc = fp.get(pid), fl.get(pid), fb.get(pid)
+        pr = {"fp": _pos_rank_num(a, "fp"), "flock": _pos_rank_num(b, "flock"),
+              "ffb": _pos_rank_num(cc, "ffb")}
+        ov = {"fp": _overall_num(a, "fp"), "flock": _overall_num(b, "flock"), "ffb": None}
+        rows.append({"pid": pid, "name": pm.name, "pos": p_pos, "team": pm.team or "",
+                     "pr": pr, "ov": ov, "pts": (cc or {}).get("pts"),
+                     "proj": float(g["proj"].get(pid, 0) or 0),
+                     "owner": owner_of.get(pid), "tier_flock": (b or {}).get("tier"),
+                     "inj": W.availability(pm)})
+    return rows
+
+
 def _rankings(ctx, g) -> None:
     """Every ranked player, in tiers, on any of three panels or their consensus,
     cut to the men you can actually start or claim."""
@@ -1235,41 +1265,17 @@ def _rankings(ctx, g) -> None:
             owner_of[str(p)] = str(oid)
     me = str(g["me"])
     started = {str(p) for p in (g.get("starters") or []) if p and str(p) != "0"}
-    # what a free agent adds to YOUR week — the waiver board's number
-    fa_gain = {}
-    try:
-        taken = set(owner_of)
-        fas = inseason.free_agents(ctx["meta"], reg, g["proj"], taken, limit=150, ecr=g.get("ros"))
-        for r in W.waiver_board(g["mine"], g["slots"], g["proj"], reg, fas, byes=g["byes"],
-                                week=g["week"], limit=150, ecr=g.get("ros")):
-            fa_gain[str(r["pid"])] = float(r["gain"])
-    except Exception:  # noqa: BLE001
-        pass
+    # what a free agent adds to YOUR week — the waiver board's number. An
+    # optimiser pass per free agent, so it rides the refresh clock: uncached it
+    # was six of the seven seconds this tab took.
+    fa_gain = _fa_gain_cached(lk, g["week"], _refresh_bucket(g["season"], g["week"]),
+                              ctx, g, frozenset(owner_of))
 
     # ---- the universe: every pid any panel ranks, plus my roster ------------
-    pids = set(fp) | set(fl) | set(fb) | {str(p) for p in g["mine"]}
-    want = {"ALL": None, "FLEX": {"RB", "WR", "TE"}}.get(pos, {pos, "DEF"} if pos == "DST" else {pos})
-    rows = []
-    for pid in pids:
-        try:
-            pm = reg.meta(pid)
-        except Exception:  # noqa: BLE001
-            continue
-        p_pos = (pm.position or "").upper()
-        p_pos = "DST" if p_pos == "DEF" else p_pos
-        if want and p_pos not in want:
-            continue
-        if p_pos not in ("QB", "RB", "WR", "TE", "K", "DST"):
-            continue
-        a, b, cc = fp.get(pid), fl.get(pid), fb.get(pid)
-        pr = {"fp": _pos_rank_num(a, "fp"), "flock": _pos_rank_num(b, "flock"),
-              "ffb": _pos_rank_num(cc, "ffb")}
-        ov = {"fp": _overall_num(a, "fp"), "flock": _overall_num(b, "flock"), "ffb": None}
-        rows.append({"pid": pid, "name": pm.name, "pos": p_pos, "team": pm.team or "",
-                     "pr": pr, "ov": ov, "pts": (cc or {}).get("pts"),
-                     "proj": float(g["proj"].get(pid, 0) or 0),
-                     "owner": owner_of.get(pid), "tier_flock": (b or {}).get("tier"),
-                     "inj": W.availability(pm)})
+    # Built once per refresh window: six hundred registry lookups and an
+    # availability read each is two seconds a click otherwise.
+    rows = _rk_rows_cached(lk, g["week"], _refresh_bucket(g["season"], g["week"]), pos,
+                           reg, g, pn, owner_of)
     if not rows:
         st.info("Nothing ranked for that position yet.")
         return
@@ -1540,6 +1546,21 @@ def _rankings(ctx, g) -> None:
                f"{'ALL sorts by projection and shows positional ranks — pick a position to rank by a panel.' if all_view else ('Cross-position ranks, RB/WR/TE against each other (FantasyPros FLEX list, Flock with the QBs taken out, the Ballers by points).' if cross else 'Positional ranks.')} "
                f"FantasyPros {_n['fp']} · Flock {_n['flock']} · the Ballers {_n['ffb']} players; "
                f"only FantasyPros ranks K and D/ST.")
+
+
+@st.cache_data(show_spinner=False, max_entries=8)
+def _fa_gain_cached(league_key: str, week: int, bucket: int, _ctx, _g, _taken) -> dict:
+    out = {}
+    try:
+        reg = _ctx["registry"]
+        fas = inseason.free_agents(_ctx["meta"], reg, _g["proj"], set(_taken), limit=150,
+                                   ecr=_g.get("ros"))
+        for r in W.waiver_board(_g["mine"], _g["slots"], _g["proj"], reg, fas, byes=_g["byes"],
+                                week=_g["week"], limit=150, ecr=_g.get("ros")):
+            out[str(r["pid"])] = float(r["gain"])
+    except Exception:  # noqa: BLE001
+        pass
+    return out
 
 
 def _esc_(s) -> str:

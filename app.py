@@ -8,6 +8,7 @@ render from one normalized Pick shape.
 from __future__ import annotations
 
 import dataclasses
+import json
 import streamlit as st
 
 from draftkit import positional as _PZ
@@ -343,6 +344,12 @@ def league_picker():
     to SAVED_LEAGUES, which is the honest cost given how rarely it happens."""
     home_ui.render(SAVED_LEAGUES, _select_league, board_age_fn=board_age)
 
+
+
+@st.cache_resource(show_spinner="Opening the league…", max_entries=6)
+def _ctx_cached(sel_json: str, bucket: int) -> dict:
+    """build_context, once per league per refresh window (drafted leagues only)."""
+    return build_context(json.loads(sel_json))
 
 
 def build_context(sel: dict) -> dict:
@@ -713,8 +720,21 @@ def main():
     # the board, the pick clock and every survival % are built from those numbers.
     _mock = st.session_state.get(f"mockid_{sel['platform']}_{sel['league_id']}")
     sel = dict(sel, mock_draft_id=_mock) if _mock else sel
+    import time as _tm, sys as _sys, os as _os
+    _t0 = _tm.perf_counter()
     try:
-        ctx = build_context(sel)
+        # A DRAFTED league's context is the same on every click — nothing in it
+        # depends on session state once the draft is over — so it is built once
+        # per refresh window and shared. Pre-season keeps the per-run build: the
+        # board, mock and keeper screens fold session state into it.
+        from draftkit import phase as _PH
+        _lg = get_league_phase(sel["platform"], str(sel["league_id"]), config.current_season())
+        if _lg.phase in (_PH.IN, _PH.DONE):
+            _wk = in_season_ui.current_week()
+            ctx = _ctx_cached(json.dumps(sel, sort_keys=True, default=str),
+                              in_season_ui._refresh_bucket(config.current_season(), _wk))
+        else:
+            ctx = build_context(sel)
     except EspnAuthError as e:
         st.error(str(e))
         if st.button("← Back to import"):
@@ -781,6 +801,10 @@ def main():
     # separate strip repeating things the pills already named. Folding the dots
     # into their own pill and lifting phase into this row gets it to two.
     from draftkit import phase as PH
+    _timing = _os.environ.get("DRAFTKIT_TIMING") == "1"
+    if _timing:
+        print(f"[timing] build_context {_tm.perf_counter()-_t0:.2f}s", file=_sys.stderr)
+    _t0 = _tm.perf_counter()
     lg_sum = get_league_phase(meta.platform, str(meta.league_id), config.current_season())
 
     h = ctx.get("health") or {}
@@ -898,6 +922,9 @@ def main():
                                       for lbl, _s, val, ok, warn in checks),
                             unsafe_allow_html=True)
 
+    if _timing:
+        print(f"[timing] topbar {_tm.perf_counter()-_t0:.2f}s", file=_sys.stderr)
+    _t0 = _tm.perf_counter()
     if ph_sel == "In-season":
         # DEFENSIVE against Streamlit Cloud's stale-module behaviour. Cloud reloads
         # app.py on a new commit but KEEPS already-imported submodules, so a fresh
@@ -944,8 +971,11 @@ def main():
             except Exception:  # noqa: BLE001 — an old submodule on Cloud has no _link_bar
                 pass
         if itab != "Draft":
+            _t0 = _tm.perf_counter()
             try:
                 in_season_ui.render(ctx, summary=lg_sum, tab=itab)
+                if _timing:
+                    print(f"[timing] render {itab} {_tm.perf_counter()-_t0:.2f}s", file=_sys.stderr)
             except TypeError:
                 # Same cause: an older render() has no `tab` parameter.
                 in_season_ui.render(ctx, summary=lg_sum)
