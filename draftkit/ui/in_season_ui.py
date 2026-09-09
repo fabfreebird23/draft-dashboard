@@ -133,7 +133,7 @@ def _alert(kind, icon, html) -> None:
 
 
 # ------------------------------------------------------------------ data gather
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=900, show_spinner=False)
 def _espn_rosters(league_id: str, season: int, _provider):
     """ESPN rosters, in Sleeper's shape. Cached on (league, season) — the provider
     is a leading-underscore arg so Streamlit doesn't try to hash it."""
@@ -152,7 +152,7 @@ def _live(platform: str, league_id: str, week: int, _provider):
         return {}
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=900, show_spinner=False)
 def _rosters(platform: str, league_id: str, season: int):
     """{owner_id: {players, starters, settings}} for the whole league."""
     if platform != "sleeper":
@@ -207,7 +207,34 @@ def _pick_book(platform: str, league_id: str, season: int, rounds: int, rosters_
         return {}
 
 
+def _refresh_bucket(season: int, week: int) -> int:
+    """A number that changes every 15 minutes — or every 2 while a game is on.
+
+    The tabs used to re-read rosters, projections, the panels and the schedule
+    on every click, and a click took ten seconds. Nothing on a Tuesday changes
+    in a quarter of an hour; on a Sunday afternoon the score does.
+    """
+    import time as _t
+    try:
+        live = GT.week_phase(GT.load_week(season, week)) in ("live", "late")
+    except Exception:  # noqa: BLE001
+        live = False
+    return int(_t.time() // (120 if live else 900))
+
+
 def _gather(ctx, week):
+    """Everything the tabs share, fetched once per refresh bucket (see
+    `_refresh_bucket`) — the same dict for every tab until then."""
+    season = config.current_season()
+    return _gather_cached(ctx["league_key"], week, _refresh_bucket(season, week), ctx)
+
+
+@st.cache_data(show_spinner=False, max_entries=8)
+def _gather_cached(league_key: str, week: int, bucket: int, _ctx):
+    return _gather_raw(_ctx, week)
+
+
+def _gather_raw(ctx, week):
     """Everything the tabs share, fetched once."""
     meta, reg = ctx["meta"], ctx["registry"]
     season = config.current_season()
@@ -235,7 +262,10 @@ def _gather(ctx, week):
     # actual points. Both degrade to empty; every screen below checks before use.
     games = GT.load_week(season, week)
     phase = GT.week_phase(games)
-    live = _live(meta.platform, str(meta.league_id), week, ctx["provider"]) if games else {}
+    # The one read that has to be fresh, and only while there is something to be
+    # fresh about: before kickoff it is a wasted round trip on every tab.
+    live = (_live(meta.platform, str(meta.league_id), week, ctx["provider"])
+            if (games and phase in ("live", "late", "done")) else {})
     return {"rosters": rosters, "me": me, "mine": mine, "starters": starters,
             "games": games, "phase": phase, "live": live,
             # The LINEUP, not the draft roster: in-season every question is about

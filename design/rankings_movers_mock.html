@@ -1,0 +1,113 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Rankings · movers</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141314;--panel:#1f1d1e;--panel2:#292627;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#8c8286;
+ --crimson:#ff336c;--green:#7fd8b4;--amber:#f0b357;--red:#ff8fae;--blue:#6aa6f0;--g:#5fdc8f;--y:#e7c24a;--r:#ff6b6b;
+ --fd:'Sora',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);margin:0;padding:22px 22px 70px;font-size:13px}
+h1{font-family:var(--fd);font-weight:800;font-size:24px;margin:0 0 4px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:90ch;line-height:1.5;margin:0 0 18px}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.45;margin-top:10px;max-width:90ch}
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:26px 0 10px;font-family:var(--fd);font-weight:800;font-size:16px}
+.bar i{height:1px;background:var(--line2)} .bar em{font-family:var(--fm);font-size:9.5px;font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2)}
+.ctl{display:grid;grid-template-columns:auto auto 1fr auto;gap:12px;align-items:center;padding:9px 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin:0 0 10px}
+.seg{display:flex;gap:2px;background:var(--panel2);border-radius:8px;padding:2px}
+.seg span{padding:5px 11px;border-radius:6px;font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap}
+.seg span.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+.seg.who span.on{color:var(--crimson)}
+.pos{display:flex;gap:4px}
+.pos span{font-family:var(--fm);font-size:10px;padding:4px 9px;border-radius:6px;border:1px solid var(--line2);color:var(--mut2)}
+.pos span.on{color:var(--ink);border-color:var(--mut2);background:var(--panel2)}
+.meta{font-family:var(--fm);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);text-align:right;line-height:1.6}
+.meta b{color:var(--ink);font-weight:600}
+/* the movers strip */
+.mv{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 18px}
+.mvcol{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.mvcol .hd{display:flex;justify-content:space-between;align-items:baseline;padding:10px 14px;background:var(--panel2);border-bottom:1px solid var(--line)}
+.mvcol .hd b{font-family:var(--fd);font-size:13px} .mvcol .hd span{font-family:var(--fm);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2)}
+.mvcol.up .hd b{color:var(--g)} .mvcol.dn .hd b{color:var(--r)}
+.mrow{display:grid;grid-template-columns:34px 1fr 96px 128px 150px;gap:10px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line)}
+.mrow:last-child{border-bottom:0}
+.mrow .d{font-family:var(--fd);font-weight:800;font-size:16px;text-align:center}
+.mrow .d.up{color:var(--g)} .mrow .d.dn{color:var(--r)}
+.mrow .pl b{font-size:13px;font-weight:600;display:block} .mrow .pl small{font-family:var(--fm);font-size:10px;color:var(--mut2)}
+.mrow .rk{font-family:var(--fm);font-size:11.5px;color:var(--muted);text-align:center;white-space:nowrap}
+.mrow .rk b{color:var(--ink);font-weight:600}
+.mrow .why{font-size:11px;color:var(--muted);line-height:1.35}
+.mrow .why b{color:var(--ink);font-weight:600}
+.mrow .own{font-family:var(--fm);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut2);text-align:right;white-space:nowrap}
+.mrow .own .me{color:var(--crimson)} .mrow .own .fa{color:var(--g)}
+.spark{display:inline-flex;gap:2px;align-items:flex-end;height:14px;margin-left:8px;vertical-align:-2px}
+.spark i{width:4px;background:var(--line2);border-radius:1px}
+.spark i.on{background:var(--g)} .spark i.dn{background:var(--r)}
+.mrow.mine{background:rgba(255,51,108,.05)}
+.mrow.fa{background:rgba(95,220,143,.04)}
+/* panel split chips */
+.pc{display:inline-flex;gap:4px;margin-top:3px}
+.pc span{font-family:var(--fm);font-size:8.5px;padding:1px 5px;border-radius:4px;border:1px solid var(--line2);color:var(--mut2)}
+.pc span.up{color:var(--g);border-color:rgba(95,220,143,.5)} .pc span.dn{color:var(--r);border-color:rgba(255,107,107,.5)}
+/* the window switch */
+.win{display:flex;gap:2px;background:var(--panel2);border-radius:8px;padding:2px}
+.win span{padding:4px 10px;border-radius:6px;font-family:var(--fm);font-size:10px;letter-spacing:.06em;color:var(--muted)}
+.win span.on{background:var(--panel);color:var(--ink)}
+.band{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:10px 14px;border-radius:12px;margin-bottom:10px;background:linear-gradient(90deg,rgba(255,51,108,.14),var(--panel) 55%);border:1px solid var(--line)}
+.band .k{font-family:var(--fm);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--crimson)}
+.band .t{font-weight:700;font-size:13.5px} .band .t small{display:block;font-weight:400;font-size:11.5px;color:var(--muted);margin-top:2px}
+.band .n{font-family:var(--fd);font-weight:800;font-size:20px;color:var(--amber);text-align:right;line-height:1}
+.band .n small{display:block;font-family:var(--fm);font-size:8.5px;font-weight:500;letter-spacing:.13em;text-transform:uppercase;color:var(--mut2);margin-top:3px}
+/* row badge in the main board */
+.hd2{display:grid;grid-template-columns:330px 92px 76px 76px 84px 92px 84px 72px 1fr;gap:10px;padding:0 0 8px}
+.hd2 span{font-family:var(--fm);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2);text-align:center;padding:7px 0;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
+.hd2 span:first-child{visibility:hidden} .hd2 span.on{color:var(--ink);border-color:var(--crimson);background:rgba(255,51,108,.10)}
+.row{display:grid;grid-template-columns:330px 92px 76px 76px 84px 92px 84px 72px 1fr;gap:10px;align-items:center;margin:4px 0}
+.pl2{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 14px 4px 5px}
+.pl2 .av{width:30px;height:30px;border-radius:50%;background:var(--panel2);border:2px solid #7fd8b4;flex:none}
+.pl2 b{font-size:13.5px;font-weight:600} .pl2 b small{font-family:var(--fm);font-weight:500;font-size:10px;color:var(--mut2);margin-left:6px}
+.pl2 .dl{margin-left:auto;font-family:var(--fm);font-size:10px;font-weight:600;padding:2px 7px;border-radius:5px}
+.pl2 .dl.up{color:var(--g);background:rgba(95,220,143,.12)} .pl2 .dl.dn{color:var(--r);background:rgba(255,107,107,.12)}
+.c{font-family:var(--fm);text-align:center;font-size:13px;font-weight:500;padding:7px 0;border-radius:9px;background:var(--panel)}
+.c.g{color:var(--g);background:rgba(95,220,143,.08)} .c.y{color:var(--y);background:rgba(231,194,74,.08)} .c.r{color:var(--r);background:rgba(255,107,107,.09)}
+.c sub{display:block;font-size:8.5px;color:var(--mut2);vertical-align:baseline}
+.c sub.up{color:var(--g)} .c sub.dn{color:var(--r)}
+.opp{font-family:var(--fm);text-align:center;font-size:12px} .opp small{display:block;font-size:9.5px;color:var(--mut2)}
+.own2{font-family:var(--fm);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut2);padding-left:6px}
+.own2 b{color:var(--ink)} .own2 .me{color:var(--crimson)} .own2 .fa{color:var(--g)}
+</style></head><body>
+<h1>Rankings · movers</h1>
+<p class="sub">A section at the top of Rankings that answers <b>who moved</b>. Each panel is snapshotted once a day (and again on Sunday morning after inactives), so a rise or fall is against yesterday, or against the start of the week. The point is to catch the guy the panels are quietly turning on — a rise on all three panels that the wire hasn't priced yet — and the starter they're bailing on.</p>
+
+<div class="bar"><span>Movers · above the board</span><i></i><em>risers · fallers · since yesterday or since Tuesday</em></div>
+<div class="ctl">
+ <div class="seg who"><span>All</span><span class="on">Mine + FA</span><span>Mine</span><span>Free agents</span></div>
+ <div class="pos"><span>ALL</span><span>QB</span><span>RB</span><span>WR</span><span>TE</span><span class="on">FLEX</span><span>K</span><span>DST</span></div>
+ <div style="display:flex;gap:10px;align-items:center"><span style="font-family:var(--fm);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2)">movers since</span><div class="win"><span class="on">yesterday</span><span>Tuesday</span><span>last week</span></div></div>
+ <div class="meta"><b>Babies and Boomer · week 1</b> · FLEX<br>snapshots Tue 8pm · Wed 8pm · Sun 11:30am</div>
+</div>
+
+<div class="band"><div><div class="k">Wednesday · since yesterday</div><div class="t">Two free agents climbing on every panel<small>Tyrone Tracy +9 consensus (Skattebo out for the year) · Rashid Shaheed +6 (Kupp ruled out) — both under 30% rostered, both start for you</small></div></div><div></div><div class="n">2<small>on the wire</small></div></div>
+
+<div class="mv">
+ <div class="mvcol up"><div class="hd"><b>▲ Risers</b><span>consensus rank · since yesterday</span></div>
+  <div class="mrow fa"><div class="d up">+9</div><div class="pl"><b>Tyrone Tracy</b><small>NYG · RB · vs DAL Sun 8:20</small></div><div class="rk">27 → <b>18</b><span class="spark"><i style="height:4px"></i><i style="height:5px"></i><i style="height:5px"></i><i class="on" style="height:13px"></i></span></div><div class="why"><b>Skattebo</b> out for the year · all three panels up<div class="pc"><span class="up">FP +11</span><span class="up">Flock +8</span><span class="up">Ballers +7</span></div></div><div class="own"><span class="fa">free agent</span> · +2.4 to you · 28%</div></div>
+  <div class="mrow fa"><div class="d up">+6</div><div class="pl"><b>Rashid Shaheed</b><small>SEA · WR · vs NE Wed 8:20</small></div><div class="rk">43 → <b>37</b><span class="spark"><i style="height:5px"></i><i style="height:6px"></i><i class="on" style="height:10px"></i><i class="on" style="height:13px"></i></span></div><div class="why"><b>Kupp</b> ruled out · targets go somewhere<div class="pc"><span class="up">FP +5</span><span class="up">Flock +9</span><span class="up">Ballers +4</span></div></div><div class="own"><span class="fa">free agent</span> · +1.1 to you · 24%</div></div>
+  <div class="mrow mine"><div class="d up">+4</div><div class="pl"><b>Brian Thomas Jr.</b><small>JAX · WR · vs CLE Sun 1:00</small></div><div class="rk">42 → <b>38</b><span class="spark"><i style="height:6px"></i><i style="height:6px"></i><i style="height:8px"></i><i class="on" style="height:11px"></i></span></div><div class="why">Flock alone, +9 — one analyst · rest flat<div class="pc"><span>FP 0</span><span class="up">Flock +9</span><span>Ballers +1</span></div></div><div class="own"><span class="me">you</span> · bench</div></div>
+  <div class="mrow"><div class="d up">+3</div><div class="pl"><b>Jordan Mason</b><small>MIN · RB · vs GB Sun 4:25</small></div><div class="rk">44 → <b>41</b><span class="spark"><i style="height:6px"></i><i style="height:7px"></i><i style="height:7px"></i><i class="on" style="height:9px"></i></span></div><div class="why">Ballers projection up 2.1 on the Jones news<div class="pc"><span class="up">FP +2</span><span>Flock +1</span><span class="up">Ballers +6</span></div></div><div class="own"><span class="me">you</span> · bench</div></div>
+ </div>
+ <div class="mvcol dn"><div class="hd"><b>▼ Fallers</b><span>consensus rank · since yesterday</span></div>
+  <div class="mrow mine"><div class="d dn">−7</div><div class="pl"><b>Breece Hall</b><small>NYJ · RB · @ TEN Sun 1:00 · <span style="color:var(--amber)">Q</span></small></div><div class="rk">15 → <b>22</b><span class="spark"><i style="height:13px"></i><i style="height:12px"></i><i class="dn" style="height:8px"></i><i class="dn" style="height:5px"></i></span></div><div class="why">Thigh · DNP Wednesday · <b>FP and Flock both down</b><div class="pc"><span class="dn">FP −8</span><span class="dn">Flock −9</span><span class="dn">Ballers −3</span></div></div><div class="own"><span class="me">you</span> · <b style="color:var(--ink)">starting</b> · Thomas covers</div></div>
+  <div class="mrow"><div class="d dn">−5</div><div class="pl"><b>Cooper Kupp</b><small>SEA · WR · vs NE Wed 8:20 · <span style="color:var(--r)">OUT</span></small></div><div class="rk">31 → <b>36</b><span class="spark"><i style="height:11px"></i><i style="height:11px"></i><i class="dn" style="height:6px"></i><i class="dn" style="height:3px"></i></span></div><div class="why">Ruled out · dropped from two panels entirely<div class="pc"><span class="dn">FP −6</span><span class="dn">Flock gone</span><span class="dn">Ballers −4</span></div></div><div class="own">Old Man Mike</div></div>
+  <div class="mrow"><div class="d dn">−4</div><div class="pl"><b>Jaylen Warren</b><small>PIT · RB · vs ATL Sun 1:00</small></div><div class="rk">25 → <b>29</b><span class="spark"><i style="height:9px"></i><i style="height:9px"></i><i style="height:8px"></i><i class="dn" style="height:6px"></i></span></div><div class="why">Ballers moved him behind Johnson<div class="pc"><span>FP −1</span><span>Flock −2</span><span class="dn">Ballers −9</span></div></div><div class="own">Old Man Mike</div></div>
+  <div class="mrow mine"><div class="d dn">−2</div><div class="pl"><b>Emeka Egbuka</b><small>TB · WR · @ CIN Sun 1:00 · <span style="color:var(--amber)">Q</span></small></div><div class="rk">22 → <b>24</b><span class="spark"><i style="height:9px"></i><i style="height:9px"></i><i style="height:8px"></i><i class="dn" style="height:7px"></i></span></div><div class="why">Limited Wednesday · every panel −1 to −3<div class="pc"><span class="dn">FP −3</span><span class="dn">Flock −2</span><span class="dn">Ballers −1</span></div></div><div class="own"><span class="me">you</span> · <b style="color:var(--ink)">starting</b></div></div>
+ </div>
+</div>
+<p class="note">What makes a mover worth showing: the consensus moved <b>3+ places</b> (or 10% of the position), or one panel moved 6+. The <b>why</b> line is derived, not typed: an injury status change on the player (Kupp OUT), a status change on a teammate at the same position (Skattebo → Tracy), or "one panel alone" when only one moved. Sparkline is the four snapshots of the week. Risers who are free agents and would start for you get the wire number; fallers who are your starters name the cover.</p>
+
+<div class="bar"><span>…and on the board itself</span><i></i><em>a delta under every rank · the day's move on the pill</em></div>
+<div class="hd2"><span></span><span>Opp</span><span>FP</span><span>Flock</span><span>Ballers</span><span class="on">Consensus</span><span>Spread</span><span>Proj</span><span style="text-align:left;padding-left:12px;border:0;background:none">Owner</span></div>
+<div class="row"><div class="pl2"><span class="av"></span><b>18. Tyrone Tracy<small>NYG · RB</small></b><span class="dl up">▲ 9</span></div><div class="opp">vs DAL<small>Sun 8:20</small></div><div class="c y">20<sub class="up">▲11</sub></div><div class="c y">19.8<sub class="up">▲8</sub></div><div class="c g">13<sub class="up">▲7</sub></div><div class="c y">18.3<sub class="up">▲9</sub></div><div class="c r">13–24</div><div class="c y">15.0</div><div class="own2"><b class="fa">Free agent</b> · +2.4 to your week · $12–18</div></div>
+<div class="row"><div class="pl2"><span class="av"></span><b>22. Breece Hall<small>NYJ · RB · Q</small></b><span class="dl dn">▼ 7</span></div><div class="opp">@ TEN<small>Sun 1:00</small></div><div class="c y">24<sub class="dn">▼8</sub></div><div class="c y">24.3<sub class="dn">▼9</sub></div><div class="c y">18<sub class="dn">▼3</sub></div><div class="c y">22.1<sub class="dn">▼7</sub></div><div class="c y">18–24</div><div class="c y">13.9</div><div class="own2"><b class="me">You</b> · starting</div></div>
+<div class="row"><div class="pl2"><span class="av"></span><b>25. Jaylen Warren<small>PIT · RB</small></b><span class="dl dn">▼ 4</span></div><div class="opp">vs ATL<small>Sun 1:00</small></div><div class="c y">25<sub>–</sub></div><div class="c y">27.3<sub class="dn">▼2</sub></div><div class="c r">32<sub class="dn">▼9</sub></div><div class="c y">28.1<sub class="dn">▼4</sub></div><div class="c r">25–32</div><div class="c y">12.9</div><div class="own2"><b>Old Man Mike</b></div></div>
+<p class="note">Same board as before, with the day's delta under every rank cell and the consensus move on the player pill. A "since" switch (yesterday · Tuesday · last week) drives both this and the movers section, and the movers section collapses to a one-line band ("nobody moved more than 2") on a quiet day. Snapshots are cheap — the panels are already cached to disk hourly; this keeps one copy per day per panel, ~50 KB each.</p>
+</body></html>

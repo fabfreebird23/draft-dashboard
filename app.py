@@ -881,6 +881,11 @@ def main():
                 st.button("Light mode" if dark_on else "War room", key="dark_btn",
                           use_container_width=True, on_click=_toggle_dark,
                           help="Toggle the light theme.")
+                if st.button("Refresh data", use_container_width=True, key="tb_refresh",
+                             help="Pages refresh themselves every 15 minutes (every 2 while "
+                                  "a game is on). This pulls everything now."):
+                    st.cache_data.clear()
+                    st.rerun()
                 if st.button("Home — all leagues", use_container_width=True, key="tb_home"):
                     del st.session_state.league
                     st.rerun()

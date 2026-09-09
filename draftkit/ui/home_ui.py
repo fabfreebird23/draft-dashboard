@@ -163,8 +163,16 @@ def render(presets, on_pick, board_age_fn=None) -> None:
                 _render_quiet(preset, s, on_pick)
 
 
-@st.cache_data(ttl=120, show_spinner=False)
 def _pulses(presets_json: str, week: int):
+    """Every league's week, on the same refresh clock the league pages use —
+    15 minutes, or 2 while a game is on."""
+    from .in_season_ui import _refresh_bucket
+    from .. import config
+    return _pulses_cached(presets_json, week, _refresh_bucket(config.current_season(), week))
+
+
+@st.cache_data(show_spinner=False, max_entries=4)
+def _pulses_cached(presets_json: str, week: int, bucket: int):
     """Every league's week, cached two minutes — the one Home read that must be
     fresh on a Sunday and cheap on a Tuesday. The leagues load IN PARALLEL: each
     is four to eight seconds of host round trips, and four in a row is a Home
