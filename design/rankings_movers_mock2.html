@@ -1,0 +1,108 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Rankings · movers · small</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141314;--panel:#1f1d1e;--panel2:#292627;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#8c8286;
+ --crimson:#ff336c;--green:#7fd8b4;--amber:#f0b357;--red:#ff8fae;--blue:#6aa6f0;--g:#5fdc8f;--y:#e7c24a;--r:#ff6b6b;
+ --fd:'Sora',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);margin:0;padding:22px 22px 70px;font-size:13px}
+h1{font-family:var(--fd);font-weight:800;font-size:24px;margin:0 0 4px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:90ch;line-height:1.5;margin:0 0 18px}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.45;margin-top:10px;max-width:90ch}
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:26px 0 10px;font-family:var(--fd);font-weight:800;font-size:16px}
+.bar i{height:1px;background:var(--line2)} .bar em{font-family:var(--fm);font-size:9.5px;font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2)}
+.ctl{display:grid;grid-template-columns:auto auto 1fr auto;gap:12px;align-items:center;padding:9px 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin:0 0 8px}
+.seg{display:flex;gap:2px;background:var(--panel2);border-radius:8px;padding:2px}
+.seg span{padding:5px 11px;border-radius:6px;font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap}
+.seg span.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+.seg.who span.on{color:var(--crimson)}
+.pos{display:flex;gap:4px}
+.pos span{font-family:var(--fm);font-size:10px;padding:4px 9px;border-radius:6px;border:1px solid var(--line2);color:var(--mut2)}
+.pos span.on{color:var(--ink);border-color:var(--mut2);background:var(--panel2)}
+.pos span.mv{color:var(--amber);border-color:rgba(240,179,87,.5)}
+.pos span.mv.on{color:var(--ink);background:rgba(240,179,87,.15);border-color:var(--amber)}
+.meta{font-family:var(--fm);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);text-align:right;line-height:1.6}
+.meta b{color:var(--ink);font-weight:600}
+/* A · the ticker */
+.tick{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:10px;background:var(--panel);border:1px solid var(--line);margin:0 0 10px;overflow:hidden;white-space:nowrap}
+.tick .k{font-family:var(--fm);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2);margin-right:4px;flex:none}
+.tick .k b{color:var(--ink);font-weight:600}
+.tick a{font-family:var(--fm);font-size:10.5px;padding:3px 8px;border-radius:6px;border:1px solid var(--line2);color:var(--ink);text-decoration:none;flex:none}
+.tick a.up{border-color:rgba(95,220,143,.45)} .tick a.dn{border-color:rgba(255,107,107,.45)}
+.tick a b{font-weight:600} .tick a .up{color:var(--g)} .tick a .dn{color:var(--r)}
+.tick a small{color:var(--mut2);margin-left:5px;font-size:9.5px}
+.tick a.me{background:rgba(255,51,108,.07)} .tick a.fa{background:rgba(95,220,143,.06)}
+.tick .more{margin-left:auto;font-family:var(--fm);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--crimson);flex:none}
+.tick .win{display:inline-flex;gap:2px;margin-left:6px}
+.tick .win span{font-family:var(--fm);font-size:8.5px;padding:2px 6px;border-radius:5px;color:var(--mut2)}
+.tick .win span.on{background:var(--panel2);color:var(--ink)}
+/* the board */
+.hd2{display:grid;grid-template-columns:330px 92px 76px 76px 84px 92px 84px 72px 1fr;gap:10px;padding:0 0 8px}
+.hd2 span{font-family:var(--fm);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2);text-align:center;padding:7px 0;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
+.hd2 span:first-child{visibility:hidden} .hd2 span.on{color:var(--ink);border-color:var(--crimson);background:rgba(255,51,108,.10)}
+.hd2 span.lbl{text-align:left;padding-left:12px;border:0;background:none}
+.row{display:grid;grid-template-columns:330px 92px 76px 76px 84px 92px 84px 72px 1fr;gap:10px;align-items:center;margin:4px 0}
+.pl2{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 14px 4px 5px}
+.pl2 .av{width:30px;height:30px;border-radius:50%;background:var(--panel2);border:2px solid #7fd8b4;flex:none}
+.pl2 b{font-size:13.5px;font-weight:600} .pl2 b small{font-family:var(--fm);font-weight:500;font-size:10px;color:var(--mut2);margin-left:6px}
+.pl2 .dl{margin-left:auto;font-family:var(--fm);font-size:10px;font-weight:600;padding:2px 7px;border-radius:5px}
+.pl2 .dl.up{color:var(--g);background:rgba(95,220,143,.12)} .pl2 .dl.dn{color:var(--r);background:rgba(255,107,107,.12)}
+.row.me .pl2{background:rgba(255,51,108,.07);border-color:rgba(255,51,108,.35)} .row.fa .pl2{border-color:rgba(95,220,143,.35)}
+.c{font-family:var(--fm);text-align:center;font-size:13px;font-weight:500;padding:5px 0 4px;border-radius:9px;background:var(--panel);line-height:1.1}
+.c.g{color:var(--g);background:rgba(95,220,143,.08)} .c.y{color:var(--y);background:rgba(231,194,74,.08)} .c.r{color:var(--r);background:rgba(255,107,107,.09)}
+.c sub{display:block;font-size:8.5px;color:var(--mut2);vertical-align:baseline;margin-top:1px}
+.c sub.up{color:var(--g)} .c sub.dn{color:var(--r)}
+.c.mvc{font-family:var(--fd);font-weight:800;font-size:15px}
+.opp{font-family:var(--fm);text-align:center;font-size:12px} .opp small{display:block;font-size:9.5px;color:var(--mut2)}
+.own2{font-family:var(--fm);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut2);padding-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.own2 b{color:var(--ink)} .own2 .me{color:var(--crimson)} .own2 .fa{color:var(--g)}
+.why{font-size:11px;color:var(--muted);padding-left:6px;line-height:1.3} .why b{color:var(--ink);font-weight:600}
+.tier{display:grid;grid-template-columns:330px 1fr;gap:10px;margin:8px 0 4px}
+.tier .band{border-radius:999px;padding:5px 12px;font-family:var(--fd);font-weight:800;font-size:14px;color:#141314;background:#f5a04a}
+.tier .band em{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;background:rgba(0,0,0,.35);color:#fff;font-style:normal;font-size:12px;margin-right:8px}
+.tier .band small{font-family:var(--fm);font-weight:500;font-size:9px;letter-spacing:.1em;text-transform:uppercase;margin-left:10px;opacity:.75}
+.tier i{border-top:1px dashed var(--line2);margin-top:14px}
+</style></head><body>
+<h1>Rankings · movers, small</h1>
+<p class="sub">Two ways that don't cost the board its screen. <b>A</b> is a one-line ticker under the control strip — the biggest moves as chips, ~36px tall, click one to jump to the row. <b>B</b> makes <b>Movers</b> a position pill: click it and the board itself becomes the movers list, sorted by the size of the move, with the day's delta under every rank and a one-line why in the owner column. Both share the "since" switch. Either way every rank cell on the normal board carries its delta.</p>
+
+<div class="bar"><span>A · the ticker</span><i></i><em>one line · biggest moves · click to jump</em></div>
+<div class="ctl">
+ <div class="seg who"><span>All</span><span class="on">Mine + FA</span><span>Mine</span><span>Free agents</span></div>
+ <div class="pos"><span>ALL</span><span>QB</span><span>RB</span><span>WR</span><span>TE</span><span class="on">FLEX</span><span>K</span><span>DST</span></div>
+ <div></div>
+ <div class="meta"><b>Babies and Boomer · week 1</b> · FLEX<br>FP 8 · Flock 6 · Ballers 3</div>
+</div>
+<div class="tick"><span class="k"><b>Movers</b> · since yesterday<span class="win"><span class="on">1d</span><span>Tue</span><span>wk</span></span></span>
+ <a class="up fa"><b>Tracy</b> <span class="up">▲9</span><small>Skattebo out · FA +2.4</small></a>
+ <a class="up fa"><b>Shaheed</b> <span class="up">▲6</span><small>Kupp out · FA +1.1</small></a>
+ <a class="dn me"><b>Hall</b> <span class="dn">▼7</span><small>DNP · your RB</small></a>
+ <a class="dn"><b>Kupp</b> <span class="dn">▼5</span><small>OUT</small></a>
+ <a class="up me"><b>Thomas Jr.</b> <span class="up">▲4</span><small>Flock only</small></a>
+ <a class="dn"><b>Warren</b> <span class="dn">▼4</span><small>Ballers</small></a>
+ <a class="dn me"><b>Egbuka</b> <span class="dn">▼2</span><small>limited</small></a>
+ <span class="more">all 11 ↗</span></div>
+<div class="hd2"><span></span><span>Opp</span><span>FP</span><span>Flock</span><span>Ballers</span><span class="on">Consensus</span><span>Spread</span><span>Proj</span><span class="lbl">Owner</span></div>
+<div class="tier"><div class="band"><em>A</em>Tier 2<small>start without thinking</small></div><i></i></div>
+<div class="row me"><div class="pl2"><span class="av"></span><b>3. De'Von Achane<small>MIA · RB</small></b></div><div class="opp">@ LV<small>Sun 4:25</small></div><div class="c g">4<sub>–</sub></div><div class="c g">7.2<sub class="up">▲1</sub></div><div class="c g">6<sub>–</sub></div><div class="c g">5.7<sub>–</sub></div><div class="c g">4–7</div><div class="c g">17.5</div><div class="own2"><b class="me">You</b> · starting</div></div>
+<div class="row fa"><div class="pl2"><span class="av"></span><b>18. Tyrone Tracy<small>NYG · RB</small></b><span class="dl up">▲ 9</span></div><div class="opp">vs DAL<small>Sun 8:20</small></div><div class="c y">20<sub class="up">▲11</sub></div><div class="c y">19.8<sub class="up">▲8</sub></div><div class="c g">13<sub class="up">▲7</sub></div><div class="c y">18.3<sub class="up">▲9</sub></div><div class="c r">13–24</div><div class="c y">15.0</div><div class="own2"><b class="fa">Free agent</b> · +2.4 to your week · $12–18</div></div>
+<div class="row me"><div class="pl2"><span class="av"></span><b>22. Breece Hall<small>NYJ · RB · Q</small></b><span class="dl dn">▼ 7</span></div><div class="opp">@ TEN<small>Sun 1:00</small></div><div class="c y">24<sub class="dn">▼8</sub></div><div class="c y">24.3<sub class="dn">▼9</sub></div><div class="c y">18<sub class="dn">▼3</sub></div><div class="c y">22.1<sub class="dn">▼7</sub></div><div class="c y">18–24</div><div class="c y">13.9</div><div class="own2"><b class="me">You</b> · starting</div></div>
+<p class="note">The ticker shows at most eight chips, sorted by |move|, tinted by who owns him (crimson = yours, green = free agent). On a quiet day it reads "Movers · nobody moved more than 2" in one line. "All 11 ↗" switches to view B.</p>
+
+<div class="bar"><span>B · Movers as a view of the board</span><i></i><em>a pill next to the positions · same board, sorted by the move</em></div>
+<div class="ctl">
+ <div class="seg who"><span>All</span><span class="on">Mine + FA</span><span>Mine</span><span>Free agents</span></div>
+ <div class="pos"><span>ALL</span><span>QB</span><span>RB</span><span>WR</span><span>TE</span><span>FLEX</span><span>K</span><span>DST</span><span class="mv on">▲▼ Movers</span></div>
+ <div style="display:flex;gap:8px;align-items:center;font-family:var(--fm);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2)">since <span class="seg" style="padding:2px"><span class="on" style="padding:3px 9px;font-size:10px">yesterday</span><span style="padding:3px 9px;font-size:10px">Tuesday</span><span style="padding:3px 9px;font-size:10px">last week</span></span></div>
+ <div class="meta"><b>Babies and Boomer · week 1</b> · movers · 11<br>snapshots Tue 8pm · Wed 8pm · Sun 11:30am</div>
+</div>
+<div class="hd2"><span></span><span>Opp</span><span>FP</span><span>Flock</span><span>Ballers</span><span class="on">Move</span><span>Now</span><span>Proj</span><span class="lbl">Why · Owner</span></div>
+<div class="row fa"><div class="pl2"><span class="av"></span><b>Tyrone Tracy<small>NYG · RB</small></b></div><div class="opp">vs DAL<small>Sun 8:20</small></div><div class="c"><sub class="up" style="font-size:11px">▲11</sub></div><div class="c"><sub class="up" style="font-size:11px">▲8</sub></div><div class="c"><sub class="up" style="font-size:11px">▲7</sub></div><div class="c g mvc">▲ 9</div><div class="c y">27 → 18</div><div class="c y">15.0</div><div class="why"><b>Skattebo</b> out for the year · all three up · <span style="color:var(--g)">free agent · +2.4 · $12–18</span></div></div>
+<div class="row me"><div class="pl2"><span class="av"></span><b>Breece Hall<small>NYJ · RB · Q</small></b></div><div class="opp">@ TEN<small>Sun 1:00</small></div><div class="c"><sub class="dn" style="font-size:11px">▼8</sub></div><div class="c"><sub class="dn" style="font-size:11px">▼9</sub></div><div class="c"><sub class="dn" style="font-size:11px">▼3</sub></div><div class="c r mvc">▼ 7</div><div class="c y">15 → 22</div><div class="c y">13.9</div><div class="why">Thigh · DNP Wed · FP and Flock both down · <span style="color:var(--crimson)">you · starting · Thomas covers</span></div></div>
+<div class="row fa"><div class="pl2"><span class="av"></span><b>Rashid Shaheed<small>SEA · WR</small></b></div><div class="opp">vs NE<small>Wed 8:20</small></div><div class="c"><sub class="up" style="font-size:11px">▲5</sub></div><div class="c"><sub class="up" style="font-size:11px">▲9</sub></div><div class="c"><sub class="up" style="font-size:11px">▲4</sub></div><div class="c g mvc">▲ 6</div><div class="c y">43 → 37</div><div class="c y">11.2</div><div class="why"><b>Kupp</b> ruled out · <span style="color:var(--g)">free agent · +1.1 · $8–12</span></div></div>
+<div class="row"><div class="pl2"><span class="av"></span><b>Cooper Kupp<small>SEA · WR · OUT</small></b></div><div class="opp">vs NE<small>Wed 8:20</small></div><div class="c"><sub class="dn" style="font-size:11px">▼6</sub></div><div class="c"><sub class="dn" style="font-size:11px">gone</sub></div><div class="c"><sub class="dn" style="font-size:11px">▼4</sub></div><div class="c r mvc">▼ 5</div><div class="c y">31 → 36</div><div class="c r">0.0</div><div class="why">Ruled out · dropped from Flock · Old Man Mike</div></div>
+<div class="row me"><div class="pl2"><span class="av"></span><b>Brian Thomas Jr.<small>JAX · WR</small></b></div><div class="opp">vs CLE<small>Sun 1:00</small></div><div class="c"><sub style="font-size:11px">–</sub></div><div class="c"><sub class="up" style="font-size:11px">▲9</sub></div><div class="c"><sub class="up" style="font-size:11px">▲1</sub></div><div class="c g mvc">▲ 4</div><div class="c y">42 → 38</div><div class="c y">10.5</div><div class="why">Flock alone · one analyst · <span style="color:var(--crimson)">you · bench</span></div></div>
+<div class="row"><div class="pl2"><span class="av"></span><b>Jaylen Warren<small>PIT · RB</small></b></div><div class="opp">vs ATL<small>Sun 1:00</small></div><div class="c"><sub class="dn" style="font-size:11px">▼1</sub></div><div class="c"><sub class="dn" style="font-size:11px">▼2</sub></div><div class="c"><sub class="dn" style="font-size:11px">▼9</sub></div><div class="c r mvc">▼ 4</div><div class="c y">25 → 29</div><div class="c y">12.9</div><div class="why">Ballers moved him behind Johnson · Old Man Mike</div></div>
+<p class="note">Same grid, same columns, so nothing new to learn: the rank cells show the per-panel move instead of the rank, Consensus becomes <b>Move</b>, Spread becomes <b>Now</b> (was → is), and the owner column gets the derived why. A mover is a consensus move of 3+ (or 10% of the position) or one panel moving 6+. Ticker A and view B can coexist — A is the glance, B the list.</p>
+</body></html>

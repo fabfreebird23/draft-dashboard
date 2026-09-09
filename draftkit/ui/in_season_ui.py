@@ -411,13 +411,12 @@ def render(ctx, summary=None, tab="Command Center") -> None:
 
 def _top_claim(ctx, g):
     """The one waiver add worth making, or None. Cheap enough to sit on the
-    Command Center because it reuses the Waivers tab's own maths."""
+    Command Center because it reuses the Waivers tab's own (cached) board."""
     meta, reg = ctx["meta"], ctx["registry"]
     try:
         taken = {p for r in g["rosters"].values() for p in r["players"]}
-        fas = inseason.free_agents(meta, reg, g["proj"], taken, limit=60, ecr=g.get("ros"))
-        board = W.waiver_board(g["mine"], g["slots"], g["proj"], reg, fas,
-                               byes=g["byes"], week=g["week"], limit=3, ecr=g.get("ros"))
+        board = _waiver_board_cached(ctx["league_key"], g["week"],
+                                     _refresh_bucket(g["season"], g["week"]), ctx, g, taken)
         # under a point it is a tiebreak, not a claim — the Waivers tab lists those
         top = next((r for r in board if r["gain"] >= 1.0), None)
         if not top:
@@ -1411,20 +1410,27 @@ def _esc_(s) -> str:
 
 
 # ------------------------------------------------------------------- 2 waivers
-def _waivers(ctx, g) -> None:
-    meta, reg = ctx["meta"], ctx["registry"]
-    taken = {p for r in g["rosters"].values() for p in r["players"]}
+@st.cache_data(show_spinner=False, max_entries=8)
+def _waiver_board_cached(league_key: str, week: int, bucket: int, _ctx, _g, _taken):
+    meta, reg = _ctx["meta"], _ctx["registry"]
     # ROS consensus picks the candidate pool, weekly consensus breaks ties on the
     # board: who is worth rostering is a rest-of-season question, who helps you on
     # Sunday is a weekly one.
-    fas = inseason.free_agents(meta, reg, g["proj"], taken, limit=60,
-                               ecr=g.get("ros"))
+    fas = inseason.free_agents(meta, reg, _g["proj"], _taken, limit=60, ecr=_g.get("ros"))
     # ROS for the tiebreak too, NOT the weekly map: rest-of-season is one list
     # covering every position, so its ranks can be compared to each other. The
     # weekly ranks cannot — see ecr._row's "scale".
-    board = W.waiver_board(g["mine"], g["slots"], g["proj"], reg, fas,
-                           byes=g["byes"], week=g["week"], limit=14,
-                           ecr=g.get("ros"))
+    return W.waiver_board(_g["mine"], _g["slots"], _g["proj"], reg, fas,
+                          byes=_g["byes"], week=_g["week"], limit=14, ecr=_g.get("ros"))
+
+
+def _waivers(ctx, g) -> None:
+    meta, reg = ctx["meta"], ctx["registry"]
+    taken = {p for r in g["rosters"].values() for p in r["players"]}
+    # The board is the slow part of this tab (an optimiser pass per free agent),
+    # so it rides the same refresh clock as the data it is built from.
+    board = _waiver_board_cached(ctx["league_key"], g["week"],
+                                 _refresh_bucket(g["season"], g["week"]), ctx, g, taken)
     fa = inseason.faab(meta) or {}
     budget = int(fa.get("budget") or 0)
     spent = int((fa.get("by_owner") or {}).get(str(g["me"]), 0) or 0)
