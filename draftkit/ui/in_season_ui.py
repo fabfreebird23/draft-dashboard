@@ -820,6 +820,11 @@ def _panels(ctx, g) -> dict:
                           f'{meta.platform}_{meta.league_id}')
     except Exception:  # noqa: BLE001
         out["ffb"] = {}
+    # today's copy of each panel, once — movers are a diff of these
+    try:
+        P.snapshot_all(g["season"], g["week"], out)
+    except Exception:  # noqa: BLE001
+        pass
     return out
 
 
@@ -1134,7 +1139,8 @@ def _lineup(ctx, g) -> None:
 # ------------------------------------------------------------- 1c rankings
 _RK_SRC = ["Consensus", "FantasyPros", "Flock", "The Ballers"]
 _RK_WHO = ["Mine + FA", "All", "Mine", "Free agents"]
-_RK_POS = ["ALL", "QB", "RB", "WR", "TE", "FLEX", "K", "DST"]
+_RK_POS = ["ALL", "QB", "RB", "WR", "TE", "FLEX", "K", "DST", "▲▼ Movers"]
+_RK_SINCE = [("yesterday", "1d"), ("week", "Tue"), ("last", "wk")]
 # Tier cuts by how deep the position is: a WR22 is a WR2, a TE22 is a bench man.
 _TIERS_DEEP = ((5, "S", "elite"), (12, "A", "start without thinking"),
                (24, "B", "solid start · flex"), (36, "C", "flex call · bench"),
@@ -1191,19 +1197,31 @@ def _rankings(ctx, g) -> None:
     skey = f"rk_src_{lk}"
     st.session_state.setdefault(skey, "Consensus")
     src = st.session_state[skey]
+    from .. import panels as P
     with st.container(key="rk_ctl"):
-        c = st.columns([1.6, 2.4, 1.2])
+        c = st.columns([1.6, 2.9, 0.9, 0.9])
         who = c[0].segmented_control("Who", _RK_WHO, key=f"rk_who_{lk}", selection_mode="single",
                                      label_visibility="collapsed") or _RK_WHO[0]
-        c = [None] + list(c)
         # FLEX by default: the cross-position list is the one a lineup or a
         # claim is decided from. ALL is every position by projection.
         st.session_state.setdefault(f"rk_pos_{lk}", "FLEX")
-        pos = c[2].segmented_control("Pos", _RK_POS, key=f"rk_pos_{lk}", selection_mode="single",
+        pos = c[1].segmented_control("Pos", _RK_POS, key=f"rk_pos_{lk}", selection_mode="single",
                                      label_visibility="collapsed") or "FLEX"
+        _since_labels = [b for _a, b in _RK_SINCE]
+        st.session_state.setdefault(f"rk_since_{lk}", "1d")
+        since_lab = c[2].segmented_control("Since", _since_labels, key=f"rk_since_{lk}",
+                                           selection_mode="single", label_visibility="collapsed",
+                                           help="Movers since: yesterday · Tuesday · last week") or "1d"
+        since = next(a for a, b in _RK_SINCE if b == since_lab)
         limit = c[3].selectbox("Rows", [40, 80, 150, 400], key=f"rk_n_{lk}",
                                label_visibility="collapsed",
                                format_func=lambda n: f"top {n}")
+    movers_view = pos == "▲▼ Movers"
+    if movers_view:
+        pos = "FLEX"
+    # a click on a mover chip parks the pid here; the board scrolls to him
+    fkey = f"rk_focus_{lk}"
+    focus = st.session_state.get(fkey)
 
     # ---- ownership, the league lens -----------------------------------------
     owner_of = {}
@@ -1266,6 +1284,18 @@ def _rankings(ctx, g) -> None:
     all_view = pos == "ALL"
     if all_view:
         cross = False
+    # ---- the day's moves, per panel and on average ----------------------------
+    try:
+        mv = P.movers(g["season"], g["week"], pn, since=since, cross=cross)
+        base_day = P.baseline_day("flock", g["season"], g["week"], since) or \
+            P.baseline_day("fp", g["season"], g["week"], since)
+    except Exception:  # noqa: BLE001
+        mv, base_day = {}, None
+    for r in rows:
+        r["mv"] = mv.get(r["pid"])
+    if movers_view:
+        _depth = 30
+        rows = [r for r in rows if P.is_mover(r.get("mv"), _depth)]
     for r in rows:
         vals = [v for v in (r["ov"] if cross else r["pr"]).values() if v is not None]
         r["cons"] = (sum(vals) / len(vals)) if vals else None
@@ -1277,6 +1307,9 @@ def _rankings(ctx, g) -> None:
                "Proj": "proj"}[src]
 
     def _sort_val(r):
+        if movers_view:
+            m = r.get("mv") or {}
+            return (m.get("cons") is None, -abs(m.get("cons") or 0), -r["proj"])
         if all_view or key_src == "proj":
             return (False, -r["proj"], 0.0)
         if key_src == "cons":
@@ -1307,12 +1340,43 @@ def _rankings(ctx, g) -> None:
 
     # ---- render ---------------------------------------------------------------
     lit = "proj" if (all_view or key_src == "proj") else key_src
+    # ---- the ticker: the biggest moves, one line, click to jump ---------------
+    _tick = sorted((r for r in rows if r.get("mv") and P.is_mover(r["mv"])),
+                   key=lambda r: -abs((r["mv"].get("cons") or 0)))[:8]
+    _since_txt = {"yesterday": "since yesterday", "week": "since Tuesday", "last": "since last week"}[since]
+    if not movers_view:
+        with st.container(key="rk_tick"):
+            if base_day is None:
+                st.markdown(f'<div class="rk-tk"><span class="k"><b>Movers</b> · first snapshot today — '
+                            f'moves show from tomorrow</span></div>', unsafe_allow_html=True)
+            elif not _tick:
+                st.markdown(f'<div class="rk-tk"><span class="k"><b>Movers</b> · {_since_txt} · '
+                            f'nobody moved more than 2</span></div>', unsafe_allow_html=True)
+            else:
+                tc = st.columns([1.3] + [1] * len(_tick) + [0.7])
+                tc[0].markdown(f'<div class="rk-tk"><span class="k"><b>Movers</b> · {_since_txt}</span></div>',
+                               unsafe_allow_html=True)
+                for col, r in zip(tc[1:], _tick):
+                    m = r["mv"]
+                    d = m.get("cons") or 0
+                    lab = f'{"▲" if d > 0 else "▼"}{abs(d):.0f} {r["name"].split()[-1]}'
+                    if col.button(lab, key=f"rk_tk_{lk}_{r['pid']}", use_container_width=True,
+                                  help=f'{r["name"]} · {_why(r, mv, rows)}',
+                                  type="primary" if r["owner"] == me else "secondary"):
+                        st.session_state[fkey] = r["pid"]
+                        st.rerun()
+                if tc[-1].button("all ↗", key=f"rk_tk_all_{lk}", use_container_width=True):
+                    st.session_state[f"rk_pos_{lk}"] = "▲▼ Movers"
+                    st.rerun()
     # The header row is real buttons in columns of the SAME weights as the
     # board's grid, so they sit over their columns. Opp, Spread and Owner are
     # labels; the rest switch the source.
     head = (("", None), ("Opp", None), ("FP", "FantasyPros"), ("Flock", "Flock"),
             ("Ballers", "The Ballers"), ("Consensus", "Consensus"), ("Spread", None),
             ("Proj", "Proj"), ("Owner", None))
+    if movers_view:
+        head = (("", None), ("Opp", None), ("FP Δ", None), ("Flock Δ", None), ("Ballers Δ", None),
+                ("Move", None), ("Was → now", None), ("Proj", None), ("Why · Owner", None))
     _lit_label = {"fp": "FantasyPros", "flock": "Flock", "ffb": "The Ballers",
                   "cons": "Consensus", "proj": "Proj"}[lit]
     with st.container(key="rk_hd"):
@@ -1320,7 +1384,8 @@ def _rankings(ctx, g) -> None:
         for col, (label, source) in zip(hc, head):
             with col:
                 if source is None:
-                    st.markdown(f'<div class="rk-hl{" lbl" if label == "Owner" else ""}">{label}</div>',
+                    st.markdown(f'<div class="rk-hl{" lbl" if label in ("Owner", "Why · Owner") else ""}'
+                                f'{" on" if label == "Move" else ""}">{label}</div>',
                                 unsafe_allow_html=True)
                     continue
                 on = source == _lit_label
@@ -1331,7 +1396,8 @@ def _rankings(ctx, g) -> None:
                     st.session_state[skey] = source
                     st.rerun()
     st.markdown(_day_line(g, list(zip(g["slots"], g.get("starters") or [])), reg)
-                .replace("</div>", f' · sorted by <b>{_lit_label if not all_view else "projection"}</b> · {pos} · {who} · {min(limit, total)} of {total}</div>'),
+                .replace("</div>", (f' · <b>movers {_since_txt}</b> · {total}' if movers_view else
+                                    f' · sorted by <b>{_lit_label if not all_view else "projection"}</b> · {pos} · {who} · {min(limit, total)} of {total}') + '</div>'),
                 unsafe_allow_html=True)
     out = ['<div class="rk">']
     tiers = (_TIERS_ALL if (cross or all_view)
@@ -1356,22 +1422,55 @@ def _rankings(ctx, g) -> None:
         pool_key = (r["pos"] if not cross else "*")
         vals = r["ov"] if cross else r["pr"]
 
+        m = r.get("mv") or {}
+
+        def dsub(k):
+            d = (m.get("d") or {}).get(k)
+            if k in (m.get("gone") or []):
+                return '<sub class="dn">gone</sub>'
+            if k in (m.get("new") or []):
+                return '<sub class="up">new</sub>'
+            if d is None or abs(d) < 0.5:
+                return ""
+            return f'<sub class="{"up" if d > 0 else "dn"}">{"▲" if d > 0 else "▼"}{abs(d):.0f}</sub>'
+
+        def dcell(k):
+            d = (m.get("d") or {}).get(k)
+            if k in (m.get("gone") or []):
+                return '<div class="c r">gone</div>'
+            if k in (m.get("new") or []):
+                return '<div class="c g">new</div>'
+            if d is None:
+                return '<div class="c dim">—</div>'
+            if abs(d) < 0.5:
+                return '<div class="c dim">–</div>'
+            return f'<div class="c {"g" if d > 0 else "r"}">{"▲" if d > 0 else "▼"}{abs(d):.0f}</div>'
+
         def cell(k, v, fmt="{:.0f}"):
             if v is None:
                 return '<div class="c dim">—</div>'
             return (f'<div class="c {_third(v, pools.get((pool_key, k), []))}'
-                    f'{" sort" if k == lit else ""}">{fmt.format(v)}</div>')
-        fp_c = cell("fp", vals["fp"])
-        fl_c = cell("flock", vals["flock"], "{:.1f}" if not cross else "{:.0f}")
-        fb_c = (f'<div class="c {_third(vals["ffb"], pools.get((pool_key, "ffb"), []))}{" sort" if lit == "ffb" else ""}">'
-                f'{vals["ffb"]:.0f}<small>{r["pts"]:.1f}</small></div>'
-                if vals["ffb"] is not None else '<div class="c dim">—</div>')
-        cons_c = cell("cons", r["cons"], "{:.1f}")
-        if r["n"] >= 2:
-            wide = (r["worst"] - r["best"]) > max(4.0, 0.35 * (r["cons"] or 0))
-            sp = f'<div class="c {"r" if wide else "g"}">{r["best"]:.0f}–{r["worst"]:.0f}</div>'
+                    f'{" sort" if k == lit else ""}">{fmt.format(v)}{dsub(k)}</div>')
+        if movers_view:
+            fp_c, fl_c, fb_c = dcell("fp"), dcell("flock"), dcell("ffb")
+            dc = m.get("cons")
+            cons_c = (f'<div class="c mvc {"g" if dc > 0 else "r"}">{"▲" if dc > 0 else "▼"} {abs(dc):.0f}</div>'
+                      if dc is not None else '<div class="c dim">—</div>')
+            sp = (f'<div class="c y">{m["was_avg"]:.0f} → {m["now_avg"]:.0f}</div>'
+                  if m.get("was_avg") is not None and m.get("now_avg") is not None else '<div class="c dim">—</div>')
         else:
-            sp = '<div class="c dim">—</div>'
+            fp_c = cell("fp", vals["fp"])
+            fl_c = cell("flock", vals["flock"], "{:.1f}" if not cross else "{:.0f}")
+            fb_c = (f'<div class="c {_third(vals["ffb"], pools.get((pool_key, "ffb"), []))}{" sort" if lit == "ffb" else ""}">'
+                    f'{vals["ffb"]:.0f}<small>{r["pts"]:.1f}</small>{dsub("ffb")}</div>'
+                    if vals["ffb"] is not None else '<div class="c dim">—</div>')
+            cons_c = cell("cons", r["cons"], "{:.1f}").replace("</div>", dsub_cons(m) + "</div>") \
+                if r["cons"] is not None else '<div class="c dim">—</div>'
+            if r["n"] >= 2:
+                wide = (r["worst"] - r["best"]) > max(4.0, 0.35 * (r["cons"] or 0))
+                sp = f'<div class="c {"r" if wide else "g"}">{r["best"]:.0f}–{r["worst"]:.0f}</div>'
+            else:
+                sp = '<div class="c dim">—</div>'
         proj_c = (f'<div class="c {_third(-r["proj"], pools.get((pool_key, "proj"), []))}'
                   f'{" sort" if lit == "proj" else ""}">{r["proj"]:.1f}</div>')
         # owner
@@ -1390,13 +1489,28 @@ def _rankings(ctx, g) -> None:
                                                     else ' · no upgrade')
         inj = (f'<small style="color:var(--amber)"> {r["inj"]["status"][:1].upper()}</small>'
                if r["inj"].get("status") else "")
+        dc = m.get("cons")
+        badge = (f'<span class="dl {"up" if dc > 0 else "dn"}">{"▲" if dc > 0 else "▼"} {abs(dc):.0f}</span>'
+                 if (dc is not None and abs(dc) >= 3 and not movers_view) else "")
+        if movers_view:
+            own = f'{_esc_(_why(r, mv, rows))} · ' + own
+        is_focus = focus and str(focus) == r["pid"]
         out.append(
-            f'<div class="rk-row {cls}"><div class="pl">{_T.img_tag(r["pid"], "")}'
-            f'<b>{idx}. {_esc_(r["name"])}<small>{_esc_(r["team"])}{" · " + r["pos"] if cross else ""}{inj}</small></b>{tag}</div>'
+            f'<div class="rk-row {cls}{" focus" if is_focus else ""}" id="rk-{r["pid"]}"><div class="pl">{_T.img_tag(r["pid"], "")}'
+            f'<b>{idx}. {_esc_(r["name"])}<small>{_esc_(r["team"])}{" · " + r["pos"] if (cross or movers_view) else ""}{inj}</small></b>{badge}{tag}</div>'
             f'<div class="opp{" early" if early else ""}">{_esc_(opp)}<small>{_esc_(k_lab)}</small></div>'
             f'{fp_c}{fl_c}{fb_c}{cons_c}{sp}{proj_c}<div class="own">{own}</div></div>')
     out.append("</div>")
     st.markdown("".join(out), unsafe_allow_html=True)
+    if focus:
+        # Scroll the page to the man he clicked. A markdown block cannot run a
+        # script; a components iframe can, and it is same-origin with the app.
+        import streamlit.components.v1 as _cmp
+        _cmp.html(f"""<script>
+          const el = window.parent.document.getElementById("rk-{focus}");
+          if (el) el.scrollIntoView({{behavior: "smooth", block: "center"}});
+        </script>""", height=0)
+        st.session_state.pop(fkey, None)
     _n = {"fp": len(fp), "flock": len(fl), "ffb": len(fb)}
     st.caption(f"Colour is by third of the position on each column — a yellow 22 at WR is a WR2, not a "
                f"warning. **Spread** is best–worst across the panels, red when they disagree. "
@@ -1407,6 +1521,36 @@ def _rankings(ctx, g) -> None:
 
 def _esc_(s) -> str:
     return C._esc(s)
+
+
+def dsub_cons(m: dict) -> str:
+    d = (m or {}).get("cons")
+    if d is None or abs(d) < 0.5:
+        return ""
+    return f'<sub class="{"up" if d > 0 else "dn"}">{"▲" if d > 0 else "▼"}{abs(d):.0f}</sub>'
+
+
+def _why(r: dict, mv: dict, rows: list) -> str:
+    """One derived line for a move: his own status, a teammate at his position
+    who went down, or "one panel alone". Never typed — always from the data."""
+    m = r.get("mv") or {}
+    st_ = (r.get("inj") or {}).get("status")
+    if st_:
+        return f'{st_}'
+    if (m.get("cons") or 0) > 0:
+        # a riser: is a teammate at the same position out?
+        for o in rows:
+            if o["pid"] != r["pid"] and o["team"] == r["team"] and o["pos"] == r["pos"]:
+                ost = (o.get("inj") or {}).get("status") or ""
+                if ost.upper().startswith(("OUT", "IR", "DOUB")):
+                    return f'{o["name"].split()[-1]} {ost.lower()}'
+    d = {k: v for k, v in (m.get("d") or {}).items() if abs(v) >= 0.5}
+    if len(d) == 1:
+        k = next(iter(d))
+        return {"fp": "FantasyPros", "flock": "Flock", "ffb": "the Ballers"}[k] + " alone"
+    if len(d) >= 2 and all((v > 0) == ((m.get("cons") or 0) > 0) for v in d.values()):
+        return "every panel" if len(d) == 3 else "two panels"
+    return "panels split"
 
 
 # ------------------------------------------------------------------- 2 waivers

@@ -250,3 +250,185 @@ def verdict(out_row: Optional[dict], in_row: Optional[dict]) -> Optional[str]:
         return None
     gap = float(a) - float(b)          # positive → IN ranked better
     return "for" if gap > 1.5 else "against" if gap < -1.5 else "split"
+
+
+# ------------------------------------------------------------- snapshots
+def _snap_path(kind: str, season: int, week: int, day: str) -> Path:
+    return config.DATA_DIR / f"panel_snap_{kind}_{season}_w{week}_{day}.json"
+
+
+def _today() -> str:
+    import datetime as _dt
+    try:
+        from zoneinfo import ZoneInfo
+        return _dt.datetime.now(ZoneInfo("America/New_York")).strftime("%Y%m%d")
+    except Exception:  # noqa: BLE001
+        return _dt.datetime.now().strftime("%Y%m%d")
+
+
+def _slim(kind: str, rows: dict) -> dict:
+    """Just the numbers a mover needs, so a day's snapshot is a few KB."""
+    out = {}
+    for pid, r in (rows or {}).items():
+        if kind == "fp":
+            pr = str(r.get("pos_rank") or "")
+            digits = "".join(ch for ch in pr if ch.isdigit())
+            out[pid] = {"pr": float(digits) if digits else None,
+                        "ov": (float(r["ecr"]) if r.get("ecr") is not None and r.get("scale") == "flex" else None),
+                        "pos": r.get("pos")}
+        elif kind == "flock":
+            out[pid] = {"pr": (float(r["pos_rank"]) if r.get("pos_rank") is not None else None),
+                        "ov": (float(r["rank"]) if r.get("rank") is not None else None),
+                        "pos": r.get("pos")}
+        else:
+            out[pid] = {"pr": (float(r["pos_rank"]) if r.get("pos_rank") else None),
+                        "ov": None, "pts": r.get("pts"), "pos": r.get("pos")}
+    return out
+
+
+def _idx_key(kind: str, season: int, week: int) -> str:
+    return f"index_{kind}_{season}_w{week}"
+
+
+def snapshot_all(season: int, week: int, panels: dict) -> None:
+    """Write today's snapshot of each panel, once. Movers are a diff of these:
+    a rank means nothing until you know what it was yesterday.
+
+    Written to disk AND to the repo-backed doc store: Cloud's disk does not
+    survive a reboot, and a reboot follows every push, so a snapshot kept only
+    on disk would never live to see tomorrow.
+    """
+    from . import storage as _S
+    day = _today()
+    for kind in ("fp", "flock", "ffb"):
+        rows = panels.get(kind) or {}
+        if not rows:
+            continue
+        p = _snap_path(kind, season, week, day)
+        if p.exists():
+            continue
+        slim = _slim(kind, rows)
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps(slim))
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            days = _S.load_doc("panel_snap", _idx_key(kind, season, week), [])
+            if day not in days:
+                _S.save_doc("panel_snap", f"{kind}_{season}_w{week}_{day}", slim)
+                _S.save_doc("panel_snap", _idx_key(kind, season, week), sorted(set(days) | {day}))
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _snap_days(kind: str, season: int, week: int) -> list:
+    pat = f"panel_snap_{kind}_{season}_w{week}_"
+    days = set()
+    try:
+        for p in config.DATA_DIR.glob(pat + "*.json"):
+            days.add(p.stem[len(pat):])
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from . import storage as _S
+        days |= set(_S.load_doc("panel_snap", _idx_key(kind, season, week), []) or [])
+    except Exception:  # noqa: BLE001
+        pass
+    return sorted(days)
+
+
+def _snap_read(kind: str, season: int, week: int, day: str) -> Optional[dict]:
+    p = _snap_path(kind, season, week, day)
+    try:
+        if p.exists():
+            return json.loads(p.read_text())
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from . import storage as _S
+        d = _S.load_doc("panel_snap", f"{kind}_{season}_w{week}_{day}", {})
+        if d:
+            try:
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text(json.dumps(d))       # warm the disk for the next read
+            except Exception:  # noqa: BLE001
+                pass
+            return d
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
+def _baseline(kind: str, season: int, week: int, since: str) -> Optional[dict]:
+    """The snapshot to diff against: "yesterday" = the latest day before today
+    this week; "week" = the first snapshot of this week; "last" = the last
+    snapshot of the previous week (positional ranks carry across weeks, overall
+    ones do too)."""
+    today = _today()
+    if since == "last":
+        days = _snap_days(kind, season, week - 1)
+        if not days:
+            return None
+        return _snap_read(kind, season, week - 1, days[-1])
+    days = [d for d in _snap_days(kind, season, week) if d < today]
+    if not days:
+        return None
+    return _snap_read(kind, season, week, days[0] if since == "week" else days[-1])
+
+
+def baseline_day(kind: str, season: int, week: int, since: str) -> Optional[str]:
+    today = _today()
+    if since == "last":
+        days = _snap_days(kind, season, week - 1)
+        return days[-1] if days else None
+    days = [d for d in _snap_days(kind, season, week) if d < today]
+    if not days:
+        return None
+    return days[0] if since == "week" else days[-1]
+
+
+def movers(season: int, week: int, panels: dict, since: str = "yesterday",
+           cross: bool = False) -> Dict[str, dict]:
+    """{pid: {d: {fp, flock, ffb}, cons, was, now, n}} — rank moves per panel
+    and their average. Positive = rose. `cross` uses the cross-position number
+    (FantasyPros FLEX / Flock overall) instead of the positional one.
+
+    A man who dropped OFF a panel gets that panel's delta as None and a `gone`
+    flag on that panel; a man who appeared gets `new`.
+    """
+    key = "ov" if cross else "pr"
+    out: Dict[str, dict] = {}
+    for kind in ("fp", "flock", "ffb"):
+        base = _baseline(kind, season, week, since)
+        if base is None:
+            continue
+        now = _slim(kind, panels.get(kind) or {})
+        for pid in set(base) | set(now):
+            a = (base.get(pid) or {}).get(key)
+            b = (now.get(pid) or {}).get(key)
+            d = out.setdefault(pid, {"d": {}, "was": {}, "now": {}, "gone": [], "new": []})
+            if a is not None and b is not None:
+                d["d"][kind] = a - b
+                d["was"][kind], d["now"][kind] = a, b
+            elif a is not None and b is None:
+                d["gone"].append(kind)
+            elif a is None and b is not None:
+                d["new"].append(kind)
+    for pid, d in out.items():
+        vals = list(d["d"].values())
+        d["n"] = len(vals)
+        d["cons"] = (sum(vals) / len(vals)) if vals else None
+        d["was_avg"] = (sum(d["was"].values()) / len(d["was"])) if d["was"] else None
+        d["now_avg"] = (sum(d["now"].values()) / len(d["now"])) if d["now"] else None
+    return out
+
+
+def is_mover(m: Optional[dict], pos_depth: int = 30) -> bool:
+    """A consensus move of 3+ (or 10% of the position), or one panel 6+."""
+    if not m:
+        return False
+    thr = max(3.0, 0.1 * pos_depth)
+    if m.get("cons") is not None and abs(m["cons"]) >= thr:
+        return True
+    return any(abs(v) >= 6 for v in (m.get("d") or {}).values()) or bool(m.get("gone"))

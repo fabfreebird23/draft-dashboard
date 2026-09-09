@@ -1731,6 +1731,28 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   text-transform:uppercase; color:var(--mut2); white-space:nowrap; text-align:right; }
 .tb-wk b{ color:var(--ink); font-weight:600; } .tb-wk .on{ color:var(--crimson); }
 [class*="st-key-navbar"] [data-testid="stHorizontalBlock"]{ align-items:flex-end; }
+/* ---- movers: ticker, badges, deltas ---- */
+[class*="st-key-rk_tick"]{ margin:-2px 0 8px; }
+[class*="st-key-rk_tick"] .stButton button{ font-family:'IBM Plex Mono',ui-monospace,monospace;
+  font-size:10px; letter-spacing:.02em; border-radius:6px; padding:3px 6px; min-height:0;
+  border:1px solid var(--line2); color:var(--ink); background:var(--panel); white-space:nowrap; }
+[class*="st-key-rk_tick"] .stButton button[kind="primary"]{ background:rgba(255,51,108,.10);
+  border-color:rgba(255,51,108,.45); color:var(--ink); }
+.rk-tk{ display:flex; align-items:center; height:30px; }
+.rk-tk .k{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--mut2); white-space:nowrap; }
+.rk-tk .k b{ color:var(--ink); font-weight:600; }
+.rk-row .pl .dl{ margin-left:auto; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:10px;
+  font-weight:600; padding:2px 7px; border-radius:5px; }
+.rk-row .pl .dl + .tag{ margin-left:6px; }
+.rk-row .pl .dl.up{ color:#5fdc8f; background:rgba(95,220,143,.12); }
+.rk-row .pl .dl.dn{ color:#ff6b6b; background:rgba(255,107,107,.12); }
+.rk-row .c{ line-height:1.1; padding:5px 0 4px; }
+.rk-row .c sub{ display:block; font-size:8.5px; color:var(--mut2); vertical-align:baseline; margin-top:1px; }
+.rk-row .c sub.up{ color:#5fdc8f; } .rk-row .c sub.dn{ color:#ff6b6b; }
+.rk-row .c.mvc{ font-family:'Sora',sans-serif; font-weight:800; font-size:15px; }
+.rk-row.focus .pl{ box-shadow:0 0 0 2px var(--crimson); }
+.rk-hl.on{ color:var(--ink); border-color:var(--crimson); background:var(--accent-soft); }
 /* ranked actions */
 .ws2-act{ display:grid; grid-template-columns:auto 1fr auto; gap:13px; align-items:center;
   padding:12px 14px; border-radius:13px; background:var(--panel); border:1px solid var(--line);
