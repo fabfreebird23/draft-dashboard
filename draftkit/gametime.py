@@ -193,6 +193,10 @@ def week_phase(games: Dict[str, dict], now: Optional[float] = None) -> str:
         wd = 1
     if wd in (1, 2) and first - now > 6 * 3600:
         return "waivers"
-    if any(s == "post" for s in states):
+    # "late" means the slate is mid-flight: some games final and the next one
+    # inside a few hours (Sunday between the early and late windows, or before
+    # SNF). Friday after Thursday night is not that — it is "setup" again, or
+    # the whole weekend runs on the two-minute refresh clock for nothing.
+    if any(s == "post" for s in states) and (first - now) <= 6 * 3600:
         return "late"
     return "setup"

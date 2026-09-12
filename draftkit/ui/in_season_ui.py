@@ -216,7 +216,9 @@ def _refresh_bucket(season: int, week: int) -> int:
     """
     import time as _t
     try:
-        live = GT.week_phase(GT.load_week(season, week)) in ("live", "late")
+        # Two minutes ONLY while a game is in progress. "late" (between
+        # windows on a Sunday) has nothing changing on the field.
+        live = GT.week_phase(GT.load_week(season, week)) == "live"
     except Exception:  # noqa: BLE001
         live = False
     return int(_t.time() // (120 if live else 900))
