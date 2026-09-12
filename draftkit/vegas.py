@@ -90,19 +90,36 @@ def _events(doc) -> list:
     return [e for g in (doc or []) for e in (g.get("events") or [])]
 
 
-def fetch_raw(week_teams: Optional[set] = None) -> List[dict]:
-    """Every NFL event Bovada lists, with its full market list. `week_teams`
-    (from gametime) keeps it to this week's games — Bovada lists next week's
-    Thursday game early, and a player must not carry two games' lines."""
+def week_window(games: dict) -> Optional[Tuple[float, float]]:
+    """(first kickoff − 12h, last kickoff + 12h) in epoch seconds for a
+    gametime week, or None when the schedule is unknown."""
+    from . import gametime as _GT
+    ks = [_GT.kickoff_ts(g) for g in (games or {}).values()]
+    ks = [k for k in ks if k != float("inf")]
+    if not ks:
+        return None
+    return (min(ks) - 12 * 3600, max(ks) + 12 * 3600)
+
+
+def fetch_raw(window: Optional[Tuple[float, float]] = None) -> List[dict]:
+    """Every NFL event Bovada lists, with its full market list. `window` (from
+    `week_window`) keeps it to this week's games — Bovada lists next week's
+    Thursday game early, and a player must not carry two games' lines. Its
+    event list names teams in full ("Atlanta Falcons"), so kickoff time is the
+    honest filter, not abbreviations."""
     lst = _events(_get(f"{_BASE}/football/nfl?lang=en"))
     out = []
     for e in lst:
         link = e.get("link")
         if not link:
             continue
-        teams = _event_teams(e)
-        if week_teams and not (teams & week_teams):
-            continue
+        if window:
+            try:
+                t = float(e.get("startTime") or 0) / 1000.0
+            except (TypeError, ValueError):
+                t = 0.0
+            if t and not (window[0] <= t <= window[1]):
+                continue
         try:
             full = _events(_get(f"{_BASE}{link}?lang=en"))
         except Exception:  # noqa: BLE001 — one game down must not lose the slate
@@ -248,7 +265,7 @@ def score(exp: dict, weights: Optional[dict], pos: str) -> Optional[float]:
 
 
 def weekly(season: int, week: int, registry, weights: Optional[dict] = None,
-           week_teams: Optional[set] = None, tag: str = "") -> Dict[str, dict]:
+           window: Optional[Tuple[float, float]] = None, tag: str = "") -> Dict[str, dict]:
     """{pid: {src:'vegas', pos, team, pts, pos_rank, exp{...}, lines{...}}}."""
     cp = _cache_path(season, week)
     raw = None
@@ -259,15 +276,35 @@ def weekly(season: int, week: int, registry, weights: Optional[dict] = None,
         raw = None
     if raw is None:
         try:
-            events = fetch_raw(week_teams)
+            events = fetch_raw(window)
             raw = parse(events)
-            if raw:
-                cp.write_text(json.dumps(raw))
         except Exception:  # noqa: BLE001
+            raw = {}
+        if not raw:
+            # Bovada answers a Mac and refuses Streamlit Cloud (datacenter IP),
+            # so the Mac PUBLISHES the parsed lines to the repo-backed doc store
+            # on a schedule (`python -m draftkit.vegas publish`, launchd hourly)
+            # and Cloud reads that copy. Stale disk is the last resort.
+            try:
+                from . import storage as _S
+                doc = _S.load_doc("vegas", f"{season}_w{week}", {})
+                raw = (doc or {}).get("players") or {}
+                if raw:
+                    raw = dict(raw)
+                    raw["__meta__"] = {"published": (doc or {}).get("published"), "source": "mac"}
+            except Exception:  # noqa: BLE001
+                raw = {}
+        if not raw:
             try:
                 raw = json.loads(cp.read_text()) if cp.exists() else {}
             except Exception:  # noqa: BLE001
                 raw = {}
+        if raw:
+            try:
+                cp.write_text(json.dumps(raw))
+            except Exception:  # noqa: BLE001
+                pass
+    meta = (raw or {}).pop("__meta__", None) if isinstance(raw, dict) else None
     idx: Dict[str, list] = {}
     for nm, p in registry.by_norm.items():
         if p.sleeper_pid:
@@ -297,7 +334,42 @@ def weekly(season: int, week: int, registry, weights: Optional[dict] = None,
                         key=lambda p: -(out[p]["pts"] or 0))
         for i, pid in enumerate(ranked, 1):
             out[pid]["pos_rank"] = i
+    if meta and out:
+        # carried on every row so a caption can say where the lines came from
+        for d in out.values():
+            d["published"] = meta.get("published")
     return out
+
+
+# ------------------------------------------------------------------ publish
+def publish(season: int, week: int, window: Optional[Tuple[float, float]] = None) -> int:
+    """Fetch from Bovada HERE and write the parsed lines to the doc store, so a
+    host Bovada refuses (Streamlit Cloud) can still read them. Returns the
+    player count. Run hourly from the Mac by launchd."""
+    import datetime as _dt
+    from . import storage as _S
+    raw = parse(fetch_raw(window))
+    if not raw:
+        return 0
+    doc = {"season": season, "week": week, "published": _dt.datetime.now().isoformat(timespec="minutes"),
+           "players": raw}
+    _S.save_doc("vegas", f"{season}_w{week}", doc)
+    try:
+        _cache_path(season, week).write_text(json.dumps(raw))
+    except Exception:  # noqa: BLE001
+        pass
+    return len(raw)
+
+
+if __name__ == "__main__":
+    import sys
+    from . import gametime as _GT, sleeper_client as _api
+    if len(sys.argv) > 1 and sys.argv[1] == "publish":
+        season = config.current_season()
+        st_ = _api.get_state("nfl") or {}
+        week = max(1, int(st_.get("week") or 1)) if st_.get("season_type") == "regular" else 1
+        n = publish(season, week, week_window(_GT.load_week(season, week)))
+        print(f"vegas: published {n} players for {season} week {week}")
 
 
 def headline(row: dict) -> str:

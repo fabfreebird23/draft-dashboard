@@ -821,9 +821,10 @@ def _panels(ctx, g) -> dict:
     except Exception:  # noqa: BLE001
         out["ffb"] = {}
     try:
-        _teams = frozenset((g.get("games") or {}).keys())
+        from .. import vegas as VG
+        _win = VG.week_window(g.get("games") or {})
         out["vegas"] = _vegas(g["season"], g["week"], reg, tuple(sorted((w or {}).items())),
-                              _teams, f'{meta.platform}_{meta.league_id}')
+                              _win, f'{meta.platform}_{meta.league_id}')
     except Exception:  # noqa: BLE001
         out["vegas"] = {}
     # today's copy of each panel, once — movers are a diff of these
@@ -841,9 +842,9 @@ def _flock(season: int, week: int, _registry):
 
 
 @st.cache_data(ttl=3600, show_spinner="Reading the book…", hash_funcs={"builtins.object": id})
-def _vegas(season: int, week: int, _registry, weights, week_teams, tag: str):
+def _vegas(season: int, week: int, _registry, weights, window, tag: str):
     from .. import vegas as VG
-    return VG.weekly(season, week, _registry, dict(weights), week_teams=set(week_teams), tag=tag)
+    return VG.weekly(season, week, _registry, dict(weights), window=window, tag=tag)
 
 
 @st.cache_data(ttl=3600, show_spinner=False, hash_funcs={"builtins.object": id})
@@ -1572,7 +1573,8 @@ def _rankings(ctx, g) -> None:
           if (el) el.scrollIntoView({{behavior: "smooth", block: "center"}});
         </script>""", height=0)
         st.session_state.pop(fkey, None)
-    _n = {"fp": len(fp), "flock": len(fl), "ffb": len(fb)}
+    _n = {"fp": len(fp), "flock": len(fl), "ffb": len(fb), "vegas": len(pn.get("vegas") or {})}
+    _vpub = next((r.get("published") for r in (pn.get("vegas") or {}).values() if r.get("published")), None)
     st.caption(f"Colour is by third of the position on each column — a yellow 22 at WR is a WR2, not a "
                f"warning. **Spread** is best–worst across the panels, red when they disagree. "
                f"{'ALL sorts by projection and shows positional ranks — pick a position to rank by a panel.' if all_view else ('Cross-position ranks, RB/WR/TE against each other (FantasyPros FLEX list, Flock with the QBs taken out, the Ballers by points).' if cross else 'Positional ranks.')} "
@@ -1581,7 +1583,10 @@ def _rankings(ctx, g) -> None:
                f"league's settings — yards and receptions lines nudged by their juice, anytime-TD "
                f"odds devigged against the game's total-touchdowns line; **Lines** is the position's "
                f"yards line and the TD price. Consensus is the three human panels; the market sits "
-               f"beside it. Only FantasyPros ranks D/ST.")
+               f"beside it. Only FantasyPros ranks D/ST."
+               + (f" Lines published from the Mac at {_vpub}." if _vpub else
+                  (" **No lines yet** — Bovada refuses this host; the Mac publishes them hourly."
+                   if not _n.get('vegas') else "")))
 
 
 @st.cache_data(show_spinner=False, max_entries=8)
