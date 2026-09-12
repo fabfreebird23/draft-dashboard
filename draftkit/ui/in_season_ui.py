@@ -820,6 +820,12 @@ def _panels(ctx, g) -> dict:
                           f'{meta.platform}_{meta.league_id}')
     except Exception:  # noqa: BLE001
         out["ffb"] = {}
+    try:
+        _teams = frozenset((g.get("games") or {}).keys())
+        out["vegas"] = _vegas(g["season"], g["week"], reg, tuple(sorted((w or {}).items())),
+                              _teams, f'{meta.platform}_{meta.league_id}')
+    except Exception:  # noqa: BLE001
+        out["vegas"] = {}
     # today's copy of each panel, once — movers are a diff of these
     try:
         P.snapshot_all(g["season"], g["week"], out)
@@ -832,6 +838,12 @@ def _panels(ctx, g) -> dict:
 def _flock(season: int, week: int, _registry):
     from .. import panels as P
     return P.flock_weekly(season, week, _registry)
+
+
+@st.cache_data(ttl=3600, show_spinner="Reading the book…", hash_funcs={"builtins.object": id})
+def _vegas(season: int, week: int, _registry, weights, week_teams, tag: str):
+    from .. import vegas as VG
+    return VG.weekly(season, week, _registry, dict(weights), week_teams=set(week_teams), tag=tag)
 
 
 @st.cache_data(ttl=3600, show_spinner=False, hash_funcs={"builtins.object": id})
@@ -854,6 +866,10 @@ def _panel_cell(pn: dict, pid) -> str:
     if fb and fb.get("pos_rank"):
         bits.append(f'<span title="The Ballers · {", ".join(f"{k} {v}" for k, v in (fb.get("pts_by") or {}).items())}">'
                     f'Ballers <b>{fb["pos"]}{fb["pos_rank"]}</b> · {fb["pts"]}</span>')
+    vg = (pn.get("vegas") or {}).get(str(pid))
+    if vg and vg.get("pos_rank"):
+        from .. import vegas as VG
+        bits.append(f'<span title="Bovada · {VG.headline(vg)}">Vegas <b>{vg["pos"]}{vg["pos_rank"]}</b> · {vg["pts"]}</span>')
     return " · ".join(bits) if bits else '<span class="ws-fnt">—</span>'
 
 
@@ -865,7 +881,7 @@ def _panel_verdicts(pn: dict, out_pid, in_pid) -> list:
     r = ECR.verdict(fp.get(str(out_pid)), fp.get(str(in_pid)))
     if r:
         v.append(("FP", r))
-    for key, label in (("flock", "Flock"), ("ffb", "Ballers")):
+    for key, label in (("flock", "Flock"), ("ffb", "Ballers"), ("vegas", "Vegas")):
         rows = pn.get(key) or {}
         r = P.verdict(rows.get(str(out_pid)), rows.get(str(in_pid)))
         if r:
@@ -895,8 +911,8 @@ def _source_scores(pn: dict, g: dict, src: str):
         return proj, (lambda pid: f'{float(proj.get(str(pid), 0) or 0):.1f}')
     reg = None
     score, labels = {}, {}
-    if src == "The Ballers":
-        rows = pn.get("ffb") or {}
+    if src in ("The Ballers", "Vegas"):
+        rows = pn.get("ffb" if src == "The Ballers" else "vegas") or {}
         for pid, r in rows.items():
             if r.get("pts") is not None:
                 score[pid] = float(r["pts"])
@@ -936,7 +952,7 @@ def _lineup(ctx, g) -> None:
     # optimiser is fed "rank turned into a score" and the POINTS shown are still
     # the projection for whatever set that panel picks — the two panels are
     # then comparable on one number.
-    _srcs = ["Projections", "FantasyPros", "Flock", "The Ballers"]
+    _srcs = ["Projections", "FantasyPros", "Flock", "The Ballers", "Vegas"]
     _skey = f"lineup_src_{ctx['league_key']}"
     with st.container(key="lineup_src"):
         src = st.segmented_control("Rank by", _srcs, key=_skey, selection_mode="single",
@@ -1137,7 +1153,7 @@ def _lineup(ctx, g) -> None:
 
 
 # ------------------------------------------------------------- 1c rankings
-_RK_SRC = ["Consensus", "FantasyPros", "Flock", "The Ballers"]
+_RK_SRC = ["Consensus", "FantasyPros", "Flock", "The Ballers", "Vegas"]
 _RK_WHO = ["Mine + FA", "All", "Mine", "Free agents"]
 _RK_POS = ["ALL", "QB", "RB", "WR", "TE", "FLEX", "K", "DST", "▲▼ Movers"]
 _RK_SINCE = [("yesterday", "1d"), ("week", "Tue"), ("last", "wk")]
@@ -1188,7 +1204,8 @@ def _third(v, pool: list) -> str:
 def _rk_rows_cached(league_key: str, week: int, bucket: int, pos: str, _reg, _g, _pn, _owner_of):
     reg, g, owner_of = _reg, _g, _owner_of
     fp, fl, fb = _pn.get("fp") or {}, _pn.get("flock") or {}, _pn.get("ffb") or {}
-    pids = set(fp) | set(fl) | set(fb) | {str(p) for p in g["mine"]}
+    vg = _pn.get("vegas") or {}
+    pids = set(fp) | set(fl) | set(fb) | set(vg) | {str(p) for p in g["mine"]}
     want = {"ALL": None, "FLEX": {"RB", "WR", "TE"}}.get(pos, {pos, "DEF"} if pos == "DST" else {pos})
     rows = []
     for pid in pids:
@@ -1202,12 +1219,15 @@ def _rk_rows_cached(league_key: str, week: int, bucket: int, pos: str, _reg, _g,
             continue
         if p_pos not in ("QB", "RB", "WR", "TE", "K", "DST"):
             continue
-        a, b, cc = fp.get(pid), fl.get(pid), fb.get(pid)
+        a, b, cc, v = fp.get(pid), fl.get(pid), fb.get(pid), vg.get(pid)
         pr = {"fp": _pos_rank_num(a, "fp"), "flock": _pos_rank_num(b, "flock"),
-              "ffb": _pos_rank_num(cc, "ffb")}
-        ov = {"fp": _overall_num(a, "fp"), "flock": _overall_num(b, "flock"), "ffb": None}
+              "ffb": _pos_rank_num(cc, "ffb"), "vegas": _pos_rank_num(v, "vegas")}
+        ov = {"fp": _overall_num(a, "fp"), "flock": _overall_num(b, "flock"), "ffb": None,
+              "vegas": None}
+        from .. import vegas as VG
         rows.append({"pid": pid, "name": pm.name, "pos": p_pos, "team": pm.team or "",
                      "pr": pr, "ov": ov, "pts": (cc or {}).get("pts"),
+                     "vpts": (v or {}).get("pts"), "vline": VG.headline(v) if v else "",
                      "proj": float(g["proj"].get(pid, 0) or 0),
                      "owner": owner_of.get(pid), "tier_flock": (b or {}).get("tier"),
                      "inj": W.availability(pm)})
@@ -1289,6 +1309,9 @@ def _rankings(ctx, g) -> None:
     for i, r in enumerate(sorted((r for r in _skill if r["ov"]["flock"] is not None),
                                  key=lambda r: r["ov"]["flock"]), 1):
         r["ov"]["flock"] = float(i)
+    for i, r in enumerate(sorted((r for r in _skill if r.get("vpts") is not None),
+                                 key=lambda r: -r["vpts"]), 1):
+        r["ov"]["vegas"] = float(i)
     cross = pos in ("ALL", "FLEX")
     # ALL mixes positions no panel ranks against each other, so it sorts by
     # projection and shows the positional ranks; pick a position to rank by a panel.
@@ -1326,14 +1349,17 @@ def _rankings(ctx, g) -> None:
                                       "0", "movers"), unsafe_allow_html=True)
             return
     for r in rows:
-        vals = [v for v in (r["ov"] if cross else r["pr"]).values() if v is not None]
+        # Consensus is the HUMANS — the market sits beside it, so the spread
+        # between them stays visible instead of averaging away.
+        src_ = (r["ov"] if cross else r["pr"])
+        vals = [v for k, v in src_.items() if v is not None and k != "vegas"]
         r["cons"] = (sum(vals) / len(vals)) if vals else None
         r["best"] = min(vals) if vals else None
         r["worst"] = max(vals) if vals else None
         r["n"] = len(vals)
     # projected points, unranked men sort last; K/DST in ALL sort by proj after the skill men
     key_src = {"Consensus": "cons", "FantasyPros": "fp", "Flock": "flock", "The Ballers": "ffb",
-               "Proj": "proj"}[src]
+               "Vegas": "vegas", "Proj": "proj"}[src]
 
     def _sort_val(r):
         if movers_view:
@@ -1349,7 +1375,7 @@ def _rankings(ctx, g) -> None:
     rows.sort(key=_sort_val)
     # colour thirds are computed on the WHOLE position pool, before the who-cut
     pools = {}
-    for k in ("fp", "flock", "ffb"):
+    for k in ("fp", "flock", "ffb", "vegas"):
         for r in rows:
             v = (r["ov"] if cross else r["pr"]).get(k)
             if v is not None:
@@ -1401,15 +1427,16 @@ def _rankings(ctx, g) -> None:
     # board's grid, so they sit over their columns. Opp, Spread and Owner are
     # labels; the rest switch the source.
     head = (("", None), ("Opp", None), ("FP", "FantasyPros"), ("Flock", "Flock"),
-            ("Ballers", "The Ballers"), ("Consensus", "Consensus"), ("Spread", None),
-            ("Proj", "Proj"), ("Owner", None))
+            ("Ballers", "The Ballers"), ("Consensus", "Consensus"), ("Vegas", "Vegas"),
+            ("Lines", None), ("Spread", None), ("Proj", "Proj"), ("Owner", None))
     if movers_view:
         head = (("", None), ("Opp", None), ("FP Δ", None), ("Flock Δ", None), ("Ballers Δ", None),
-                ("Move", None), ("Was → now", None), ("Proj", None), ("Why · Owner", None))
+                ("Move", None), ("Vegas Δ", None), ("Lines", None), ("Was → now", None),
+                ("Proj", None), ("Why · Owner", None))
     _lit_label = {"fp": "FantasyPros", "flock": "Flock", "ffb": "The Ballers",
-                  "cons": "Consensus", "proj": "Proj"}[lit]
+                  "cons": "Consensus", "vegas": "Vegas", "proj": "Proj"}[lit]
     with st.container(key="rk_hd"):
-        hc = st.columns([330, 92, 76, 76, 84, 92, 84, 72, 260])
+        hc = st.columns([330, 92, 70, 70, 78, 84, 74, 100, 78, 66, 230])
         for col, (label, source) in zip(hc, head):
             with col:
                 if source is None:
@@ -1480,8 +1507,10 @@ def _rankings(ctx, g) -> None:
                 return '<div class="c dim">—</div>'
             return (f'<div class="c {_third(v, pools.get((pool_key, k), []))}'
                     f'{" sort" if k == lit else ""}">{fmt.format(v)}{dsub(k)}</div>')
+        vg_line = (f'<div class="c ln">{_esc_(r.get("vline") or "—")}</div>')
         if movers_view:
             fp_c, fl_c, fb_c = dcell("fp"), dcell("flock"), dcell("ffb")
+            vg_c = dcell("vegas")
             dc = m.get("cons")
             cons_c = (f'<div class="c mvc {"g" if dc > 0 else "r"}">{"▲" if dc > 0 else "▼"} {abs(dc):.0f}</div>'
                       if dc is not None else '<div class="c dim">—</div>')
@@ -1490,6 +1519,9 @@ def _rankings(ctx, g) -> None:
         else:
             fp_c = cell("fp", vals["fp"])
             fl_c = cell("flock", vals["flock"], "{:.1f}" if not cross else "{:.0f}")
+            vg_c = (f'<div class="c {_third(vals["vegas"], pools.get((pool_key, "vegas"), []))}{" sort" if lit == "vegas" else ""}">'
+                    f'{vals["vegas"]:.0f}<small>{r["vpts"]:.1f}</small>{dsub("vegas")}</div>'
+                    if vals.get("vegas") is not None else '<div class="c dim">—</div>')
             fb_c = (f'<div class="c {_third(vals["ffb"], pools.get((pool_key, "ffb"), []))}{" sort" if lit == "ffb" else ""}">'
                     f'{vals["ffb"]:.0f}<small>{r["pts"]:.1f}</small>{dsub("ffb")}</div>'
                     if vals["ffb"] is not None else '<div class="c dim">—</div>')
@@ -1528,7 +1560,7 @@ def _rankings(ctx, g) -> None:
             f'<div class="rk-row {cls}{" focus" if is_focus else ""}" id="rk-{r["pid"]}"><div class="pl">{_T.img_tag(r["pid"], "")}'
             f'<b>{idx}. {_esc_(r["name"])}<small>{_esc_(r["team"])}{" · " + r["pos"] if (cross or movers_view) else ""}{inj}</small></b>{badge}{tag}</div>'
             f'<div class="opp{" early" if early else ""}">{_esc_(opp)}<small>{_esc_(k_lab)}</small></div>'
-            f'{fp_c}{fl_c}{fb_c}{cons_c}{sp}{proj_c}<div class="own">{own}</div></div>')
+            f'{fp_c}{fl_c}{fb_c}{cons_c}{vg_c}{vg_line}{sp}{proj_c}<div class="own">{own}</div></div>')
     out.append("</div>")
     st.markdown("".join(out), unsafe_allow_html=True)
     if focus:
@@ -1544,8 +1576,12 @@ def _rankings(ctx, g) -> None:
     st.caption(f"Colour is by third of the position on each column — a yellow 22 at WR is a WR2, not a "
                f"warning. **Spread** is best–worst across the panels, red when they disagree. "
                f"{'ALL sorts by projection and shows positional ranks — pick a position to rank by a panel.' if all_view else ('Cross-position ranks, RB/WR/TE against each other (FantasyPros FLEX list, Flock with the QBs taken out, the Ballers by points).' if cross else 'Positional ranks.')} "
-               f"FantasyPros {_n['fp']} · Flock {_n['flock']} · the Ballers {_n['ffb']} players; "
-               f"only FantasyPros ranks K and D/ST.")
+               f"FantasyPros {_n['fp']} · Flock {_n['flock']} · the Ballers {_n['ffb']} · Vegas "
+               f"{_n.get('vegas', 0)} players. **Vegas** is Bovada's player props scored under this "
+               f"league's settings — yards and receptions lines nudged by their juice, anytime-TD "
+               f"odds devigged against the game's total-touchdowns line; **Lines** is the position's "
+               f"yards line and the TD price. Consensus is the three human panels; the market sits "
+               f"beside it. Only FantasyPros ranks D/ST.")
 
 
 @st.cache_data(show_spinner=False, max_entries=8)
@@ -1591,9 +1627,9 @@ def _why(r: dict, mv: dict, rows: list) -> str:
     d = {k: v for k, v in (m.get("d") or {}).items() if abs(v) >= 0.5}
     if len(d) == 1:
         k = next(iter(d))
-        return {"fp": "FantasyPros", "flock": "Flock", "ffb": "the Ballers"}[k] + " alone"
+        return {"fp": "FantasyPros", "flock": "Flock", "ffb": "the Ballers", "vegas": "the book"}[k] + " alone"
     if len(d) >= 2 and all((v > 0) == ((m.get("cons") or 0) > 0) for v in d.values()):
-        return "every panel" if len(d) == 3 else "two panels"
+        return "every panel" if len(d) >= 3 else "two panels"
     return "panels split"
 
 

@@ -237,7 +237,7 @@ def verdict(out_row: Optional[dict], in_row: Optional[dict]) -> Optional[str]:
     """
     if not out_row or not in_row:
         return None
-    if out_row.get("src") == "ffb":
+    if out_row.get("src") in ("ffb", "vegas"):
         a, b = out_row.get("pts"), in_row.get("pts")
         if a is None or b is None:
             return None
@@ -300,7 +300,7 @@ def snapshot_all(season: int, week: int, panels: dict) -> None:
     """
     from . import storage as _S
     day = _today()
-    for kind in ("fp", "flock", "ffb"):
+    for kind in ("fp", "flock", "ffb", "vegas"):
         rows = panels.get(kind) or {}
         if not rows:
             continue
@@ -416,7 +416,7 @@ def movers(season: int, week: int, panels: dict, since: str = "yesterday",
     """
     key = "ov" if cross else "pr"
     out: Dict[str, dict] = {}
-    for kind in ("fp", "flock", "ffb"):
+    for kind in ("fp", "flock", "ffb", "vegas"):
         base = _baseline(kind, season, week, since)
         if base is None:
             continue

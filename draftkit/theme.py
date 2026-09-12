@@ -1662,11 +1662,12 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="st-key-rk_ctl"] [role="radiogroup"] label{ font-size:11px; padding:4px 10px; }
 /* the same WEIGHTS as the header's st.columns, and the same 1rem gap, so the
    header buttons sit over their columns */
-.rk{ --cols:330fr 92fr 76fr 76fr 84fr 92fr 84fr 72fr 260fr; }
+.rk{ --cols:330fr 92fr 70fr 70fr 78fr 84fr 74fr 100fr 78fr 66fr 230fr; }
 .rk-hd, .rk-row, .rk-tier{ display:grid; grid-template-columns:var(--cols); gap:1rem; align-items:center; }
 [class*="st-key-rk_hd"]{ margin-bottom:6px; }
 [class*="st-key-rk_hd"] .stButton button{ font-family:'IBM Plex Mono',ui-monospace,monospace;
-  font-size:9px; letter-spacing:.1em; text-transform:uppercase; border-radius:999px; padding:5px 0;
+  font-size:8.5px; letter-spacing:.04em; text-transform:uppercase; border-radius:999px; padding:5px 0;
+  white-space:nowrap; overflow:hidden;
   min-height:0; border:1px solid var(--line2); color:var(--muted); background:var(--panel); }
 [class*="st-key-rk_hd"] .stButton button[kind="primary"]{ color:var(--ink); border-color:var(--crimson);
   background:var(--accent-soft); }
@@ -1683,7 +1684,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .rk-hd span:first-child{ visibility:hidden; }
 .rk-hd span.on{ color:var(--ink); border-color:var(--mut2); }
 .rk-hd span.lbl{ text-align:left; padding-left:12px; border:0; background:none; }
-.rk-tier{ grid-template-columns:330fr 836fr; margin:8px 0 4px; }
+.rk-tier{ grid-template-columns:330fr 942fr; margin:8px 0 4px; }
 .rk-tier .band{ border-radius:999px; padding:5px 12px; font-family:'Sora',sans-serif; font-weight:800;
   font-size:14px; color:#141314; }
 .rk-tier .band em{ display:inline-grid; place-items:center; width:22px; height:22px; border-radius:6px;
@@ -1751,6 +1752,8 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .rk-row .c sub{ display:block; font-size:8.5px; color:var(--mut2); vertical-align:baseline; margin-top:1px; }
 .rk-row .c sub.up{ color:#5fdc8f; } .rk-row .c sub.dn{ color:#ff6b6b; }
 .rk-row .c.mvc{ font-family:'Sora',sans-serif; font-weight:800; font-size:15px; }
+.rk-row .c.ln{ font-size:10.5px; color:var(--muted); white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; padding:9px 4px; }
 .rk-row.focus .pl{ box-shadow:0 0 0 2px var(--crimson); }
 .rk-hl.on{ color:var(--ink); border-color:var(--crimson); background:var(--accent-soft); }
 /* ranked actions */
