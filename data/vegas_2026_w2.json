@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "week": 2,
-  "published": "2026-09-15T11:58",
+  "published": "2026-09-15T12:58",
   "players": {
     "Jared Goff|DET": {
       "name": "Jared Goff",
@@ -11,6 +11,16 @@
           "line": 1.5,
           "over": "-135",
           "under": "+105"
+        },
+        "pass_att": {
+          "line": 36.5,
+          "over": "-105",
+          "under": "-125"
+        },
+        "pass_int": {
+          "line": 0.5,
+          "over": "-120",
+          "under": "-110"
         },
         "pass_yd": {
           "line": 266.5,
@@ -24,6 +34,8 @@
       },
       "exp": {
         "pass_td": 1.54,
+        "pass_att": 36.43,
+        "pass_int": 0.51,
         "pass_yd": 266.5,
         "td": 0.05
       }
@@ -37,6 +49,16 @@
           "over": "-180",
           "under": "+135"
         },
+        "pass_att": {
+          "line": 30.5,
+          "over": "-125",
+          "under": "-105"
+        },
+        "pass_int": {
+          "line": 0.5,
+          "over": "+120",
+          "under": "-160"
+        },
         "pass_yd": {
           "line": 250.5,
           "over": "-115",
@@ -48,15 +70,17 @@
           "under": "-110"
         },
         "td": {
-          "price": "-132",
-          "prob": 0.5689655172413793
+          "price": "-125",
+          "prob": 0.5555555555555556
         }
       },
       "exp": {
         "pass_td": 1.6,
+        "pass_att": 30.56,
+        "pass_int": 0.42,
         "pass_yd": 250.5,
         "rush_yd": 30.53,
-        "td": 0.698
+        "td": 0.675
       }
     },
     "Jahmyr Gibbs|DET": {
@@ -87,7 +111,7 @@
         "rush_yd": 90.5,
         "rec": 4.45,
         "rec_yd": 30.47,
-        "td": 1.265
+        "td": 1.271
       }
     },
     "James Cook|BUF": {
@@ -95,18 +119,18 @@
       "team": "BUF",
       "lines": {
         "rush_yd": {
-          "line": 75.5,
+          "line": 78.5,
           "over": "-115",
           "under": "-115"
         },
         "td": {
-          "price": "-174",
-          "prob": 0.635036496350365
+          "price": "-168",
+          "prob": 0.6268656716417911
         }
       },
       "exp": {
-        "rush_yd": 75.5,
-        "td": 0.836
+        "rush_yd": 78.5,
+        "td": 0.821
       }
     },
     "Amon-Ra St. Brown|DET": {
@@ -115,8 +139,8 @@
       "lines": {
         "rec": {
           "line": 7.5,
-          "over": "-115",
-          "under": "-115"
+          "over": "-110",
+          "under": "-120"
         },
         "rec_yd": {
           "line": 81.5,
@@ -124,14 +148,14 @@
           "under": "-115"
         },
         "td": {
-          "price": "EVEN",
-          "prob": 0.5
+          "price": "+105",
+          "prob": 0.4878048780487805
         }
       },
       "exp": {
-        "rec": 7.5,
+        "rec": 7.49,
         "rec_yd": 81.5,
-        "td": 0.575
+        "td": 0.557
       }
     },
     "DJ Moore|BUF": {
@@ -140,11 +164,11 @@
       "lines": {
         "rec": {
           "line": 4.5,
-          "over": "-110",
-          "under": "-120"
+          "over": "EVEN",
+          "under": "-130"
         },
         "rec_yd": {
-          "line": 60.5,
+          "line": 61.5,
           "over": "-115",
           "under": "-115"
         },
@@ -154,9 +178,9 @@
         }
       },
       "exp": {
-        "rec": 4.49,
-        "rec_yd": 60.5,
-        "td": 0.393
+        "rec": 4.47,
+        "rec_yd": 61.5,
+        "td": 0.394
       }
     },
     "Dalton Kincaid|BUF": {
@@ -165,8 +189,8 @@
       "lines": {
         "rec": {
           "line": 3.5,
-          "over": "-170",
-          "under": "+130"
+          "over": "-150",
+          "under": "+115"
         },
         "rec_yd": {
           "line": 50.5,
@@ -179,34 +203,85 @@
         }
       },
       "exp": {
-        "rec": 3.59,
+        "rec": 3.56,
         "rec_yd": 50.5,
-        "td": 0.358
+        "td": 0.36
       }
     },
-    "Jameson Williams|DET": {
-      "name": "Jameson Williams",
-      "team": "DET",
+    "Dawson Knox|BUF": {
+      "name": "Dawson Knox",
+      "team": "BUF",
       "lines": {
         "rec": {
-          "line": 3.5,
-          "over": "-135",
-          "under": "+105"
-        },
-        "rec_yd": {
-          "line": 54.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 1.5,
+          "over": "+120",
+          "under": "-160"
         },
         "td": {
-          "price": "+190",
-          "prob": 0.3448275862068966
+          "price": "+500",
+          "prob": 0.16666666666666666
         }
       },
       "exp": {
-        "rec": 3.54,
-        "rec_yd": 54.5,
-        "td": 0.351
+        "rec": 1.42,
+        "td": 0.152
+      }
+    },
+    "Isaac TeSlaa|DET": {
+      "name": "Isaac TeSlaa",
+      "team": "DET",
+      "lines": {
+        "rec": {
+          "line": 1.5,
+          "over": "+120",
+          "under": "-160"
+        },
+        "td": {
+          "price": "+500",
+          "prob": 0.16666666666666666
+        }
+      },
+      "exp": {
+        "rec": 1.42,
+        "td": 0.152
+      }
+    },
+    "Josh Palmer|BUF": {
+      "name": "Josh Palmer",
+      "team": "BUF",
+      "lines": {
+        "rec": {
+          "line": 1.5,
+          "over": "+150",
+          "under": "-200"
+        },
+        "td": {
+          "price": "+500",
+          "prob": 0.16666666666666666
+        }
+      },
+      "exp": {
+        "rec": 1.38,
+        "td": 0.152
+      }
+    },
+    "Keon Coleman|BUF": {
+      "name": "Keon Coleman",
+      "team": "BUF",
+      "lines": {
+        "rec": {
+          "line": 1.5,
+          "over": "+155",
+          "under": "-210"
+        },
+        "td": {
+          "price": "+420",
+          "prob": 0.19230769230769232
+        }
+      },
+      "exp": {
+        "rec": 1.37,
+        "td": 0.178
       }
     },
     "Khalil Shakir|BUF": {
@@ -215,23 +290,23 @@
       "lines": {
         "rec": {
           "line": 4.5,
-          "over": "-105",
-          "under": "-125"
+          "over": "+120",
+          "under": "-160"
         },
         "rec_yd": {
-          "line": 45.5,
+          "line": 44.5,
           "over": "-115",
           "under": "-115"
         },
         "td": {
-          "price": "+215",
-          "prob": 0.31746031746031744
+          "price": "+220",
+          "prob": 0.3125
         }
       },
       "exp": {
-        "rec": 4.48,
-        "rec_yd": 45.5,
-        "td": 0.317
+        "rec": 4.42,
+        "rec_yd": 44.5,
+        "td": 0.312
       }
     },
     "Sam LaPorta|DET": {
@@ -240,13 +315,13 @@
       "lines": {
         "rec": {
           "line": 4.5,
-          "over": "+105",
-          "under": "-135"
+          "over": "EVEN",
+          "under": "-130"
         },
         "rec_yd": {
           "line": 45.5,
-          "over": "-115",
-          "under": "-115"
+          "over": "-120",
+          "under": "-110"
         },
         "td": {
           "price": "+210",
@@ -254,9 +329,28 @@
         }
       },
       "exp": {
-        "rec": 4.46,
-        "rec_yd": 45.5,
-        "td": 0.323
+        "rec": 4.47,
+        "rec_yd": 45.55,
+        "td": 0.324
+      }
+    },
+    "Jameson Williams|DET": {
+      "name": "Jameson Williams",
+      "team": "DET",
+      "lines": {
+        "rec_yd": {
+          "line": 56.5,
+          "over": "-120",
+          "under": "-110"
+        },
+        "td": {
+          "price": "+180",
+          "prob": 0.35714285714285715
+        }
+      },
+      "exp": {
+        "rec_yd": 56.56,
+        "td": 0.368
       }
     },
     "Tyler Conklin|DET": {
@@ -308,46 +402,7 @@
         }
       },
       "exp": {
-        "td": 0.04
-      }
-    },
-    "Josh Palmer|BUF": {
-      "name": "Josh Palmer",
-      "team": "BUF",
-      "lines": {
-        "td": {
-          "price": "+525",
-          "prob": 0.16
-        }
-      },
-      "exp": {
-        "td": 0.145
-      }
-    },
-    "Dawson Knox|BUF": {
-      "name": "Dawson Knox",
-      "team": "BUF",
-      "lines": {
-        "td": {
-          "price": "+525",
-          "prob": 0.16
-        }
-      },
-      "exp": {
-        "td": 0.145
-      }
-    },
-    "Keon Coleman|BUF": {
-      "name": "Keon Coleman",
-      "team": "BUF",
-      "lines": {
-        "td": {
-          "price": "+440",
-          "prob": 0.18518518518518517
-        }
-      },
-      "exp": {
-        "td": 0.17
+        "td": 0.041
       }
     },
     "Ray Davis|BUF": {
@@ -360,7 +415,7 @@
         }
       },
       "exp": {
-        "td": 0.185
+        "td": 0.186
       }
     },
     "Brock Wright|DET": {
@@ -373,20 +428,7 @@
         }
       },
       "exp": {
-        "td": 0.087
-      }
-    },
-    "Isaac TeSlaa|DET": {
-      "name": "Isaac TeSlaa",
-      "team": "DET",
-      "lines": {
-        "td": {
-          "price": "+500",
-          "prob": 0.16666666666666666
-        }
-      },
-      "exp": {
-        "td": 0.151
+        "td": 0.088
       }
     },
     "Sione Vaki|DET": {
@@ -399,7 +441,7 @@
         }
       },
       "exp": {
-        "td": 0.087
+        "td": 0.088
       }
     },
     "Jackson Hawes|BUF": {
@@ -407,12 +449,12 @@
       "team": "BUF",
       "lines": {
         "td": {
-          "price": "+825",
-          "prob": 0.10810810810810811
+          "price": "+800",
+          "prob": 0.1111111111111111
         }
       },
       "exp": {
-        "td": 0.095
+        "td": 0.098
       }
     },
     "Greg Dortch|BUF": {
@@ -420,12 +462,12 @@
       "team": "BUF",
       "lines": {
         "td": {
-          "price": "+1700",
-          "prob": 0.05555555555555555
+          "price": "+1600",
+          "prob": 0.058823529411764705
         }
       },
       "exp": {
-        "td": 0.047
+        "td": 0.05
       }
     },
     "Keleki Latu|BUF": {
@@ -438,7 +480,7 @@
         }
       },
       "exp": {
-        "td": 0.04
+        "td": 0.041
       }
     }
   }
