@@ -428,7 +428,10 @@ def _top_claim(ctx, g):
         left = max(0, budget - int((fa.get("by_owner") or {}).get(str(g["me"]), 0) or 0))
         bid = W.bid_guidance(top["gain"], left, max(1, 14 - g["week"])) if left else None
         own = ((g.get("ros") or {}).get(str(top["pid"])) or {}).get("owned")
-        return {**top, "bid": bid, "left": left, "budget": budget, "owned": own}
+        from .. import udk_waivers as UW
+        _wv = (_udk_wv(g["season"], g["week"], reg) or {}).get(str(top["pid"]))
+        return {**top, "bid": bid, "left": left, "budget": budget, "owned": own,
+                "udk": UW.label(_wv, left or budget)}
     except Exception:  # noqa: BLE001
         return None
 
@@ -638,7 +641,8 @@ def _command(ctx, g) -> None:
         _b = _claim["bid"]
         acts.append({"kind": "waiver", "weight": float(_claim["gain"]), "tone": "go", "icon": "+",
                      "title": f'Claim {_claim["name"]}',
-                     "detail": ((f'${_b["low"]}–{_b["high"]} of ${_claim["left"]} · ' if _b else "")
+                     "detail": ((f'{_claim["udk"]} · ' if _claim.get("udk") else "")
+                                + (f'${_b["low"]}–{_b["high"]} of ${_claim["left"]} · ' if _b else "")
                                 + f'<b>+{_claim["gain"]:.1f}</b> to your week'
                                 + (f' · {_claim["owned"]:.0f}% rostered, so bid low'
                                    if (_claim.get("owned") or 0) < 25 else
@@ -841,6 +845,12 @@ def _panels(ctx, g) -> dict:
 def _flock(season: int, week: int, _registry):
     from .. import panels as P
     return P.flock_weekly(season, week, _registry)
+
+
+@st.cache_data(ttl=3600, show_spinner=False, hash_funcs={"builtins.object": id})
+def _udk_wv(season: int, week: int, _registry):
+    from .. import udk_waivers as UW
+    return UW.weekly(season, week, _registry)
 
 
 @st.cache_data(ttl=3600, show_spinner="Reading the book…", hash_funcs={"builtins.object": id})
@@ -1734,6 +1744,59 @@ def _waivers(ctx, g) -> None:
             foot=f'{_bid["note"]} · {weeks_left} weeks left',
             tone="good"), unsafe_allow_html=True)
 
+    # ---- the Ballers' own waiver list, joined to THIS league --------------
+    # Their board ranks a claim and puts a price on it, which nothing else here
+    # does. What it cannot know is who is already rostered in an 8-team league —
+    # so their list is filtered to the men actually free, and the ones that are
+    # gone are counted rather than hidden.
+    from .. import udk_waivers as UW
+    wv = _udk_wv(g["season"], g["week"], reg)
+    if wv:
+        # D/ST are numbered on their own list, so mixing them in would print two
+        # #1s; they belong with the streamers below, where they are chipped.
+        skill = {pid: r for pid, r in wv.items() if not r["is_dst"]}
+        free = {pid: r for pid, r in skill.items() if pid not in taken}
+        gone = len(skill) - len(free)
+        # The 14-row board only prices its own top adds, so most of their list
+        # came back blank. This is the same optimiser pass over 150 free agents
+        # the Rankings tab uses, cached on the same clock.
+        gain_of = _fa_gain_cached(ctx["league_key"], g["week"],
+                                  _refresh_bucket(g["season"], g["week"]), ctx, g,
+                                  frozenset(taken))
+        _cap = 20
+        st.markdown('<div class="ws-h">The Fantasy Footballers\' waiver list · '
+                    f'week {g["week"]}</div>', unsafe_allow_html=True)
+        rws = []
+        _ordered = sorted(free.items(), key=lambda kv: (kv[1]["consensus"] or 99))
+        for pid, r in _ordered[:_cap]:
+            b = UW.bid(r, left or budget)
+            gn = gain_of.get(pid)
+            by = " · ".join(f'{a[:1].upper()}{int(v)}' for a, v in r["by"].items())
+            _av = W.availability(reg.meta(pid)) if not r["is_dst"] else {"status": "", "severity": 0}
+            _fl = (" " + _chip(_av["status"][:4], "bad" if _av["severity"] >= 3 else "warn")
+                   ) if _av.get("status") else ""
+            rws.append([
+                f'<b class="ws-sl">{int(r["consensus"] or 0)}</b>',
+                f'<b>{_esc_(r["name"])}</b> {_pos_pill(r["pos"])}{_fl}',
+                f'<span class="ws-fnt">{by}</span>',
+                (f'${b[0]}–{b[1]}' if b else '<span class="ws-fnt">—</span>'),
+                (f'<b class="ws-up">+{gn:.1f}</b>' if (gn or 0) > 0.05 else
+                 '<span class="ws-fnt">no upgrade</span>' if gn is not None else
+                 '<span class="ws-fnt">—</span>'),
+            ])
+        st.markdown(_tbl(["#", "Player", "~Andy · Jason · Mike", "~They bid", "~Adds to you"],
+                         rws, widths=["38px", "auto", "128px", "96px", "116px"], wide=True),
+                    unsafe_allow_html=True)
+        _more = max(0, len(_ordered) - _cap)
+        st.caption(f"Their consensus order, their own FAAB range converted to this league's "
+                   f"${left or budget} budget, and what each man would add to **your** starting "
+                   f"lineup. {gone} of their {len(skill)} targets "
+                   f"{'is' if gone == 1 else 'are'} already rostered here and left out"
+                   + (f", and {_more} further down their list are not shown" if _more else "")
+                   + ". A high Ballers rank with **no upgrade** beside it is a good player who "
+                   f"does not crack your nine — theirs is a general list, that column is yours. "
+                   f"Their defense streamers are chipped in **Streaming** below.")
+
     st.markdown('<div class="ws-h">Ranked by what they add to YOUR starting lineup</div>',
                 unsafe_allow_html=True)
     rows = []
@@ -1747,8 +1810,11 @@ def _waivers(ctx, g) -> None:
         _av = W.availability(reg.meta(r["pid"]))
         _fl = (" " + _chip(_av["status"][:4], "bad" if _av["severity"] >= 3 else "warn")
                ) if _av["status"] else ""
+        _wv = (wv or {}).get(str(r["pid"]))
+        _wvc = (_chip(f'Ballers #{int(_wv["consensus"])}', "acc")
+                if (_wv and _wv.get("consensus")) else "")
         rows.append([
-            f'<b>{r["name"]}</b> {_pos_pill(r["pos"])}{_fl}',
+            f'<b>{r["name"]}</b> {_pos_pill(r["pos"])}{_fl} {_wvc}',
             f'{r["proj"]:.1f}',
             _ecr_cell(ecr.get(str(r["pid"]))),
             _owned_cell(ros.get(str(r["pid"])) or ecr.get(str(r["pid"]))),
@@ -1807,8 +1873,11 @@ def _waivers(ctx, g) -> None:
                 imp = "—" if r["implied"] is None else f'{r["implied"]:.1f}'
                 edge = ("" if r["edge"] is None else
                         _chip(f'{r["edge"]:+.1f}', "ok" if r["edge"] > 1 else "warn" if r["edge"] > -1 else "bad"))
+                _sw = (wv or {}).get(str(r["pid"]))
                 rws.append([(f'<b>{r["name"]}</b>' if own else r["name"])
-                            + (" " + _chip("yours", "acc") if own else ""),
+                            + (" " + _chip("yours", "acc") if own else "")
+                            + (" " + _chip(f'Ballers #{int(_sw["consensus"])}', "ok")
+                               if (_sw and _sw.get("consensus")) else ""),
                             f'{r["opp"]} · {r["day"]}', imp, f'{r["proj"]:.1f}', edge])
             with col:
                 st.markdown(_tbl(["", "Game", ("Opp implied" if pos == "DST" else "Own implied"),

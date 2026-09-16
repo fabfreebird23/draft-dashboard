@@ -1988,7 +1988,11 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   .ws-h{ margin:14px 0 8px; }
 
   /* ---- pick cards / draft strips, for the weeks they matter ---- */
-  .pc2-two{ grid-template-columns:1fr; } .pc2-cells{ grid-template-columns:repeat(2,1fr); }
+  .pc2-two{ grid-template-columns:1fr; }
+  /* .pc2-cells is four LABELS then four VALUES — a 4-col grid whose two rows
+     pair up. Narrowing it to two columns split every label from its number. */
+  .pc2-cells{ font-size:10px; gap:4px; }
+  .pc2-cells > div{ padding:0 2px; }
   .cs-cols{ grid-template-columns:repeat(2,minmax(0,1fr)); }
   .dr-cheat{ grid-template-columns:repeat(2,1fr); }
   .st-wrap{ grid-template-columns:1fr; }
