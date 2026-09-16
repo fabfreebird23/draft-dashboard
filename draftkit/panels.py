@@ -84,7 +84,9 @@ def flock_weekly(season: int, week: int, registry) -> Dict[str, dict]:
     """{pid: {pos_rank, rank, ranks{analyst: pos rank}, best, worst, std, tier,
     opp, n}} from Flock's weekly panel. `rank` is the weekly OVERALL rank
     (RB/WR/TE/QB against each other), `pos_rank` the positional one."""
-    cp = _cache("flock", season, week)
+    # "flock2": the rows before this carried Flock's `averageRank`, which is a
+    # POSITIONAL rank despite its name, so a cached copy must not be reused.
+    cp = _cache("flock2", season, week)
     hit = _fresh(cp)
     if hit is not None:
         return hit
@@ -100,6 +102,25 @@ def flock_weekly(season: int, week: int, registry) -> Dict[str, dict]:
         # panel has not turned over yet; stale is better than the wrong week.
         return _stale(cp)
     idx = _index(registry)
+    # ---- a real cross-position (FLEX) rank ---------------------------------
+    # Flock's `averageRank` is NOT overall: every position has its own #1, so
+    # sorting RB/WR/TE by it put Trey McBride second on the FLEX board. The
+    # per-analyst `weeklyOverallRanks` are overall, but not on one scale — some
+    # analysts' lists include quarterbacks (Gibbs is 1 for most and 30-something
+    # for two of them). So each analyst's list is cut to RB/WR/TE and re-ranked
+    # 1..n, THEN averaged across analysts, then ranked once more.
+    skill = [x for x in (d.get("data") or []) if (x.get("position") or "").upper() in ("RB", "WR", "TE")]
+    per_analyst: Dict[str, list] = {}
+    for x in skill:
+        for a, v in (x.get("weeklyOverallRanks") or {}).items():
+            if v:
+                per_analyst.setdefault(a, []).append((float(v), x.get("playerId")))
+    flex_votes: Dict[object, list] = {}
+    for a, lst in per_analyst.items():
+        for i, (_v, pid_) in enumerate(sorted(lst), 1):
+            flex_votes.setdefault(pid_, []).append(i)
+    flex_avg = {k: sum(v) / len(v) for k, v in flex_votes.items() if v}
+    flex_rank = {k: i for i, (k, _a) in enumerate(sorted(flex_avg.items(), key=lambda kv: kv[1]), 1)}
     out: Dict[str, dict] = {}
     for x in d.get("data") or []:
         pid = _pid_for(idx, x.get("playerName"), x.get("team"))
@@ -112,7 +133,9 @@ def flock_weekly(season: int, week: int, registry) -> Dict[str, dict]:
         std = ((sum((v - avg) ** 2 for v in vals) / n) ** 0.5) if n and avg is not None else None
         out[pid] = {"src": "flock", "pos": x.get("position"), "team": x.get("team"),
                     "pos_rank": x.get("averageWeeklyPositionalRank") or avg,
-                    "rank": x.get("averageRank"),
+                    # cross-position rank among RB/WR/TE only; None for QB/K/DEF
+                    "rank": flex_rank.get(x.get("playerId")),
+                    "flex_avg": flex_avg.get(x.get("playerId")),
                     "ranks": ranks, "best": (vals[0] if vals else None),
                     "worst": (vals[-1] if vals else None), "std": std,
                     "tier": x.get("averagePositionalTier"), "opp": x.get("opponent") or "",
@@ -253,8 +276,18 @@ def verdict(out_row: Optional[dict], in_row: Optional[dict]) -> Optional[str]:
 
 
 # ------------------------------------------------------------- snapshots
+# A panel whose numbers changed meaning gets a new snapshot name, so today is
+# never diffed against a copy that measured something else. Flock's stored
+# cross-position rank was really positional until 2026-09-16.
+_SNAP_NAME = {"flock": "flock2"}
+
+
+def _sn(kind: str) -> str:
+    return _SNAP_NAME.get(kind, kind)
+
+
 def _snap_path(kind: str, season: int, week: int, day: str) -> Path:
-    return config.DATA_DIR / f"panel_snap_{kind}_{season}_w{week}_{day}.json"
+    return config.DATA_DIR / f"panel_snap_{_sn(kind)}_{season}_w{week}_{day}.json"
 
 
 def _today() -> str:
@@ -287,7 +320,7 @@ def _slim(kind: str, rows: dict) -> dict:
 
 
 def _idx_key(kind: str, season: int, week: int) -> str:
-    return f"index_{kind}_{season}_w{week}"
+    return f"index_{_sn(kind)}_{season}_w{week}"
 
 
 def snapshot_all(season: int, week: int, panels: dict) -> None:
@@ -316,7 +349,7 @@ def snapshot_all(season: int, week: int, panels: dict) -> None:
         try:
             days = _S.load_doc("panel_snap", _idx_key(kind, season, week), [])
             if day not in days:
-                _S.save_doc("panel_snap", f"{kind}_{season}_w{week}_{day}", slim)
+                _S.save_doc("panel_snap", f"{_sn(kind)}_{season}_w{week}_{day}", slim)
                 _S.save_doc("panel_snap", _idx_key(kind, season, week), sorted(set(days) | {day}))
             _IDX_MEMO.pop(_idx_key(kind, season, week), None)
         except Exception:  # noqa: BLE001
@@ -334,7 +367,7 @@ def _snap_days(kind: str, season: int, week: int) -> list:
     times per Rankings click, which was the entire three seconds that tab took.
     Memoised in-process for a quarter hour; a new day's snapshot invalidates it.
     """
-    pat = f"panel_snap_{kind}_{season}_w{week}_"
+    pat = f"panel_snap_{_sn(kind)}_{season}_w{week}_"
     days = set()
     try:
         for p in config.DATA_DIR.glob(pat + "*.json"):
@@ -364,7 +397,7 @@ def _snap_read(kind: str, season: int, week: int, day: str) -> Optional[dict]:
         pass
     try:
         from . import storage as _S
-        d = _S.load_doc("panel_snap", f"{kind}_{season}_w{week}_{day}", {})
+        d = _S.load_doc("panel_snap", f"{_sn(kind)}_{season}_w{week}_{day}", {})
         if d:
             try:
                 p.parent.mkdir(parents=True, exist_ok=True)

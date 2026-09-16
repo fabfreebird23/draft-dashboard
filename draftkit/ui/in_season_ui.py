@@ -22,6 +22,12 @@ from .. import (config, ecr as ECR, gametime as GT, inseason, keepers as K, line
 from . import components as C
 from .. import theme as _T
 
+# Bump when a panel's numbers change MEANING: Streamlit's in-memory caches key on
+# arguments, not on what the fetcher returns, so a fixed parser would otherwise
+# keep serving the broken rows until the process restarts. (2 = Flock's FLEX rank
+# rebuilt from per-analyst overall lists; it had been a positional rank.)
+_PANEL_VER = 2
+
 TABS = ["Command Center", "Lineup", "Rankings", "Waivers", "Matchup", "Trades", "Playoffs", "League", "Keepers"]
 
 _POSC = {"QB": "var(--qb)", "RB": "var(--rb)", "WR": "var(--wr)", "TE": "var(--te)",
@@ -812,7 +818,7 @@ def _panels(ctx, g) -> dict:
     meta, reg = ctx["meta"], ctx["registry"]
     out = {"fp": g.get("ecr") or {}}
     try:
-        out["flock"] = _flock(g["season"], g["week"], reg)
+        out["flock"] = _flock(g["season"], g["week"], reg, _PANEL_VER)
     except Exception:  # noqa: BLE001
         out["flock"] = {}
     try:
@@ -842,7 +848,7 @@ def _panels(ctx, g) -> dict:
 
 
 @st.cache_data(ttl=3600, show_spinner=False, hash_funcs={"builtins.object": id})
-def _flock(season: int, week: int, _registry):
+def _flock(season: int, week: int, _registry, ver: int = 0):
     from .. import panels as P
     return P.flock_weekly(season, week, _registry)
 
@@ -1214,7 +1220,8 @@ def _third(v, pool: list) -> str:
 
 
 @st.cache_data(show_spinner=False, max_entries=24, hash_funcs={"builtins.object": id})
-def _rk_rows_cached(league_key: str, week: int, bucket: int, pos: str, _reg, _g, _pn, _owner_of):
+def _rk_rows_cached(league_key: str, week: int, bucket: int, pos: str, _reg, _g, _pn, _owner_of,
+                    ver: int = 0):
     reg, g, owner_of = _reg, _g, _owner_of
     fp, fl, fb = _pn.get("fp") or {}, _pn.get("flock") or {}, _pn.get("ffb") or {}
     vg = _pn.get("vegas") or {}
@@ -1328,7 +1335,7 @@ def _rankings(ctx, g) -> None:
     # Built once per refresh window: six hundred registry lookups and an
     # availability read each is two seconds a click otherwise.
     rows = _rk_rows_cached(lk, g["week"], _refresh_bucket(g["season"], g["week"]), pos,
-                           reg, g, pn, owner_of)
+                           reg, g, pn, owner_of, _PANEL_VER)
     for r in rows:
         r["wv"] = wv.get(r["pid"]) if waivers_view else None
     if not rows:
