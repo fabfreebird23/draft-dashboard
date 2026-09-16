@@ -1537,6 +1537,15 @@ def _rankings(ctx, g) -> None:
                 sp = '<div class="c dim">—</div>'
         proj_c = (f'<div class="c {_third(-r["proj"], pools.get((pool_key, "proj"), []))}'
                   f'{" sort" if lit == "proj" else ""}">{r["proj"]:.1f}</div>')
+        # On a phone the board becomes a card per player and the column headers
+        # are gone, so every cell carries its own label to show there instead.
+        def _k(html: str, label: str) -> str:
+            return html.replace("<div ", f'<div data-k="{label}" ', 1)
+        fp_c, fl_c = _k(fp_c, "FP"), _k(fl_c, "Flock")
+        fb_c, vg_c = _k(fb_c, "Ballers"), _k(vg_c, "Vegas")
+        cons_c = _k(cons_c, "Move" if movers_view else "Consensus")
+        sp = _k(sp, "Was → now" if movers_view else "Spread")
+        proj_c, vg_line = _k(proj_c, "Proj"), _k(vg_line, "Lines")
         # owner
         if r["owner"] == me:
             tag = ('<span class="tag st">you · start</span>' if r["pid"] in started

@@ -1836,6 +1836,163 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
    is both ugly and taller than the strip it sits next to, which undoes the point. */
 [class*="_pcd2_"] button, [class*="_pcq2_"] button{ white-space:nowrap; padding:6px 2px;
   font-size:10.5px; letter-spacing:.06em; }
+
+/* ============================ PHONE =======================================
+   The in-season screens are a dense desktop board by design, and that is the
+   right call on a laptop. On a phone the same markup has to become a LIST: the
+   fixed grids (a 150px name column, an eleven-column ranking board) do not
+   narrow, they overlap — which is exactly what they did.
+
+   The rule here is the same everywhere: a horizontal grid becomes a stack, a
+   wide strip of controls becomes a horizontally scrollable strip, and any cell
+   that loses its column header grows a label of its own (`data-k`).
+
+   Streamlit already stacks its own st.columns below ~640px, so this only has to
+   deal with the app's own CSS grids and the few strips that must NOT stack. */
+@media (max-width:760px){
+  .block-container{ padding:.4rem .55rem 2.5rem !important; }
+
+  /* ---- header: identity, the league switcher, the week line ---- */
+  .tb-id .bs-word{ font-size:14px; }
+  .tb-row{ min-height:26px; gap:7px; }
+  .tb-name{ font-size:14px; }
+  [class*="st-key-tb_leagues"] [data-testid="stButtonGroup"] button{ padding:4px 9px;
+    font-size:11.5px; }
+  .tb-wk{ text-align:left; font-size:9px; letter-spacing:.08em; }
+  .tb-pills{ gap:4px; } .tb-pill{ font-size:8.5px; padding:3px 7px; }
+
+  /* EVERY segmented strip — tabs, the league switcher, the Rankings controls —
+     scrolls sideways instead of wrapping or squeezing. In Streamlit 1.50 these
+     are <button>s inside [data-testid="stButtonGroup"], NOT a radiogroup of
+     labels, and they default to `flex:0 1 auto`, which is what turned seven
+     tabs into "Com… L… R…" instead of letting them run off the edge. */
+  [class*="st-key-navbar"] [data-testid="stButtonGroup"],
+  [class*="st-key-rk_ctl"] [data-testid="stButtonGroup"],
+  [class*="st-key-tb_leagues"] [data-testid="stButtonGroup"],
+  [class*="st-key-lineup_src"] [data-testid="stButtonGroup"]{ overflow-x:auto;
+    scrollbar-width:none; max-width:100%; }
+  [class*="st-key-navbar"] [data-testid="stButtonGroup"]::-webkit-scrollbar,
+  [class*="st-key-rk_ctl"] [data-testid="stButtonGroup"]::-webkit-scrollbar,
+  [class*="st-key-tb_leagues"] [data-testid="stButtonGroup"]::-webkit-scrollbar,
+  [class*="st-key-lineup_src"] [data-testid="stButtonGroup"]::-webkit-scrollbar{ display:none; }
+  [class*="st-key-navbar"] [data-testid="stButtonGroup"] > div,
+  [class*="st-key-rk_ctl"] [data-testid="stButtonGroup"] > div,
+  [class*="st-key-tb_leagues"] [data-testid="stButtonGroup"] > div,
+  [class*="st-key-lineup_src"] [data-testid="stButtonGroup"] > div{ flex-wrap:nowrap; }
+  [class*="st-key-navbar"] [data-testid="stButtonGroup"] button,
+  [class*="st-key-rk_ctl"] [data-testid="stButtonGroup"] button,
+  [class*="st-key-tb_leagues"] [data-testid="stButtonGroup"] button,
+  [class*="st-key-lineup_src"] [data-testid="stButtonGroup"] button{ flex:0 0 auto;
+    white-space:nowrap; }
+  [class*="st-key-navbar"] [data-testid="stButtonGroup"] button{ padding:7px 12px;
+    font-size:12.5px; }
+  [class*="st-key-tb_more"]{ max-width:110px; margin-left:auto; }
+  .ws-ext{ justify-content:flex-start; overflow-x:auto; flex-wrap:nowrap;
+    scrollbar-width:none; margin-top:8px; }
+  .ws-ext::-webkit-scrollbar{ display:none; }
+  .ws-ext span{ display:none; }              /* "on Sleeper" — the links say it */
+  .ws-ext a{ flex:none; }
+
+  /* ---- Home: one league per card, not three columns ---- */
+  .dayband{ grid-template-columns:1fr auto; gap:10px; padding:10px 12px; }
+  .dayband > div:nth-child(2){ display:none; }   /* the desktop spacer would wrap the count */
+  .dayband .t{ font-size:13px; } .dayband .t small{ font-size:11px; }
+  .lg{ grid-template-columns:1fr; gap:9px; padding:11px 12px; }
+  .lg .nm b{ font-size:15px; }
+  .lg .mu{ grid-template-columns:1fr auto 1fr; gap:8px; }
+  .lg .side b{ font-size:12px; } .lg .side span{ font-size:14px; }
+  .lg .wp{ width:72px; }
+  .lg .chips{ flex-direction:row; flex-wrap:wrap; gap:6px; }
+  .lg .chip{ text-align:left; }
+  [class*="st-key-hmrow_"] .stButton button{ padding:9px 6px; }
+
+  /* ---- the week hero ---- */
+  /* the middle cell (week pill, "projected") takes its own line, so the two
+     sides get half the screen each instead of "Brand…" vs "Jorda…" */
+  .ws2-top{ padding:14px 13px 11px; }
+  .ws2-score{ grid-template-columns:1fr 1fr; gap:7px; row-gap:5px; }
+  .ws2-score .ws2-vs{ grid-column:1 / -1; order:-1; }
+  .ws2-badge{ width:34px; height:34px; border-radius:10px; font-size:12px; }
+  .ws2-who b{ font-size:14px; } .ws2-who span{ font-size:8.5px; }
+  .ws2-num{ font-size:32px; }
+  .ws2-tiles{ grid-template-columns:repeat(2,1fr); }
+  .ws2-tile .v{ font-size:18px; }
+  .ws2-prob{ padding:0 13px 12px; }
+
+  /* actions, the lineup bars, still-to-play */
+  .ws2-act{ grid-template-columns:auto 1fr auto; gap:9px; padding:10px 11px; }
+  .ws2-act .ic, .ws2-ic{ width:26px; height:26px; font-size:12px; }
+  .ws2-act .t{ font-size:12.5px; } .ws2-act .d{ font-size:11px; }
+  .ws2-act .n{ font-size:15px; }
+  .ws2-lu .hd, .ws2-lu .rw{ grid-template-columns:34px 1fr 54px 44px; gap:7px; }
+  .ws2-left{ grid-template-columns:1fr; }
+
+  /* ---- Lineup: the two columns become two stacked lists ---- */
+  .lc-two{ grid-template-columns:1fr; gap:10px; }
+  .lc-mid{ display:none; }                   /* the arrow gutter has no column to sit in */
+  .lc-col .rw{ grid-template-columns:36px 1fr 60px 44px; gap:7px; min-height:46px;
+    padding:7px 11px; }
+  .lc-col .pl b{ font-size:12.5px; } .lc-col .pl > span{ font-size:10.5px; }
+  .lc-col .kick{ font-size:9.5px; } .lc-col .pj{ font-size:11px; }
+  .lc-steps ol{ font-size:12px; }
+
+  /* ---- Rankings: a card per player, every cell labelled ---- */
+  /* the sort headers stay ONE row and scroll; stacked they would be eleven
+     full-width buttons before the first player */
+  [class*="st-key-rk_hd"] [data-testid="stHorizontalBlock"]{ flex-wrap:nowrap;
+    overflow-x:auto; gap:5px !important; scrollbar-width:none; }
+  [class*="st-key-rk_hd"] [data-testid="stHorizontalBlock"]::-webkit-scrollbar{ display:none; }
+  [class*="st-key-rk_hd"] [data-testid="stHorizontalBlock"] > div{ flex:0 0 auto !important;
+    width:auto !important; min-width:0 !important; }
+  [class*="st-key-rk_hd"] .stButton button{ padding:5px 10px; font-size:9px; }
+  [class*="st-key-rk_hd"] .rk-hl{ display:none; }   /* labels ride on the cells now */
+
+
+  [class*="st-key-rk_tick"] [data-testid="stHorizontalBlock"]{ flex-wrap:nowrap;
+    overflow-x:auto; scrollbar-width:none; }
+  [class*="st-key-rk_tick"] [data-testid="stHorizontalBlock"]::-webkit-scrollbar{ display:none; }
+  [class*="st-key-rk_tick"] [data-testid="stHorizontalBlock"] > div{ flex:0 0 auto !important;
+    width:auto !important; min-width:0 !important; }
+
+  .rk-tier{ grid-template-columns:1fr; }
+  .rk-tier i{ display:none; }
+  .rk-row{ grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px;
+    background:var(--panel); border:1px solid var(--line); border-radius:13px;
+    padding:8px 9px 9px; margin:0 0 6px; }
+  .rk-row.me{ background:rgba(255,51,108,.06); border-color:rgba(255,51,108,.30); }
+  .rk-row.fa{ border-color:rgba(95,220,143,.28); }
+  /* name and owner run the full width; the numbers sit under them in a grid */
+  .rk-row .pl{ grid-column:1 / -1; background:none; border:0; border-radius:0;
+    padding:0; }
+  .rk-row .own{ grid-column:1 / -1; padding:2px 0 0; white-space:normal;
+    line-height:1.4; }
+  .rk-row .opp{ grid-column:1 / -1; text-align:left; font-size:10.5px;
+    color:var(--mut2); margin:-2px 0 3px; }
+  .rk-row .opp small{ display:inline; margin-left:6px; }
+  .rk-row .c{ padding:5px 2px 4px; border-radius:8px; font-size:11.5px; min-width:0; }
+  .rk-row .c::before{ content:attr(data-k); display:block; font-size:7px;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--mut2);
+    margin-bottom:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* eight cells in two rows of four — Lines wraps inside its own cell rather
+     than spanning two and stranding Proj on a third row */
+  .rk-row .c.ln{ font-size:9.5px; white-space:normal; line-height:1.25;
+    padding:5px 3px 4px; }
+  .rk-row .c small{ font-size:8px; }
+  .rk-row .c.dim{ opacity:.5; }
+  .rk-row .pl b{ font-size:13px; } .rk-row .pl img{ width:26px; height:26px; }
+  .rk-row .own{ font-size:9px; }
+
+  /* ---- tables: scroll rather than crush ---- */
+  table.ws-t{ display:block; overflow-x:auto; white-space:nowrap; }
+  table.ws-t.ws-fixed{ table-layout:auto; }
+  .ws-h{ margin:14px 0 8px; }
+
+  /* ---- pick cards / draft strips, for the weeks they matter ---- */
+  .pc2-two{ grid-template-columns:1fr; } .pc2-cells{ grid-template-columns:repeat(2,1fr); }
+  .cs-cols{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .dr-cheat{ grid-template-columns:repeat(2,1fr); }
+  .st-wrap{ grid-template-columns:1fr; }
+}
 </style>
 
 """
