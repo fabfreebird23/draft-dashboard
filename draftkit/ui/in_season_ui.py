@@ -1168,7 +1168,7 @@ def _lineup(ctx, g) -> None:
 # ------------------------------------------------------------- 1c rankings
 _RK_SRC = ["Consensus", "FantasyPros", "Flock", "The Ballers", "Vegas"]
 _RK_WHO = ["Mine + FA", "All", "Mine", "Free agents"]
-_RK_POS = ["ALL", "QB", "RB", "WR", "TE", "FLEX", "K", "DST", "▲▼ Movers"]
+_RK_POS = ["ALL", "QB", "RB", "WR", "TE", "FLEX", "K", "DST", "▲▼ Movers", "＋ Waivers"]
 _RK_SINCE = [("yesterday", "1d"), ("week", "Tue"), ("last", "wk")]
 # Tier cuts by how deep the position is: a WR22 is a WR2, a TE22 is a bench man.
 _TIERS_DEEP = ((5, "S", "elite"), (12, "A", "start without thinking"),
@@ -1220,6 +1220,9 @@ def _rk_rows_cached(league_key: str, week: int, bucket: int, pos: str, _reg, _g,
     vg = _pn.get("vegas") or {}
     pids = set(fp) | set(fl) | set(fb) | set(vg) | {str(p) for p in g["mine"]}
     want = {"ALL": None, "FLEX": {"RB", "WR", "TE"}}.get(pos, {pos, "DEF"} if pos == "DST" else {pos})
+    if pos == "WAIVERS":
+        # the board becomes the Ballers' waiver list: their targets, every position
+        pids, want = set(_pn.get("wv") or {}), None
     rows = []
     for pid in pids:
         try:
@@ -1287,6 +1290,23 @@ def _rankings(ctx, g) -> None:
     movers_view = pos == "▲▼ Movers"
     if movers_view:
         pos = "FLEX"
+    waivers_view = pos == "＋ Waivers"
+    wv = {}
+    if waivers_view:
+        pos = "WAIVERS"
+        wv = _udk_wv(g["season"], g["week"], reg) or {}
+        if not wv:
+            st.markdown(C.action_html(
+                "info", "＋", f"The Fantasy Footballers haven't posted week {g['week']} waivers yet",
+                "Their list usually goes up Monday night after the late game. This view fills in "
+                "as soon as it does — last week's targets are never shown in its place.",
+                "0", "targets"), unsafe_allow_html=True)
+            return
+        pn = dict(pn, wv=wv)
+        from .. import udk_waivers as UW
+        _fa = inseason.faab(ctx["meta"]) or {}
+        _budget = int(_fa.get("budget") or 0)
+        _left = max(0, _budget - int((_fa.get("by_owner") or {}).get(str(g["me"]), 0) or 0))
     # a click on a mover chip parks the pid here; the board scrolls to him
     fkey = f"rk_focus_{lk}"
     focus = st.session_state.get(fkey)
@@ -1309,6 +1329,8 @@ def _rankings(ctx, g) -> None:
     # availability read each is two seconds a click otherwise.
     rows = _rk_rows_cached(lk, g["week"], _refresh_bucket(g["season"], g["week"]), pos,
                            reg, g, pn, owner_of)
+    for r in rows:
+        r["wv"] = wv.get(r["pid"]) if waivers_view else None
     if not rows:
         st.info("Nothing ranked for that position yet.")
         return
@@ -1375,6 +1397,10 @@ def _rankings(ctx, g) -> None:
                "Vegas": "vegas", "Proj": "proj"}[src]
 
     def _sort_val(r):
+        if waivers_view:
+            w = r.get("wv") or {}
+            # their order, skill targets first, then the defense streamers
+            return (bool(w.get("is_dst")), w.get("consensus") or 99.0, -r["proj"])
         if movers_view:
             m = r.get("mv") or {}
             return (m.get("cons") is None, -abs(m.get("cons") or 0), -r["proj"])
@@ -1412,7 +1438,7 @@ def _rankings(ctx, g) -> None:
     _tick = sorted((r for r in rows if r.get("mv") and P.is_mover(r["mv"])),
                    key=lambda r: -abs((r["mv"].get("cons") or 0)))[:8]
     _since_txt = {"yesterday": "since yesterday", "week": "since Tuesday", "last": "since last week"}[since]
-    if not movers_view:
+    if not movers_view and not waivers_view:
         with st.container(key="rk_tick"):
             if base_day is None:
                 st.markdown(f'<div class="rk-tk"><span class="k"><b>Movers</b> · first snapshot today — '
@@ -1442,6 +1468,10 @@ def _rankings(ctx, g) -> None:
     head = (("", None), ("Opp", None), ("FP", "FantasyPros"), ("Flock", "Flock"),
             ("Ballers", "The Ballers"), ("Consensus", "Consensus"), ("Vegas", "Vegas"),
             ("Lines", None), ("Spread", None), ("Proj", "Proj"), ("Owner", None))
+    if waivers_view:
+        head = (("", None), ("Opp", None), ("FP", None), ("Flock", None), ("Ballers", None),
+                ("Waiver #", None), ("Vegas", None), ("Andy · Jason · Mike", None),
+                ("Their bid", None), ("Proj", None), ("Adds · Owner", None))
     if movers_view:
         head = (("", None), ("Opp", None), ("FP Δ", None), ("Flock Δ", None), ("Ballers Δ", None),
                 ("Move", None), ("Vegas Δ", None), ("Lines", None), ("Was → now", None),
@@ -1453,8 +1483,8 @@ def _rankings(ctx, g) -> None:
         for col, (label, source) in zip(hc, head):
             with col:
                 if source is None:
-                    st.markdown(f'<div class="rk-hl{" lbl" if label in ("Owner", "Why · Owner") else ""}'
-                                f'{" on" if label == "Move" else ""}">{label}</div>',
+                    st.markdown(f'<div class="rk-hl{" lbl" if label in ("Owner", "Why · Owner", "Adds · Owner") else ""}'
+                                f'{" on" if label in ("Move", "Waiver #") else ""}">{label}</div>',
                                 unsafe_allow_html=True)
                     continue
                 on = source == _lit_label
@@ -1465,7 +1495,8 @@ def _rankings(ctx, g) -> None:
                     st.session_state[skey] = source
                     st.rerun()
     st.markdown(_day_line(g, list(zip(g["slots"], g.get("starters") or [])), reg)
-                .replace("</div>", (f' · <b>movers {_since_txt}</b> · {total}' if movers_view else
+                .replace("</div>", (f' · <b>the Ballers\' waiver list</b> · week {g["week"]} · {who} · {total} of {len(wv)}' if waivers_view else
+                                    f' · <b>movers {_since_txt}</b> · {total}' if movers_view else
                                     f' · sorted by <b>{_lit_label if not all_view else "projection"}</b> · {pos} · {who} · {min(limit, total)} of {total}') + '</div>'),
                 unsafe_allow_html=True)
     out = ['<div class="rk">']
@@ -1473,13 +1504,23 @@ def _rankings(ctx, g) -> None:
              else _TIERS_DEEP if pos in ("RB", "WR") else _TIERS_POS)
     band_i = -1
     for idx, r in enumerate(rows, 1):
-        rank_for_tier = (float(idx) if all_view else
+        if waivers_view:
+            _dst = bool((r.get("wv") or {}).get("is_dst"))
+            if int(_dst) != band_i:
+                band_i = int(_dst)
+                out.append('<div class="rk-tier"><div class="band ' + ("tD" if _dst else "tA") + '">'
+                           + ("<em>D</em>Defense streamers<small>their order · by matchup</small>" if _dst
+                              else "<em>＋</em>Waiver targets<small>their order · with their FAAB</small>")
+                           + '</div><i></i></div>')
+        rank_for_tier = (float(idx) if (all_view or waivers_view) else
                          (_sort_val(r)[1] if _sort_val(r)[0] is False else 10 ** 6))
-        if src == "Flock" and r["tier_flock"] and not all_view:
+        if waivers_view:
+            ti = band_i
+        elif src == "Flock" and r["tier_flock"] and not all_view:
             ti = min(int(r["tier_flock"]) - 1, len(tiers) - 1)
         else:
             ti = next(i for i, (cut, _l, _w) in enumerate(tiers) if rank_for_tier <= cut)
-        if ti != band_i:
+        if ti != band_i and not waivers_view:
             band_i = ti
             _cut, lab, why = tiers[ti]
             out.append(f'<div class="rk-tier"><div class="band t{lab}"><em>{lab}</em>Tier {ti + 1}'
@@ -1547,15 +1588,28 @@ def _rankings(ctx, g) -> None:
                 sp = '<div class="c dim">—</div>'
         proj_c = (f'<div class="c {_third(-r["proj"], pools.get((pool_key, "proj"), []))}'
                   f'{" sort" if lit == "proj" else ""}">{r["proj"]:.1f}</div>')
+        if waivers_view:
+            w = r.get("wv") or {}
+            _n = w.get("consensus")
+            cons_c = (f'<div class="c mvc {"g" if (_n or 99) <= 5 else "y" if (_n or 99) <= 15 else ""} sort">'
+                      f'#{int(_n)}</div>' if _n else '<div class="c dim">—</div>')
+            _by = w.get("by") or {}
+            vg_line = ('<div class="c ln">' + " · ".join(
+                f'{a[:1].upper()}{int(v)}' for a, v in _by.items()) + '</div>'
+                if _by else '<div class="c ln">—</div>')
+            _b = UW.bid(w, _left or _budget)
+            sp = (f'<div class="c {"g" if _b[1] >= 10 else "y" if _b[1] else ""}">${_b[0]}–{_b[1]}</div>'
+                  if _b else '<div class="c dim">—</div>')
         # On a phone the board becomes a card per player and the column headers
         # are gone, so every cell carries its own label to show there instead.
         def _k(html: str, label: str) -> str:
             return html.replace("<div ", f'<div data-k="{label}" ', 1)
         fp_c, fl_c = _k(fp_c, "FP"), _k(fl_c, "Flock")
         fb_c, vg_c = _k(fb_c, "Ballers"), _k(vg_c, "Vegas")
-        cons_c = _k(cons_c, "Move" if movers_view else "Consensus")
-        sp = _k(sp, "Was → now" if movers_view else "Spread")
-        proj_c, vg_line = _k(proj_c, "Proj"), _k(vg_line, "Lines")
+        cons_c = _k(cons_c, "Move" if movers_view else "Waiver #" if waivers_view else "Consensus")
+        sp = _k(sp, "Was → now" if movers_view else "Their bid" if waivers_view else "Spread")
+        proj_c = _k(proj_c, "Proj")
+        vg_line = _k(vg_line, "A · J · M" if waivers_view else "Lines")
         # owner
         if r["owner"] == me:
             tag = ('<span class="tag st">you · start</span>' if r["pid"] in started
@@ -1574,13 +1628,13 @@ def _rankings(ctx, g) -> None:
                if r["inj"].get("status") else "")
         dc = m.get("cons")
         badge = (f'<span class="dl {"up" if dc > 0 else "dn"}">{"▲" if dc > 0 else "▼"} {abs(dc):.0f}</span>'
-                 if (dc is not None and abs(dc) >= 3 and not movers_view) else "")
+                 if (dc is not None and abs(dc) >= 3 and not movers_view and not waivers_view) else "")
         if movers_view:
             own = f'{_esc_(_why(r, mv, rows))} · ' + own
         is_focus = focus and str(focus) == r["pid"]
         out.append(
             f'<div class="rk-row {cls}{" focus" if is_focus else ""}" id="rk-{r["pid"]}"><div class="pl">{_T.img_tag(r["pid"], "")}'
-            f'<b>{idx}. {_esc_(r["name"])}<small>{_esc_(r["team"])}{" · " + r["pos"] if (cross or movers_view) else ""}{inj}</small></b>{badge}{tag}</div>'
+            f'<b>{idx}. {_esc_(r["name"])}<small>{_esc_(r["team"])}{" · " + r["pos"] if (cross or movers_view or waivers_view) else ""}{inj}</small></b>{badge}{tag}</div>'
             f'<div class="opp{" early" if early else ""}">{_esc_(opp)}<small>{_esc_(k_lab)}</small></div>'
             f'{fp_c}{fl_c}{fb_c}{cons_c}{vg_c}{vg_line}{sp}{proj_c}<div class="own">{own}</div></div>')
     out.append("</div>")
