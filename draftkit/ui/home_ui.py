@@ -447,11 +447,42 @@ def render_live_all(presets) -> None:
         presets, bound_auto=auto, bound_every=every)
 
 
+def _card(row, stats, games, reg):
+    """A liveall row -> the shared live card. Empty seat stays empty."""
+    from .. import livecard as LC
+    if not row or not row.get("pid"):
+        return {}
+    return LC.build(row["pid"], registry=reg, games=games, pts=row.get("pts") or 0,
+                    proj=row.get("proj") or 0, stats=stats)
+
+
+def _expose(d, boxes, reg):
+    """An exposure row with the two things the card draws: his face and his line."""
+    from .. import nflstats as NS
+    try:
+        pm = reg.meta(d["pid"])
+        face = getattr(pm, "sleeper_pid", None) or d["pid"]
+    except Exception:  # noqa: BLE001
+        face = d.get("pid")
+    return {**d, "face": face, "stat": NS.line(d.get("pos") or "", boxes.get(str(face)))}
+
+
+def _face_row(b, reg):
+    """A bench line with the id its headshot is keyed on."""
+    try:
+        pm = reg.meta(b["pid"])
+        return {**b, "face": getattr(pm, "sleeper_pid", None) or b["pid"],
+                "team": (pm.team or "").upper()}
+    except Exception:  # noqa: BLE001
+        return {**b, "face": b.get("pid"), "team": b.get("team") or ""}
+
+
 def _live_all_body(presets, *, bound_auto: bool, bound_every: int) -> None:
     import json as _json, time as _t
     from concurrent.futures import ThreadPoolExecutor
-    from .. import gametime as GT, liveall as LA, config
+    from .. import gametime as GT, liveall as LA, livecard as LC, nflstats as NS, config
     from . import components as C
+    from .components import _esc
     from .in_season_ui import _refresh_bucket, _slow_bucket, current_week
 
     week, season = current_week(), config.current_season()
@@ -461,6 +492,12 @@ def _live_all_body(presets, *, bound_auto: bool, bound_every: int) -> None:
         games = GT.load_week(season, week, max_age=(bound_every if bound_auto else 0)) or {}
     except Exception:  # noqa: BLE001
         games = {}
+    # The box scores, once per tick for the whole league — the stat line on every
+    # live card comes out of this one call.
+    try:
+        boxes = NS.weekly(season, week, max_age=(bound_every if bound_auto else 0))
+    except Exception:  # noqa: BLE001
+        boxes = {}
     # one uncached read per league, all four at once
     with ThreadPoolExecutor(max_workers=4) as ex:
         lvs = list(ex.map(lambda s: LA.live_for(s, week, games), stats))
@@ -564,18 +601,25 @@ def _live_all_body(presets, *, bound_auto: bool, bound_every: int) -> None:
             with h[1]:
                 st.markdown(C.all_row_html(lg), unsafe_allow_html=True)
             if st.session_state[okey]:
-                for r in lg["mine"] + lg["opp"]:
-                    if r["pid"] in recent and recent[r["pid"]]["d"] > 0:
-                        r["delta"] = recent[r["pid"]]["d"]
-                d = st.columns(2 if lg["opp"] else 1)
-                with d[0]:
-                    st.markdown(C.all_lineup_html(title=lg["me_name"], total=lg["me_pts"],
-                                                  rows=lg["mine"]), unsafe_allow_html=True)
-                if lg["opp"]:
-                    with d[1]:
-                        st.markdown(C.all_lineup_html(title=lg["opp_name"], total=lg["opp_pts"],
-                                                      rows=lg["opp"]), unsafe_allow_html=True)
-                st.markdown(C.all_bench_html(total=lg["bench_pts"], rows=lg["bench"]),
+                # The drawer opens onto the SAME head-to-head rows the Live tab
+                # draws, at drawer size — one component, two sizes. Stacked
+                # lineups made you carry a number across the screen to compare
+                # a seat.
+                st.markdown(f'<div class="la-dr">{_esc(lg["me_name"])} {lg["me_pts"]:.1f} '
+                            f'&nbsp;·&nbsp; {_esc(lg["opp_name"])} {lg["opp_pts"]:.1f}</div>',
+                            unsafe_allow_html=True)
+                pairs = []
+                for i, r in enumerate(lg["mine"]):
+                    o = lg["opp"][i] if i < len(lg["opp"]) else {}
+                    mine = _card(r, boxes, games, reg)
+                    theirs = _card(o, boxes, games, reg)
+                    swing = LC.face_off(mine, theirs)
+                    pairs.append(C.h2h_pair_html(mine, theirs, slot=r.get("slot", ""),
+                                                 swing=swing))
+                st.markdown('<div class="h2h sm">' + "".join(pairs) + "</div>",
+                            unsafe_allow_html=True)
+                st.markdown(C.all_bench_html(total=lg["bench_pts"],
+                                             rows=[_face_row(b, reg) for b in lg["bench"]]),
                             unsafe_allow_html=True)
 
     # ---- the cross-league half ---------------------------------------------
@@ -583,11 +627,15 @@ def _live_all_body(presets, *, bound_auto: bool, bound_every: int) -> None:
     with half[0]:
         st.markdown('<div class="ws-h">On the field right now · across every league</div>',
                     unsafe_allow_html=True)
-        onfield = sorted((d for d in exp.values() if d["state"] == "in" and d["mine"]),
-                         key=lambda d: (-len(d["mine"]), -(d.get("pts") or 0)))
+        # Everyone on the field who touches one of his leagues, his or theirs —
+        # a man on an opponent's roster cuts both ways and belongs here too.
+        onfield = sorted((d for d in exp.values() if d["state"] == "in"),
+                         key=lambda d: (0 if d.get("mine") else 1,
+                                        -len(d.get("mine") or d.get("against") or []),
+                                        -(d.get("pts") or 0)))
         if onfield:
-            st.markdown("".join(C.all_player_html(d) for d in onfield[:10]),
-                        unsafe_allow_html=True)
+            st.markdown("".join(C.all_player_html(_expose(d, boxes, reg))
+                                for d in onfield[:10]), unsafe_allow_html=True)
         else:
             nxt = sorted((d for d in exp.values() if d["state"] == "pre" and d["mine"]),
                          key=lambda d: (-len(d["mine"]), d.get("clock") or ""))

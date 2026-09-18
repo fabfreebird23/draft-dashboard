@@ -2179,20 +2179,27 @@ def all_alert_html(*, title, detail, badge) -> str:
 
 
 def all_games_html(games) -> str:
-    """`games` is [{away, home, away_score, home_score, label, down, redzone, n, state}]."""
+    """`games` is [{away, home, away_score, home_score, label, down, redzone, n, state}].
+
+    One line per game: the score, then the clock and the situation under it, and
+    how many of his men are in it. The red zone is a chip rather than a wash
+    over the card — a tint that says "urgent" on six cards at once says nothing.
+    """
     out = ['<div class="la-games">']
     for x in games:
         live = x.get("state") == "in"
+        rz = '<span class="rz">RZ</span>' if x.get("redzone") else ""
         out.append(
-            f'<div class="gm{" on" if live else ""}{" rz" if x.get("redzone") else ""}"><div>'
-            f'<div class="sc"><b>{_esc(x["away"])}</b><span>{_esc(x["away_score"])}</span>'
-            f'<b>{_esc(x["home"])}</b><span>{_esc(x["home_score"])}</span></div>'
-            f'<span class="cl">{_esc(x["label"])}'
+            f'<div class="gm{" on" if live else ""}"><div>'
+            f'<div class="sc"><b>{_esc(x["away"])} {_esc(x["away_score"])}</b> · '
+            f'{_esc(x["home"])} {_esc(x["home_score"])}</div>'
+            f'<span class="cl">{rz}{_esc(x["label"])}'
             + (f' · {_esc(x["down"])}' if x.get("down") else "")
-            + (' · <span class="rz">red zone</span>' if x.get("redzone") else "")
             + '</span></div>'
             f'<div class="ex{" hot" if x.get("n", 0) >= 5 else ""}"><b>{_esc(x.get("n", 0))}</b>'
-            f'{"yours" if x.get("state") != "pre" else "yet to play"}</div></div>')
+            + ("yet to play" if x.get("state") == "pre"
+               else ("your man" if x.get("n", 0) == 1 else "your men"))
+            + '</div></div>')
     return "".join(out) + "</div>"
 
 
@@ -2200,13 +2207,19 @@ _NOBODY = '<div class="none">nobody playing</div>'
 
 
 def all_row_html(lg) -> str:
-    """The league row: score, win probability, who is on the field for you."""
+    """The league row: his score, the margin, the opponent, who is on the field.
+
+    Quiet by design — the opponent's total is grey, the margin is the only
+    coloured number in the row, and the win probability at the end carries the
+    tone. Four of these are on screen at once and they cannot all shout.
+    """
     wp = lg.get("wp")
-    bar = ""
+    marg = (lg.get("me_end") or 0) - (lg.get("opp_end") or 0)
+    wpc = ""
     if wp is not None:
         p = max(0.0, min(100.0, 100.0 * wp))
-        bar = (f'<div class="wp"><i class="{"dn" if p < 50 else ""}" style="width:{p:.0f}%"></i></div>'
-               f'<small>{p:.0f}% you</small>')
+        wpc = (f'<div class="wp2 {"up" if p >= 50 else "dn"}">{p:.0f}%'
+               f'<small>win prob</small></div>')
     on = "".join(f'<div class="p"><span><i></i>{_esc(r["name"].split()[-1])}</span>'
                  f'<span>{r["pts"]:.1f}</span></div>' for r in lg.get("on_now", [])[:3])
     return (f'<div class="la-row {lg.get("tone", "")}">'
@@ -2214,45 +2227,47 @@ def all_row_html(lg) -> str:
             f'<span>{_esc(lg.get("platform", ""))}{" · " + lg["record"] if lg.get("record") else ""}</span></div>'
             f'<div class="mu"><div class="side"><b>{_esc(lg["me_name"])}</b>'
             f'<span>{lg["me_pts"]:.1f}</span></div>'
-            f'<div class="mid"><small>proj final {lg["me_end"]:.0f} – {lg["opp_end"]:.0f}</small>'
-            f'{bar}</div>'
+            f'<div class="d"><b class="{"up" if marg >= 0 else "dn"}">{marg:+.1f}</b>'
+            f'proj {lg["me_end"]:.0f} – {lg["opp_end"]:.0f}</div>'
             f'<div class="side r"><b>{_esc(lg["opp_name"])}</b><span>{lg["opp_pts"]:.1f}</span></div></div>'
             f'<div class="onnow">{on or _NOBODY}</div>'
-            f'<div class="left"><b>{lg["left"]}</b>still to play</div></div>')
-
-
-def all_lineup_html(*, title, total, rows) -> str:
-    out = [f'<div class="la-lu"><div class="hd"><b>{_esc(title)}</b>'
-           f'<span>{total:.1f}</span></div>']
-    for r in rows:
-        state = {"in": "live", "post": "done"}.get(r.get("state"), "")
-        d = (f'<span class="d">+{r["delta"]:.1f}</span>' if r.get("delta") else "")
-        pts = "—" if (r.get("state") == "pre" and not r.get("pts")) else f'{r.get("pts", 0):.1f}'
-        out.append(f'<div class="rw {state}"><span class="sl">{_esc(r["slot"])}</span>'
-                   f'<div class="pl"><b>{_esc(r["name"])}</b><span>{_esc(r["sub"])}</span></div>'
-                   f'<div class="cl{" on" if state == "live" else ""}">{_esc(r["clock"])}</div>'
-                   f'<div class="pt">{pts}{d}</div></div>')
-    return "".join(out) + "</div>"
+            + (wpc or f'<div class="wp2">{lg["left"]}<small>still to play</small></div>')
+            + '</div>')
 
 
 def all_bench_html(*, total, rows) -> str:
-    bits = " · ".join(f'<b>{_esc(r["name"])}</b> {r["pts"]:.1f}' for r in rows) or "nothing on the bench"
-    return (f'<div class="la-bench"><span class="k">your bench · {total:.1f} sitting</span>{bits}</div>')
+    """The bench as chips with faces — the same men, at a glance, in a line."""
+    if not rows:
+        return ('<div class="la-bench"><span class="k">your bench</span>'
+                '<span class="none">nothing on the bench</span></div>')
+    chips = "".join(
+        f'<div class="b">{h2h_face_html(r.get("face") or r.get("pid"), r.get("team") or "", "l")}'
+        f'<b>{_esc(r["name"].split()[-1])}</b><span>{r["pts"]:.1f}</span></div>' for r in rows)
+    return (f'<div class="la-bench"><span class="k">your bench · {total:.1f} sitting</span>'
+            f'<div class="chips">{chips}</div></div>')
 
 
 def all_player_html(d) -> str:
-    """One man across every league: his game, his leagues, his points."""
-    chips = "".join(f'<span class="chip me">{_esc(n)}</span>' for n in d.get("mine", []))
-    chips += "".join(f'<span class="chip">vs you · {_esc(n)}</span>' for n in d.get("against", []))
+    """One man across every league: his leagues in words, his line, his points.
+
+    Crimson when he is yours, green when he is against you, both when he is
+    both — which is the case this screen exists for.
+    """
+    lgs = []
+    if d.get("mine"):
+        lgs.append('<span class="mine">yours in ' + _esc(" · ".join(d["mine"])) + "</span>")
+    if d.get("against"):
+        lgs.append('<span class="ag">against you in ' + _esc(" · ".join(d["against"])) + "</span>")
     live = d.get("state") == "in"
-    d_ = (f'<span class="d">+{d["delta"]:.1f}</span>' if d.get("delta") else "")
     pts = "—" if (d.get("state") == "pre" and not d.get("pts")) else f'{d.get("pts", 0):.1f}'
-    return (f'<div class="la-pl{" live" if live else ""}">{_T_img(d.get("pid"))}'
-            f'<div class="nm"><b>{_esc(d["name"])}</b>'
-            f'<span>{_esc(d.get("team", ""))} {_esc(d.get("pos", ""))} · {_esc(d.get("sub", ""))}</span></div>'
-            f'<div class="chips">{chips}</div>'
-            f'<div class="cl">{_esc(d.get("clock", ""))}</div>'
-            f'<div class="pt">{pts}{d_}</div></div>')
+    cls = "la-of" + (" mine" if d.get("mine") else " against") + (" live" if live else "")
+    return (f'<div class="{cls}">'
+            + h2h_face_html(d.get("face") or d.get("pid"), d.get("team") or "", "l")
+            + f'<div class="t"><div class="who"><b>{_esc(d["name"])}</b>'
+            f'<span class="pt">{_esc(d.get("pos") or "")} · {_esc(d.get("team") or "")}</span></div>'
+            f'<div class="lgs">{" · ".join(lgs)}</div>'
+            f'<div class="stat">{_esc(d.get("stat") or d.get("sub") or "")}</div></div>'
+            f'<div class="val"><b>{pts}</b><small>{_esc(d.get("clock", ""))}</small></div></div>')
 
 
 def _T_img(pid) -> str:

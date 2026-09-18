@@ -996,87 +996,26 @@ def _live_body(ctx, g, *, bound_auto: bool, bound_every: int) -> None:
     # ---- the slots, head to head ------------------------------------------
     # One row per SLOT rather than two stacked lineups: the eye should not have
     # to carry a number across the screen to find out who is winning a seat.
-    from .. import nflstats as NS
+    # The card itself is built in draftkit/livecard.py, because the all-leagues
+    # drawer draws the same one at a smaller size.
+    from .. import livecard as LC, nflstats as NS
     try:
         stats = NS.weekly(season, week, max_age=(bound_every if bound_auto else 0))
     except Exception:  # noqa: BLE001
         stats = {}
 
-    def _card(slot, pid, side_live):
-        """One man, as the card wants him: points, share, his game, his line."""
-        if not pid or str(pid) in ("0", "None"):
-            return {}
-        pm = reg.meta(pid)
-        gm = WV.game_of(reg, games, pid)
-        state = GT.status(gm)
-        pts = float(((side_live or {}).get("players") or {}).get(str(pid), 0) or 0)
-        pos = (pm.position or "").upper()
-        sp = getattr(pm, "sleeper_pid", None) or (pid if ctx["meta"].platform == "sleeper" else None)
-        row = stats.get(str(sp)) if sp else None
-        # The game in ONE muted string: clock and score while it is on, kickoff
-        # and venue before it. Never two competing typographic objects.
-        if state in ("in", "post") and gm:
-            sc, osc = int(gm.get("score") or 0), int(gm.get("opp_score") or 0)
-            vs = f'{"vs" if gm.get("home") else "@"} {gm.get("opp") or ""}'.strip()
-            game = f'{GT.live_label(gm)} · {sc}-{osc} {vs}'.strip(" ·")
-        elif gm:
-            game = f'{GT.day_label(gm)} · {"vs" if gm.get("home") else "@"} {gm.get("opp") or ""}'
-        else:
-            game = "bye"
-        return {"face": sp, "name": pm.name, "pos": pos, "team": (pm.team or "").upper(),
-                "state": state, "pts": pts if state in ("in", "post") else None,
-                "proj": float(g["proj"].get(str(pid)) or 0),
-                "game": game, "stat": NS.line(pos, row),
-                "redzone": bool(gm and gm.get("redzone") and state == "in"),
-                "raw_pid": str(pid), "gm": gm}
-
-    def _finish(card):
-        """His live projection: what he has plus what the rest of his game is worth."""
-        if not card:
-            return card
-        st_ = card.get("state")
-        if st_ == "post":
-            card["final"], card["trend"] = card["pts"], (card["pts"] or 0) - (card["proj"] or 0)
-        elif st_ == "in":
-            # How much of HIS game is left, from the scoreboard clock. Without one,
-            # half — which is what live_projection has always assumed.
-            gm = card.get("gm") or {}
-            try:
-                mins, secs = (str(gm.get("clock") or "0:00").split(":") + ["0"])[:2]
-                played = (min(int(gm.get("period") or 1), 4) - 1) * 15 \
-                    + (15 - (int(mins) + int(secs) / 60.0))
-                left = max(0.0, min(1.0, 1 - played / 60.0))
-            except Exception:  # noqa: BLE001
-                left = 0.5
-            card["final"] = (card["pts"] or 0) + (card["proj"] or 0) * left
-            card["trend"] = card["final"] - (card["proj"] or 0)
-        return card
+    def _card(pid, side_live):
+        pp = (side_live or {}).get("players") or {}
+        return LC.build(pid, registry=reg, games=games,
+                        pts=float(pp.get(str(pid), 0) or 0),
+                        proj=float(g["proj"].get(str(pid)) or 0), stats=stats)
 
     st.markdown('<div class="ws-h">Slot by slot</div>', unsafe_allow_html=True)
     pairs = []
     for i, (slot, pid) in enumerate(mcur):
-        mine = _finish(_card(slot, pid, me_live))
-        theirs = _finish(_card(slot, ocur[i][1], opp_live)) if (opp and i < len(ocur)) else {}
-        # The rail is his share of the seat, measured on where each man ENDS UP —
-        # points for a game that is over, points plus what is left for one in
-        # progress, the projection for one that has not started. Measuring it on
-        # points alone pinned the rail at 100% every time one side had played and
-        # the other had not, which is three full crimson bars saying nothing.
-        def _end(c):
-            if not c:
-                return 0.0
-            v = c.get("final")
-            return float(v if v is not None else (c.get("proj") or 0))
-        a, b = _end(mine), _end(theirs)
-        tot = a + b
-        if mine:
-            mine["share"] = (100 * a / tot) if tot else 50
-        if theirs:
-            theirs["share"] = (100 * b / tot) if tot else 50
-        swing = None
-        if mine and theirs:
-            swing = ((mine.get("final") if mine.get("final") is not None else mine.get("proj")) or 0) \
-                - ((theirs.get("final") if theirs.get("final") is not None else theirs.get("proj")) or 0)
+        mine = _card(pid, me_live)
+        theirs = _card(ocur[i][1], opp_live) if (opp and i < len(ocur)) else {}
+        swing = LC.face_off(mine, theirs)
         pairs.append(C.h2h_pair_html(mine, theirs, slot=slot, swing=swing))
     st.markdown('<div class="h2h">' + "".join(pairs) + "</div>", unsafe_allow_html=True)
 
