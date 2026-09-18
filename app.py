@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import pathlib as _pathlib
 import streamlit as st
 
 from draftkit import positional as _PZ
@@ -24,7 +25,12 @@ from draftkit.ui import (assistant_ui, home_ui, in_season_ui, mock_ui,
                          prep_ui, rankings_ui, report_card_ui)
 from draftkit.ui.components import board_pos_rank, health_html
 
-st.set_page_config(page_title="Bloody Sunday", page_icon="🍒", layout="wide")
+# The tab icon is the app's own mark (assets/favicon.png, drawn by
+# macapp/make_icon.py from the same geometry as theme.cherry_svg), not the
+# cherry emoji — Apple's artwork is not this app's.
+_ICON = _pathlib.Path(__file__).resolve().parent / "assets" / "favicon.png"
+st.set_page_config(page_title="Bloody Sunday",
+                   page_icon=str(_ICON) if _ICON.exists() else None, layout="wide")
 # Dark is the DEFAULT now, not the alternate. The badge set the identity came
 # from contains the near-black, so the war room is the native look and light is
 # the escape hatch — hence the default flipping to True.
@@ -702,7 +708,11 @@ def _week_line() -> str:
     return (f'<b>Week {wk}</b> · {day}' + (f' · <span class="{"on" if live else ""}">{lab}</span>' if lab else ""))
 
 
-_DOT = {"go": "🟢", "warn": "🟡", "bad": "🔴", "live": "🔥", "": "⚪"}
+# A typographic dot the CSS colours, not a coloured emoji: the emoji set the
+# row in Apple's artwork and sat a pixel off the baseline beside the wordmark.
+_DOT = "\u25cf"
+_DOT_TONE = {"go": "var(--green)", "warn": "var(--amber)", "bad": "var(--red)",
+             "live": "var(--crimson)", "": "var(--mut2)"}
 
 
 def _league_switcher(ctx) -> None:
@@ -716,13 +726,20 @@ def _league_switcher(ctx) -> None:
                             in_season_ui.current_week())
     except Exception:  # noqa: BLE001
         pulses = [{} for _ in presets]
-    labels, by_label = [], {}
+    labels, tones, by_label = [], [], {}
     for p, pu in zip(presets, pulses):
         tone = (pu or {}).get("tone", "") if (pu or {}).get("ok") else ""
         short = {"The Kreeper League": "Kreeper", "Show us your TD's": "TD's"}.get(p["label"], p["label"])
-        lab = f'{_DOT.get(tone, "⚪")} {short}'
+        lab = f"{_DOT} {short}"
         labels.append(lab)
+        tones.append(_DOT_TONE.get(tone, _DOT_TONE[""]))
         by_label[lab] = p
+    # ::first-letter is the dot and nothing else, so each league's state shows
+    # in its own colour without tinting its name.
+    st.markdown("<style>" + "".join(
+        f'.st-key-tb_leagues [data-testid="stButtonGroup"] button:nth-of-type({i}) '
+        f'p::first-letter{{color:{t};}}' for i, t in enumerate(tones, 1)) + "</style>",
+        unsafe_allow_html=True)
     cur = next((l for l, p in by_label.items() if str(p["league_id"]) == cur_lid), labels[0])
     key = "tb_league_pick"
     # Seed the control only when the league actually changed; writing it every

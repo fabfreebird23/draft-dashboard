@@ -37,7 +37,7 @@ Open the URL it prints, choose a platform, paste a league ID, and import.
 ```
 
 A native window over the same dashboard, plus a menu-bar line that reads
-`🍒 2-2 · 1 live` all Sunday. The bundle is thin on purpose — pywebview and
+`2-2 · 1 live` all Sunday. The bundle is thin on purpose — pywebview and
 PyObjC only. It runs `.venv/bin/python -m streamlit run app.py` on port 8599
 out of this checkout, so a `git pull` is the whole update and the bundle is
 rebuilt only when the wrapper changes. Scores in the menu come from

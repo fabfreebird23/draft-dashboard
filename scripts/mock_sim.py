@@ -102,7 +102,7 @@ def fmt(d):
 
 print(f"\n=== {N} mocks · {TEAMS} teams · {ROUNDS} rds · jitter={JITTER} · no keepers/tendencies ===")
 print(f"\nRoster-construction flags (out of {N*TEAMS} teams):")
-print("  ", fmt(flags) or "none 🎉")
+print("  ", fmt(flags) or "none")
 print(f"\nPosition-count distributions (count: #teams):")
 print("   QB:", fmt(qb_dist)); print("   RB:", fmt(rb_dist))
 print("   WR:", fmt(wr_dist)); print("   TE:", fmt(te_dist))
@@ -134,4 +134,4 @@ for nm in ELITE:
     if ps:
         print(f"   {nm} (ADP {base}): avg pick {sum(ps)/len(ps):.1f} | range {min(ps)}-{max(ps)}")
     else:
-        print(f"   {nm} (ADP {base}): NEVER DRAFTED ⚠️")
+        print(f"   {nm} (ADP {base}): NEVER DRAFTED")

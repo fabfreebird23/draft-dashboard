@@ -309,13 +309,13 @@ body{{background:#0c1626;color:#e8eef7;font-size:13px;}}
     <div class="panel"><h3>Roster Strength vs League</h3>{ds_strength()}</div>
   </div>
   <div class="panel">
-    <div class="board-h"><b>🦈 Big Board</b><div class="bpills"><span class="bpill on">ALL</span>
+    <div class="board-h"><b>Big Board</b><div class="bpills"><span class="bpill on">ALL</span>
       <span class="bpill">QB</span><span class="bpill">RB</span><span class="bpill">WR</span><span class="bpill">TE</span></div></div>
     {ds_rows(AVAIL)}
   </div>
   <div style="display:flex;flex-direction:column;gap:14px;">
-    <div class="panel" style="padding:12px 14px 4px;"><div class="run">🔥 RB RUN — 4 of last 6 picks</div>
-      <h3 style="border:none;padding:0 0 4px;">⚡ Recommended Picks</h3></div>
+    <div class="panel" style="padding:12px 14px 4px;"><div class="run">RB RUN — 4 of last 6 picks</div>
+      <h3 style="border:none;padding:0 0 4px;">Recommended Picks</h3></div>
     <div class="panel" style="margin-top:-14px;border-top:none;border-radius:0 0 12px 12px;">{ds_reco()}</div>
   </div>
 </div></body></html>"""

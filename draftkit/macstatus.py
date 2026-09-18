@@ -2,8 +2,8 @@
 
     .venv/bin/python -m draftkit.macstatus --loop 90
 
-Prints one JSON object per line: a short `title` for the NSStatusItem ("🍒 3-1
-· 2 live") and the per-league `lines` behind it. The Mac app reads stdout; it
+Prints one JSON object per line: a short `title` for the NSStatusItem
+("3-1 · 2 live") and the per-league `lines` behind it. The Mac app reads stdout; it
 never imports this, because the bundle carries pywebview and nothing else —
 the numbers come from the repo's own venv, the same one running Streamlit.
 
@@ -75,9 +75,9 @@ def snapshot(state: dict) -> dict:
         lines.append(f'{lg["name"]}  {lg["me_pts"]:.1f}–{lg["opp_pts"]:.1f}  '
                      f'{_tone_mark(wp)} {pct}  ({lg["left"]} to play)')
     if not ok:
-        title = "🍒 Bloody Sunday"
+        title = "Bloody Sunday"
     else:
-        title = f"🍒 {ahead}-{len(ok) - ahead}"
+        title = f"{ahead}-{len(ok) - ahead}"
         if live:
             title += f" · {live} live"
     return {"title": title, "lines": lines or ["No live matchups"], "ts": time.time()}
@@ -93,7 +93,7 @@ def main(argv=None) -> int:
         try:
             out = snapshot(state)
         except Exception as e:  # noqa: BLE001  one bad poll must not end the loop
-            out = {"title": "🍒 Bloody Sunday", "lines": [f"status error: {e}"],
+            out = {"title": "Bloody Sunday", "lines": [f"status error: {e}"],
                    "ts": time.time()}
         print(json.dumps(out), flush=True)
         if not a.loop:

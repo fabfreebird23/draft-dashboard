@@ -218,7 +218,7 @@ class MenuBar(NSObject):
         self.status_proc = None
         bar = NSStatusBar.systemStatusBar()
         self.item = bar.statusItemWithLength_(NSVariableStatusItemLength)
-        self.item.button().setTitle_("🍒")
+        self.item.button().setTitle_("Bloody Sunday")
 
         menu = NSMenu.alloc().init()
         self.head = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
@@ -265,7 +265,7 @@ class MenuBar(NSObject):
 
     def applyStatus_(self, data):
         try:
-            self.item.button().setTitle_(data.get("title") or "🍒")
+            self.item.button().setTitle_(data.get("title") or "Bloody Sunday")
             self.head.setTitle_(time.strftime("Updated %-I:%M %p"))
             for it in self.rows:
                 self.menu.removeItem_(it)

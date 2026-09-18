@@ -381,7 +381,8 @@ def _live(ctx, *, bound_auto: bool) -> None:
         if mm:
             st.error(f"That mock has **{mm[0]} teams** and this league has **{mm[1]}** — "
                      "picks are placed by draft slot, so they would land on the wrong "
-                     "managers. Use a mock with the same number of teams.", icon="⚠️")
+                     "managers. Use a mock with the same number of teams.",
+                     icon=":material/warning:")
         else:
             st.caption(f"Following Sleeper mock `{ctx['mock_draft_id']}` — picks come from "
                        "the mock; your league's draft order, manager names and traded "
@@ -390,7 +391,8 @@ def _live(ctx, *, bound_auto: bool) -> None:
         # Say it out loud. A board drawn as a plain snake looks entirely normal.
         st.warning("Couldn't read traded picks just now — the board below is showing "
                    "the plain snake order, so any pick you traded for or away is in "
-                   "the wrong column. Hit Refresh before trusting it.", icon="⚠️")
+                   "the wrong column. Hit Refresh before trusting it.",
+                   icon=":material/warning:")
     with st.container(key="dr_board_top"):
         st.markdown(C.recent_ticker_html(real_picks, reg), unsafe_allow_html=True)
         st.markdown(C.grid_html(pick_pids, n, slot_names, my_slot, pick_no, rounds, reg,

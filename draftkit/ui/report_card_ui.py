@@ -329,7 +329,7 @@ def render(ctx) -> None:
                 f"two fixes to the same hole — and no player is offered twice, since "
                 f"you can only draft him once.")
             st.caption(
-                "⚠️ Every other team's picks are held fixed. Taking a different player "
+                "Every other team's picks are held fixed. Taking a different player "
                 "would really have changed what everyone after you did, so treat these "
                 "as an upper bound on what the swap was worth. The rows marked *you "
                 "could have had both* are the solid ones: the player you actually took "

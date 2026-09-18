@@ -82,8 +82,8 @@ def player_label(ctx, r, pm, *, pick=None, my_pids=None, survival=None,
     vt = ""
     reach = reach_for(ctx, r, pm, pick, survival=survival, next_pick=next_pick)
     if reach:
-        vt = ('  :red[**❗ can wait**]' if reach.get("survival") is not None
-              else f'  :red[**❗{reach["rounds"]:.1f} rds early**]')
+        vt = ('  :red[**! can wait**]' if reach.get("survival") is not None
+              else f'  :red[**!{reach["rounds"]:.1f} rds early**]')
     elif pick:
         d = (adp - pick) if (adp and pick) else 0
         vt = f"  :red[▼+{int(d)}]" if d >= 8 else (f"  :violet[▲{int(d)}]" if d <= -8 else "")
@@ -302,7 +302,7 @@ def clickable_board(ctx, board_avail, draft_fn, key_prefix, current_pick=None, *
         text = (compact_label(r, pm) if compact
                 else label(r, pm, survival=_sv, tier_chip=tier_chip))
 
-        # Hover explanation for the ❗ chip. Attached ONLY on a reach: a tooltip on
+        # Hover explanation for the reach chip. Attached ONLY on a reach: a tooltip on
         # every row would be noise, and the rest of the detail lives in the card.
         reach_tip = ((reach_for(ctx, r, pm, pick, survival=_sv, next_pick=next_pick)
                       or {}).get("tip") if not compact else None)
@@ -465,7 +465,7 @@ def rankings_tab(ctx, *, key_prefix, taken, queued=None, is_my_turn=False,
             # rows came off an old cache. Say so rather than render it as live.
             st.warning(f"{source} is unreachable — showing a cached board from "
                        f"{C.age_phrase(status.get('age_h'))}. It may not reflect "
-                       "recent news.", icon="⚠️")
+                       "recent news.", icon=":material/warning:")
         elif status.get("age_h") is not None and status["age_h"] >= 24:
             st.caption(f"{source} · cached {C.age_phrase(status['age_h'])}.")
 

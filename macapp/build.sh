@@ -32,7 +32,15 @@ codesign --force --deep --sign - "$DEST" 2>/dev/null || true
 AGENT="com.brandonclifton.bloodysunday-server"
 PL="$HOME/Library/LaunchAgents/$AGENT.plist"
 sed "s|__HOME__|$HOME|g" "$AGENT.plist" > "$PL"
+# bootout is asynchronous, so a bootstrap right behind it fails with "Input/output
+# error" while the old job is still on its way out. Wait for it to go, and if it
+# is already loaded and healthy just restart it in place.
 launchctl bootout "gui/$UID/$AGENT" 2>/dev/null || true
-launchctl bootstrap "gui/$UID" "$PL"
+for _ in $(seq 1 20); do
+  launchctl print "gui/$UID/$AGENT" >/dev/null 2>&1 || break
+  sleep 0.5
+done
+launchctl bootstrap "gui/$UID" "$PL" 2>/dev/null \
+  || launchctl kickstart -k "gui/$UID/$AGENT"
 echo "installed $DEST"
 echo "server agent loaded ($AGENT)"
