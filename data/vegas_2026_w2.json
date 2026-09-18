@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "week": 2,
-  "published": "2026-09-18T06:53",
+  "published": "2026-09-18T07:53",
   "players": {
     "Bryce Young|CAR": {
       "name": "Bryce Young",
@@ -683,8 +683,8 @@
       "lines": {
         "rec": {
           "line": 2.5,
-          "over": "-145",
-          "under": "+110"
+          "over": "-125",
+          "under": "-105"
         },
         "rec_yd": {
           "line": 25.5,
@@ -697,7 +697,7 @@
         }
       },
       "exp": {
-        "rec": 2.55,
+        "rec": 2.52,
         "rec_yd": 25.5,
         "td": 0.217
       }
@@ -2717,6 +2717,11 @@
           "over": "-125",
           "under": "-105"
         },
+        "pass_int": {
+          "line": 0.5,
+          "over": "+110",
+          "under": "-145"
+        },
         "pass_yd": {
           "line": 239.5,
           "over": "-115",
@@ -2735,6 +2740,7 @@
       "exp": {
         "pass_td": 1.35,
         "pass_att": 34.57,
+        "pass_int": 0.45,
         "pass_yd": 239.5,
         "rush_yd": 15.5,
         "td": 0.159
@@ -3291,7 +3297,7 @@
       "team": "NE",
       "lines": {
         "rush_yd": {
-          "line": 37.5,
+          "line": 36.5,
           "over": "-115",
           "under": "-115"
         },
@@ -3301,7 +3307,7 @@
         }
       },
       "exp": {
-        "rush_yd": 37.5,
+        "rush_yd": 36.5,
         "td": 0.284
       }
     },
@@ -3763,8 +3769,8 @@
         },
         "pass_att": {
           "line": 33.5,
-          "over": "-120",
-          "under": "-110"
+          "over": "-130",
+          "under": "EVEN"
         },
         "pass_int": {
           "line": 0.5,
@@ -3788,7 +3794,7 @@
       },
       "exp": {
         "pass_td": 1.46,
-        "pass_att": 33.53,
+        "pass_att": 33.6,
         "pass_int": 0.47,
         "pass_yd": 221.5,
         "rush_yd": 17.52,
@@ -4410,12 +4416,41 @@
         "td": 0.633
       }
     },
+    "Mike Washington Jr.|LV": {
+      "name": "Mike Washington Jr.",
+      "team": "LV",
+      "lines": {
+        "rush_yd": {
+          "line": 20.5,
+          "over": "-110",
+          "under": "-120"
+        },
+        "td": {
+          "price": "+525",
+          "prob": 0.16
+        }
+      },
+      "exp": {
+        "rush_yd": 20.48,
+        "td": 0.143
+      }
+    },
     "Omarion Hampton|LAC": {
       "name": "Omarion Hampton",
       "team": "LAC",
       "lines": {
         "rush_yd": {
           "line": 63.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "rec": {
+          "line": 2.5,
+          "over": "+140",
+          "under": "-185"
+        },
+        "rec_yd": {
+          "line": 10.5,
           "over": "-115",
           "under": "-115"
         },
@@ -4426,7 +4461,37 @@
       },
       "exp": {
         "rush_yd": 63.5,
+        "rec": 2.39,
+        "rec_yd": 10.5,
         "td": 0.806
+      }
+    },
+    "Cameron Dicker|LAC": {
+      "name": "Cameron Dicker",
+      "team": "LAC",
+      "lines": {
+        "kick_pts": {
+          "line": 8.5,
+          "over": "+105",
+          "under": "-135"
+        }
+      },
+      "exp": {
+        "kick_pts": 8.46
+      }
+    },
+    "Matt Gay|MIA": {
+      "name": "Matt Gay",
+      "team": "MIA",
+      "lines": {
+        "kick_pts": {
+          "line": 5.5,
+          "over": "-120",
+          "under": "-110"
+        }
+      },
+      "exp": {
+        "kick_pts": 5.51
       }
     },
     "David Njoku|LAC": {
@@ -4622,19 +4687,6 @@
       },
       "exp": {
         "td": 0.182
-      }
-    },
-    "Mike Washington Jr.|LV": {
-      "name": "Mike Washington Jr.",
-      "team": "LV",
-      "lines": {
-        "td": {
-          "price": "+525",
-          "prob": 0.16
-        }
-      },
-      "exp": {
-        "td": 0.143
       }
     },
     "Tre Tucker|LV": {
