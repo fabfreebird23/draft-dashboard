@@ -1,0 +1,268 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Live · all leagues · remock</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141314;--panel:#1f1d1e;--panel2:#292627;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#8c8286;
+ --crimson:#ff336c;--green:#7fd8b4;--amber:#f0b357;--red:#ff8fae;--g:#5fdc8f;--r:#ff6b6b;
+ --fd:'Oswald',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'Roboto Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);margin:0;padding:22px 22px 80px;font-size:13px}
+h1{font-family:var(--fd);font-weight:600;font-size:26px;margin:0 0 4px}
+.sub{color:var(--muted);max-width:96ch;line-height:1.55;margin:0 0 16px}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.55;max-width:96ch;margin:12px 0 0}
+.note b{color:var(--muted);font-weight:600}
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:30px 0 8px;font-family:var(--fd);font-weight:600;font-size:18px}
+.bar i{height:1px;background:var(--line2)}
+.bar em{font-family:var(--fm);font-size:9.5px;font-style:normal;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2)}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ---- controls + band ---- */
+.ctl{display:grid;grid-template-columns:auto auto auto 1fr;gap:12px;align-items:center;padding:8px 12px;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+.tog{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600}
+.tog i{width:30px;height:17px;border-radius:999px;background:var(--crimson);position:relative;display:inline-block}
+.tog i::after{content:"";position:absolute;right:2px;top:2px;width:13px;height:13px;border-radius:50%;background:#fff}
+.seg{display:flex;gap:2px;background:var(--panel2);border-radius:8px;padding:2px}
+.seg span{padding:4px 10px;border-radius:6px;font-family:var(--fm);font-size:10px;color:var(--muted)}
+.seg span.on{background:var(--panel);color:var(--ink)}
+.btn{font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:5px 10px;border-radius:7px;border:1px solid var(--line2);color:var(--muted)}
+.meta{font-family:var(--fm);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);text-align:right}
+.meta b{color:var(--ink);font-weight:500} .meta .on{color:var(--crimson)}
+
+.band{display:grid;grid-template-columns:1fr auto auto;gap:22px;align-items:center;padding:13px 18px;border-radius:13px;margin-bottom:8px;
+  background:var(--panel);border:1px solid var(--line)}
+.band .k{font-family:var(--fm);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--crimson)}
+.band .k i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--crimson);margin-right:6px;animation:p 1.6s infinite}
+.band .t{font-family:var(--fd);font-weight:500;font-size:19px;margin-top:3px}
+.band .t small{display:block;font-family:var(--fb);font-weight:400;font-size:11.5px;color:var(--muted);margin-top:3px}
+.band .n{text-align:right;font-family:var(--fd);font-weight:600;font-size:24px;line-height:1;font-variant-numeric:tabular-nums}
+.band .n.g{color:var(--g)}
+.band .n small{display:block;font-family:var(--fm);font-size:8.5px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2);margin-top:4px}
+
+/* ---- game strips: quiet, one line, exposure on the right ---- */
+.games{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px}
+.gm{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:8px 12px;border-radius:11px;
+  background:var(--panel);border:1px solid var(--line);border-left:2px solid var(--line2)}
+.gm.on{border-left-color:var(--crimson)}
+.gm .sc{font-family:var(--fm);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.gm .sc b{color:var(--ink);font-weight:500}
+.gm .cl{display:block;font-family:var(--fm);font-size:9.5px;color:var(--mut2);margin-top:3px}
+.gm .cl .rz{color:#fff;background:var(--crimson);border-radius:4px;padding:1px 4px;margin-right:5px;font-size:8.5px}
+.gm .ex{text-align:right;font-family:var(--fm);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);white-space:nowrap}
+.gm .ex b{display:block;font-family:var(--fd);font-weight:600;font-size:17px;color:var(--ink)}
+.gm .ex.hot b{color:var(--crimson)}
+
+/* ---- league rows ---- */
+.lgwrap{border-radius:12px;border:1px solid var(--line);border-left:3px solid var(--line2);background:var(--panel);margin-bottom:6px;overflow:hidden}
+.lgwrap.win{border-left-color:var(--g)} .lgwrap.lose{border-left-color:var(--r)} .lgwrap.close{border-left-color:var(--amber)}
+.lg{display:grid;grid-template-columns:22px 150px 1fr 120px 92px;gap:14px;align-items:center;padding:10px 14px;cursor:pointer}
+.lg .cv{font-family:var(--fm);font-size:11px;color:var(--mut2);text-align:center}
+.lgwrap.open .lg .cv{color:var(--crimson)}
+.lg .nm b{display:block;font-family:var(--fd);font-weight:500;font-size:15px}
+.lg .nm span{display:block;font-family:var(--fm);font-size:8.5px;color:var(--mut2);margin-top:2px;letter-spacing:.07em;text-transform:uppercase}
+.mu{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center}
+.mu .side b{display:block;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mu .side span{font-family:var(--fd);font-weight:600;font-size:20px;font-variant-numeric:tabular-nums}
+.mu .side.r{text-align:right} .mu .side.r span{color:var(--muted)}
+.mu .d{font-family:var(--fm);font-size:9.5px;color:var(--mut2);text-align:center}
+.mu .d b{display:block;font-family:var(--fd);font-size:14px;font-weight:600;margin-bottom:2px}
+.mu .d b.up{color:var(--g)} .mu .d b.dn{color:var(--r)}
+.lg .onnow{font-family:var(--fm);font-size:9.5px;color:var(--mut2)}
+.lg .onnow .p{display:flex;justify-content:space-between;gap:8px}
+.lg .onnow .p i{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--crimson);margin-right:5px;vertical-align:middle}
+.lg .wp2{text-align:right;font-family:var(--fd);font-weight:600;font-size:19px;font-variant-numeric:tabular-nums}
+.lg .wp2.up{color:var(--g)} .lg .wp2.dn{color:var(--r)}
+.lg .wp2 small{display:block;font-family:var(--fm);font-size:8.5px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2);margin-top:3px}
+.drawer{border-top:1px solid var(--line);padding:10px 14px 12px;background:#1b191a}
+.drawer .ws{font-family:var(--fm);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2);margin:0 0 7px}
+.bench{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.bench .b{display:flex;align-items:center;gap:7px;padding:4px 9px;border-radius:8px;border:1px solid var(--line2);background:var(--panel)}
+.bench .b img{width:18px;height:18px;border-radius:5px;object-fit:cover;object-position:top center}
+.bench .b span{font-family:var(--fm);font-size:10px;color:var(--muted)}
+.bench .b b{font-family:var(--fm);font-size:10px;color:var(--ink);font-weight:500}
+
+/* ---- the E1 card, drawer size ---- */
+.h2h{display:flex;flex-direction:column;gap:5px}
+.h2h-pair{display:grid;grid-template-columns:1fr 50px 1fr;align-items:stretch}
+.h2h-side{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:7px 11px 8px;
+  display:grid;grid-template-columns:34px 1fr 62px;gap:10px;align-items:center;min-width:0}
+.h2h-side.l{border-top-right-radius:4px;border-bottom-right-radius:4px}
+.h2h-side.r{border-top-left-radius:4px;border-bottom-left-radius:4px;grid-template-columns:62px 1fr 34px}
+.h2h-side.on{background:rgba(255,51,108,.07);border-color:rgba(255,51,108,.28)}
+.h2h-side.done{opacity:.78}
+.h2h-av{position:relative;width:34px;height:34px;flex:none}
+.h2h-av .hs{width:34px;height:34px;border-radius:9px;object-fit:cover;object-position:top center;background:var(--panel2);border:1px solid var(--line2);display:block}
+.h2h-av .tm{position:absolute;width:15px;height:15px;bottom:-3px;object-fit:contain;background:var(--bg);border-radius:4px;padding:1px;border:1px solid var(--line)}
+.h2h-av.l .tm{right:-4px} .h2h-av.r .tm{left:-4px}
+.h2h-body{min-width:0} .h2h-side.r .h2h-body{text-align:right}
+.h2h-who{display:flex;align-items:baseline;gap:6px;min-width:0}
+.h2h-side.r .h2h-who{justify-content:flex-end;flex-direction:row-reverse}
+.h2h-who b{font-family:var(--fd);font-weight:500;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h2h-who .pt{font-family:var(--fm);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);white-space:nowrap}
+.h2h-rail{height:3px;border-radius:99px;background:var(--panel2);position:relative;margin:6px 0 5px}
+.h2h-rail i{position:absolute;top:0;bottom:0;border-radius:99px;background:linear-gradient(90deg,#ff336c,#ff6f95)}
+.h2h-side.l .h2h-rail i{left:0} .h2h-side.r .h2h-rail i{right:0}
+.h2h-rail .dot{position:absolute;top:50%;width:10px;height:10px;border-radius:50%;background:var(--crimson);transform:translate(-50%,-50%);border:2px solid var(--bg)}
+.h2h-rail.pre i{background:var(--line2)} .h2h-rail.pre .dot{background:var(--line2);width:8px;height:8px}
+.h2h-meta{font-family:var(--fm);font-size:9.5px;color:var(--mut2);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h2h-rz{font-family:var(--fm);font-size:8px;font-weight:600;letter-spacing:.08em;color:#fff;background:var(--crimson);border-radius:4px;padding:1px 4px;margin-right:5px}
+.h2h-stat{margin-top:3px;font-family:var(--fm);font-size:10px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h2h-side.pre .h2h-stat{color:var(--mut2)}
+.h2h-val{font-family:var(--fm);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.h2h-side.r .h2h-val{text-align:left}
+.h2h-val .pts{font-family:var(--fd);font-weight:600;font-size:19px;line-height:1}
+.h2h-side.pre .h2h-val .pts{color:var(--muted);font-weight:400}
+.h2h-val .p{display:block;font-size:9px;margin-top:4px;color:var(--mut2)}
+.h2h-val .p .up{color:var(--g)} .h2h-val .p .dn{color:var(--r)}
+.h2h-mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.h2h-badge{width:27px;height:27px;border-radius:8px;display:grid;place-items:center;font-family:var(--fm);font-size:8.5px;font-weight:600;border:1px solid var(--line2);background:var(--panel2);color:var(--muted)}
+.h2h-badge.QB{color:#e879a6;border-color:rgba(232,121,166,.45)}
+.h2h-badge.RB{color:#7fd8b4;border-color:rgba(127,216,180,.45)}
+.h2h-badge.WR{color:#6aa6f0;border-color:rgba(106,166,240,.45)}
+.h2h-badge.TE{color:#f0b357;border-color:rgba(240,179,87,.45)}
+.h2h-swing{font-family:var(--fm);font-size:9px;font-weight:600;font-variant-numeric:tabular-nums}
+.h2h-swing.me{color:var(--crimson)} .h2h-swing.op{color:var(--g)} .h2h-swing.tie{color:var(--mut2)}
+
+/* ---- on the field right now: one card per man, every league he is in ---- */
+.onfield{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.of{display:grid;grid-template-columns:38px 1fr 76px;gap:11px;align-items:center;padding:8px 12px;border-radius:11px;
+  background:var(--panel);border:1px solid var(--line)}
+.of.mine{border-color:rgba(255,51,108,.28);background:rgba(255,51,108,.06)}
+.of.against{border-color:rgba(95,220,143,.22)}
+.of .who{display:flex;align-items:baseline;gap:6px}
+.of .who b{font-family:var(--fd);font-weight:500;font-size:14px}
+.of .who .pt{font-family:var(--fm);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2)}
+.of .lgs{margin-top:4px;font-family:var(--fm);font-size:9.5px;color:var(--mut2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.of .lgs .mine{color:var(--crimson)} .of .lgs .ag{color:var(--g)}
+.of .stat{margin-top:3px;font-family:var(--fm);font-size:10px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.of .val{text-align:right;font-family:var(--fm);font-variant-numeric:tabular-nums}
+.of .val b{display:block;font-family:var(--fd);font-weight:600;font-size:19px;line-height:1}
+.of .val small{display:block;font-size:9px;color:var(--mut2);margin-top:4px}
+
+/* ---- feed ---- */
+.la-ev{display:grid;grid-template-columns:52px 1fr auto auto;gap:10px;align-items:baseline;padding:6px 12px;
+  border-radius:9px;background:var(--panel);border:1px solid var(--line);margin-bottom:4px;font-size:12px}
+.la-ev.me{border-color:rgba(255,51,108,.3)}
+.la-ev .d{font-family:var(--fd);font-weight:600;font-size:14px}
+.la-ev .d.up{color:var(--g)} .la-ev .d.dn{color:var(--r)}
+.la-ev b{font-weight:600}
+.la-ev .to{font-family:var(--fm);font-size:10px;color:var(--mut2)}
+.la-ev .lg{font-family:var(--fm);font-size:9.5px;color:var(--mut2)}
+.la-ev .ago{font-family:var(--fm);font-size:9.5px;color:var(--mut2);text-align:right;min-width:62px}
+</style></head><body>
+
+<h1>Live · all leagues</h1>
+<p class="sub">The consolidated screen, brought onto the same grammar as the Live tab: type 1 throughout, one bright thing per card, the clock and
+the score muted behind it, and the drawer opening onto the head-to-head slot rows instead of two stacked lineups. Sunday, 1:38pm, three games on.</p>
+
+<div class="ctl">
+  <div class="tog"><i></i>Auto</div>
+  <div class="seg"><span>5s</span><span class="on">10s</span><span>30s</span></div>
+  <div class="btn">Expand all</div>
+  <div class="meta">updated <b>just now</b> · <span class="on">3 games live</span> · 26 of your starters still to play</div>
+</div>
+
+<div class="band">
+  <div><div class="k"><i></i>Sunday · week 2 · early window</div>
+    <div class="t">Leading in 2 of 4<small>Kreeper +6.2 · Babies and Boomer +14.8 · 7½ Men -3.1 · Show us your TD's -21.4</small></div></div>
+  <div class="n g">148.6<small>your points today</small></div>
+  <div class="n">2-2<small>if it ended now</small></div>
+</div>
+
+<div class="games">
+  <div class="gm on"><div><div class="sc"><b>DET 21</b> · CHI 14</div>
+    <span class="cl"><span class="rz">RZ</span>Q2 2:31 · 1st and goal</span></div>
+    <div class="ex hot"><b>5</b>your men</div></div>
+  <div class="gm on"><div><div class="sc"><b>BUF 13</b> · MIA 10</div>
+    <span class="cl">Q2 7:40 · 2nd and 6</span></div>
+    <div class="ex"><b>4</b>your men</div></div>
+  <div class="gm on"><div><div class="sc"><b>NE 7</b> · PIT 7</div>
+    <span class="cl">Q2 9:55 · 3rd and 2</span></div>
+    <div class="ex"><b>2</b>your men</div></div>
+</div>
+
+<div class="lgwrap win open">
+  <div class="lg"><div class="cv">▾</div>
+    <div class="nm"><b>The Kreeper League</b><span>sleeper · 8 · 0-1</span></div>
+    <div class="mu"><div class="side"><b>FAABfreebird</b><span>41.7</span></div>
+      <div class="d"><b class="up">+6.2</b>proj 138 – 132</div>
+      <div class="side r"><b>Big Flipper</b><span>35.5</span></div></div>
+    <div class="onnow"><div class="p"><span><i></i>Daniels</span><span>18.4</span></div>
+      <div class="p"><span><i></i>Stevenson</span><span>6.2</span></div></div>
+    <div class="wp2 up">58%<small>win prob</small></div></div>
+  <div class="drawer">
+    <div class="ws">Slot by slot</div>
+    <div class="h2h"><div class="h2h-pair"><div class="h2h-side l on"><div class="h2h-av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11566.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/was.png" alt="" loading="lazy"></div><div class="h2h-body"><div class="h2h-who"><b>J. Daniels</b><span class="pt">QB · WAS</span></div><div class="h2h-rail"><i style="width:58%"></i><div class="dot" style="left:58%"></div></div><div class="h2h-meta">Q2 4:12 · 14-10 @ DAL</div><div class="h2h-stat">9/13 · 121 yd · 1 TD · 4 car, 31 yd</div></div><div class="h2h-val"><div class="pts">18.4</div><span class="p"><span class="up">24.6</span> final</span></div></div><div class="h2h-mid"><div class="h2h-badge QB">QB</div><div class="h2h-swing me">+6.8</div></div><div class="h2h-side r on"><div class="h2h-val"><div class="pts">12.1</div><span class="p"><span class="dn">17.8</span> final</span></div><div class="h2h-body"><div class="h2h-who"><b>J. Allen</b><span class="pt">QB · BUF</span></div><div class="h2h-rail"><i style="width:42%"></i><div class="dot" style="left:58%"></div></div><div class="h2h-meta">Q2 7:40 · 10-13 vs MIA</div><div class="h2h-stat">8/14 · 96 yd · 1 TD</div></div><div class="h2h-av r"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/4984.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/buf.png" alt="" loading="lazy"></div></div></div><div class="h2h-pair"><div class="h2h-side l on"><div class="h2h-av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/7611.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/ne.png" alt="" loading="lazy"></div><div class="h2h-body"><div class="h2h-who"><b>R. Stevenson</b><span class="pt">RB · NE</span></div><div class="h2h-rail"><i style="width:44%"></i><div class="dot" style="left:44%"></div></div><div class="h2h-meta">Q2 9:55 · 7-7 vs PIT</div><div class="h2h-stat">8 car, 32 yd · 1/1 rec, 8 yd</div></div><div class="h2h-val"><div class="pts">6.2</div><span class="p"><span class="dn">13.1</span> final</span></div></div><div class="h2h-mid"><div class="h2h-badge RB">RB</div><div class="h2h-swing op">-3.3</div></div><div class="h2h-side r on"><div class="h2h-val"><div class="pts">11.9</div><span class="p"><span class="up">16.4</span> final</span></div><div class="h2h-body"><div class="h2h-who"><b>J. Gibbs</b><span class="pt">RB · DET</span></div><div class="h2h-rail"><i style="width:56%"></i><div class="dot" style="left:44%"></div></div><div class="h2h-meta"><span class="h2h-rz">RZ</span>Q2 2:31 · 21-14 @ CHI</div><div class="h2h-stat">9 car, 64 yd, 1 TD · 2/2 rec, 15 yd</div></div><div class="h2h-av r"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9221.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/det.png" alt="" loading="lazy"></div></div></div><div class="h2h-pair"><div class="h2h-side l pre"><div class="h2h-av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9224.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/cin.png" alt="" loading="lazy"></div><div class="h2h-body"><div class="h2h-who"><b>C. Brown</b><span class="pt">RB · CIN</span></div><div class="h2h-rail pre"><i style="width:48%"></i><div class="dot" style="left:48%"></div></div><div class="h2h-meta">Sun 4:25 · @ HOU · dome</div><div class="h2h-stat">locks in 3h 12m</div></div><div class="h2h-val"><div class="pts">&mdash;</div><span class="p">15.5 proj</span></div></div><div class="h2h-mid"><div class="h2h-badge RB">RB</div><div class="h2h-swing me">+0.6</div></div><div class="h2h-side r on"><div class="h2h-val"><div class="pts">9.4</div><span class="p"><span class="dn">14.9</span> final</span></div><div class="h2h-body"><div class="h2h-who"><b>J. Cook</b><span class="pt">RB · BUF</span></div><div class="h2h-rail"><i style="width:52%"></i><div class="dot" style="left:48%"></div></div><div class="h2h-meta">Q2 7:40 · 10-13 vs MIA</div><div class="h2h-stat">11 car, 44 yd · 1/1 rec, 6 yd</div></div><div class="h2h-av r"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8138.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/buf.png" alt="" loading="lazy"></div></div></div></div>
+    <div class="ws" style="margin-top:11px">Bench · 22.6 sitting</div>
+    <div class="bench">
+      <div class="b"><img src="https://sleepercdn.com/content/nfl/players/thumb/7526.jpg" alt=""><b>Waddle</b><span>9.8</span></div>
+      <div class="b"><img src="https://sleepercdn.com/content/nfl/players/thumb/10236.jpg" alt=""><b>Kincaid</b><span>7.1</span></div>
+      <div class="b"><img src="https://sleepercdn.com/content/nfl/players/thumb/5967.jpg" alt=""><b>Pollard</b><span>5.7</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="lgwrap win">
+  <div class="lg"><div class="cv">▸</div>
+    <div class="nm"><b>Babies and Boomer</b><span>sleeper · 10 · 2-0</span></div>
+    <div class="mu"><div class="side"><b>Guys who Fuck</b><span>52.9</span></div>
+      <div class="d"><b class="up">+14.8</b>proj 141 – 126</div>
+      <div class="side r"><b>Rome Wasnt Built InOdunze</b><span>38.1</span></div></div>
+    <div class="onnow"><div class="p"><span><i></i>Nacua</span><span>9.8</span></div>
+      <div class="p"><span><i></i>Gibbs</span><span>11.9</span></div></div>
+    <div class="wp2 up">71%<small>win prob</small></div></div>
+</div>
+
+<div class="lgwrap close">
+  <div class="lg"><div class="cv">▸</div>
+    <div class="nm"><b>7½ Men</b><span>sleeper · 8 · 1-1</span></div>
+    <div class="mu"><div class="side"><b>Clayton's Kids</b><span>33.4</span></div>
+      <div class="d"><b class="dn">-3.1</b>proj 129 – 132</div>
+      <div class="side r"><b>Beantown Hurt</b><span>36.5</span></div></div>
+    <div class="onnow"><div class="p"><span><i></i>Daniels</span><span>18.4</span></div></div>
+    <div class="wp2 dn">46%<small>win prob</small></div></div>
+</div>
+
+<div class="lgwrap lose">
+  <div class="lg"><div class="cv">▸</div>
+    <div class="nm"><b>Show us your TD's</b><span>espn · 12 · 1-1</span></div>
+    <div class="mu"><div class="side"><b>Bad Life</b><span>20.6</span></div>
+      <div class="d"><b class="dn">-21.4</b>proj 118 – 149</div>
+      <div class="side r"><b>Tua Tugginmypudha</b><span>42.0</span></div></div>
+    <div class="onnow"><div class="p"><span><i></i>Cook</span><span>9.4</span></div></div>
+    <div class="wp2 dn">19%<small>win prob</small></div></div>
+</div>
+
+<p class="note"><b>What changed.</b> The row itself is quieter — the opponent's score is grey, the margin is the only coloured number, and the win
+probability carries the tone. The drawer opens onto the SAME head-to-head rows the Live tab now draws, at drawer size: photo at the outer edge
+with the name against it, the share rail, one muted line for the game, one bright line for what he did. Before, the drawer stacked two lineups
+and you had to carry a number across the screen to compare a seat.</p>
+
+<div class="bar"><span>On the field right now</span><i></i><em>across all four</em></div>
+<div class="onfield">
+  <div class="of mine"><div class="h2h-av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11566.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/was.png" alt="" loading="lazy"></div><div><div class="who"><b>Jayden Daniels</b><span class="pt">QB · WAS</span></div>
+    <div class="lgs"><span class="mine">yours in Kreeper · 7½ Men</span></div>
+    <div class="stat">9/13 · 121 yd · 1 TD · 4 car, 31 yd</div></div>
+    <div class="val"><b>18.4</b><small>Q2 4:12</small></div></div>
+  <div class="of against"><div class="h2h-av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9221.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/det.png" alt="" loading="lazy"></div><div><div class="who"><b>Jahmyr Gibbs</b><span class="pt">RB · DET</span></div>
+    <div class="lgs"><span class="ag">against you in Kreeper</span> · yours in Babies and Boomer</div>
+    <div class="stat">9 car, 64 yd, 1 TD · 2/2 rec, 15 yd</div></div>
+    <div class="val"><b>11.9</b><small>Q2 2:31</small></div></div>
+  <div class="of mine"><div class="h2h-av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9493.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/lar.png" alt="" loading="lazy"></div><div><div class="who"><b>Puka Nacua</b><span class="pt">WR · LAR</span></div>
+    <div class="lgs"><span class="mine">yours in Babies and Boomer</span></div>
+    <div class="stat">6/7 rec, 68 yd</div></div>
+    <div class="val"><b>9.8</b><small>Q2 11:02</small></div></div>
+  <div class="of against"><div class="h2h-av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8138.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/buf.png" alt="" loading="lazy"></div><div><div class="who"><b>James Cook</b><span class="pt">RB · BUF</span></div>
+    <div class="lgs"><span class="ag">against you in Kreeper · Show us your TD's</span></div>
+    <div class="stat">11 car, 44 yd · 1/1 rec, 6 yd</div></div>
+    <div class="val"><b>9.4</b><small>Q2 7:40</small></div></div>
+</div>
+<p class="note">One card per man who is playing anywhere in your four leagues, with the leagues he is in written out — crimson when he is yours,
+green when he is against you, both when he is both. Same face, same rail-less compact card, same one bright line.</p>
+
+<div class="bar"><span>Everything that has moved</span><i></i><em>merged feed</em></div>
+<div class="la-ev"><span class="d up">+6.1</span><b>Jahmyr Gibbs</b><span class="to">to 11.9</span><span class="lg">against you · Kreeper</span><span class="ago">just now</span></div><div class="la-ev me"><span class="d up">+4.4</span><b>Jayden Daniels</b><span class="to">to 18.4</span><span class="lg">Kreeper · 7½ Men</span><span class="ago">40s ago</span></div><div class="la-ev me"><span class="d up">+3.2</span><b>Puka Nacua</b><span class="to">to 9.8</span><span class="lg">Babies and Boomer</span><span class="ago">1m ago</span></div><div class="la-ev"><span class="d up">+2.0</span><b>James Cook</b><span class="to">to 9.4</span><span class="lg">against you · Kreeper</span><span class="ago">2m ago</span></div>
+<p class="note">Unchanged in shape, restated in type 1: the delta, the man, where he landed, and which league it moved — with "against you" said
+out loud, because a six-point swing to the opponent is the one a scoring feed usually buries.</p>
+
+</body></html>
