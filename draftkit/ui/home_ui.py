@@ -170,11 +170,13 @@ def render(presets, on_pick, board_age_fn=None) -> None:
 
 
 def _pulses(presets_json: str, week: int):
-    """Every league's week, on the same refresh clock the league pages use —
-    15 minutes, or 2 while a game is on."""
-    from .in_season_ui import _refresh_bucket
+    """Every league's week, on the 15-minute clock the league boards use."""
+    from .in_season_ui import _refresh_bucket, _slow_bucket
     from .. import config
-    return _pulses_cached(presets_json, week, _refresh_bucket(config.current_season(), week))
+    # The header's league switcher draws these on every league open, and four
+    # leagues' pulses cost five seconds — far too much to redo every two minutes
+    # for a dot. Live scores have the Live tab and Live · all.
+    return _pulses_cached(presets_json, week, _slow_bucket(config.current_season(), week))
 
 
 @st.cache_data(show_spinner=False, max_entries=4)
@@ -450,11 +452,11 @@ def _live_all_body(presets, *, bound_auto: bool, bound_every: int) -> None:
     from concurrent.futures import ThreadPoolExecutor
     from .. import gametime as GT, liveall as LA, config
     from . import components as C
-    from .in_season_ui import _refresh_bucket, current_week
+    from .in_season_ui import _refresh_bucket, _slow_bucket, current_week
 
     week, season = current_week(), config.current_season()
     pj = _json.dumps(presets, sort_keys=True, default=str)
-    reg, stats = _la_static(pj, week, _refresh_bucket(season, week))
+    reg, stats = _la_static(pj, week, _slow_bucket(season, week))
     try:
         games = GT.load_week(season, week, max_age=(bound_every if bound_auto else 0)) or {}
     except Exception:  # noqa: BLE001

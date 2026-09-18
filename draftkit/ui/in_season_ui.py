@@ -231,6 +231,20 @@ def _refresh_bucket(season: int, week: int) -> int:
     return int(_t.time() // (120 if live else 900))
 
 
+def _slow_bucket(season: int, week: int) -> int:
+    """A number that changes every 15 minutes, GAME OR NO GAME.
+
+    The two-minute clock is right for a score and wrong for everything built
+    on top of one. Rankings rows, the free-agent optimiser pass and the waiver
+    board cost 4–10s to build and none of them mean anything different two
+    minutes later — so on a Sunday the fast clock was throwing away exactly the
+    work that takes the longest, every two minutes, and every first click after
+    a roll paid for it again. Ranks ride this one; scores ride the other.
+    """
+    import time as _t
+    return int(_t.time() // 900)
+
+
 def _gather(ctx, week):
     """Everything the tabs share, fetched once per refresh bucket (see
     `_refresh_bucket`) — the same dict for every tab until then."""
@@ -427,7 +441,7 @@ def _top_claim(ctx, g):
     try:
         taken = {p for r in g["rosters"].values() for p in r["players"]}
         board = _waiver_board_cached(ctx["league_key"], g["week"],
-                                     _refresh_bucket(g["season"], g["week"]), ctx, g, taken)
+                                     _slow_bucket(g["season"], g["week"]), ctx, g, taken)
         # under a point it is a tiebreak, not a claim — the Waivers tab lists those
         top = next((r for r in board if r["gain"] >= 1.0), None)
         if not top:
@@ -1539,13 +1553,13 @@ def _rankings(ctx, g) -> None:
     # what a free agent adds to YOUR week — the waiver board's number. An
     # optimiser pass per free agent, so it rides the refresh clock: uncached it
     # was six of the seven seconds this tab took.
-    fa_gain = _fa_gain_cached(lk, g["week"], _refresh_bucket(g["season"], g["week"]),
+    fa_gain = _fa_gain_cached(lk, g["week"], _slow_bucket(g["season"], g["week"]),
                               ctx, g, frozenset(owner_of))
 
     # ---- the universe: every pid any panel ranks, plus my roster ------------
     # Built once per refresh window: six hundred registry lookups and an
     # availability read each is two seconds a click otherwise.
-    rows = _rk_rows_cached(lk, g["week"], _refresh_bucket(g["season"], g["week"]), pos,
+    rows = _rk_rows_cached(lk, g["week"], _slow_bucket(g["season"], g["week"]), pos,
                            reg, g, pn, owner_of, _PANEL_VER)
     for r in rows:
         r["wv"] = wv.get(r["pid"]) if waivers_view else None
@@ -1950,9 +1964,9 @@ def _waivers(ctx, g) -> None:
     meta, reg = ctx["meta"], ctx["registry"]
     taken = {p for r in g["rosters"].values() for p in r["players"]}
     # The board is the slow part of this tab (an optimiser pass per free agent),
-    # so it rides the same refresh clock as the data it is built from.
+    # so it rides the 15-minute clock rather than the score's two-minute one.
     board = _waiver_board_cached(ctx["league_key"], g["week"],
-                                 _refresh_bucket(g["season"], g["week"]), ctx, g, taken)
+                                 _slow_bucket(g["season"], g["week"]), ctx, g, taken)
     fa = inseason.faab(meta) or {}
     budget = int(fa.get("budget") or 0)
     spent = int((fa.get("by_owner") or {}).get(str(g["me"]), 0) or 0)
@@ -2033,7 +2047,7 @@ def _waivers(ctx, g) -> None:
         # came back blank. This is the same optimiser pass over 150 free agents
         # the Rankings tab uses, cached on the same clock.
         gain_of = _fa_gain_cached(ctx["league_key"], g["week"],
-                                  _refresh_bucket(g["season"], g["week"]), ctx, g,
+                                  _slow_bucket(g["season"], g["week"]), ctx, g,
                                   frozenset(taken))
         _cap = 20
         st.markdown('<div class="ws-h">The Fantasy Footballers\' waiver list · '

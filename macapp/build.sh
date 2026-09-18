@@ -26,4 +26,13 @@ cp -R "$BUILT" "$DEST"
 # Nothing we build locally is quarantined, but a stale signature from a previous
 # build makes launchd refuse the new one.
 codesign --force --deep --sign - "$DEST" 2>/dev/null || true
+# The server itself runs under launchd, not under the app: keeping it warm all
+# day is what makes the window open in a second instead of thirty, and it means
+# quitting the app does not throw away the boards it just built.
+AGENT="com.brandonclifton.bloodysunday-server"
+PL="$HOME/Library/LaunchAgents/$AGENT.plist"
+sed "s|__HOME__|$HOME|g" "$AGENT.plist" > "$PL"
+launchctl bootout "gui/$UID/$AGENT" 2>/dev/null || true
+launchctl bootstrap "gui/$UID" "$PL"
 echo "installed $DEST"
+echo "server agent loaded ($AGENT)"

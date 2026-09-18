@@ -30,6 +30,14 @@ st.set_page_config(page_title="Bloody Sunday", page_icon="🍒", layout="wide")
 # the escape hatch — hence the default flipping to True.
 theme.inject(st, dark=st.session_state.get("dark_mode", True))
 
+# In the Mac app the window IS the app, so the web chrome is noise: Deploy, the
+# hamburger and the "Running…" status all belong to a browser tab. The wrapper
+# opens the page with ?mac=1.
+if st.query_params.get("mac"):
+    st.markdown("<style>[data-testid='stToolbar'],[data-testid='stStatusWidget'],"
+                "[data-testid='stDecoration']{display:none !important;}</style>",
+                unsafe_allow_html=True)
+
 
 # ----------------------------------------------------------------- cached data
 @st.cache_resource(show_spinner="Loading player index…")
@@ -326,14 +334,24 @@ def _taxi_ctx(league_id, owner_slot) -> dict:
         return {}
 
 
-def _select_league(preset: dict) -> None:
-    st.session_state.league = {
+def sel_for(preset: dict) -> dict:
+    """The selection dict a preset opens into.
+
+    One function because the warmer builds it too, and `_ctx_cached` keys on
+    the JSON of it — a warm context under a slightly different dict is a cache
+    miss, which is exactly the ten seconds this was supposed to remove.
+    """
+    return {
         "platform": preset["platform"], "league_id": preset["league_id"],
         "season": int(preset.get("season") or config.current_season()),
         "espn_s2": preset.get("espn_s2"), "swid": preset.get("swid"),
         "keeper": preset.get("keeper", True),
         "my_team": preset.get("my_team"),
     }
+
+
+def _select_league(preset: dict) -> None:
+    st.session_state.league = sel_for(preset)
     st.rerun()
 
 
@@ -350,6 +368,16 @@ def league_picker():
 def _ctx_cached(sel_json: str, bucket: int) -> dict:
     """build_context, once per league per refresh window (drafted leagues only)."""
     return build_context(json.loads(sel_json))
+
+
+# Build the expensive caches before he clicks rather than after. Below the
+# functions it warms, because it is handed THEM and not the module: Streamlit
+# runs this file as the script module, so an `import app` elsewhere is a second
+# copy with its own caches. A no-op unless DRAFTROOM_WARM is set, which the Mac
+# app sets and Streamlit Cloud does not.
+from draftkit import warm as _warm  # noqa: E402
+_warm.kick(SAVED_LEAGUES, {"sel": sel_for, "ctx": _ctx_cached,
+                           "phase": get_league_phase})
 
 
 def build_context(sel: dict) -> dict:
@@ -729,10 +757,12 @@ def main():
         # board, mock and keeper screens fold session state into it.
         from draftkit import phase as _PH
         _lg = get_league_phase(sel["platform"], str(sel["league_id"]), config.current_season())
+        if _os.environ.get("DRAFTKIT_TIMING") == "1":
+            print(f"[timing] phase {_tm.perf_counter()-_t0:.2f}s", file=_sys.stderr)
         if _lg.phase in (_PH.IN, _PH.DONE):
             _wk = in_season_ui.current_week()
             ctx = _ctx_cached(json.dumps(sel, sort_keys=True, default=str),
-                              in_season_ui._refresh_bucket(config.current_season(), _wk))
+                              in_season_ui._slow_bucket(config.current_season(), _wk))
         else:
             ctx = build_context(sel)
     except EspnAuthError as e:
@@ -748,6 +778,10 @@ def main():
             st.rerun()
         return
 
+    _timing0 = _os.environ.get("DRAFTKIT_TIMING") == "1"
+    if _timing0:
+        print(f"[timing] ctx {_tm.perf_counter()-_t0:.2f}s", file=_sys.stderr)
+        _t0 = _tm.perf_counter()
     # Preload the saved/seeded UDK board so every tab has rankings (not just after
     # visiting My Rankings) — the seed ships a board even when the server-side pull
     # is blocked on the hosted app.
@@ -803,7 +837,7 @@ def main():
     from draftkit import phase as PH
     _timing = _os.environ.get("DRAFTKIT_TIMING") == "1"
     if _timing:
-        print(f"[timing] build_context {_tm.perf_counter()-_t0:.2f}s", file=_sys.stderr)
+        print(f"[timing] board+seed {_tm.perf_counter()-_t0:.2f}s", file=_sys.stderr)
     _t0 = _tm.perf_counter()
     lg_sum = get_league_phase(meta.platform, str(meta.league_id), config.current_season())
 
@@ -876,7 +910,11 @@ def main():
                         + '</div>', unsafe_allow_html=True)
         if _drafted:
             with head[1], st.container(key="tb_leagues"):
+                if _timing:
+                    _tsw = _tm.perf_counter()
                 _league_switcher(ctx)
+                if _timing:
+                    print(f"[timing] switcher {_tm.perf_counter()-_tsw:.2f}s", file=_sys.stderr)
             head = [head[0], head[2], head[3], head[4]]
         with head[1], st.container(key="tb_phase"):
             # st.segmented_control, NOT a styled radio. Hiding a radio's glyph means

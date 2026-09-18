@@ -39,8 +39,30 @@ from AppKit import (NSApp, NSMenu, NSMenuItem, NSObject, NSStatusBar,
 from Foundation import NSLog
 
 PORT = int(os.environ.get("BLOODY_SUNDAY_PORT", "8599"))
-URL = f"http://127.0.0.1:{PORT}/"
+URL = f"http://127.0.0.1:{PORT}/?mac=1"
+HEALTH = f"http://127.0.0.1:{PORT}/_stcore/health"
 STATUS_EVERY = 90.0
+
+
+SPLASH = """<!doctype html><meta charset="utf-8"><title>Bloody Sunday</title>
+<style>
+ html,body{height:100%;margin:0;background:#0E0D0E;color:#F4F1F2;
+   font:500 13px/1.4 -apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+   display:flex;align-items:center;justify-content:center;-webkit-user-select:none}
+ .w{text-align:center}
+ .m{font:900 italic 30px/1 "Helvetica Neue",Arial,sans-serif;letter-spacing:-.04em}
+ .m em{color:#E8384F;font-style:italic}
+ .s{margin-top:10px;color:#8A8285;font-size:12px;letter-spacing:.04em}
+ .b{margin:18px auto 0;width:180px;height:2px;background:#241F21;overflow:hidden;border-radius:2px}
+ .b i{display:block;height:100%;width:38%;background:#E8384F;animation:s 1.15s ease-in-out infinite}
+ @keyframes s{0%{transform:translateX(-100%)}100%{transform:translateX(360%)}}
+</style>
+<div class=w><div class=m>Bloody<em>Sunday</em></div>
+<div class=s id=s>Waking the four leagues…</div><div class=b><i></i></div></div>
+<script>const m=["Waking the four leagues…","Reading rosters and projections…",
+"Building this week's boards…"];let i=0;
+setInterval(()=>{i=(i+1)%m.length;document.getElementById("s").textContent=m[i]},3200);</script>
+"""
 
 
 def repo_dir() -> Path:
@@ -101,7 +123,7 @@ def venv_python() -> str:
 
 def already_up() -> bool:
     try:
-        urllib.request.urlopen(f"{URL}_stcore/health", timeout=1.5)
+        urllib.request.urlopen(HEALTH, timeout=1.5)
         return True
     except Exception:  # noqa: BLE001
         return False
@@ -124,6 +146,9 @@ class Server:
             return
         env = child_env()
         env["STREAMLIT_SERVER_HEADLESS"] = "true"
+        # Build every board in the background before he clicks one. Measured:
+        # a cold first click cost 6–12s, a warm one 0.2–1.7s.
+        env["DRAFTROOM_WARM"] = "1"
         env["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
         cmd = [venv_python(), "-m", "streamlit", "run", "app.py",
                "--server.port", str(PORT), "--server.address", "127.0.0.1",
@@ -296,8 +321,11 @@ def main() -> int:
     _log(f"start pid={os.getpid()} repo={REPO}")
     if not (REPO / "app.py").exists():
         _log(f"no dashboard at {REPO}")
+    # The window opens on the splash, not on the URL: pointing WKWebView at a
+    # port that is not listening yet paints Safari's "cannot connect" page, and
+    # a cold boot is thirty seconds of it.
     window = webview.create_window(
-        "Bloody Sunday", URL, width=1440, height=940, min_size=(980, 640),
+        "Bloody Sunday", html=SPLASH, width=1440, height=940, min_size=(980, 640),
         background_color="#0E0D0E")
 
     def boot():
@@ -305,7 +333,7 @@ def main() -> int:
         if wait_up():
             _log("server up")
             try:
-                window.load_url(URL)   # the first load raced the boot
+                window.load_url(URL)
             except Exception:  # noqa: BLE001
                 pass
         else:
