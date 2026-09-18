@@ -2266,3 +2266,80 @@ def all_event_html(*, name, delta, leagues, ago, mine=True) -> str:
             f'<div class="d{"" if delta > 0 else " dn"}">{delta:+.1f}</div>'
             f'<div class="who"><b>{_esc(name)}</b><span>{_esc(" · ".join(leagues))}</span></div>'
             f'<div class="ago">{_esc(when)}</div></div>')
+
+
+# ------------------------------------------------------- live, head to head
+_SLEEPER_HS = "https://sleepercdn.com/content/nfl/players/thumb/%s.jpg"
+_SLEEPER_TM = "https://sleepercdn.com/images/team_logos/nfl/%s.png"
+
+
+def h2h_face_html(sleeper_pid, team: str, side: str) -> str:
+    """The headshot with the team logo in its inner corner.
+
+    Both are Sleeper's own CDN, keyed by the id the app already joins on. A
+    player with no headshot gets the CDN's own grey tile, which is what it
+    serves for a rookie anyway — so there is nothing to fall back to.
+    """
+    hs = _SLEEPER_HS % _esc(str(sleeper_pid)) if sleeper_pid else ""
+    tm = _SLEEPER_TM % _esc((team or "").lower()) if team else ""
+    img = f'<img class="hs" src="{hs}" alt="" loading="lazy">' if hs else '<div class="hs"></div>'
+    logo = f'<img class="tm" src="{tm}" alt="" loading="lazy">' if tm else ""
+    return f'<div class="h2h-av {side}">{img}{logo}</div>'
+
+
+def h2h_side_html(p: dict, side: str) -> str:
+    """One man's card. `p` carries name/pos/team/pid, his points and projection,
+    his share of the slot, the game in one muted string and his stat line.
+
+    Exactly one line in here is bright — the stats — because the clock and the
+    score are context he reads once, and the numbers he acts on are the points
+    and the projection.
+    """
+    if not p or not p.get("name"):
+        return (f'<div class="h2h-side {side} pre empty">'
+                f'<div class="h2h-av {side}"><div class="hs"></div></div>'
+                f'<div class="h2h-body"><div class="h2h-who"><b>(empty)</b></div>'
+                f'<div class="h2h-rail pre"><i style="width:0"></i></div>'
+                f'<div class="h2h-meta">nobody in this seat</div>'
+                f'<div class="h2h-stat"></div></div>'
+                f'<div class="h2h-val"><div class="pts">&mdash;</div></div></div>')
+    live = p.get("state") == "in"
+    done = p.get("state") == "post"
+    share = max(0, min(100, int(round(float(p.get("share") or 0)))))
+    dot = 100 - share if side == "r" else share
+    rail_cls = "h2h-rail" if (live or done) else "h2h-rail pre"
+    rz = '<span class="h2h-rz">RZ</span>' if p.get("redzone") else ""
+    pts = p.get("pts")
+    pts_html = f'{float(pts):.1f}' if pts is not None else "&mdash;"
+    sub = ""
+    if p.get("final") is not None and (live or done):
+        trend = "up" if p.get("trend", 0) >= 0 else "dn"
+        sub = f'<span class="p"><span class="{trend}">{float(p["final"]):.1f}</span> final</span>'
+    elif p.get("proj") is not None:
+        sub = f'<span class="p">{float(p["proj"]):.1f} proj</span>'
+    body = (f'<div class="h2h-body"><div class="h2h-who"><b>{_esc(p["name"])}</b>'
+            f'<span class="pt">{_esc(p.get("pos") or "")} · {_esc(p.get("team") or "")}</span>'
+            + (f'<span class="q">{_esc(p["tag"])}</span>' if p.get("tag") else "")
+            + f'</div><div class="{rail_cls}"><i style="width:{share}%"></i>'
+            f'<div class="dot" style="left:{dot}%"></div></div>'
+            f'<div class="h2h-meta">{rz}{_esc(p.get("game") or "")}</div>'
+            f'<div class="h2h-stat">{_esc(p.get("stat") or "")}</div></div>')
+    val = f'<div class="h2h-val"><div class="pts">{pts_html}</div>{sub}</div>'
+    face = h2h_face_html(p.get("face"), p.get("team") or "", side)
+    cls = f'h2h-side {side}{" on" if live else ""}{" done" if done else ""}' \
+          f'{"" if (live or done) else " pre"}'
+    inner = f'{face}{body}{val}' if side == "l" else f'{val}{body}{face}'
+    return f'<div class="{cls}">{inner}</div>'
+
+
+def h2h_pair_html(left: dict, right: dict, *, slot: str, swing=None) -> str:
+    """A slot, both men, and the projected margin between them."""
+    pos = (slot or "").upper().replace("/", "")
+    tone, txt = "tie", "—"
+    if swing is not None:
+        tone = "me" if swing > 0.05 else ("op" if swing < -0.05 else "tie")
+        txt = f"{swing:+.1f}"
+    return ('<div class="h2h-pair">' + h2h_side_html(left, "l")
+            + f'<div class="h2h-mid"><div class="h2h-badge {_esc(pos)}">{_esc(slot)}</div>'
+            f'<div class="h2h-swing {tone}">{_esc(txt)}</div></div>'
+            + h2h_side_html(right, "r") + '</div>')
