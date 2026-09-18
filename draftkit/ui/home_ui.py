@@ -23,6 +23,7 @@ from __future__ import annotations
 import streamlit as st
 
 from .. import phase as PH, theme
+from .widgets import rerun_here
 
 # Tone is a CLASS, not inline hex — inline colours can't follow the theme, which
 # is exactly how the notes and badges stayed pale-on-dark when dark became the
@@ -107,8 +108,13 @@ def render(presets, on_pick, board_age_fn=None) -> None:
         # view, because Home is the only screen showing more than one league.
         st.session_state.setdefault("home_phase", "All")
         view = st.segmented_control(
-            "view", ["All", "Pre-season", "In-season"], key="home_phase",
+            "view", ["All", "Pre-season", "In-season", "Live · all"], key="home_phase",
             selection_mode="single", label_visibility="collapsed") or "All"
+    if view == "Live · all":
+        # Every league at once, ticking. It owns the page, so nothing below runs.
+        render_live_all([p for p in presets
+                         if PH.summary(p).phase in (PH.IN, PH.DONE)] or presets)
+        return
 
     rows = []
     for p in presets:
@@ -402,3 +408,200 @@ def _render_quiet(preset, s, on_pick) -> None:
         link = _hub_or_platform(s)
         if link:
             a[1].link_button(f"{link[0].split()[0]} ↗", link[1], use_container_width=True)
+
+
+# ==================================================== Live · every league at once
+_LA_CADENCE = {"5s": 5, "10s": 10, "30s": 30}
+
+
+@st.cache_resource(show_spinner="Reading your four leagues…", max_entries=4)
+def _la_static(presets_json: str, week: int, bucket: int):
+    """The half of every league that does not move: rosters, slots, projections.
+
+    cache_RESOURCE, not cache_data: this holds live provider objects, which are
+    not picklable and must not be copied per session.
+    """
+    import json as _json
+    from concurrent.futures import ThreadPoolExecutor
+    from .. import players as PL, liveall as LA, config, udk as _udk
+    presets = _json.loads(presets_json)
+    reg = PL.build_registry(config.current_season())
+    try:
+        byes = _udk.ensure_byes(None, config.current_season())
+    except Exception:  # noqa: BLE001
+        byes = None
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        stats = list(ex.map(lambda p: LA.static_for(p, reg, week, byes), presets))
+    return reg, stats
+
+
+def render_live_all(presets) -> None:
+    """Bind the cadence, then hand the screen to one fragment."""
+    st.session_state.setdefault("la_auto", True)
+    st.session_state.setdefault("la_every", "10s")
+    auto = bool(st.session_state.get("la_auto"))
+    every = _LA_CADENCE.get(st.session_state.get("la_every"), 10)
+    st.fragment(run_every=(every if auto else None))(_live_all_body)(
+        presets, bound_auto=auto, bound_every=every)
+
+
+def _live_all_body(presets, *, bound_auto: bool, bound_every: int) -> None:
+    import json as _json, time as _t
+    from concurrent.futures import ThreadPoolExecutor
+    from .. import gametime as GT, liveall as LA, config
+    from . import components as C
+    from .in_season_ui import _refresh_bucket, current_week
+
+    week, season = current_week(), config.current_season()
+    pj = _json.dumps(presets, sort_keys=True, default=str)
+    reg, stats = _la_static(pj, week, _refresh_bucket(season, week))
+    try:
+        games = GT.load_week(season, week, max_age=(bound_every if bound_auto else 0)) or {}
+    except Exception:  # noqa: BLE001
+        games = {}
+    # one uncached read per league, all four at once
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        lvs = list(ex.map(lambda s: LA.live_for(s, week, games), stats))
+    leagues = [LA.assemble(s, l, reg, games, week) for s, l in zip(stats, lvs)]
+    ok = [lg for lg in leagues if lg.get("ok")]
+    now = _t.time()
+
+    # ---- what moved since the last tick, across every league ---------------
+    fkey = "la_feed"
+    prev = st.session_state.get(fkey) or {"pts": {}, "events": [], "ts": 0.0}
+    exp = LA.exposure(ok)
+    pts_now = {pid: d.get("pts") or 0.0 for pid, d in exp.items()}
+    events = list(prev.get("events") or [])
+    if prev.get("pts"):
+        for pid, v in pts_now.items():
+            was = prev["pts"].get(pid)
+            if was is None or abs(v - was) < 0.05:
+                continue
+            d = exp[pid]
+            events.insert(0, {"pid": pid, "name": d["name"], "d": v - was, "ts": now,
+                              "leagues": (d["mine"] or d["against"]), "mine": bool(d["mine"])})
+    events = events[:14]
+    st.session_state[fkey] = {"pts": pts_now, "events": events, "ts": now}
+    recent = {e["pid"]: e for e in events if now - e["ts"] <= 150}
+    for pid, d in exp.items():
+        if pid in recent and recent[pid]["d"] > 0:
+            d["delta"] = recent[pid]["d"]
+
+    # ---- controls ----------------------------------------------------------
+    with st.container(key="la_ctl"):
+        c = st.columns([1.0, 1.4, 1.0, 1.0, 3.4])
+        auto = c[0].toggle("Auto", key="la_auto")
+        c[1].segmented_control("Every", list(_LA_CADENCE), key="la_every",
+                               selection_mode="single", label_visibility="collapsed")
+        if c[2].button("Expand all", key="la_x", use_container_width=True):
+            for lg in ok:
+                st.session_state[f'la_open_{lg["league_id"]}'] = True
+        if c[3].button("Collapse all", key="la_c", use_container_width=True):
+            for lg in ok:
+                st.session_state[f'la_open_{lg["league_id"]}'] = False
+        n_live = sum(1 for v in games.values() if v.get("state") == "in")
+        left_all = sum(lg["left"] for lg in ok)
+        c[4].markdown(
+            f'<div class="lv-meta">updated <b>just now</b> · '
+            + (f'<span class="on">{n_live} game{"s" if n_live != 1 else ""} live</span>'
+               if n_live else "no game in progress")
+            + f' · {left_all} of your starters still to play</div>', unsafe_allow_html=True)
+    if auto != bound_auto or _LA_CADENCE.get(st.session_state.get("la_every"), 10) != bound_every:
+        st.rerun()          # run_every is fixed at build time; only a full run rebinds it
+
+    if not ok:
+        st.info("**No league could be read right now.** "
+                + " · ".join(f'{lg.get("name")}: {lg.get("error") or "unknown"}' for lg in leagues))
+        return
+
+    # ---- the loudest thing that can be true --------------------------------
+    rz = LA.red_zone(ok, games)
+    if rz:
+        st.markdown(C.all_alert_html(
+            title=f'{rz["team"]} in the red zone — you have {rz["name"]} in '
+                  f'{len(rz["leagues"])} league{"s" if len(rz["leagues"]) != 1 else ""}',
+            detail=" · ".join([x for x in [rz["down"], ", ".join(rz["leagues"])] if x]),
+            badge=f'{len(rz["leagues"])} league{"s" if len(rz["leagues"]) != 1 else ""}'),
+            unsafe_allow_html=True)
+
+    # ---- the day ------------------------------------------------------------
+    import datetime as _dt
+    try:
+        from zoneinfo import ZoneInfo
+        _n = _dt.datetime.now(ZoneInfo("America/New_York"))
+    except Exception:  # noqa: BLE001
+        _n = _dt.datetime.now()
+    lead = sum(1 for lg in ok if lg["me_pts"] > lg["opp_pts"])
+    close = [lg for lg in ok if lg.get("wp") is not None and 0.35 <= lg["wp"] <= 0.65]
+    st.markdown(C.all_band_html(
+        kicker=f'{_n.strftime("%A")} {_n.strftime("%-I:%M%p").lower()} · week {week}',
+        title=f'Leading in {lead} of {len(ok)}',
+        sub=(f'{close[0]["name"]} is the close one — {100*close[0]["wp"]:.0f}% with '
+             f'{close[0]["left"]} still to play.' if close else
+             "No game inside 35–65% right now."),
+        points=f'{sum(lg["me_pts"] for lg in ok):.1f}',
+        record=f'{lead}–{len(ok) - lead}'), unsafe_allow_html=True)
+
+    gx = LA.game_exposure(ok, games)
+    if gx:
+        st.markdown('<div class="ws-h">Games your players are in</div>', unsafe_allow_html=True)
+        st.markdown(C.all_games_html(gx[:6]), unsafe_allow_html=True)
+
+    # ---- a row per league, each one a drawer -------------------------------
+    st.markdown('<div class="ws-h">Your leagues</div>', unsafe_allow_html=True)
+    for lg in ok:
+        lid = lg["league_id"]
+        okey = f"la_open_{lid}"
+        st.session_state.setdefault(okey, False)
+        with st.container(key=f"la_wrap_{lid}"):
+            h = st.columns([0.45, 12])
+            if h[0].button("▾" if st.session_state[okey] else "▸", key=f"la_t_{lid}",
+                           help="Show this league's lineups"):
+                st.session_state[okey] = not st.session_state[okey]
+                rerun_here()
+            with h[1]:
+                st.markdown(C.all_row_html(lg), unsafe_allow_html=True)
+            if st.session_state[okey]:
+                for r in lg["mine"] + lg["opp"]:
+                    if r["pid"] in recent and recent[r["pid"]]["d"] > 0:
+                        r["delta"] = recent[r["pid"]]["d"]
+                d = st.columns(2 if lg["opp"] else 1)
+                with d[0]:
+                    st.markdown(C.all_lineup_html(title=lg["me_name"], total=lg["me_pts"],
+                                                  rows=lg["mine"]), unsafe_allow_html=True)
+                if lg["opp"]:
+                    with d[1]:
+                        st.markdown(C.all_lineup_html(title=lg["opp_name"], total=lg["opp_pts"],
+                                                      rows=lg["opp"]), unsafe_allow_html=True)
+                st.markdown(C.all_bench_html(total=lg["bench_pts"], rows=lg["bench"]),
+                            unsafe_allow_html=True)
+
+    # ---- the cross-league half ---------------------------------------------
+    half = st.columns([1.25, 1])
+    with half[0]:
+        st.markdown('<div class="ws-h">On the field right now · across every league</div>',
+                    unsafe_allow_html=True)
+        onfield = sorted((d for d in exp.values() if d["state"] == "in" and d["mine"]),
+                         key=lambda d: (-len(d["mine"]), -(d.get("pts") or 0)))
+        if onfield:
+            st.markdown("".join(C.all_player_html(d) for d in onfield[:10]),
+                        unsafe_allow_html=True)
+        else:
+            nxt = sorted((d for d in exp.values() if d["state"] == "pre" and d["mine"]),
+                         key=lambda d: (-len(d["mine"]), d.get("clock") or ""))
+            st.markdown('<div class="ws2-quiet">Nobody of yours is on the field. Next up: '
+                        + (", ".join(f'{d["name"]} ({d["clock"]})' for d in nxt[:4])
+                           or "nothing left this week") + '</div>', unsafe_allow_html=True)
+    with half[1]:
+        st.markdown('<div class="ws-h">Scoring feed · every league</div>', unsafe_allow_html=True)
+        if events:
+            st.markdown("".join(
+                C.all_event_html(name=e["name"], delta=e["d"], leagues=e["leagues"],
+                                 ago=int(max(0, now - e["ts"])), mine=e["mine"])
+                for e in events[:8]), unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="ws2-quiet">Nothing has scored since this screen opened.</div>',
+                        unsafe_allow_html=True)
+    st.caption("One poll per league per tick, all four at once. The clock and score come from "
+               "ESPN and move every few seconds; the fantasy points come from each league's host, "
+               "whose feed updates in bursts, so a change stays marked for a couple of minutes.")

@@ -1,0 +1,250 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Live · all leagues</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141314;--panel:#1f1d1e;--panel2:#292627;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#8c8286;
+ --crimson:#ff336c;--green:#7fd8b4;--amber:#f0b357;--red:#ff8fae;--blue:#6aa6f0;--g:#5fdc8f;--y:#e7c24a;--r:#ff6b6b;
+ --fd:'Sora',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);margin:0;padding:22px 22px 70px;font-size:13px}
+h1{font-family:var(--fd);font-weight:800;font-size:24px;margin:0 0 4px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:92ch;line-height:1.5;margin:0 0 18px}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.45;margin-top:10px;max-width:92ch}
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:28px 0 10px;font-family:var(--fd);font-weight:800;font-size:16px}
+.bar i{height:1px;background:var(--line2)} .bar em{font-family:var(--fm);font-size:9.5px;font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2)}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.25}}
+/* chrome */
+.nav{display:flex;gap:6px;margin-bottom:10px;align-items:center}
+.nav span{padding:6px 12px;border-radius:8px;border:1px solid var(--line2);font-size:12px;font-weight:600;color:var(--muted)}
+.nav span.on{border-color:var(--crimson);color:var(--ink);background:rgba(255,51,108,.10)}
+.ctl{display:grid;grid-template-columns:auto auto auto 1fr;gap:12px;align-items:center;padding:8px 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:10px}
+.tog{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600}
+.tog i{width:30px;height:17px;border-radius:999px;background:var(--crimson);position:relative;display:inline-block}
+.tog i::after{content:"";position:absolute;right:2px;top:2px;width:13px;height:13px;border-radius:50%;background:#fff}
+.seg{display:flex;gap:2px;background:var(--panel2);border-radius:8px;padding:2px}
+.seg span{padding:4px 10px;border-radius:6px;font-family:var(--fm);font-size:10px;color:var(--muted)}
+.seg span.on{background:var(--panel);color:var(--ink)}
+.meta{font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2);text-align:right}
+.meta b{color:var(--ink);font-weight:600} .meta .on{color:var(--crimson)}
+/* day band */
+.band{display:grid;grid-template-columns:auto 1fr auto auto;gap:16px;align-items:center;padding:12px 16px;border-radius:13px;margin-bottom:12px;
+  background:linear-gradient(90deg,rgba(255,51,108,.16),var(--panel) 55%);border:1px solid var(--line)}
+.band .k{font-family:var(--fm);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--crimson)}
+.band .k i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--crimson);margin-right:6px;animation:p 1.6s infinite}
+.band .t{font-weight:700;font-size:15px}
+.band .t small{display:block;font-weight:400;font-size:11.5px;color:var(--muted);margin-top:2px}
+.band .n{text-align:right;font-family:var(--fd);font-weight:800;font-size:23px;line-height:1}
+.band .n.g{color:var(--g)} .band .n small{display:block;font-family:var(--fm);font-size:8.5px;font-weight:500;letter-spacing:.13em;text-transform:uppercase;color:var(--mut2);margin-top:3px}
+/* game strips */
+.games{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.gm{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:9px 12px;border-radius:11px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line2)}
+.gm.on{border-left-color:var(--crimson)} .gm.rz{background:linear-gradient(90deg,rgba(255,51,108,.13),var(--panel) 50%)}
+.gm .sc{display:flex;gap:14px;align-items:baseline}
+.gm .sc b{font-family:var(--fd);font-weight:800;font-size:13px}
+.gm .sc span{font-family:var(--fm);font-size:15px;font-weight:600}
+.gm .cl{font-family:var(--fm);font-size:10px;color:var(--mut2);margin-top:3px;display:block}
+.gm .cl .rz{color:var(--crimson)}
+.gm .ex{text-align:right;font-family:var(--fm);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);white-space:nowrap}
+.gm .ex b{display:block;font-family:var(--fd);font-size:17px;color:var(--ink)}
+.gm .ex.hot b{color:var(--crimson)}
+/* league rows */
+.lg{display:grid;grid-template-columns:132px 1fr 150px 120px;gap:14px;align-items:center;padding:10px 14px;border-radius:12px;
+  background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--line2);margin-bottom:6px}
+.lg.win{border-left-color:var(--g)} .lg.lose{border-left-color:var(--r)} .lg.close{border-left-color:var(--amber)}
+.lg .nm b{display:block;font-family:var(--fd);font-weight:800;font-size:13.5px}
+.lg .nm span{display:block;font-family:var(--fm);font-size:8.5px;color:var(--mut2);margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
+.mu{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center}
+.mu .side b{display:block;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mu .side span{font-family:var(--fm);font-size:19px;font-weight:600}
+.mu .side.r{text-align:right} .mu .side.r span{color:var(--muted)}
+.mu .mid{text-align:center}
+.mu .mid small{font-family:var(--fm);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);display:block}
+.wp{height:6px;border-radius:999px;background:var(--line2);overflow:hidden;width:120px;margin:4px auto 0}
+.wp i{display:block;height:100%;background:var(--g)} .wp i.dn{background:var(--r)}
+.onnow{display:flex;flex-direction:column;gap:3px}
+.onnow .p{font-family:var(--fm);font-size:10px;color:var(--ink);display:flex;justify-content:space-between;gap:8px}
+.onnow .p i{width:5px;height:5px;border-radius:50%;background:var(--crimson);display:inline-block;margin-right:5px;animation:p 1.6s infinite}
+.onnow .none{font-family:var(--fm);font-size:9.5px;color:var(--mut2);letter-spacing:.06em;text-transform:uppercase}
+.lg .left{text-align:right;font-family:var(--fm);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2)}
+.lg .left b{display:block;font-family:var(--fd);font-size:19px;color:var(--ink)}
+/* two-column lower half */
+.half{display:grid;grid-template-columns:1.25fr 1fr;gap:14px;margin-top:16px}
+.h{font-family:var(--fm);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mut2);margin:0 0 8px}
+.pl{display:grid;grid-template-columns:30px 1fr 120px 74px 58px;gap:10px;align-items:center;padding:7px 12px;border-radius:10px;
+  background:var(--panel);border:1px solid var(--line);margin-bottom:5px}
+.pl.live{background:rgba(255,51,108,.06);border-color:rgba(255,51,108,.28)}
+.pl .av{width:26px;height:26px;border-radius:50%;background:var(--panel2);border:2px solid var(--line2)}
+.pl .nm b{display:block;font-size:12.5px;font-weight:600}
+.pl .nm span{display:block;font-family:var(--fm);font-size:9px;color:var(--mut2);margin-top:1px}
+.chips{display:flex;gap:3px;flex-wrap:wrap}
+.chip{font-family:var(--fm);font-size:8px;letter-spacing:.05em;padding:2px 5px;border-radius:4px;border:1px solid var(--line2);color:var(--mut2);white-space:nowrap}
+.chip.me{color:var(--crimson);border-color:rgba(255,51,108,.5)}
+.pl .cl{font-family:var(--fm);font-size:9.5px;color:var(--mut2);text-align:right}
+.pl .pt{font-family:var(--fm);font-size:15px;font-weight:600;text-align:right}
+.pl .pt .d{display:block;font-size:9px;color:var(--g)}
+.ev{display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;padding:6px 12px;border-radius:9px;background:var(--panel);border:1px solid var(--line);margin-bottom:4px;font-size:12px}
+.ev.me{border-color:rgba(255,51,108,.3)}
+.ev .d{font-family:var(--fd);font-weight:800;font-size:14px;color:var(--g);text-align:center}
+.ev .d.dn{color:var(--r)}
+.ev .who b{font-weight:600} .ev .who span{font-family:var(--fm);font-size:9px;color:var(--mut2);margin-left:6px}
+.ev .ago{font-family:var(--fm);font-size:9px;color:var(--mut2);letter-spacing:.06em;text-transform:uppercase}
+.alert{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:11px 14px;border-radius:12px;margin-bottom:10px;
+  background:linear-gradient(90deg,rgba(255,51,108,.18),var(--panel) 60%);border:1px solid rgba(255,51,108,.45)}
+.alert .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;border:1px solid var(--crimson);color:var(--crimson);font-size:14px;animation:p 1.6s infinite}
+.alert .t{font-weight:700;font-size:13px} .alert .d{font-size:11.5px;color:var(--muted);margin-top:2px}
+.alert .n{font-family:var(--fd);font-weight:800;font-size:17px;color:var(--crimson);white-space:nowrap}
+/* compact variant */
+.mini{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.mc{padding:11px 13px;border-radius:12px;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--line2)}
+.mc.win{border-top-color:var(--g)} .mc.lose{border-top-color:var(--r)} .mc.close{border-top-color:var(--amber)}
+.mc .nm{font-family:var(--fd);font-weight:800;font-size:12.5px;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc .sc{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--fm)}
+.mc .sc b{font-size:22px;font-weight:600} .mc .sc span{font-size:16px;color:var(--muted)}
+.mc .wp{width:100%;margin:7px 0 5px}
+.mc .ft{font-family:var(--fm);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut2);display:flex;justify-content:space-between}
+.mc .ft .on{color:var(--crimson)}
+</style></head><body>
+
+<h1>Live · all four teams, one screen</h1>
+<p class="sub">Sunday is four games at once and the current Live tab only shows the league you happen to be in. This is the same feed, consolidated: one day band, the NFL games you actually have players in, a row per league, and — the thing only a consolidated view can do — <b>your players on the field right now across every league at once</b>, with the leagues each one counts in. Same fragment, same 5/10/30s cadence.</p>
+
+<div class="nav"><span>Home</span><span class="on">Live · all</span><span>Kreeper</span><span>7½ Men</span><span>Babies and Boomer</span><span>TD's</span></div>
+<div class="ctl">
+  <div class="tog"><i></i>Auto</div>
+  <div class="seg"><span>5s</span><span class="on">10s</span><span>30s</span></div>
+  <div class="seg"><span class="on">All leagues</span><span>One league</span></div>
+  <div class="meta">updated <b>just now</b> · <span class="on">6 games live</span> · 21 of your starters still to play</div>
+</div>
+
+<div class="alert">
+  <div class="ic">◉</div>
+  <div><div class="t">Baltimore in the red zone — you have Derrick Henry in three leagues</div>
+    <div class="d">1st &amp; goal at the 4 · Kreeper, 7½ Men and Babies and Boomer · he is your biggest single swing of the day</div></div>
+  <div class="n">3 leagues</div>
+</div>
+
+<div class="band">
+  <div><div class="k"><i></i>Sunday 1:37pm · week 2</div>
+    <div class="t">Leading in three of four
+      <small>Babies and Boomer is the close one — 61% and 9 still to play. TD's is already out of reach.</small></div></div>
+  <div></div>
+  <div class="n g">312.6<small>your points today</small></div>
+  <div class="n">3–1<small>if it ended now</small></div>
+</div>
+
+<div class="bar"><span>Games you have players in</span><i></i><em>exposure, not the whole slate</em></div>
+<div class="games">
+  <div class="gm on rz"><div><div class="sc"><b>BAL</b><span>17</span><b>CLE</b><span>13</span></div>
+    <span class="cl">Q3 4:12 · 1st &amp; goal at CLE 4 · <span class="rz">red zone</span></span></div>
+    <div class="ex hot"><b>7</b>your starters</div></div>
+  <div class="gm on"><div><div class="sc"><b>DET</b><span>21</span><b>BUF</b><span>24</span></div>
+    <span class="cl">Q3 9:41 · 2nd &amp; 6 at DET 44</span></div>
+    <div class="ex"><b>5</b>your starters</div></div>
+  <div class="gm on"><div><div class="sc"><b>PHI</b><span>10</span><b>WAS</b><span>7</span></div>
+    <span class="cl">Q2 0:48 · 3rd &amp; 9 at PHI 31</span></div>
+    <div class="ex"><b>4</b>your starters</div></div>
+  <div class="gm on"><div><div class="sc"><b>SEA</b><span>3</span><b>ARI</b><span>6</span></div>
+    <span class="cl">Q2 6:22 · 1st &amp; 10 at SEA 28</span></div>
+    <div class="ex"><b>3</b>your starters</div></div>
+  <div class="gm"><div><div class="sc"><b>MIA</b><span>28</span><b>LV</b><span>10</span></div>
+    <span class="cl">FINAL</span></div>
+    <div class="ex"><b>2</b>done</div></div>
+  <div class="gm"><div><div class="sc"><b>NYG</b><span>—</span><b>DAL</b><span>—</span></div>
+    <span class="cl">Sun 4:25 · in 2h 48m</span></div>
+    <div class="ex"><b>6</b>yet to play</div></div>
+</div>
+
+<div class="bar"><span>A · a row per league</span><i></i><em>score · win probability · who is on the field for you right now</em></div>
+<div class="lg win">
+  <div class="nm"><b>The Kreeper League</b><span>sleeper · 1–1</span></div>
+  <div class="mu"><div class="side"><b>FAABfreebird</b><span>88.4</span></div>
+    <div class="mid"><small>proj final 141 – 118</small><div class="wp"><i style="width:74%"></i></div><small>74% you</small></div>
+    <div class="side r"><b>Old Man Mike</b><span>71.2</span></div></div>
+  <div class="onnow"><div class="p"><span><i></i>D. Henry</span><span>14.8</span></div>
+    <div class="p"><span><i></i>J. Gibbs</span><span>9.1</span></div></div>
+  <div class="left"><b>5</b>still to play</div>
+</div>
+<div class="lg close">
+  <div class="nm"><b>Babies and Boomer</b><span>sleeper · 2–0</span></div>
+  <div class="mu"><div class="side"><b>Guys who Fuck</b><span>77.9</span></div>
+    <div class="mid"><small>proj final 129 – 126</small><div class="wp"><i style="width:61%"></i></div><small>61% you</small></div>
+    <div class="side r"><b>Too Many Rooks</b><span>74.6</span></div></div>
+  <div class="onnow"><div class="p"><span><i></i>D. Henry</span><span>14.8</span></div>
+    <div class="p"><span><i></i>B. Robinson</span><span>6.4</span></div></div>
+  <div class="left"><b>9</b>still to play</div>
+</div>
+<div class="lg win">
+  <div class="nm"><b>7½ Men</b><span>sleeper · 1–1</span></div>
+  <div class="mu"><div class="side"><b>Clayton's Kids</b><span>94.1</span></div>
+    <div class="mid"><small>proj final 147 – 112</small><div class="wp"><i style="width:88%"></i></div><small>88% you</small></div>
+    <div class="side r"><b>Taco Bandit</b><span>62.3</span></div></div>
+  <div class="onnow"><div class="p"><span><i></i>D. Henry</span><span>14.8</span></div>
+    <div class="p"><span><i></i>A. St. Brown</span><span>11.2</span></div></div>
+  <div class="left"><b>4</b>still to play</div>
+</div>
+<div class="lg lose">
+  <div class="nm"><b>Show us your TD's</b><span>espn · 0–2</span></div>
+  <div class="mu"><div class="side"><b>Bad Life</b><span>52.2</span></div>
+    <div class="mid"><small>proj final 98 – 151</small><div class="wp"><i class="dn" style="width:9%"></i></div><small>9% you</small></div>
+    <div class="side r"><b>Smelly Pitts</b><span>103.8</span></div></div>
+  <div class="onnow"><div class="none">nobody playing</div></div>
+  <div class="left"><b>3</b>still to play</div>
+</div>
+
+<div class="half">
+  <div>
+    <div class="h">On the field right now · across every league</div>
+    <div class="pl live"><span class="av"></span>
+      <div class="nm"><b>Derrick Henry</b><span>BAL RB · vs CLE</span></div>
+      <div class="chips"><span class="chip me">Kreeper</span><span class="chip me">7½</span><span class="chip me">B&amp;B</span></div>
+      <div class="cl">Q3 4:12<br>1st &amp; goal</div><div class="pt">14.8<span class="d">+6.0</span></div></div>
+    <div class="pl live"><span class="av"></span>
+      <div class="nm"><b>Jahmyr Gibbs</b><span>DET RB · @ BUF</span></div>
+      <div class="chips"><span class="chip me">Kreeper</span></div>
+      <div class="cl">Q3 9:41</div><div class="pt">9.1<span class="d">+0.4</span></div></div>
+    <div class="pl live"><span class="av"></span>
+      <div class="nm"><b>Amon-Ra St. Brown</b><span>DET WR · @ BUF</span></div>
+      <div class="chips"><span class="chip me">7½</span><span class="chip">vs you in B&amp;B</span></div>
+      <div class="cl">Q3 9:41</div><div class="pt">11.2</div></div>
+    <div class="pl live"><span class="av"></span>
+      <div class="nm"><b>Bijan Robinson</b><span>ATL RB · vs CAR</span></div>
+      <div class="chips"><span class="chip me">B&amp;B</span></div>
+      <div class="cl">Q2 6:22</div><div class="pt">6.4</div></div>
+    <div class="pl"><span class="av"></span>
+      <div class="nm"><b>Puka Nacua</b><span>LAR WR · @ SF</span></div>
+      <div class="chips"><span class="chip me">Kreeper</span><span class="chip me">TD's</span></div>
+      <div class="cl">Sun 4:25</div><div class="pt">—</div></div>
+    <p class="note">A player you own in three leagues is three times the day, and no single-league screen can say that. The chips also mark the other side of it — Amon-Ra is yours in 7½ Men and <i>against</i> you in Babies and Boomer, so his day cuts both ways.</p>
+  </div>
+  <div>
+    <div class="h">Scoring feed · every league</div>
+    <div class="ev me"><div class="d">+6.0</div><div class="who"><b>Derrick Henry</b><span>4-yd TD · Kreeper · 7½ · B&amp;B</span></div><div class="ago">just now</div></div>
+    <div class="ev"><div class="d dn">−2.0</div><div class="who"><b>Smelly Pitts</b><span>their QB sacked-fumble · TD's</span></div><div class="ago">40s ago</div></div>
+    <div class="ev me"><div class="d">+1.9</div><div class="who"><b>Jahmyr Gibbs</b><span>19-yd rush · Kreeper</span></div><div class="ago">1m ago</div></div>
+    <div class="ev me"><div class="d">+7.6</div><div class="who"><b>Amon-Ra St. Brown</b><span>26-yd TD · 7½ Men</span></div><div class="ago">3m ago</div></div>
+    <div class="ev"><div class="d dn">−1.0</div><div class="who"><b>Too Many Rooks</b><span>their kicker missed · B&amp;B</span></div><div class="ago">4m ago</div></div>
+    <div class="ev me"><div class="d">+2.4</div><div class="who"><b>Bijan Robinson</b><span>24-yd rush · B&amp;B</span></div><div class="ago">6m ago</div></div>
+    <p class="note">One stream, both sides. Your own scores are outlined; an opponent's are plain, because a Sunday is as much about what the other guy just did. Each line names the leagues it counted in.</p>
+  </div>
+</div>
+
+<div class="bar"><span>B · the compact strip</span><i></i><em>if the rows are too tall · four cards, then the same lower half</em></div>
+<div class="mini">
+  <div class="mc win"><div class="nm">The Kreeper League</div>
+    <div class="sc"><b>88.4</b><span>71.2</span></div><div class="wp"><i style="width:74%"></i></div>
+    <div class="ft"><span>74% · 5 left</span><span class="on">2 playing</span></div></div>
+  <div class="mc close"><div class="nm">Babies and Boomer</div>
+    <div class="sc"><b>77.9</b><span>74.6</span></div><div class="wp"><i style="width:61%"></i></div>
+    <div class="ft"><span>61% · 9 left</span><span class="on">2 playing</span></div></div>
+  <div class="mc win"><div class="nm">7½ Men</div>
+    <div class="sc"><b>94.1</b><span>62.3</span></div><div class="wp"><i style="width:88%"></i></div>
+    <div class="ft"><span>88% · 4 left</span><span class="on">2 playing</span></div></div>
+  <div class="mc lose"><div class="nm">Show us your TD's</div>
+    <div class="sc"><b>52.2</b><span>103.8</span></div><div class="wp"><i class="dn" style="width:9%"></i></div>
+    <div class="ft"><span>9% · 3 left</span><span>none playing</span></div></div>
+</div>
+<p class="note">Same data, a quarter of the height — four cards across, then the game strips and the lower half underneath. On a phone both layouts become the same thing: the band, the red-zone alert, the four cards stacked, then "on the field now". The league tabs stay in the nav, so one click still drops you into a single league's Live tab with its lineups.</p>
+
+<div class="bar"><span>What it needs</span><i></i><em>all of it already exists</em></div>
+<p class="note"><b>Nothing new to fetch.</b> Home already loads all four leagues in parallel (<code>weekpulse</code>) and the Live tab already reads ESPN's clock plus Sleeper's uncached points for one league. This is those two, run over the four presets in the same thread pool, plus one join: a map of player → which of your leagues he starts in, which is what powers the exposure counts, the league chips and the red-zone alert. The scoring feed is the same delta diff already kept per league, merged and sorted by time.</p>
+</body></html>
