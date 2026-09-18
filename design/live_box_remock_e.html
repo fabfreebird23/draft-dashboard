@@ -1,0 +1,103 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Live · E, name beside the picture</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141314;--panel:#1f1d1e;--panel2:#292627;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#8c8286;
+ --crimson:#ff336c;--green:#7fd8b4;--amber:#f0b357;--red:#ff8fae;--g:#5fdc8f;--r:#ff6b6b;
+ --qb:#e879a6;--rb:#7fd8b4;--wr:#6aa6f0;--te:#f0b357;
+ --fd:'Oswald',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'Roboto Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);margin:0;padding:22px 22px 80px;font-size:13px}
+h1{font-family:var(--fd);font-weight:600;font-size:26px;margin:0 0 4px}
+.sub{color:var(--muted);max-width:96ch;line-height:1.55;margin:0 0 16px}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.55;max-width:96ch;margin:10px 0 0}
+.note b{color:var(--muted);font-weight:600}
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:34px 0 8px;font-family:var(--fd);font-weight:600;font-size:18px}
+.bar i{height:1px;background:var(--line2)}
+.bar em{font-family:var(--fm);font-size:9.5px;font-style:normal;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2)}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+
+.rows{display:flex;flex-direction:column;gap:6px}
+.pair{display:grid;grid-template-columns:1fr 58px 1fr;align-items:stretch}
+.mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+.badge{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-family:var(--fm);font-size:9.5px;font-weight:600;
+  border:1px solid var(--line2);background:var(--panel2);color:var(--muted)}
+.badge.QB{color:var(--qb);border-color:rgba(232,121,166,.45)} .badge.RB{color:var(--rb);border-color:rgba(127,216,180,.45)}
+.badge.WR{color:var(--wr);border-color:rgba(106,166,240,.45)} .badge.TE{color:var(--te);border-color:rgba(240,179,87,.45)}
+.swing{font-family:var(--fm);font-size:9.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.swing.me{color:var(--crimson)} .swing.op{color:var(--g)} .swing.tie{color:var(--mut2)}
+
+/* the card */
+.side{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 13px 10px}
+.side.l{border-top-right-radius:4px;border-bottom-right-radius:4px}
+.side.r{border-top-left-radius:4px;border-bottom-left-radius:4px}
+.side.on{background:rgba(255,51,108,.07);border-color:rgba(255,51,108,.28)}
+.av{position:relative;width:40px;height:40px;flex:none}
+.av .hs{width:40px;height:40px;border-radius:11px;object-fit:cover;object-position:top center;background:var(--panel2);border:1px solid var(--line2);display:block}
+.av .tm{position:absolute;width:17px;height:17px;bottom:-3px;object-fit:contain;background:var(--bg);border-radius:5px;padding:1px;border:1px solid var(--line)}
+.av.l .tm{right:-4px} .av.r .tm{left:-4px}
+.who{display:flex;align-items:baseline;gap:7px;min-width:0}
+.who b{font-family:var(--fd);font-weight:500;font-size:15px;letter-spacing:.005em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .pt{font-family:var(--fm);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);white-space:nowrap}
+.pts{font-family:var(--fd);font-weight:600;font-size:22px;line-height:1;font-variant-numeric:tabular-nums}
+.side.pre .pts{color:var(--muted);font-weight:400}
+.rail{height:3px;border-radius:99px;background:var(--panel2);position:relative}
+.rail i{position:absolute;top:0;bottom:0;border-radius:99px;background:linear-gradient(90deg,#ff336c,#ff6f95)}
+.side.l .rail i{left:0} .side.r .rail i{right:0}
+.rail .dot{position:absolute;top:50%;width:11px;height:11px;border-radius:50%;background:var(--crimson);transform:translate(-50%,-50%);border:2px solid var(--bg)}
+.rail.pre i{background:var(--line2)} .rail.pre .dot{background:var(--line2);width:9px;height:9px}
+.meta{display:flex;align-items:baseline;gap:9px;font-family:var(--fm);font-size:10px;color:var(--mut2);font-variant-numeric:tabular-nums}
+.meta .fin{color:var(--g)} .meta .fin.dn{color:var(--r)}
+.rz{font-family:var(--fm);font-size:8.5px;font-weight:600;letter-spacing:.08em;color:#fff;background:var(--crimson);border-radius:4px;padding:1px 4px;margin-right:5px}
+.stat{font-family:var(--fm);font-size:10.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side.pre .stat{color:var(--mut2)}
+
+/* ---------- E1: the picture holds the whole card, the name sits on it ---------- */
+.v1 .side{display:grid;grid-template-columns:44px 1fr 74px;gap:12px;align-items:center}
+.v1 .side.r{grid-template-columns:74px 1fr 44px}
+.v1 .av,.v1 .av .hs{width:44px;height:44px}
+.v1 .body{min-width:0}
+.v1 .side.r .body{text-align:right}
+.v1 .side.r .who{justify-content:flex-end;flex-direction:row-reverse}
+.v1 .rail{margin:7px 0 6px}
+.v1 .side.r .meta{justify-content:flex-end}
+.v1 .side.r .stat{text-align:right}
+.v1 .val{text-align:right} .v1 .side.r .val{text-align:left}
+.v1 .val .p{display:block;font-family:var(--fm);font-size:9.5px;color:var(--mut2);margin-top:5px}
+.v1 .val .p .up{color:var(--g)} .v1 .val .p .dn{color:var(--r)}
+
+/* ---------- E2: line one is the picture and the name, nothing else ---------- */
+.v2 .side{display:block}
+.v2 .head{display:flex;align-items:center;gap:11px}
+.v2 .side.r .head{flex-direction:row-reverse}
+.v2 .side.r .who{flex-direction:row-reverse}
+.v2 .rail{margin:8px 0 7px}
+/* right-ALIGNED, not reversed: the points stay at the gutter end of the line,
+   where the two sides face each other, instead of drifting out to the photo. */
+.v2 .side.r .meta{justify-content:flex-end}
+.v2 .side.r .stat{text-align:right}
+.v2 .meta .pts{font-size:15px;font-weight:600;line-height:1;font-family:var(--fd)}
+.v2 .side.pre .meta .pts{color:var(--muted)}
+</style></head><body>
+
+<h1>E, with the name back beside the picture</h1>
+<p class="sub">Two ways to put them together. Everything else is E as agreed: one bright line per card (what he did), the clock, the score and the
+projection behind it in the same muted grey, the share rail under the name, the red-zone chip the only interruption.</p>
+
+<div class="bar"><span>E1 · the picture holds the card</span><i></i><em>photo outside, text beside it, points at the gutter</em></div>
+<div class="rows v1"><div class="pair"><div class="side l pre"><div class="av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11566.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/was.png" alt=""></div><div class="body"><div class="who"><b>Jayden Daniels</b><span class="pt">QB · WAS</span></div><div class="rail pre"><i style="width:36%"></i><div class="dot" style="left:36%"></div></div><div class="meta"><span class="game">SUN 4:25 @ DAL · dome</span></div><div class="stat">locks in 3h 41m</div></div><div class="val"><div class="pts">&mdash;</div><span class="p">25.4 proj</span></div></div><div class="mid"><div class="badge QB">QB</div><div class="swing op">-19.8</div></div><div class="side r on"><div class="val"><div class="pts">43.8</div><span class="p"><span class="">45.2</span> final</span></div><div class="body"><div class="who"><b>J. Allen</b><span class="pt">QB · BUF</span></div><div class="rail"><i style="width:92%"></i><div class="dot" style="left:8%"></div></div><div class="meta"><span class="game"><span class="rz">RZ</span>2:47 4th · 34-24 vs DET</span></div><div class="stat">20/31 · 248 yd · 3 TD · 11 car, 72 yd, 2 TD</div></div><div class="av r"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/4984.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/buf.png" alt=""></div></div></div><div class="pair"><div class="side l pre"><div class="av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/7611.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/ne.png" alt=""></div><div class="body"><div class="who"><b>Rhamondre Stevenson</b><span class="pt">RB · NE</span></div><div class="rail pre"><i style="width:36%"></i><div class="dot" style="left:36%"></div></div><div class="meta"><span class="game">SUN 1:00 vs PIT · rain</span></div><div class="stat">locks in 16m</div></div><div class="val"><div class="pts">&mdash;</div><span class="p">13.5 proj</span></div></div><div class="mid"><div class="badge RB">RB</div><div class="swing op">-11.8</div></div><div class="side r on"><div class="val"><div class="pts">23.7</div><span class="p"><span class="dn">25.3</span> final</span></div><div class="body"><div class="who"><b>J. Gibbs</b><span class="pt">RB · DET</span></div><div class="rail"><i style="width:64%"></i><div class="dot" style="left:36%"></div></div><div class="meta"><span class="game">2:47 4th · 24-34 @ BUF</span></div><div class="stat">15 car, 53 yd · 5/5 rec, 49 yd · 1 TD</div></div><div class="av r"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9221.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/det.png" alt=""></div></div></div><div class="pair"><div class="side l pre"><div class="av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9224.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/cin.png" alt=""></div><div class="body"><div class="who"><b>Chase Brown</b><span class="pt">RB · CIN</span></div><div class="rail pre"><i style="width:51%"></i><div class="dot" style="left:51%"></div></div><div class="meta"><span class="game">SUN 1:00 @ HOU · dome</span></div><div class="stat">locks in 16m</div></div><div class="val"><div class="pts">&mdash;</div><span class="p">17.0 proj</span></div></div><div class="mid"><div class="badge RB">RB</div><div class="swing me">+0.4</div></div><div class="side r on"><div class="val"><div class="pts">15.0</div><span class="p"><span class="dn">16.6</span> final</span></div><div class="body"><div class="who"><b>J. Cook</b><span class="pt">RB · BUF</span></div><div class="rail"><i style="width:47%"></i><div class="dot" style="left:53%"></div></div><div class="meta"><span class="game">2:47 4th · 34-24 vs DET</span></div><div class="stat">13 car, 107 yd · 0/1 rec</div></div><div class="av r"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8138.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/buf.png" alt=""></div></div></div><div class="pair"><div class="side l pre"><div class="av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8144.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/no.png" alt=""></div><div class="body"><div class="who"><b>Chris Olave</b><span class="pt">WR · NO</span></div><div class="rail pre"><i style="width:53%"></i><div class="dot" style="left:53%"></div></div><div class="meta"><span class="game">SUN 1:00 @ BAL · hamstring</span></div><div class="stat">locks in 16m</div></div><div class="val"><div class="pts">&mdash;</div><span class="p">15.6 proj</span></div></div><div class="mid"><div class="badge WR">WR</div><div class="swing me">+1.8</div></div><div class="side r pre"><div class="val"><div class="pts">&mdash;</div><span class="p">13.8 proj</span></div><div class="body"><div class="who"><b>Drake London</b><span class="pt">WR · ATL</span></div><div class="rail pre"><i style="width:47%"></i><div class="dot" style="left:53%"></div></div><div class="meta"><span class="game">SUN 1:00 vs CAR · dome</span></div><div class="stat">locks in 16m</div></div><div class="av r"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8112.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/atl.png" alt=""></div></div></div></div>
+<p class="note"><b>What this is.</b> The photograph is a column of its own at the outer edge and everything about the man — his name, his rail,
+his game, his stats — sits in one block beside it. The points stay at the middle gutter where the two sides face each other, so the column of
+numbers down the middle still reads at a glance. The name touches the picture and nothing crosses between them.</p>
+
+<div class="bar"><span>E2 · line one is the man</span><i></i><em>photo + name alone on the first line</em></div>
+<div class="rows v2"><div class="pair"><div class="side l pre"><div class="head"><div class="av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11566.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/was.png" alt=""></div><div class="who"><b>Jayden Daniels</b><span class="pt">QB · WAS</span></div></div><div class="rail pre"><i style="width:36%"></i><div class="dot" style="left:36%"></div></div><div class="meta"><span class="pts">&mdash;</span><span class="fin" style="color:var(--mut2)">25.4 proj</span><span class="game">SUN 4:25 @ DAL · dome</span></div><div class="stat">locks in 3h 41m</div></div><div class="mid"><div class="badge QB">QB</div><div class="swing op">-19.8</div></div><div class="side r on"><div class="head"><div class="av r"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/4984.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/buf.png" alt=""></div><div class="who"><b>J. Allen</b><span class="pt">QB · BUF</span></div></div><div class="rail"><i style="width:92%"></i><div class="dot" style="left:8%"></div></div><div class="meta"><span class="pts">43.8</span><span class="fin ">45.2 final</span><span class="game"><span class="rz">RZ</span>2:47 4th · 34-24 vs DET</span></div><div class="stat">20/31 · 248 yd · 3 TD · 11 car, 72 yd, 2 TD</div></div></div><div class="pair"><div class="side l pre"><div class="head"><div class="av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/7611.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/ne.png" alt=""></div><div class="who"><b>Rhamondre Stevenson</b><span class="pt">RB · NE</span></div></div><div class="rail pre"><i style="width:36%"></i><div class="dot" style="left:36%"></div></div><div class="meta"><span class="pts">&mdash;</span><span class="fin" style="color:var(--mut2)">13.5 proj</span><span class="game">SUN 1:00 vs PIT · rain</span></div><div class="stat">locks in 16m</div></div><div class="mid"><div class="badge RB">RB</div><div class="swing op">-11.8</div></div><div class="side r on"><div class="head"><div class="av r"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9221.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/det.png" alt=""></div><div class="who"><b>J. Gibbs</b><span class="pt">RB · DET</span></div></div><div class="rail"><i style="width:64%"></i><div class="dot" style="left:36%"></div></div><div class="meta"><span class="pts">23.7</span><span class="fin dn">25.3 final</span><span class="game">2:47 4th · 24-34 @ BUF</span></div><div class="stat">15 car, 53 yd · 5/5 rec, 49 yd · 1 TD</div></div></div><div class="pair"><div class="side l pre"><div class="head"><div class="av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9224.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/cin.png" alt=""></div><div class="who"><b>Chase Brown</b><span class="pt">RB · CIN</span></div></div><div class="rail pre"><i style="width:51%"></i><div class="dot" style="left:51%"></div></div><div class="meta"><span class="pts">&mdash;</span><span class="fin" style="color:var(--mut2)">17.0 proj</span><span class="game">SUN 1:00 @ HOU · dome</span></div><div class="stat">locks in 16m</div></div><div class="mid"><div class="badge RB">RB</div><div class="swing me">+0.4</div></div><div class="side r on"><div class="head"><div class="av r"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8138.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/buf.png" alt=""></div><div class="who"><b>J. Cook</b><span class="pt">RB · BUF</span></div></div><div class="rail"><i style="width:47%"></i><div class="dot" style="left:53%"></div></div><div class="meta"><span class="pts">15.0</span><span class="fin dn">16.6 final</span><span class="game">2:47 4th · 34-24 vs DET</span></div><div class="stat">13 car, 107 yd · 0/1 rec</div></div></div><div class="pair"><div class="side l pre"><div class="head"><div class="av l"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8144.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/no.png" alt=""></div><div class="who"><b>Chris Olave</b><span class="pt">WR · NO</span></div></div><div class="rail pre"><i style="width:53%"></i><div class="dot" style="left:53%"></div></div><div class="meta"><span class="pts">&mdash;</span><span class="fin" style="color:var(--mut2)">15.6 proj</span><span class="game">SUN 1:00 @ BAL · hamstring</span></div><div class="stat">locks in 16m</div></div><div class="mid"><div class="badge WR">WR</div><div class="swing me">+1.8</div></div><div class="side r pre"><div class="head"><div class="av r"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8112.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/atl.png" alt=""></div><div class="who"><b>Drake London</b><span class="pt">WR · ATL</span></div></div><div class="rail pre"><i style="width:47%"></i><div class="dot" style="left:53%"></div></div><div class="meta"><span class="pts">&mdash;</span><span class="fin" style="color:var(--mut2)">13.8 proj</span><span class="game">SUN 1:00 vs CAR · dome</span></div><div class="stat">locks in 16m</div></div></div></div>
+<p class="note"><b>What this is.</b> The first line carries the picture and the name and nothing else — no number on it at all — and the rail
+rules a line under the pair. The points drop into the data line below, at the head of it, still the biggest thing in that row. It gives the man
+his own line, which is the closest to the screen he sent; the cost is that the big numbers no longer form a clean column against the middle
+badge, because each one starts where its own line starts.</p>
+
+<p class="note" style="margin-top:22px"><b>The difference in one sentence.</b> E1 keeps the numbers lined up down the gutter and puts the name
+beside the face; E2 gives the face and the name a line to themselves and lets the numbers sit with the rest of the data.</p>
+
+</body></html>
