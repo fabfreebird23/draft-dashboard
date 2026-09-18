@@ -40,9 +40,8 @@ theme.inject(st, dark=st.session_state.get("dark_mode", True))
 # hamburger and the "Running…" status all belong to a browser tab. The wrapper
 # opens the page with ?mac=1.
 if st.query_params.get("mac"):
-    st.markdown("<style>[data-testid='stToolbar'],[data-testid='stStatusWidget'],"
-                "[data-testid='stDecoration']{display:none !important;}</style>",
-                unsafe_allow_html=True)
+    st.markdown("<style>[data-testid='stToolbar'],[data-testid='stDecoration']"
+                "{display:none !important;}</style>", unsafe_allow_html=True)
 
 
 # ----------------------------------------------------------------- cached data

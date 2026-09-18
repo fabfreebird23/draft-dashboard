@@ -85,8 +85,20 @@ html,body{ font-size:13px; }
 [data-testid="stToolbar"] button,
 [data-testid="stToolbar"] a,
 [data-testid="stMainMenu"] button,
-[data-testid="stToolbarActions"] button,
-[data-testid="stStatusWidget"]{ pointer-events:auto !important; }
+[data-testid="stToolbarActions"] button{ pointer-events:auto !important; }
+
+/* NO "I am refreshing" state. Streamlit fades every element it is about to
+   replace — `[data-stale="true"]` carries `opacity 1s ease-in .5s` — so a click
+   or a fragment's own tick dropped the whole screen to a ghost and brought it
+   back. On a page that re-runs every couple of minutes by itself that reads as
+   flicker, not as progress. The old content simply stays solid until the new
+   content lands on top of it, which is what a native app does. The "Running…"
+   status in the corner goes with it, for the same reason. */
+[data-stale="true"],
+[data-testid="stElementContainer"][data-stale="true"],
+.stElementContainer[data-stale="true"]{
+  opacity:1 !important; transition:none !important; filter:none !important; }
+[data-testid="stStatusWidget"]{ display:none !important; }
 [data-testid="stSidebar"]{ background:#fff; border-right:1px solid var(--line); }
 
 /* layout density (desktop) */

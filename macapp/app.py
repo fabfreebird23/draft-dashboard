@@ -129,20 +129,46 @@ def already_up() -> bool:
         return False
 
 
-class Server:
-    """The Streamlit subprocess, in its own process group so it dies with us.
+AGENT = "com.brandonclifton.bloodysunday-server"
 
-    A Streamlit left running after a crash would hold the port and the next
-    launch would attach to a stale build, so the group gets killed on quit and
-    Restart goes down and up rather than starting a second one.
+
+def agent_loaded() -> bool:
+    """Is the launchd keep-warm agent installed? (build.sh installs it.)"""
+    try:
+        return subprocess.run(["/bin/launchctl", "print", f"gui/{os.getuid()}/{AGENT}"],
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                              timeout=5).returncode == 0
+    except Exception:  # noqa: BLE001
+        return False
+
+
+class Server:
+    """The Streamlit server: launchd's if there is one, otherwise our own.
+
+    The agent is the normal case — it keeps the process warm between launches,
+    which is the whole reason a click is fast. The app must NOT start a second
+    one: the first time it did, the app's own server took the port while the
+    agent was restarting, and launchd then sat in "spawn scheduled" forever
+    while a stale process served the page. So when the agent exists the app
+    only ever kicks it and waits.
+
+    Its own server (no agent installed — a fresh checkout, or the wrapper run
+    from source) goes in its own process group so it dies with us.
     """
 
     def __init__(self):
         self.proc: subprocess.Popen | None = None
+        self.agent = False
 
     def start(self) -> None:
         if already_up():
             _log(f"attached to an existing server on {PORT}")
+            return
+        self.agent = agent_loaded()
+        if self.agent:
+            _log("asking the launchd agent to start the server")
+            subprocess.run(["/bin/launchctl", "kickstart", f"gui/{os.getuid()}/{AGENT}"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
             return
         env = child_env()
         env["STREAMLIT_SERVER_HEADLESS"] = "true"
@@ -161,6 +187,7 @@ class Server:
                                      start_new_session=True)
 
     def stop(self) -> None:
+        """Only ever stops OUR server. launchd's stays warm for the next launch."""
         p, self.proc = self.proc, None
         if not p or p.poll() is not None:
             return
@@ -175,6 +202,12 @@ class Server:
             pass
 
     def restart(self) -> None:
+        if agent_loaded():
+            _log("restarting the launchd server")
+            subprocess.run(["/bin/launchctl", "kickstart", "-k",
+                            f"gui/{os.getuid()}/{AGENT}"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+            return
         self.stop()
         time.sleep(0.6)
         self.start()
