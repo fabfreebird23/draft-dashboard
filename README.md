@@ -30,6 +30,23 @@ streamlit run app.py
 
 Open the URL it prints, choose a platform, paste a league ID, and import.
 
+### The Mac app
+
+```bash
+./macapp/build.sh          # installs ~/Applications/Bloody Sunday.app
+```
+
+A native window over the same dashboard, plus a menu-bar line that reads
+`🍒 2-2 · 1 live` all Sunday. The bundle is thin on purpose — pywebview and
+PyObjC only. It runs `.venv/bin/python -m streamlit run app.py` on port 8599
+out of this checkout, so a `git pull` is the whole update and the bundle is
+rebuilt only when the wrapper changes. Scores in the menu come from
+`python -m draftkit.macstatus --loop`, one long-lived child that builds the
+player registry once. Closing the window hides it; Quit is a menu item. Log:
+`~/Library/Logs/BloodySunday.log`.
+
+To have it up every morning: System Settings → General → Login Items → +.
+
 ## Secrets
 
 All optional — see `.streamlit/secrets.toml.example`. `udk_cookie` enables the

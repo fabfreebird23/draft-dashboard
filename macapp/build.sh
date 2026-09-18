@@ -1,0 +1,29 @@
+#!/bin/bash
+# Build BloodySunday.app and install it into ~/Applications.
+#
+# Its own venv, and not the repo's: the dashboard runs on the system 3.9 and
+# py2app wants a framework build, so the wrapper is packaged with Homebrew's
+# 3.12 (what Sportsbot is built with). The two never meet — the bundle only
+# ever shells out to the repo's interpreter.
+set -euo pipefail
+cd "$(dirname "$0")"
+
+PY=${PY:-/opt/homebrew/bin/python3.12}
+[ -d .venv ] || "$PY" -m venv .venv
+./.venv/bin/pip install -q --upgrade pip
+./.venv/bin/pip install -q pywebview pyobjc-core pyobjc-framework-Cocoa pyobjc-framework-WebKit py2app
+
+[ -f BloodySunday.icns ] || ./.venv/bin/python make_icon.py
+
+rm -rf build dist
+./.venv/bin/python setup.py py2app >/dev/null
+
+# py2app names the bundle after CFBundleName, so glob rather than guess.
+BUILT=$(ls -d dist/*.app | head -1)
+DEST="$HOME/Applications/$(basename "$BUILT")"
+rm -rf "$DEST"
+cp -R "$BUILT" "$DEST"
+# Nothing we build locally is quarantined, but a stale signature from a previous
+# build makes launchd refuse the new one.
+codesign --force --deep --sign - "$DEST" 2>/dev/null || true
+echo "installed $DEST"
