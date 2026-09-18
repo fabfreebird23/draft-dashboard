@@ -1,0 +1,333 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Live · head to head · remock</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141314;--panel:#1f1d1e;--panel2:#292627;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#8c8286;
+ --crimson:#ff336c;--green:#7fd8b4;--amber:#f0b357;--red:#ff8fae;--blue:#6aa6f0;--g:#5fdc8f;--y:#e7c24a;--r:#ff6b6b;
+ --qb:#e879a6;--rb:#7fd8b4;--wr:#6aa6f0;--te:#f0b357;--k:#c9c2c5;--dst:#b59cf0;
+ --fd:'Sora',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);margin:0;padding:22px 22px 80px;font-size:13px}
+h1{font-family:var(--fd);font-weight:800;font-size:24px;margin:0 0 4px;letter-spacing:-.015em}
+.sub{color:var(--muted);max-width:96ch;line-height:1.5;margin:0 0 16px}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.5;margin-top:10px;max-width:96ch}
+.note b{color:var(--muted);font-weight:600}
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:30px 0 12px;font-family:var(--fd);font-weight:800;font-size:16px}
+.bar i{height:1px;background:var(--line2)}
+.bar em{font-family:var(--fm);font-size:9.5px;font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2)}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.25}}
+.mono{font-family:var(--fm)}
+
+/* ---------------- head ---------------- */
+.hd{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 18px 12px;margin-bottom:8px}
+.hd .top{display:grid;grid-template-columns:1fr auto 1fr;gap:18px;align-items:center}
+.who{display:flex;align-items:center;gap:11px}
+.who.r{flex-direction:row-reverse;text-align:right}
+.av{width:38px;height:38px;border-radius:11px;flex:none;background:linear-gradient(145deg,#3a3335,#211e1f);border:1px solid var(--line2);
+  display:grid;place-items:center;font-family:var(--fd);font-weight:800;font-size:13px;color:var(--muted)}
+.who b{display:block;font-family:var(--fd);font-weight:800;font-size:17px;letter-spacing:-.01em;line-height:1.15}
+.who span{display:block;font-family:var(--fm);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut2);margin-top:3px}
+.sc{display:flex;flex-direction:column;align-items:center;min-width:132px}
+.sc .n{font-family:var(--fd);font-weight:900;font-size:34px;line-height:1;letter-spacing:-.02em}
+.sc .vs{font-family:var(--fm);font-size:9px;letter-spacing:.2em;color:var(--mut2);margin:5px 0 3px}
+.sc .lead{font-family:var(--fm);font-size:10px;color:var(--crimson)}
+.pts{display:grid;grid-template-columns:1fr auto 1fr;gap:18px;align-items:baseline;margin-top:8px}
+.pts .v{font-family:var(--fd);font-weight:800;font-size:30px;line-height:1}
+.pts .v.r{text-align:right}
+.pts .v small{display:block;font-family:var(--fm);font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2);margin-top:4px}
+.wp{margin-top:11px}
+.wp .track{height:6px;border-radius:99px;background:var(--panel2);overflow:hidden;display:flex}
+.wp .track i{display:block;height:100%}
+.wp .track i.me{background:linear-gradient(90deg,#ff336c,#ff6f95)}
+.wp .track i.op{background:linear-gradient(90deg,#3a6f59,#5fdc8f)}
+.wp .lbl{display:flex;justify-content:space-between;margin-top:5px;font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2)}
+.wp .lbl b{color:var(--ink);font-weight:600}
+.left{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:9px 18px;margin-bottom:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.left .c{font-family:var(--fm);font-size:10px;color:var(--mut2);letter-spacing:.06em}
+.left .c b{color:var(--ink);font-weight:600}
+.left .c.r{text-align:right}
+
+/* ---------------- paired rows ---------------- */
+.rows{display:flex;flex-direction:column;gap:6px}
+.pair{display:grid;grid-template-columns:1fr 62px 1fr;gap:0;align-items:stretch}
+.side{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 13px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;min-height:62px}
+.side.l{border-top-right-radius:4px;border-bottom-right-radius:4px}
+.side.r{border-top-left-radius:4px;border-bottom-left-radius:4px;grid-template-columns:auto 1fr;text-align:right}
+.side.on{background:linear-gradient(90deg,rgba(255,51,108,.13),var(--panel) 62%);border-color:rgba(255,51,108,.4)}
+.side.r.on{background:linear-gradient(270deg,rgba(255,51,108,.13),var(--panel) 62%)}
+.side.done{opacity:.72}
+.nm b{font-family:var(--fd);font-weight:700;font-size:13.5px;letter-spacing:-.01em}
+.nm b em{font-style:normal;color:var(--mut2);font-family:var(--fm);font-size:9.5px;font-weight:500;margin-left:6px;letter-spacing:.06em}
+.nm .q{color:var(--amber);font-family:var(--fm);font-size:9px;border:1px solid rgba(240,179,87,.5);border-radius:4px;padding:0 4px;margin-left:5px}
+.nm .st{display:block;font-family:var(--fm);font-size:10px;color:var(--mut2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm .st .live{color:var(--crimson)}
+.nm .st .rz{color:#fff;background:var(--crimson);border-radius:3px;padding:0 4px;margin-left:5px;font-size:9px}
+.val{font-family:var(--fd);font-weight:800;font-size:19px;line-height:1;white-space:nowrap}
+.val small{display:block;font-family:var(--fm);font-size:9px;font-weight:500;color:var(--mut2);margin-top:4px;letter-spacing:.06em}
+.val small .up{color:var(--g)} .val small .dn{color:var(--r)}
+.val.pre{color:var(--muted)}
+.mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.badge{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-family:var(--fm);font-size:9.5px;font-weight:600;
+  border:1px solid var(--line2);background:var(--panel2);color:var(--muted)}
+.badge.QB{color:var(--qb);border-color:rgba(232,121,166,.45)} .badge.RB{color:var(--rb);border-color:rgba(127,216,180,.45)}
+.badge.WR{color:var(--wr);border-color:rgba(106,166,240,.45)} .badge.TE{color:var(--te);border-color:rgba(240,179,87,.45)}
+.badge.FLEX{color:var(--k)} .badge.K{color:var(--k)} .badge.DST{color:var(--dst);border-color:rgba(181,156,240,.45)}
+.swing{font-family:var(--fm);font-size:9.5px;font-weight:600;letter-spacing:.02em}
+.swing.me{color:var(--crimson)} .swing.op{color:var(--g)} .swing.tie{color:var(--mut2)}
+
+/* option B extras */
+.slotbar{width:46px;height:3px;border-radius:99px;background:var(--panel2);overflow:hidden;display:flex}
+.slotbar i{height:100%} .slotbar i.me{background:var(--crimson)} .slotbar i.op{background:var(--g)}
+.tell{display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:center;padding:7px 13px;border-radius:10px;margin:6px 0 0;
+  background:rgba(255,51,108,.08);border:1px solid rgba(255,51,108,.28);font-size:12px}
+.tell .k{font-family:var(--fm);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--crimson)}
+.tell b{font-weight:700}
+.ledger{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;padding:8px 18px;margin-bottom:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chips.r{justify-content:flex-end}
+.chip{font-family:var(--fm);font-size:9px;letter-spacing:.06em;padding:3px 7px;border-radius:6px;border:1px solid var(--line2);color:var(--mut2)}
+.chip.on{border-color:var(--crimson);color:var(--crimson)}
+.chip.done{opacity:.45;text-decoration:line-through}
+.ledger .mid{font-family:var(--fm);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--mut2)}
+
+/* option C: the all-leagues drawer */
+.lgwrap{border-radius:12px;border:1px solid var(--line);border-left:4px solid var(--g);background:var(--panel);margin-bottom:7px;overflow:hidden}
+.lg{display:grid;grid-template-columns:24px 128px 1fr 92px;gap:14px;align-items:center;padding:10px 14px}
+.lg .cv{font-family:var(--fm);font-size:12px;color:var(--crimson);text-align:center}
+.lg .nm2 b{display:block;font-family:var(--fd);font-weight:800;font-size:13.5px}
+.lg .nm2 span{display:block;font-family:var(--fm);font-size:8.5px;color:var(--mut2);margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
+.lg .mu{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center}
+.lg .mu .s b{display:block;font-size:12px;font-weight:600}
+.lg .mu .s span{font-family:var(--fm);font-size:18px;font-weight:600}
+.lg .mu .s.r{text-align:right} .lg .mu .s.r span{color:var(--muted)}
+.lg .mu .d{font-family:var(--fd);font-weight:800;font-size:14px;color:var(--g)}
+.lg .wp2{text-align:right;font-family:var(--fd);font-weight:800;font-size:17px;color:var(--g)}
+.lg .wp2 small{display:block;font-family:var(--fm);font-size:8.5px;font-weight:500;letter-spacing:.11em;text-transform:uppercase;color:var(--mut2);margin-top:2px}
+.drawer{border-top:1px solid var(--line);padding:10px 14px 12px;background:#1b191a}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+</style></head><body>
+
+<h1>Live · head to head</h1>
+<p class="sub">Three takes on the Live tab, built on the shape of the Sleeper matchup screen he sent: one row per slot, his man on the left, the
+opponent's on the right, the position between them. Same data we already pull (Sleeper matchup points, our projections, the ESPN scoreboard's
+clock and possession) — the stat lines are the one new read, and the note under each option says what they cost.</p>
+
+<div class="bar"><span>A · the matchup, in our clothes</span><i></i><em>faithful</em></div>
+
+<div class="hd">
+  <div class="top">
+    <div class="who"><div class="av">BC</div><div><b>FAABfreebird</b><span>@badlife · 0-1</span></div></div>
+    <div class="sc"><div class="vs">Week 2 · live</div><div class="n" style="color:var(--r)">-1.94</div><div class="lead">Big Flipper leads</div></div>
+    <div class="who r"><div class="av">CH</div><div><b>Big Flipper</b><span>0-1 · @charris42</span></div></div>
+  </div>
+  <div class="pts">
+    <div class="v">146.99<small>projected final</small></div>
+    <div class="mono" style="font-size:10px;color:var(--mut2);letter-spacing:.14em">PROJECTED</div>
+    <div class="v r">148.93<small>projected final</small></div>
+  </div>
+  <div class="wp">
+    <div class="track"><i class="me" style="width:49%"></i><i class="op" style="width:51%"></i></div>
+    <div class="lbl"><span><b>49%</b> win probability</span><span>9 of yours still to play · 4 of his</span><span><b>51%</b></span></div>
+  </div>
+</div>
+
+<div class="left">
+  <div class="c">Yet to play (9) · <b>QB, 3 RB, 4 WR, TE</b></div>
+  <div class="c r">Yet to play (4) · <b>2 WR, TE, RB</b></div>
+</div>
+
+<div class="rows">
+  <div class="pair">
+    <div class="side l"><div class="nm"><b>J. Daniels<em>WAS</em></b><span class="st">Sun 4:25 @ DAL · dome · yet to play</span></div>
+      <div class="val pre">25.4<small>projected</small></div></div>
+    <div class="mid"><div class="badge QB">QB</div><div class="swing op">-19.8</div></div>
+    <div class="side r on"><div class="val">43.8<small><span class="up">45.2</span> proj final</small></div>
+      <div class="nm"><b><em>BUF</em>J. Allen</b><span class="st"><span class="live">10:53 4th · 34-24 vs DET</span> · 16/24, 204 yd, 3 TD, 66 rush</span></div></div>
+  </div>
+
+  <div class="pair">
+    <div class="side l"><div class="nm"><b>R. Stevenson<em>NE</em></b><span class="st">Sun 1:00 vs PIT · yet to play</span></div>
+      <div class="val pre">13.5<small>projected</small></div></div>
+    <div class="mid"><div class="badge RB">RB</div><div class="swing op">-10.2</div></div>
+    <div class="side r on"><div class="val">23.7<small><span class="dn">25.3</span> proj final</small></div>
+      <div class="nm"><b><em>DET</em>J. Gibbs</b><span class="st"><span class="live">10:53 4th · 24-34 @ BUF</span> · 15 car, 53 yd, 5 rec, 49 yd, TD</span></div></div>
+  </div>
+
+  <div class="pair">
+    <div class="side l"><div class="nm"><b>C. Brown<em>CIN</em></b><span class="st">Sun 1:00 @ HOU · dome · yet to play</span></div>
+      <div class="val pre">17.0<small>projected</small></div></div>
+    <div class="mid"><div class="badge RB">RB</div><div class="swing me">+0.4</div></div>
+    <div class="side r on"><div class="val">15.0<small><span class="dn">16.6</span> proj final</small></div>
+      <div class="nm"><b><em>BUF</em>J. Cook</b><span class="st"><span class="live">10:53 4th · 34-24 vs DET</span> · 13 car, 107 yd</span></div></div>
+  </div>
+
+  <div class="pair">
+    <div class="side l"><div class="nm"><b>C. Olave<em>NO</em><span class="q">Q</span></b><span class="st">Sun 1:00 @ BAL · yet to play</span></div>
+      <div class="val pre">15.6<small>projected</small></div></div>
+    <div class="mid"><div class="badge WR">WR</div><div class="swing me">+1.8</div></div>
+    <div class="side r"><div class="val pre">13.8<small>projected</small></div>
+      <div class="nm"><b><em>ATL</em>D. London</b><span class="st">Sun 1:00 vs CAR · dome · yet to play</span></div></div>
+  </div>
+
+  <div class="pair">
+    <div class="side l"><div class="nm"><b>T. McMillan<em>CAR</em></b><span class="st">Sun 1:00 @ ATL · dome · yet to play</span></div>
+      <div class="val pre">14.6<small>projected</small></div></div>
+    <div class="mid"><div class="badge WR">WR</div><div class="swing tie">+0.3</div></div>
+    <div class="side r"><div class="val pre">14.3<small>projected</small></div>
+      <div class="nm"><b><em>HOU</em>N. Collins<span class="q">Q</span></b><span class="st">Sun 1:00 vs CIN · dome · yet to play</span></div></div>
+  </div>
+
+  <div class="pair">
+    <div class="side l"><div class="nm"><b>T. McBride<em>ARI</em></b><span class="st">Sun 4:25 vs SEA · dome · yet to play</span></div>
+      <div class="val pre">14.6<small>projected</small></div></div>
+    <div class="mid"><div class="badge TE">TE</div><div class="swing me">+4.4</div></div>
+    <div class="side r"><div class="val pre">10.2<small>projected</small></div>
+      <div class="nm"><b><em>PHI</em>D. Goedert</b><span class="st">Sun 1:00 @ TEN · yet to play</span></div></div>
+  </div>
+
+  <div class="pair">
+    <div class="side l"><div class="nm"><b>M. Nabers<em>NYG</em></b><span class="st">Mon 8:15 @ LAR · dome · locks last</span></div>
+      <div class="val pre">13.8<small>projected</small></div></div>
+    <div class="mid"><div class="badge FLEX">FLX</div><div class="swing op">-2.9</div></div>
+    <div class="side r"><div class="val pre">16.7<small>projected</small></div>
+      <div class="nm"><b><em>LV</em>A. Jeanty</b><span class="st">Sun 4:05 @ LAC · yet to play</span></div></div>
+  </div>
+</div>
+
+<p class="note"><b>What it costs.</b> Everything here is already in the app except one thing: the per-player STAT LINE ("16/24, 204 yd, 3 TD").
+Sleeper's matchup feed carries points, not yards — the line comes from <b>/stats/nfl/regular/{season}/{week}</b>, one call per tick for the whole
+league, cached like the scores. Without it the row still works: the status line falls back to clock and score, which is what we draw today.
+<b>Projected final</b> is our own live projection (actual so far + the rest of the game's share), coloured green when he is beating the
+pre-game number and red when he is behind it — the same read Sleeper puts in that slot.</p>
+
+<div class="bar"><span>B · the same shape, doing our job</span><i></i><em>recommended</em></div>
+
+<div class="hd">
+  <div class="top">
+    <div class="who"><div class="av">BC</div><div><b>FAABfreebird</b><span>@badlife · 0-1</span></div></div>
+    <div class="sc"><div class="vs">Week 2 · live</div><div class="n" style="color:var(--r)">-1.94</div><div class="lead">4 of his men still to play</div></div>
+    <div class="who r"><div class="av">CH</div><div><b>Big Flipper</b><span>0-1 · @charris42</span></div></div>
+  </div>
+  <div class="pts">
+    <div class="v">146.99<small>projected final</small></div>
+    <div class="mono" style="font-size:10px;color:var(--mut2);letter-spacing:.14em">PROJECTED</div>
+    <div class="v r">148.93<small>projected final</small></div>
+  </div>
+  <div class="wp">
+    <div class="track"><i class="me" style="width:49%"></i><i class="op" style="width:51%"></i></div>
+    <div class="lbl"><span><b>49%</b> now · was 41% at kickoff</span><span>swing since 1:00 · <b style="color:var(--g)">+8</b></span><span><b>51%</b></span></div>
+  </div>
+</div>
+
+<div class="ledger">
+  <div class="chips"><span class="chip done">QB</span><span class="chip">RB</span><span class="chip">RB</span><span class="chip">WR</span>
+    <span class="chip">WR</span><span class="chip">TE</span><span class="chip">FLX</span><span class="chip">FLX</span><span class="chip">FLX</span></div>
+  <div class="mid">still to play</div>
+  <div class="chips r"><span class="chip on">WR</span><span class="chip on">WR</span><span class="chip">TE</span><span class="chip">RB</span></div>
+</div>
+
+<div class="rows">
+  <div class="pair">
+    <div class="side l"><div class="nm"><b>J. Daniels<em>WAS</em></b><span class="st">Sun 4:25 @ DAL · locks in 3h 41m</span></div>
+      <div class="val pre">25.4<small>proj</small></div></div>
+    <div class="mid"><div class="badge QB">QB</div><div class="slotbar"><i class="me" style="width:37%"></i><i class="op" style="width:63%"></i></div><div class="swing op">-19.8</div></div>
+    <div class="side r on"><div class="val">43.8<small><span class="up">45.2</span> final</small></div>
+      <div class="nm"><b><em>BUF</em>J. Allen</b><span class="st"><span class="live">10:53 4th · 34-24</span> · 3 pass TD, 2 rush TD<span class="rz">RED ZONE</span></span></div></div>
+  </div>
+
+  <div class="tell"><span class="k">the game inside the game</span>
+    <span>Allen has taken <b>19.8</b> off you in one slot — more than the other six combined. Your QB plays at 4:25;
+      if Daniels hits his 25.4 you are back to <b>+5.6</b> on the week.</span></div>
+
+  <div class="pair" style="margin-top:6px">
+    <div class="side l"><div class="nm"><b>R. Stevenson<em>NE</em></b><span class="st">Sun 1:00 vs PIT · locks in 16m</span></div>
+      <div class="val pre">13.5<small>proj</small></div></div>
+    <div class="mid"><div class="badge RB">RB</div><div class="slotbar"><i class="me" style="width:36%"></i><i class="op" style="width:64%"></i></div><div class="swing op">-10.2</div></div>
+    <div class="side r on"><div class="val">23.7<small><span class="dn">25.3</span> final</small></div>
+      <div class="nm"><b><em>DET</em>J. Gibbs</b><span class="st"><span class="live">10:53 4th · 24-34</span> · 102 yd from scrimmage, TD</span></div></div>
+  </div>
+
+  <div class="pair">
+    <div class="side l"><div class="nm"><b>C. Brown<em>CIN</em></b><span class="st">Sun 1:00 @ HOU · locks in 16m</span></div>
+      <div class="val pre">17.0<small>proj</small></div></div>
+    <div class="mid"><div class="badge RB">RB</div><div class="slotbar"><i class="me" style="width:51%"></i><i class="op" style="width:49%"></i></div><div class="swing me">+0.4</div></div>
+    <div class="side r on"><div class="val">15.0<small><span class="dn">16.6</span> final</small></div>
+      <div class="nm"><b><em>BUF</em>J. Cook</b><span class="st"><span class="live">10:53 4th · 34-24</span> · 13 car, 107 yd</span></div></div>
+  </div>
+
+  <div class="pair">
+    <div class="side l"><div class="nm"><b>C. Olave<em>NO</em><span class="q">Q</span></b><span class="st">Sun 1:00 @ BAL · <span style="color:var(--amber)">questionable · hamstring</span></span></div>
+      <div class="val pre">15.6<small>proj</small></div></div>
+    <div class="mid"><div class="badge WR">WR</div><div class="slotbar"><i class="me" style="width:53%"></i><i class="op" style="width:47%"></i></div><div class="swing me">+1.8</div></div>
+    <div class="side r"><div class="val pre">13.8<small>proj</small></div>
+      <div class="nm"><b><em>ATL</em>D. London</b><span class="st">Sun 1:00 vs CAR · dome</span></div></div>
+  </div>
+
+  <div class="tell" style="background:rgba(240,179,87,.08);border-color:rgba(240,179,87,.3)">
+    <span class="k" style="color:var(--amber)">16 minutes to decide</span>
+    <span>Olave is questionable and inactives drop at 11:30. <b>Jaylen Waddle (12.4)</b> is on your bench and plays the same window —
+      the swap is worth <b>+2.9</b> if Olave sits.</span></div>
+
+  <div class="pair" style="margin-top:6px">
+    <div class="side l"><div class="nm"><b>T. McMillan<em>CAR</em></b><span class="st">Sun 1:00 @ ATL · dome</span></div>
+      <div class="val pre">14.6<small>proj</small></div></div>
+    <div class="mid"><div class="badge WR">WR</div><div class="slotbar"><i class="me" style="width:50%"></i><i class="op" style="width:50%"></i></div><div class="swing tie">+0.3</div></div>
+    <div class="side r"><div class="val pre">14.3<small>proj</small></div>
+      <div class="nm"><b><em>HOU</em>N. Collins<span class="q">Q</span></b><span class="st">Sun 1:00 vs CIN · dome</span></div></div>
+  </div>
+
+  <div class="pair">
+    <div class="side l"><div class="nm"><b>T. McBride<em>ARI</em></b><span class="st">Sun 4:25 vs SEA · dome</span></div>
+      <div class="val pre">14.6<small>proj</small></div></div>
+    <div class="mid"><div class="badge TE">TE</div><div class="slotbar"><i class="me" style="width:59%"></i><i class="op" style="width:41%"></i></div><div class="swing me">+4.4</div></div>
+    <div class="side r"><div class="val pre">10.2<small>proj</small></div>
+      <div class="nm"><b><em>PHI</em>D. Goedert</b><span class="st">Sun 1:00 @ TEN</span></div></div>
+  </div>
+
+  <div class="pair">
+    <div class="side l"><div class="nm"><b>M. Nabers<em>NYG</em></b><span class="st">Mon 8:15 @ LAR · the last word</span></div>
+      <div class="val pre">13.8<small>proj</small></div></div>
+    <div class="mid"><div class="badge FLEX">FLX</div><div class="slotbar"><i class="me" style="width:45%"></i><i class="op" style="width:55%"></i></div><div class="swing op">-2.9</div></div>
+    <div class="side r"><div class="val pre">16.7<small>proj</small></div>
+      <div class="nm"><b><em>LV</em>A. Jeanty</b><span class="st">Sun 4:05 @ LAC</span></div></div>
+  </div>
+</div>
+
+<p class="note"><b>What B adds over A.</b> The same row, plus the three things a scoreboard cannot tell him: the <b>slot bar</b> (who owns this
+matchup and by how much, at a glance down the column), the <b>lock clock</b> instead of a kickoff time, and a <b>tell</b> — one line, only when
+there is something to do or something worth knowing: a questionable starter with a bench man in the same window, or the single slot that is
+deciding the week. The header trades "yet to play" counts for the chip ledger, which says the same thing in the shape of a lineup, and the win
+probability carries where it started so the number means something.</p>
+
+<div class="bar"><span>C · the drawer, same grammar</span><i></i><em>live · all leagues</em></div>
+
+<div class="lgwrap">
+  <div class="lg"><div class="cv">▾</div>
+    <div class="nm2"><b>The Kreeper League</b><span>sleeper · 8 · 0-1</span></div>
+    <div class="mu"><div class="s"><b>FAABfreebird</b><span>85.1</span></div><div class="d">-1.9</div>
+      <div class="s r"><b>Big Flipper</b><span>87.0</span></div></div>
+    <div class="wp2">49%<small>win prob</small></div></div>
+  <div class="drawer">
+    <div class="rows">
+      <div class="pair">
+        <div class="side l"><div class="nm"><b>J. Daniels<em>WAS</em></b><span class="st">Sun 4:25 @ DAL</span></div><div class="val pre">25.4<small>proj</small></div></div>
+        <div class="mid"><div class="badge QB">QB</div><div class="swing op">-19.8</div></div>
+        <div class="side r on"><div class="val">43.8<small><span class="up">45.2</span></small></div>
+          <div class="nm"><b><em>BUF</em>J. Allen</b><span class="st"><span class="live">10:53 4th</span> · 3 TD</span></div></div>
+      </div>
+      <div class="pair">
+        <div class="side l"><div class="nm"><b>R. Stevenson<em>NE</em></b><span class="st">Sun 1:00 vs PIT</span></div><div class="val pre">13.5<small>proj</small></div></div>
+        <div class="mid"><div class="badge RB">RB</div><div class="swing op">-10.2</div></div>
+        <div class="side r on"><div class="val">23.7<small><span class="dn">25.3</span></small></div>
+          <div class="nm"><b><em>DET</em>J. Gibbs</b><span class="st"><span class="live">10:53 4th</span> · 102 yd, TD</span></div></div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:9px">Seven more slots · bench 31.4 · <b>2 of yours on the field right now</b></p>
+  </div>
+</div>
+
+<p class="note"><b>Why the drawer changes too.</b> Today it opens onto two stacked lineups, his and the opponent's, and the eye has to carry a
+number across the screen to compare them. The paired row does that work: one glance down the middle column says which slots he is winning. It is
+the same component as A/B at a smaller size, so there is one thing to build and one thing to keep right.</p>
+
+</body></html>
