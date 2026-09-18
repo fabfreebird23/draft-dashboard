@@ -2120,3 +2120,44 @@ def steps_html(title, steps) -> str:
     """A numbered list of the taps to make on the platform, in order."""
     li = "".join(f'<li>{s}</li>' for s in steps)
     return (f'<div class="lc-steps"><div class="k">{_esc(title)}</div><ol>{li}</ol></div>')
+
+
+# ------------------------------------------------------------------ live feed
+def live_game_html(*, home, away, home_score, away_score, label, live=False,
+                   note="", redzone=False, last_play="") -> str:
+    """One NFL game as a strip: score, quarter and clock, and what just happened.
+
+    The clock is the part that makes a page feel live — Sleeper's fantasy points
+    move about once a minute, but this moves every few seconds.
+    """
+    return (f'<div class="lv-game{" on" if live else ""}{" rz" if redzone else ""}">'
+            f'<div class="tm"><b>{_esc(away)}</b><span>{_esc(away_score)}</span></div>'
+            f'<div class="tm"><b>{_esc(home)}</b><span>{_esc(home_score)}</span></div>'
+            f'<div class="cl">{_esc(label)}'
+            + (f'<small>{_esc(note)}</small>' if note else "")
+            + (f'<small class="rz">red zone</small>' if redzone else "")
+            + '</div>'
+            + (f'<div class="lp">{_esc(last_play)}</div>' if last_play else "<div></div>")
+            + "</div>")
+
+
+def live_lineup_html(rows) -> str:
+    """A starting lineup with live points. `rows` is
+    [(slot, name, sub, pts, state, delta)] where state is live/done/pre."""
+    out = ['<div class="lv-lu">']
+    for slot, name, sub, pts, state, delta in rows:
+        d = (f'<span class="d {"up" if not str(delta).startswith("-") else "dn"}">{_esc(delta)}</span>'
+             if delta else "")
+        out.append(f'<div class="rw {state}"><span class="sl">{_esc(slot)}</span>'
+                   f'<div class="pl"><b>{_esc(name)}</b><span>{_esc(sub)}</span></div>'
+                   f'<div class="pt">{_esc(pts)}{d}</div></div>')
+    return "".join(out) + "</div>"
+
+
+def live_event_html(*, name, delta, total, ago, mine=False) -> str:
+    """One line of the scoring feed: who scored, how much, how long ago."""
+    when = "just now" if ago < 20 else (f"{ago}s ago" if ago < 90 else f"{ago // 60}m ago")
+    return (f'<div class="lv-ev{" me" if mine else ""}">'
+            f'<span class="d {"up" if delta > 0 else "dn"}">{delta:+.1f}</span>'
+            f'<b>{_esc(name)}</b><span class="to">to {total:.1f}</span>'
+            f'<span class="ago">{_esc(when)}</span></div>')

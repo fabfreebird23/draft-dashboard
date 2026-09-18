@@ -88,7 +88,7 @@ class Provider(ABC):
         empty = a clean snare draft. Platforms that support pick trades override this."""
         return {}
 
-    def get_live_scores(self, week: int) -> dict:
+    def get_live_scores(self, week: int, fresh: bool = False) -> dict:
         """{team_id: {"points": float, "players": {pid: pts}}} for one week — the
         ACTUAL score, not a projection. Empty before kickoff or on a platform that
         cannot report it; callers show projections until it fills in."""

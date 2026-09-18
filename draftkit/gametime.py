@@ -79,7 +79,17 @@ def load_week(season: int, week: int, *, max_age: Optional[int] = None) -> Dict[
     out: Dict[str, dict] = {}
     for e in events:
         comp = (e.get("competitions") or [{}])[0]
-        state = ((comp.get("status") or {}).get("type") or {}).get("state") or "pre"
+        _stt = comp.get("status") or {}
+        state = ((_stt.get("type") or {}).get("state")) or "pre"
+        # the live feel: quarter, clock, who has it, are they in the red zone
+        clock = _stt.get("displayClock") or ""
+        period = _stt.get("period")
+        detail = ((_stt.get("type") or {}).get("shortDetail")) or ""
+        sit = comp.get("situation") or {}
+        poss_id = str(sit.get("lastPlay", {}).get("team", {}).get("id") or "") if isinstance(sit.get("lastPlay"), dict) else ""
+        down_txt = sit.get("downDistanceText") or ""
+        redzone = bool(sit.get("isRedZone"))
+        last_play = ((sit.get("lastPlay") or {}).get("text") or "") if isinstance(sit.get("lastPlay"), dict) else ""
         kick = e.get("date") or ""
         odds = (comp.get("odds") or [{}])[0] or {}
         total = odds.get("overUnder")
@@ -115,6 +125,9 @@ def load_week(season: int, week: int, *, max_age: Optional[int] = None) -> Dict[
             except (TypeError, ValueError):
                 sc = 0.0
             out[ab] = {"opp": opp, "home": home, "kickoff": kick, "state": state,
+                       "clock": clock, "period": period, "detail": detail,
+                       "down": down_txt, "redzone": redzone, "last_play": last_play,
+                       "has_ball": bool(poss_id and poss_id == str(t.get("id") or "")),
                        "score": sc, "spread": (spread if fav == ab else (-spread if spread else None)),
                        "total": total, "implied": implied.get(ab),
                        "opp_implied": implied.get(opp),
@@ -130,6 +143,22 @@ def load_week(season: int, week: int, *, max_age: Optional[int] = None) -> Dict[
         except Exception:  # noqa: BLE001
             pass
     return out or (cached or {})
+
+
+def live_label(g: Optional[dict]) -> str:
+    """"Q2 04:31" while a game is on, "FINAL" after, the kickoff before."""
+    if not g:
+        return "bye"
+    st_ = g.get("state")
+    if st_ == "post":
+        return "FINAL"
+    if st_ == "in":
+        q = g.get("period")
+        c = g.get("clock") or ""
+        if q and int(q) > 4:
+            return f"OT {c}".strip()
+        return (f"Q{int(q)} {c}".strip() if q else (g.get("detail") or "LIVE"))
+    return day_label(g)
 
 
 def kickoff_ts(g: Optional[dict]) -> float:

@@ -1756,6 +1756,53 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   text-overflow:ellipsis; padding:9px 4px; }
 .rk-row.focus .pl{ box-shadow:0 0 0 2px var(--crimson); }
 .rk-hl.on{ color:var(--ink); border-color:var(--crimson); background:var(--accent-soft); }
+/* ---- Live feed ---- */
+[class*="st-key-lv_ctl"]{ background:var(--panel); border:1px solid var(--line); border-radius:12px;
+  padding:6px 12px 2px; margin-bottom:10px; }
+.lv-meta{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9.5px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--mut2); text-align:right; padding-top:9px; }
+.lv-meta b{ color:var(--ink); font-weight:600; }
+.lv-meta .on{ color:var(--crimson); } .lv-meta .bad{ color:var(--red); }
+.lv-game{ display:grid; grid-template-columns:150px 150px 120px 1fr; gap:12px; align-items:center;
+  padding:8px 13px; border-radius:11px; background:var(--panel); border:1px solid var(--line);
+  border-left:3px solid var(--line2); margin-bottom:6px; }
+.lv-game.on{ border-left-color:var(--crimson); }
+.lv-game.rz{ background:linear-gradient(90deg,rgba(255,51,108,.10),var(--panel) 45%); }
+.lv-game .tm{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.lv-game .tm b{ font-family:'Sora',sans-serif; font-weight:800; font-size:13px; }
+.lv-game .tm span{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:16px;
+  font-weight:600; }
+.lv-game .cl{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11px; color:var(--ink);
+  text-align:center; }
+.lv-game .cl small{ display:block; font-size:8.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--mut2); }
+.lv-game .cl small.rz{ color:var(--crimson); }
+.lv-game .lp{ font-size:11px; color:var(--muted); line-height:1.35; overflow:hidden;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.lv-lu{ background:var(--panel); border:1px solid var(--line); border-radius:13px; overflow:hidden; }
+.lv-lu .rw{ display:grid; grid-template-columns:44px 1fr 92px; gap:10px; align-items:center;
+  padding:7px 13px; border-bottom:1px solid var(--line); }
+.lv-lu .rw:last-child{ border-bottom:0; }
+.lv-lu .rw.live{ background:rgba(255,51,108,.06); }
+.lv-lu .rw.done .pl b{ color:var(--mut2); }
+.lv-lu .sl{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:10px; font-weight:600;
+  color:var(--mut2); }
+.lv-lu .pl b{ display:block; font-size:13px; font-weight:600; }
+.lv-lu .pl span{ display:block; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9.5px;
+  color:var(--mut2); margin-top:1px; }
+.lv-lu .pt{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:15px; font-weight:600;
+  text-align:right; white-space:nowrap; }
+.lv-lu .pt .d{ font-size:10px; margin-left:5px; padding:1px 5px; border-radius:5px; }
+.lv-lu .pt .d.up{ color:#5fdc8f; background:rgba(95,220,143,.14); }
+.lv-lu .pt .d.dn{ color:#ff6b6b; background:rgba(255,107,107,.14); }
+.lv-ev{ display:grid; grid-template-columns:62px 1fr auto auto; gap:10px; align-items:center;
+  padding:6px 13px; border-radius:9px; background:var(--panel); border:1px solid var(--line);
+  margin-bottom:4px; font-size:12.5px; }
+.lv-ev.me{ border-color:rgba(255,51,108,.35); }
+.lv-ev .d{ font-family:'Sora',sans-serif; font-weight:800; font-size:14px; text-align:center; }
+.lv-ev .d.up{ color:#5fdc8f; } .lv-ev .d.dn{ color:#ff6b6b; }
+.lv-ev .to, .lv-ev .ago{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:10px;
+  color:var(--mut2); letter-spacing:.06em; text-transform:uppercase; }
 /* ranked actions */
 .ws2-act{ display:grid; grid-template-columns:auto 1fr auto; gap:13px; align-items:center;
   padding:12px 14px; border-radius:13px; background:var(--panel); border:1px solid var(--line);
@@ -1982,6 +2029,11 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   .rk-row .pl b{ font-size:13px; } .rk-row .pl img{ width:26px; height:26px; }
   .rk-row .own{ font-size:9px; }
 
+  .lv-game{ grid-template-columns:1fr 1fr; gap:6px; }
+  .lv-game .cl{ grid-column:1 / -1; text-align:left; }
+  .lv-game .lp{ grid-column:1 / -1; }
+  .lv-meta{ text-align:left; }
+  .lv-lu .rw{ grid-template-columns:36px 1fr 76px; gap:7px; }
   /* ---- tables: scroll rather than crush ---- */
   table.ws-t{ display:block; overflow-x:auto; white-space:nowrap; }
   table.ws-t.ws-fixed{ table-layout:auto; }

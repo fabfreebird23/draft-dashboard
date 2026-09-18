@@ -206,7 +206,7 @@ def pulse(preset: dict, registry, week: int, byes: Optional[dict] = None) -> dic
         elif out["claim"] and phase in ("waivers", "done"):
             out["action"], out["nav"] = "Claim", "Waivers"
         elif started:
-            out["action"], out["nav"] = "Watch", "Matchup"
+            out["action"], out["nav"] = "Watch", "Live"
         out["ok"] = True
         return out
     except Exception as e:  # noqa: BLE001

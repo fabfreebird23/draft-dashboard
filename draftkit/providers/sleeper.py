@@ -165,11 +165,17 @@ def _snake_slot(i: int, n: int) -> int:
     return j if rd % 2 == 0 else n - 1 - j
 
 
-def _live_scores(league_id: str, week: int) -> dict:
+def _live_scores(league_id: str, week: int, fresh: bool = False) -> dict:
     """Sleeper's matchup feed, read FRESH (60s) rather than through the 5-minute
-    matchups cache: on a Sunday afternoon five minutes is a touchdown ago."""
-    ms = api._disk(f"live_{league_id}_{week}", 60,
-                   lambda: api._get(f"league/{league_id}/matchups/{week}")) or []
+    matchups cache: on a Sunday afternoon five minutes is a touchdown ago.
+
+    `fresh=True` skips the disk cache entirely — the Live tab polls on its own
+    clock and a cached copy would make its "updated 4s ago" a lie."""
+    if fresh:
+        ms = api._get(f"league/{league_id}/matchups/{week}") or []
+    else:
+        ms = api._disk(f"live_{league_id}_{week}", 60,
+                       lambda: api._get(f"league/{league_id}/matchups/{week}")) or []
     rosters = api.get_rosters(league_id) or []
     rid_to_uid = {r.get("roster_id"): str(r.get("owner_id")) for r in rosters}
     out = {}
@@ -183,4 +189,5 @@ def _live_scores(league_id: str, week: int) -> dict:
     return out
 
 
-SleeperProvider.get_live_scores = lambda self, week: _live_scores(self.league_id, int(week))
+SleeperProvider.get_live_scores = (
+    lambda self, week, fresh=False: _live_scores(self.league_id, int(week), fresh))

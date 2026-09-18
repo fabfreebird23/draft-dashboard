@@ -20,6 +20,7 @@ from .. import (config, ecr as ECR, gametime as GT, inseason, keepers as K, line
                 picks as PK, projections as PJ, schedule as SCH, sleeper_client as api,
                 weekly as W, weekview as WV)
 from . import components as C
+from .widgets import rerun_here
 from .. import theme as _T
 
 # Bump when a panel's numbers change MEANING: Streamlit's in-memory caches key on
@@ -28,7 +29,7 @@ from .. import theme as _T
 # rebuilt from per-analyst overall lists; it had been a positional rank.)
 _PANEL_VER = 2
 
-TABS = ["Command Center", "Lineup", "Rankings", "Waivers", "Matchup", "Trades", "Playoffs", "League", "Keepers"]
+TABS = ["Command Center", "Live", "Lineup", "Rankings", "Waivers", "Matchup", "Trades", "Playoffs", "League", "Keepers"]
 
 _POSC = {"QB": "var(--qb)", "RB": "var(--rb)", "WR": "var(--wr)", "TE": "var(--te)",
          "K": "var(--k)", "DST": "var(--dst)"}
@@ -362,7 +363,7 @@ def _links(ctx, week: int) -> dict:
             "standings": ("Standings", f"{base}/standings")}
 
 
-_TAB_LINK = {"Command Center": "team", "Lineup": "team", "Rankings": "waivers", "Waivers": "waivers", "Matchup": "matchup",
+_TAB_LINK = {"Command Center": "team", "Live": "matchup", "Lineup": "team", "Rankings": "waivers", "Waivers": "waivers", "Matchup": "matchup",
              "Trades": "trades", "Playoffs": "standings", "League": "league", "Keepers": "team"}
 
 
@@ -399,6 +400,8 @@ def render(ctx, summary=None, tab="Command Center") -> None:
 
     if tab == "Command Center":
         _command(ctx, g)
+    elif tab == "Live":
+        _live_view(ctx, g)
     elif tab == "Lineup":
         _lineup(ctx, g)
     elif tab == "Rankings":
@@ -808,6 +811,214 @@ def _command(ctx, g) -> None:
             st.caption(_ecr_missing(g))
 
 
+
+
+
+
+# --------------------------------------------------------------- 1a live feed
+_LIVE_CADENCE = {"5s": 5, "10s": 10, "30s": 30}
+
+
+def _live_view(ctx, g) -> None:
+    """Bind the polling cadence, then hand the screen to one fragment.
+
+    `run_every` is fixed when the fragment object is built, so only the cadence
+    can live out here — everything else repaints inside without touching the
+    page, which is what keeps the scroll position while the numbers move.
+    """
+    lk = ctx["league_key"]
+    akey = f"lv_{lk}"
+    st.session_state.setdefault(f"{akey}_auto", True)
+    st.session_state.setdefault(f"{akey}_every", "10s")
+    auto = bool(st.session_state.get(f"{akey}_auto"))
+    every = _LIVE_CADENCE.get(st.session_state.get(f"{akey}_every"), 10)
+    st.fragment(run_every=(every if auto else None))(_live_body)(
+        ctx, g, bound_auto=auto, bound_every=every)
+
+
+def _live_body(ctx, g, *, bound_auto: bool, bound_every: int) -> None:
+    import time as _t
+    reg = ctx["registry"]
+    lk, akey = ctx["league_key"], f"lv_{ctx['league_key']}"
+    week, season = g["week"], g["season"]
+
+    # ---- the two moving reads, both uncached -------------------------------
+    # The whole point of this screen is that these are NOW. Everything else on
+    # it (rosters, slots, projections) comes from the shared 15-minute gather.
+    try:
+        games = GT.load_week(season, week, max_age=(bound_every if bound_auto else 0)) or {}
+    except Exception:  # noqa: BLE001
+        games = g.get("games") or {}
+    try:
+        live = ctx["provider"].get_live_scores(week, fresh=True) or {}
+        err = ""
+    except Exception as e:  # noqa: BLE001
+        live, err = {}, type(e).__name__
+    now = _t.time()
+
+    oid, opp = _opponent(ctx, g)
+    ost = _opp_starters(g, oid) if opp else []
+    me_live = live.get(str(g["me"])) or {}
+    opp_live = (live.get(str(oid)) or {}) if oid else {}
+    mcur = [(s_, p) for s_, p in zip(g["slots"], g.get("starters") or [])]
+    ocur = list(zip(g["slots"], ost))
+
+    # ---- what changed since the last tick ----------------------------------
+    # Sleeper's own numbers move in bursts — measured at roughly once a minute
+    # during play, not per second — so a delta is worth keeping on screen for a
+    # while after it lands rather than flashing for one repaint.
+    fkey = f"{akey}_feed"
+    prev = st.session_state.get(fkey) or {"pts": {}, "events": [], "ts": 0.0}
+    pts_now = {}
+    for side in (me_live, opp_live):
+        for pid, v in (side.get("players") or {}).items():
+            pts_now[str(pid)] = float(v or 0)
+    events = list(prev.get("events") or [])
+    if prev.get("pts"):
+        mine_set = {str(p) for _s, p in mcur if p}
+        for pid, v in pts_now.items():
+            was = prev["pts"].get(pid)
+            if was is None or abs(v - was) < 0.05:
+                continue
+            try:
+                nm = reg.meta(pid).name
+            except Exception:  # noqa: BLE001
+                nm = pid
+            events.insert(0, {"pid": pid, "name": nm, "d": v - was, "to": v, "ts": now,
+                              "mine": pid in mine_set})
+    events = events[:12]
+    st.session_state[fkey] = {"pts": pts_now, "events": events, "ts": now}
+    recent = {e["pid"]: e for e in events if now - e["ts"] <= 150}
+
+    # ---- controls ----------------------------------------------------------
+    with st.container(key="lv_ctl"):
+        c = st.columns([1.1, 1.5, 1.0, 3.4])
+        auto = c[0].toggle("Auto", key=f"{akey}_auto", help="Poll while this tab is open.")
+        c[1].segmented_control("Every", list(_LIVE_CADENCE), key=f"{akey}_every",
+                               selection_mode="single", label_visibility="collapsed")
+        if c[2].button("Refresh", key=f"{akey}_now", use_container_width=True):
+            rerun_here()
+        _ago = int(max(0, now - (prev.get("ts") or now)))
+        _n_live = sum(1 for v in games.values() if v.get("state") == "in")
+        c[3].markdown(
+            f'<div class="lv-meta">updated <b>just now</b>'
+            + (f' · last poll {_ago}s before' if _ago else "")
+            + (f' · <span class="on">{_n_live} game{"s" if _n_live != 1 else ""} live</span>'
+               if _n_live else " · no game in progress")
+            + (f' · <span class="bad">feed error: {err}</span>' if err else "")
+            + "</div>", unsafe_allow_html=True)
+    if (auto != bound_auto) or (_LIVE_CADENCE.get(st.session_state.get(f"{akey}_every"), 10)
+                                != bound_every):
+        # run_every was fixed when this fragment was built, so only a full run
+        # can rebind it — otherwise the cadence would never start, or never stop.
+        st.rerun()
+
+    # ---- the scoreboard ----------------------------------------------------
+    ps = WV.played_state(mcur, reg, games, me_live)
+    ops = WV.played_state(ocur, reg, games, opp_live) if opp else None
+    me_pts = float(me_live.get("points") or 0)
+    opp_pts = float(opp_live.get("points") or 0) if opp else 0.0
+    me_end = WV.live_projection(mcur, g["proj"], reg, games, me_live)
+    opp_end = WV.live_projection(ocur, g["proj"], reg, games, opp_live) if opp else 0.0
+    _, ms_ = W.team_distribution(g["mine"], g["slots"], g["proj"], reg, g["byes"], week,
+                                 current=g.get("starters"))
+    os_ = ms_
+    if opp:
+        _, os_ = W.team_distribution(opp, g["slots"], g["proj"], reg, g["byes"], week, current=ost)
+    wp = W.win_prob(me_end, ms_ * 0.7, opp_end, os_ * 0.7) if opp else None
+    left_me = len(ps["pre"]) + len(ps["live"])
+    left_op = (len(ops["pre"]) + len(ops["live"])) if ops else 0
+    st.markdown(C.week_hero_html(
+        me_name=_owner_name(ctx, g["me"]) or "You",
+        me_sub=f'{left_me} still to play', me_pts=f"{me_pts:.1f}",
+        opp_name=(_owner_name(ctx, oid) if opp else "No opponent"),
+        opp_sub=(f'{left_op} still to play' if opp else "none scheduled"),
+        opp_pts=(f"{opp_pts:.1f}" if opp else "—"),
+        week=week, margin=(me_end - opp_end) if opp else None,
+        win_pct=(100 * wp) if wp is not None else None,
+        tiles=[
+            ("Projected final", f"{me_end:.0f} – {opp_end:.0f}" if opp else f"{me_end:.0f}",
+             "actual so far plus the rest", "up" if me_end >= opp_end else "dn"),
+            ("Still to play", f"{left_me}", f"theirs {left_op}" if opp else "",
+             "up" if left_me else ""),
+            ("Live now", f'{sum(1 for p in ps["live"])}',
+             "of yours on the field", "up" if ps["live"] else ""),
+            ("Win prob", f"{100*wp:.0f}%" if wp is not None else "—",
+             "from where it stands", "up" if (wp or 0) >= .5 else "dn"),
+        ],
+        live=bool(_n_live), final=(not _n_live and left_me == 0)), unsafe_allow_html=True)
+
+    # ---- the games themselves ---------------------------------------------
+    mine_teams = []
+    for _s, p in mcur + (ocur if opp else []):
+        if not p:
+            continue
+        t = (reg.meta(p).team or "").upper()
+        if t and t not in mine_teams:
+            mine_teams.append(t)
+    seen, cards = set(), []
+    for t in mine_teams:
+        gm = games.get(t)
+        if not gm or gm.get("state") == "pre":
+            continue
+        key = tuple(sorted([t, gm["opp"]]))
+        if key in seen:
+            continue
+        seen.add(key)
+        cards.append((t, gm))
+    if cards:
+        st.markdown('<div class="ws-h">Games your players are in</div>', unsafe_allow_html=True)
+        st.markdown("".join(
+            C.live_game_html(
+                home=(t if gm.get("home") else gm["opp"]),
+                away=(gm["opp"] if gm.get("home") else t),
+                home_score=int(gm["score"] if gm.get("home") else gm.get("opp_score") or 0),
+                away_score=int(gm.get("opp_score") or 0 if gm.get("home") else gm["score"]),
+                label=GT.live_label(gm), live=(gm.get("state") == "in"),
+                note=(gm.get("down") or ""), redzone=bool(gm.get("redzone")),
+                last_play=(gm.get("last_play") or ""))
+            for t, gm in cards), unsafe_allow_html=True)
+
+    # ---- the two lineups, ticking -----------------------------------------
+    def _rows(cur, side_live):
+        pp = (side_live or {}).get("players") or {}
+        out = []
+        for slot, pid in cur:
+            if not pid or str(pid) in ("0", "None"):
+                out.append((slot, "(empty)", "", "0.0", "", ""))
+                continue
+            pm = reg.meta(pid)
+            gm = WV.game_of(reg, games, pid)
+            st_ = GT.status(gm)
+            ev = recent.get(str(pid))
+            out.append((slot, pm.name, f'{pm.team} · {GT.live_label(gm)}',
+                        f'{float(pp.get(str(pid), 0) or 0):.1f}',
+                        ("live" if st_ == "in" else "done" if st_ == "post" else "pre"),
+                        (f'+{ev["d"]:.1f}' if ev and ev["d"] > 0 else
+                         f'{ev["d"]:.1f}' if ev else "")))
+        return out
+    cols = st.columns(2 if opp else 1)
+    with cols[0]:
+        st.markdown(f'<div class="ws-h">{_esc_(_owner_name(ctx, g["me"]) or "You")} · '
+                    f'{me_pts:.1f}</div>', unsafe_allow_html=True)
+        st.markdown(C.live_lineup_html(_rows(mcur, me_live)), unsafe_allow_html=True)
+    if opp:
+        with cols[1]:
+            st.markdown(f'<div class="ws-h">{_esc_(_owner_name(ctx, oid))} · '
+                        f'{opp_pts:.1f}</div>', unsafe_allow_html=True)
+            st.markdown(C.live_lineup_html(_rows(ocur, opp_live)), unsafe_allow_html=True)
+
+    # ---- what just happened ------------------------------------------------
+    if events:
+        st.markdown('<div class="ws-h">Scoring feed</div>', unsafe_allow_html=True)
+        st.markdown("".join(
+            C.live_event_html(name=e["name"], delta=e["d"], total=e["to"],
+                              ago=int(max(0, now - e["ts"])), mine=e["mine"])
+            for e in events[:8]), unsafe_allow_html=True)
+    st.caption("Polls on the cadence above. The clock, score and possession come from ESPN and "
+               "move every few seconds; the fantasy points come from Sleeper, whose own feed "
+               "updates in bursts — measured at roughly once a minute during play, so a change "
+               "stays marked for a couple of minutes after it lands rather than blinking once.")
 
 
 # --------------------------------------------------------------- 1b lineup

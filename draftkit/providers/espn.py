@@ -257,7 +257,7 @@ class EspnProvider(Provider):
                 pairs[home], pairs[away] = away, home
         return pairs
 
-    def get_live_scores(self, week: int) -> dict:
+    def get_live_scores(self, week: int, fresh: bool = False) -> dict:
         """Actual points this week, per team and per player.
 
         Two views in one call: mMatchupScore carries each side's `totalPointsLive`,
