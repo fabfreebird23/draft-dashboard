@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "week": 2,
-  "published": "2026-09-21T00:10",
+  "published": "2026-09-21T03:09",
   "players": {
     "Jaxson Dart|NYG": {
       "name": "Jaxson Dart",
@@ -19,8 +19,8 @@
         },
         "pass_int": {
           "line": 0.5,
-          "over": "-105",
-          "under": "-125"
+          "over": "+105",
+          "under": "-135"
         },
         "pass_yd": {
           "line": 215.5,
@@ -40,7 +40,7 @@
       "exp": {
         "pass_td": 1.35,
         "pass_att": 31.44,
-        "pass_int": 0.48,
+        "pass_int": 0.46,
         "pass_yd": 215.5,
         "rush_yd": 31.5,
         "td": 0.298
@@ -60,6 +60,11 @@
           "over": "-110",
           "under": "-120"
         },
+        "pass_int": {
+          "line": 0.5,
+          "over": "EVEN",
+          "under": "-130"
+        },
         "pass_yd": {
           "line": 238.5,
           "over": "-115",
@@ -73,6 +78,7 @@
       "exp": {
         "pass_td": 1.62,
         "pass_att": 32.47,
+        "pass_int": 0.47,
         "pass_yd": 238.5,
         "td": 0.04
       }
@@ -243,7 +249,7 @@
           "under": "-120"
         },
         "rec_yd": {
-          "line": 67.5,
+          "line": 66.5,
           "over": "-115",
           "under": "-115"
         },
@@ -254,7 +260,7 @@
       },
       "exp": {
         "rec": 5.49,
-        "rec_yd": 67.5,
+        "rec_yd": 66.5,
         "td": 0.343
       }
     },
