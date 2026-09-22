@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "week": 3,
-  "published": "2026-09-22T00:58",
+  "published": "2026-09-22T01:58",
   "players": {
     "Jordan Love|GB": {
       "name": "Jordan Love",
@@ -9,8 +9,8 @@
       "lines": {
         "pass_td": {
           "line": 1.5,
-          "over": "-125",
-          "under": "-105"
+          "over": "-130",
+          "under": "EVEN"
         },
         "pass_att": {
           "line": 31.5,
@@ -19,8 +19,8 @@
         },
         "pass_int": {
           "line": 0.5,
-          "over": "EVEN",
-          "under": "-130"
+          "over": "-105",
+          "under": "-125"
         },
         "pass_yd": {
           "line": 229.5,
@@ -33,17 +33,17 @@
           "under": "-120"
         },
         "td": {
-          "price": "+600",
-          "prob": 0.14285714285714285
+          "price": "+625",
+          "prob": 0.13793103448275862
         }
       },
       "exp": {
-        "pass_td": 1.52,
+        "pass_td": 1.53,
         "pass_att": 31.44,
-        "pass_int": 0.47,
+        "pass_int": 0.48,
         "pass_yd": 229.5,
         "rush_yd": 8.49,
-        "td": 0.119
+        "td": 0.115
       }
     },
     "Michael Penix Jr.|ATL": {
@@ -51,14 +51,19 @@
       "team": "ATL",
       "lines": {
         "pass_td": {
-          "line": 1.5,
-          "over": "+190",
-          "under": "-260"
+          "line": 0.5,
+          "over": "-275",
+          "under": "+200"
         },
         "pass_att": {
           "line": 31.5,
           "over": "-110",
           "under": "-120"
+        },
+        "pass_int": {
+          "line": 0.5,
+          "over": "-125",
+          "under": "-105"
         },
         "pass_yd": {
           "line": 205.5,
@@ -67,20 +72,21 @@
         },
         "rush_yd": {
           "line": 3.5,
-          "over": "-110",
-          "under": "-120"
+          "over": "-125",
+          "under": "-105"
         },
         "td": {
-          "price": "+1100",
-          "prob": 0.08333333333333333
+          "price": "+1000",
+          "prob": 0.09090909090909091
         }
       },
       "exp": {
-        "pass_td": 1.32,
+        "pass_td": 0.69,
         "pass_att": 31.47,
+        "pass_int": 0.52,
         "pass_yd": 205.5,
-        "rush_yd": 3.49,
-        "td": 0.067
+        "rush_yd": 3.52,
+        "td": 0.074
       }
     },
     "Bijan Robinson|ATL": {
@@ -94,11 +100,11 @@
         },
         "rec": {
           "line": 4.5,
-          "over": "-145",
-          "under": "+110"
+          "over": "-135",
+          "under": "+105"
         },
         "rec_yd": {
-          "line": 40.5,
+          "line": 39.5,
           "over": "-115",
           "under": "-115"
         },
@@ -109,9 +115,9 @@
       },
       "exp": {
         "rush_yd": 80.5,
-        "rec": 4.55,
-        "rec_yd": 40.5,
-        "td": 0.73
+        "rec": 4.54,
+        "rec_yd": 39.5,
+        "td": 0.732
       }
     },
     "Brian Robinson|ATL": {
@@ -124,13 +130,13 @@
           "under": "-115"
         },
         "td": {
-          "price": "+500",
-          "prob": 0.16666666666666666
+          "price": "+460",
+          "prob": 0.17857142857142858
         }
       },
       "exp": {
         "rush_yd": 22.5,
-        "td": 0.141
+        "td": 0.152
       }
     },
     "Chris Brooks|GB": {
@@ -144,18 +150,18 @@
         },
         "rec_yd": {
           "line": 7.5,
-          "over": "-115",
-          "under": "-115"
+          "over": "-110",
+          "under": "-120"
         },
         "td": {
-          "price": "+210",
-          "prob": 0.3225806451612903
+          "price": "+220",
+          "prob": 0.3125
         }
       },
       "exp": {
         "rush_yd": 15.5,
-        "rec_yd": 7.5,
-        "td": 0.301
+        "rec_yd": 7.49,
+        "td": 0.29
       }
     },
     "Kaleb Johnson|GB": {
@@ -168,13 +174,13 @@
           "under": "-120"
         },
         "td": {
-          "price": "+165",
-          "prob": 0.37735849056603776
+          "price": "+170",
+          "prob": 0.37037037037037035
         }
       },
       "exp": {
         "rush_yd": 38.46,
-        "td": 0.367
+        "td": 0.359
       }
     },
     "Marshawn Lloyd|GB": {
@@ -197,15 +203,15 @@
           "under": "-105"
         },
         "td": {
-          "price": "+170",
-          "prob": 0.37037037037037035
+          "price": "+175",
+          "prob": 0.36363636363636365
         }
       },
       "exp": {
         "rush_yd": 29.5,
         "rec": 0.67,
         "rec_yd": 4.52,
-        "td": 0.358
+        "td": 0.35
       }
     },
     "Christian Watson|GB": {
@@ -223,14 +229,14 @@
           "under": "-115"
         },
         "td": {
-          "price": "+140",
-          "prob": 0.4166666666666667
+          "price": "+135",
+          "prob": 0.425531914893617
         }
       },
       "exp": {
         "rec": 4.51,
         "rec_yd": 67.5,
-        "td": 0.417
+        "td": 0.43
       }
     },
     "Drake London|ATL": {
@@ -248,14 +254,14 @@
           "under": "-115"
         },
         "td": {
-          "price": "+180",
-          "prob": 0.35714285714285715
+          "price": "+185",
+          "prob": 0.3508771929824561
         }
       },
       "exp": {
         "rec": 5.44,
         "rec_yd": 63.5,
-        "td": 0.342
+        "td": 0.335
       }
     },
     "Jahan Dotson|ATL": {
@@ -264,8 +270,8 @@
       "lines": {
         "rec": {
           "line": 1.5,
-          "over": "-165",
-          "under": "+125"
+          "over": "-160",
+          "under": "+120"
         },
         "rec_yd": {
           "line": 18.5,
@@ -280,7 +286,7 @@
       "exp": {
         "rec": 1.58,
         "rec_yd": 18.5,
-        "td": 0.103
+        "td": 0.104
       }
     },
     "Kyle Pitts|ATL": {
@@ -289,11 +295,11 @@
       "lines": {
         "rec": {
           "line": 3.5,
-          "over": "-120",
-          "under": "-110"
+          "over": "-125",
+          "under": "-105"
         },
         "rec_yd": {
-          "line": 34.5,
+          "line": 35.5,
           "over": "-115",
           "under": "-115"
         },
@@ -303,9 +309,9 @@
         }
       },
       "exp": {
-        "rec": 3.51,
-        "rec_yd": 34.5,
-        "td": 0.165
+        "rec": 3.52,
+        "rec_yd": 35.5,
+        "td": 0.166
       }
     },
     "Matthew Golden|GB": {
@@ -318,7 +324,7 @@
           "under": "-145"
         },
         "rec_yd": {
-          "line": 52.5,
+          "line": 51.5,
           "over": "-115",
           "under": "-115"
         },
@@ -329,7 +335,7 @@
       },
       "exp": {
         "rec": 4.45,
-        "rec_yd": 52.5,
+        "rec_yd": 51.5,
         "td": 0.342
       }
     },
@@ -355,7 +361,7 @@
       "exp": {
         "rec": 3.58,
         "rec_yd": 45.5,
-        "td": 0.358
+        "td": 0.359
       }
     },
     "Skyy Moore|GB": {
@@ -363,12 +369,12 @@
       "team": "GB",
       "lines": {
         "td": {
-          "price": "+440",
-          "prob": 0.18518518518518517
+          "price": "+420",
+          "prob": 0.19230769230769232
         }
       },
       "exp": {
-        "td": 0.158
+        "td": 0.166
       }
     },
     "Jonnu Smith|GB": {
@@ -381,7 +387,7 @@
         }
       },
       "exp": {
-        "td": 0.103
+        "td": 0.104
       }
     },
     "Olamide Zaccheaus|ATL": {
@@ -415,12 +421,12 @@
       "team": "ATL",
       "lines": {
         "td": {
-          "price": "+2800",
-          "prob": 0.034482758620689655
+          "price": "+3300",
+          "prob": 0.029411764705882353
         }
       },
       "exp": {
-        "td": 0.027
+        "td": 0.023
       }
     },
     "Bo Melton|GB": {
@@ -428,12 +434,12 @@
       "team": "GB",
       "lines": {
         "td": {
-          "price": "+725",
-          "prob": 0.12121212121212122
+          "price": "+700",
+          "prob": 0.125
         }
       },
       "exp": {
-        "td": 0.1
+        "td": 0.104
       }
     },
     "Mark Redman|GB": {
@@ -454,12 +460,12 @@
       "team": "ATL",
       "lines": {
         "td": {
-          "price": "+1400",
-          "prob": 0.06666666666666667
+          "price": "+1500",
+          "prob": 0.0625
         }
       },
       "exp": {
-        "td": 0.053
+        "td": 0.05
       }
     },
     "Josh Whyle|GB": {
