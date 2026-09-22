@@ -39,9 +39,21 @@ theme.inject(st, dark=st.session_state.get("dark_mode", True))
 # In the Mac app the window IS the app, so the web chrome is noise: Deploy, the
 # hamburger and the "Running…" status all belong to a browser tab. The wrapper
 # opens the page with ?mac=1.
-if st.query_params.get("mac"):
-    st.markdown("<style>[data-testid='stToolbar'],[data-testid='stDecoration']"
-                "{display:none !important;}</style>", unsafe_allow_html=True)
+# Which shell is holding the page: "mac" (the pywebview window) or "android"
+# (the phone app, which draws its own top bar and tab bar and must not have the
+# web ones under them). A browser gets neither and keeps its chrome.
+SHELL = (st.query_params.get("shell") or ("mac" if st.query_params.get("mac") else "")).lower()
+if SHELL:
+    _hide = "[data-testid='stToolbar'],[data-testid='stDecoration']"
+    if SHELL == "android":
+        # The app owns navigation: its league strip replaces the topbar and its
+        # tab bar replaces the nav row. Two of each is worse than none.
+        _hide += (",.st-key-navbar,.st-key-navbar_more,.st-key-dr_topbar"
+                  ",.st-key-lv_ctl")
+    st.markdown(f"<style>{_hide}{{display:none !important;}}</style>", unsafe_allow_html=True)
+    if SHELL == "android":
+        st.markdown("<style>.block-container{padding:.35rem .6rem 2rem !important;}</style>",
+                    unsafe_allow_html=True)
 
 
 # ----------------------------------------------------------------- cached data
@@ -353,6 +365,51 @@ def sel_for(preset: dict) -> dict:
         "keeper": preset.get("keeper", True),
         "my_team": preset.get("my_team"),
     }
+
+
+def slug(label: str) -> str:
+    """A stable name for a league, for deep links: kreeper-league, 7-1-2-men…
+
+    Lowercased, punctuation to hyphens, a leading "the" dropped — "The Kreeper
+    League" is "kreeper-league", and a link may give any prefix of that, so the
+    phone can say ?league=kreeper and still land right if the league is renamed
+    to something longer.
+    """
+    out, prev_dash = [], True
+    for c in (label or "").lower():
+        if c.isalnum():
+            out.append(c)
+            prev_dash = False
+        elif not prev_dash:
+            out.append("-")
+            prev_dash = True
+    sl = "".join(out).strip("-")
+    return sl[4:] if sl.startswith("the-") else sl
+
+
+def _deep_link() -> None:
+    """?league=<slug>&tab=<name> — how the phone's tab bar opens a screen.
+
+    Applied once per session per link: writing the nav key on every run would
+    pin the app to that tab and no in-app tab press would ever stick.
+    """
+    q = st.query_params
+    want_lg, want_tab = (q.get("league") or "").lower(), (q.get("tab") or "")
+    if not (want_lg or want_tab):
+        return
+    seen = st.session_state.get("_deeplink")
+    if seen == f"{want_lg}|{want_tab}":
+        return
+    st.session_state["_deeplink"] = f"{want_lg}|{want_tab}"
+    preset = next((p for p in SAVED_LEAGUES
+                   if want_lg and slug(p["label"]).startswith(want_lg)), None)
+    if preset:
+        st.session_state.league = sel_for(preset)
+    if want_tab:
+        sel = st.session_state.get("league") or (sel_for(preset) if preset else None)
+        if sel:
+            lk = f'{sel["platform"]}_{sel["league_id"]}'
+            st.session_state[f"nav_in_{lk}"] = want_tab
 
 
 def _select_league(preset: dict) -> None:
@@ -754,6 +811,7 @@ def _league_switcher(ctx) -> None:
 
 
 def main():
+    _deep_link()
     if "league" not in st.session_state:
         league_picker()
         return

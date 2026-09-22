@@ -2129,13 +2129,21 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   /* Two men side by side do not fit a phone, so the slot becomes three stacked
      bands with the position in the middle — the same reading order, top to
      bottom instead of left to right. */
-  /* The two men stack; each keeps its own handedness (his face on the left,
-     the opponent's on the right) so the pair still reads as a pair. */
+  /* The two men stack, and BOTH read left to right: face, name, line, points.
+     Mirroring the opponent works across a gutter and not down a column — on a
+     phone it just makes every other name start in a different place. The
+     opponent is told apart by sitting under the badge and by a darker panel. */
   .h2h-pair{ grid-template-columns:1fr; gap:0; }
-  .h2h-side.l{ grid-template-columns:38px 1fr 62px;
-    border-bottom-left-radius:4px; border-bottom-right-radius:4px; border-top-right-radius:11px; }
-  .h2h-side.r{ grid-template-columns:62px 1fr 38px;
-    border-top-left-radius:4px; border-top-right-radius:4px; border-bottom-left-radius:11px; }
+  .h2h-side.l,.h2h-side.r{ grid-template-columns:38px 1fr 62px; text-align:left; }
+  .h2h-side.l{ border-bottom-left-radius:4px; border-bottom-right-radius:4px; }
+  .h2h-side.r{ border-top-left-radius:4px; border-top-right-radius:4px; background:#1c1a1b; }
+  .h2h-side.r.on{ background:rgba(255,51,108,.055); }
+  .h2h-side.r .h2h-body{ text-align:left; }
+  .h2h-side.r .h2h-who{ justify-content:flex-start; flex-direction:row; }
+  .h2h-side.r .h2h-meta,.h2h-side.r .h2h-stat{ text-align:left; }
+  .h2h-side.r .h2h-rail i{ right:auto; left:0; }
+  .h2h-side.r .h2h-val{ text-align:right; order:3; }
+  .h2h-side.r .h2h-av{ order:1; } .h2h-side.r .h2h-body{ order:2; }
   .h2h-av,.h2h-av .hs{ width:38px; height:38px; }
   .h2h-who b{ font-size:14px; }
   .h2h-val .pts{ font-size:19px; }
@@ -2144,8 +2152,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   /* the drawer's smaller card stacks too — its own rules are later in the
      sheet, so they have to be restated here or they win at phone width. */
   .h2h.sm .h2h-pair{ grid-template-columns:1fr; }
-  .h2h.sm .h2h-side.l{ grid-template-columns:34px 1fr 58px; }
-  .h2h.sm .h2h-side.r{ grid-template-columns:58px 1fr 34px; }
+  .h2h.sm .h2h-side.l,.h2h.sm .h2h-side.r{ grid-template-columns:34px 1fr 58px; }
 
   .block-container{ padding:.4rem .55rem 2.5rem !important; }
 

@@ -30,6 +30,13 @@ _state = {"bucket": None, "at": 0.0, "ms": {}, "error": ""}
 
 RECHECK_S = 30.0      # how often to look at the clock
 MIN_GAP_S = 110.0     # never re-warm more often than this; one fast bucket
+MODE = "full"         # set by kick(); "light" skips the heavy boards
+
+
+def _on_cloud() -> bool:
+    """Streamlit Community Cloud runs the repo out of /mount/src."""
+    import os
+    return os.path.isdir("/mount/src")
 
 
 def status() -> dict:
@@ -79,14 +86,21 @@ def _warm_league(preset: dict, week: int) -> str:
         for pid in r.get("players") or []:
             owner_of[str(pid)] = str(oid)
     taken = frozenset(owner_of)
-    IS._fa_gain_cached(lk, week, slow, ctx, g, taken)           # the optimiser pass
-    IS._waiver_board_cached(lk, week, slow, ctx, g, taken)
-    d = mark()
-    # FLEX is what Rankings opens on; ALL is the second click most days.
-    for pos in ("FLEX", "ALL"):
-        IS._rk_rows_cached(lk, week, slow, pos, reg, g, pn, owner_of, IS._PANEL_VER)
-    e = mark()
-    return (f"ctx {a}s · gather {b}s · panels {c}s · waivers {d}s · ranks {e}s "
+    if MODE == "light":
+        # Streamlit Cloud gives the app about a gigabyte. The free-agent
+        # optimiser pass and the rankings rows are the two that hold real memory
+        # per league, and they are also the two he does not open from a phone
+        # first — so on Cloud the warm stops here and those stay on demand.
+        d = e = 0.0
+    else:
+        IS._fa_gain_cached(lk, week, slow, ctx, g, taken)       # the optimiser pass
+        IS._waiver_board_cached(lk, week, slow, ctx, g, taken)
+        d = mark()
+        # FLEX is what Rankings opens on; ALL is the second click most days.
+        for pos in ("FLEX", "ALL"):
+            IS._rk_rows_cached(lk, week, slow, pos, reg, g, pn, owner_of, IS._PANEL_VER)
+        e = mark()
+    return (f"[{MODE}] ctx {a}s · gather {b}s · panels {c}s · waivers {d}s · ranks {e}s "
             f"= {round(t[-1] - t[0], 1)}s")
 
 
@@ -143,16 +157,23 @@ def kick(presets: List[dict], fns: Optional[dict] = None,
     through an imported `app` looked like it worked and saved nothing — the
     open still cost five seconds.
 
-    Off by default on Streamlit Cloud, where four leagues' worth of background
-    work on a shared 1GB container costs more than the clicks it saves; the Mac
-    app sets DRAFTROOM_WARM=1 and gets the whole board built before he looks.
+    Three settings, read from DRAFTROOM_WARM: "0"/unset is off, "1"/"full"
+    builds everything (the Mac), "light" builds only what Home, Live and
+    Live · all need. Streamlit Cloud defaults to LIGHT rather than off, because
+    the phone opens on exactly those screens and a cold one over cellular is
+    the slowest thing in the app — but the heavy boards stay on demand there,
+    where memory is a gigabyte and shared.
     """
-    global _started
+    global _started, MODE
     import os
+    want = (os.environ.get("DRAFTROOM_WARM") or "").lower()
+    if not want and _on_cloud():
+        want = "light"
     if enabled is None:
-        enabled = os.environ.get("DRAFTROOM_WARM", "") not in ("", "0")
+        enabled = want not in ("", "0", "off", "false")
     if not enabled:
         return
+    MODE = "light" if want == "light" else "full"
     with _lock:
         if _started:
             return

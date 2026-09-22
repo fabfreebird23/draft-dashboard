@@ -1,0 +1,34 @@
+# Keep the Streamlit Cloud app from going to sleep.
+#
+# Community Cloud parks an app that has had no traffic for a while, and waking
+# it takes 30-60 seconds — which is the difference between the phone app being
+# usable on a Sunday and not. A request every ten minutes is enough to keep it
+# resident; GitHub's scheduler is best-effort and sometimes late, which is fine
+# for this (a few minutes of drift costs nothing).
+#
+# Requires the app to be PUBLIC: a private app answers an unauthenticated
+# request at the edge with a redirect to its login page and the container is
+# never woken, so this job would keep nothing awake.
+name: keep-awake
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the app
+        env:
+          APP_URL: ${{ vars.APP_URL || 'https://draft-dashboar-kbqgjjbr3vu9gu4bivzev4.streamlit.app' }}
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 60 \
+                  -A 'bloody-sunday-keepalive' "$APP_URL/_stcore/health" || echo 000)
+          echo "health -> $code"
+          # A redirect means the app is private and this ping is doing nothing;
+          # say so loudly rather than passing a green tick every ten minutes.
+          if [ "$code" = "303" ] || [ "$code" = "302" ]; then
+            echo "::warning::App looks private ($code) — the container is not being woken."
+          fi
