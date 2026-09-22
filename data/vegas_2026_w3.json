@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "week": 3,
-  "published": "2026-09-22T04:59",
+  "published": "2026-09-22T05:59",
   "players": {
     "Jordan Love|GB": {
       "name": "Jordan Love",
@@ -60,6 +60,11 @@
           "over": "-110",
           "under": "-120"
         },
+        "pass_int": {
+          "line": 0.5,
+          "over": "-115",
+          "under": "-115"
+        },
         "pass_yd": {
           "line": 205.5,
           "over": "-115",
@@ -78,6 +83,7 @@
       "exp": {
         "pass_td": 0.69,
         "pass_att": 31.47,
+        "pass_int": 0.5,
         "pass_yd": 205.5,
         "rush_yd": 3.52,
         "td": 0.074
