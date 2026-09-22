@@ -448,12 +448,20 @@ def _deep_link() -> None:
     """
     q = st.query_params
     want_lg, want_tab = (q.get("league") or "").lower(), (q.get("tab") or "")
-    if not (want_lg or want_tab):
+    want_view = (q.get("view") or "").lower()
+    if not (want_lg or want_tab or want_view):
         return
     seen = st.session_state.get("_deeplink")
-    if seen == f"{want_lg}|{want_tab}":
+    if seen == f"{want_lg}|{want_tab}|{want_view}":
         return
-    st.session_state["_deeplink"] = f"{want_lg}|{want_tab}"
+    st.session_state["_deeplink"] = f"{want_lg}|{want_tab}|{want_view}"
+    if want_view:
+        # The phone's Today tab is Home on its all-leagues view, and it must
+        # leave any league it was in — otherwise Today would open inside one.
+        st.session_state["home_phase"] = {"all": "Live · all", "live": "Live · all",
+                                          "season": "In-season"}.get(want_view, "All")
+        st.session_state.pop("league", None)
+        return
     preset = next((p for p in SAVED_LEAGUES
                    if want_lg and slug(p["label"]).startswith(want_lg)), None)
     if preset:
