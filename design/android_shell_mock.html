@@ -1,0 +1,304 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Bloody Sunday · Android</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141314;--panel:#1f1d1e;--panel2:#292627;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#8c8286;
+ --crimson:#ff336c;--g:#5fdc8f;--a:#f0b357;--r:#ff6b6b;
+ --fd:'Oswald',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'Roboto Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:#0c0b0c;color:var(--ink);font-family:var(--fb);margin:0;padding:24px 24px 60px;font-size:13px}
+h1{font-family:var(--fd);font-weight:600;font-size:26px;margin:0 0 4px}
+.sub{color:var(--muted);max-width:98ch;line-height:1.55;margin:0 0 18px}
+.note{color:var(--mut2);font-size:11.5px;line-height:1.55;max-width:98ch;margin:14px 0 0}
+.note b{color:var(--muted);font-weight:600}
+.rail-row{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+.dev{width:412px}
+.devlab{font-family:var(--fm);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2);margin:0 0 8px;display:flex;justify-content:space-between}
+.devlab span{color:#5c5558;text-transform:none;letter-spacing:0;font-size:10px}
+.screen{width:412px;height:915px;border-radius:26px;border:1px solid #2a2527;background:var(--bg);
+  overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px -30px #000}
+.body{flex:1;overflow:hidden;padding:0 12px 10px}
+/* top bar */
+.top{padding:10px 12px 8px;border-bottom:1px solid var(--line);background:#191718}
+.lrow{display:flex;gap:6px;overflow:hidden}
+.lchip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;border:1px solid var(--line2);
+  font-size:12px;color:var(--muted);white-space:nowrap}
+.lchip.on{border-color:var(--crimson);color:var(--ink);background:rgba(255,51,108,.1)}
+.lchip i{width:6px;height:6px;border-radius:50%;background:var(--mut2)}
+.lchip i.me{background:var(--crimson)} .lchip i.up{background:var(--g)} .lchip i.warn{background:var(--a)} .lchip i.dn{background:var(--r)}
+.wk{margin-top:7px;font-family:var(--fm);font-size:9.5px;letter-spacing:.12em;color:var(--mut2)}
+/* bottom nav */
+.nav{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:#191718;padding:7px 4px 10px}
+.nb{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--mut2)}
+.nb svg{width:21px;height:21px}
+.nb span{font-size:10px;letter-spacing:.02em}
+.nb.on{color:var(--crimson)}
+.nb.on span{color:var(--ink)}
+/* today */
+.pull{text-align:center;font-family:var(--fm);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#4e4749;padding:6px 0 4px}
+.band{background:linear-gradient(180deg,rgba(255,51,108,.12),var(--panel));border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px}
+.band .k{font-family:var(--fm);font-size:9px;letter-spacing:.14em;color:var(--crimson)}
+.band .k i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--crimson);margin-right:6px}
+.band .t{font-family:var(--fd);font-weight:500;font-size:21px;margin:4px 0 8px}
+.bnums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.bnums b{font-family:var(--fd);font-weight:600;font-size:19px;display:block;font-variant-numeric:tabular-nums}
+.bnums b.g{color:var(--g)} .bnums b.c{color:var(--crimson)}
+.bnums span{font-family:var(--fm);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2)}
+.gm{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;border-radius:11px;
+  background:var(--panel);border:1px solid var(--line);border-left:2px solid var(--crimson);margin-bottom:6px;
+  font-family:var(--fm);font-size:11px;color:var(--muted)}
+.gm b{color:var(--ink);font-weight:500}
+.gm .cl{display:block;font-size:9.5px;color:var(--mut2);margin-top:3px}
+.gm .rz{color:#fff;background:var(--crimson);border-radius:4px;padding:1px 4px;margin-right:5px;font-size:8.5px}
+.gm .ex{text-align:right;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2)}
+.gm .ex b{display:block;font-family:var(--fd);font-size:17px}
+.gm .ex.hot b{color:var(--crimson)}
+.lgrow{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line2);border-radius:12px;padding:9px 12px;margin-bottom:6px}
+.lgrow.win{border-left-color:var(--g)} .lgrow.close{border-left-color:var(--a)} .lgrow.lose{border-left-color:var(--r)}
+.lgrow.open{border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0}
+.l1{display:flex;justify-content:space-between;align-items:baseline}
+.l1 b{font-family:var(--fd);font-weight:500;font-size:15px}
+.l1 .wp{font-family:var(--fd);font-weight:600;font-size:15px}
+.l1 .wp.g{color:var(--g)} .l1 .wp.a{color:var(--a)} .l1 .wp.d{color:var(--r)}
+.l2{display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;font-size:12px;color:var(--muted)}
+.l2 b{font-family:var(--fd);font-weight:600;font-size:17px;color:var(--ink);margin-left:4px}
+.l2 .op{color:var(--mut2)}
+.l2 .mg{font-family:var(--fd);font-weight:600;font-size:14px}
+.l2 .mg.g{color:var(--g)} .l2 .mg.d{color:var(--r)}
+.l3{margin-top:6px;font-family:var(--fm);font-size:9.5px;color:var(--mut2)}
+.l3 i{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--crimson);margin-right:5px}
+.drawer{background:#1b191a;border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;padding:9px 10px 11px;margin-bottom:8px}
+/* the stacked slot */
+.slot{margin-bottom:9px}
+.sl{display:flex;align-items:center;justify-content:center;gap:9px;margin:0 0 5px}
+.badge{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-family:var(--fm);font-size:8.5px;font-weight:600;
+  border:1px solid var(--line2);background:var(--panel2);color:var(--muted)}
+.badge.QB{color:#e879a6;border-color:rgba(232,121,166,.45)} .badge.RB{color:#7fd8b4;border-color:rgba(127,216,180,.45)}
+.badge.WR{color:#6aa6f0;border-color:rgba(106,166,240,.45)} .badge.TE{color:#f0b357;border-color:rgba(240,179,87,.45)}
+.sw{font-family:var(--fm);font-size:9.5px;font-weight:600}
+.sw.me{color:var(--crimson)} .sw.op{color:var(--g)}
+.pcard{display:grid;grid-template-columns:38px 1fr 64px;gap:10px;align-items:center;padding:7px 11px;
+  background:var(--panel);border:1px solid var(--line);border-radius:11px}
+.pcard.me{border-bottom-left-radius:4px;border-bottom-right-radius:4px}
+.pcard.op{border-top-left-radius:4px;border-top-right-radius:4px;margin-top:3px;background:#1c1a1b}
+.pcard.on{background:rgba(255,51,108,.07);border-color:rgba(255,51,108,.28)}
+.pcard.op.on{background:rgba(255,51,108,.045)}
+.av{position:relative;width:38px;height:38px}
+.av .hs{width:38px;height:38px;border-radius:10px;object-fit:cover;object-position:top center;background:var(--panel2);border:1px solid var(--line2);display:block}
+.av .tm{position:absolute;width:15px;height:15px;right:-4px;bottom:-3px;object-fit:contain;background:var(--bg);border-radius:4px;padding:1px;border:1px solid var(--line)}
+.pcard .t{min-width:0}
+.who{display:flex;align-items:baseline;gap:6px}
+.who b{font-family:var(--fd);font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .pt{font-family:var(--fm);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);white-space:nowrap}
+.rail{height:3px;border-radius:99px;background:var(--panel2);position:relative;margin:6px 0 5px}
+.rail i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:linear-gradient(90deg,#ff336c,#ff6f95)}
+.rail .dot{position:absolute;top:50%;width:9px;height:9px;border-radius:50%;background:var(--crimson);transform:translate(-50%,-50%);border:2px solid var(--bg)}
+.rail.pre i{background:var(--line2)} .rail.pre .dot{background:var(--line2);width:8px;height:8px}
+.meta{font-family:var(--fm);font-size:9.5px;color:var(--mut2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rz{font-family:var(--fm);font-size:8px;font-weight:600;color:#fff;background:var(--crimson);border-radius:4px;padding:1px 4px;margin-right:5px}
+.stat{margin-top:3px;font-family:var(--fm);font-size:9.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard.pre .stat{color:var(--mut2)}
+.val{text-align:right;font-family:var(--fm);font-variant-numeric:tabular-nums}
+.val b{display:block;font-family:var(--fd);font-weight:600;font-size:18px;line-height:1}
+.pcard.pre .val b{color:var(--muted);font-weight:400}
+.val .s{display:block;font-size:8.5px;color:var(--mut2);margin-top:4px}
+.val .s .up{color:var(--g)} .val .s .dn{color:var(--r)}
+.bench{margin-top:8px}
+.bench .k{font-family:var(--fm);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2)}
+.bench .chips{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.bc{font-family:var(--fm);font-size:10px;color:var(--muted);border:1px solid var(--line2);border-radius:8px;padding:4px 8px}
+/* live hero */
+.hero{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin:6px 0 10px}
+.hl{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}
+.hl b{font-family:var(--fd);font-weight:500;font-size:15px;display:block}
+.hl span{font-family:var(--fm);font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut2)}
+.hl .hr{text-align:right}
+.hm{text-align:center}
+.hm .k{font-family:var(--fm);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--crimson);display:block}
+.hm b{font-family:var(--fd);font-weight:600;font-size:20px;line-height:1.1}
+.hm b.g{color:var(--g)}
+.hs{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin-top:9px}
+.hs b{font-family:var(--fd);font-weight:600;font-size:26px;font-variant-numeric:tabular-nums}
+.hs b.op{color:var(--muted)}
+.hbar{height:6px;border-radius:99px;background:var(--panel2);overflow:hidden}
+.hbar i{display:block;height:100%;background:linear-gradient(90deg,#ff336c,#ff6f95)}
+.hsub{display:flex;justify-content:space-between;margin-top:6px;font-family:var(--fm);font-size:9.5px;color:var(--mut2)}
+.sh{font-family:var(--fm);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2);margin:10px 0 7px}
+/* lineup */
+.alert{background:linear-gradient(180deg,rgba(240,179,87,.14),var(--panel));border:1px solid rgba(240,179,87,.4);border-radius:14px;padding:11px 13px;margin:8px 0}
+.ak{font-family:var(--fm);font-size:9px;letter-spacing:.14em;color:var(--a)}
+.at{font-size:14px;margin-top:5px} .at b{font-family:var(--fd);font-weight:500;font-size:16px}
+.ad{font-size:12px;color:var(--muted);margin-top:4px}
+.ad b{color:var(--ink)}
+.ab{display:flex;gap:8px;margin-top:10px}
+.bt{flex:1;text-align:center;padding:9px 0;border-radius:10px;border:1px solid var(--line2);font-size:13px;font-weight:600;color:var(--muted)}
+.bt.pri{background:var(--crimson);border-color:var(--crimson);color:#fff}
+.swap .arrow{text-align:center;font-family:var(--fm);font-size:10px;color:var(--crimson);margin:5px 0}
+.sw-l .slot{display:inline-block;font-family:var(--fm);font-size:9px;color:var(--mut2);margin-bottom:5px}
+.ok{font-family:var(--fm);font-size:10.5px;color:var(--mut2);border:1px dashed var(--line2);border-radius:10px;padding:9px 12px}
+.ok b{color:var(--ink)}
+/* wire */
+.seg2{display:flex;gap:3px;background:var(--panel2);border-radius:10px;padding:3px;margin:8px 0 10px}
+.seg2 span{flex:1;text-align:center;padding:7px 0;border-radius:8px;font-size:12px;color:var(--muted)}
+.seg2 span.on{background:var(--panel);color:var(--ink);font-weight:600}
+.wrow{display:grid;grid-template-columns:18px 38px 1fr 74px;gap:9px;align-items:center;padding:9px 10px;border-radius:11px;
+  background:var(--panel);border:1px solid var(--line);margin-bottom:6px}
+.wrow .rk{font-family:var(--fd);font-weight:600;font-size:15px;color:var(--mut2);text-align:center}
+.wrow .t b{font-family:var(--fd);font-weight:500;font-size:14px;display:block}
+.wrow .t span{font-family:var(--fm);font-size:9px;color:var(--mut2)}
+.wrow .why{font-family:var(--fm);font-size:9.5px;color:var(--muted);margin-top:3px}
+.wrow .why b{color:var(--crimson)}
+.wrow .bid{text-align:right;font-family:var(--fm)}
+.wrow .bid b{display:block;font-family:var(--fd);font-weight:600;font-size:15px}
+.wrow .bid span{font-size:8.5px;color:var(--mut2)}
+.claim{margin-top:8px;font-family:var(--fm);font-size:10px;color:var(--mut2);text-align:center}
+.claim b{color:var(--ink)}
+/* notifications */
+.nsheet{padding:14px 0 0}
+.ntf{background:#232021;border:1px solid var(--line2);border-radius:18px;padding:12px 14px;margin-bottom:10px}
+.ntf.quiet{opacity:.72}
+.nh{display:flex;justify-content:space-between;font-family:var(--fm);font-size:9.5px;color:var(--mut2)}
+.nh .app{color:var(--crimson)}
+.nt{font-family:var(--fd);font-weight:500;font-size:16px;margin-top:6px}
+.nb2{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.4}
+.nact{display:flex;gap:16px;margin-top:10px;font-size:13px;font-weight:600;color:var(--crimson)}
+.ncap{font-family:var(--fb);font-size:11px;color:var(--mut2);line-height:1.5;padding:6px 2px}
+.offbar{background:rgba(240,179,87,.14);border:1px solid rgba(240,179,87,.35);color:var(--a);border-radius:10px;
+  padding:7px 11px;margin:8px 0 6px;font-family:var(--fm);font-size:10px;letter-spacing:.06em}
+</style></head><body>
+
+<h1>Bloody Sunday on Android</h1>
+<p class="sub">Every frame is a real Pixel viewport (412 × 915) at 1:1, so what you see is the size it will be in your hand.
+Native chrome — the league strip at the top and the five tabs at the bottom — is drawn by the app; everything between them is the
+dashboard, laid out for one column. Same type, same cards, same rules as the Mac app: one bright line per card, the clock and
+the score muted behind it.</p>
+
+<div class="rail-row">
+<div class="dev"><div class="devlab">Today<span>the four leagues, Sunday</span></div><div class="screen"><div class="top"><div class="lrow"><span class="lchip on"><i class="me"></i>Kreeper</span><span class="lchip"><i class="up"></i>B&B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div><div class="wk">WK 2 · SUN 1:38</div></div><div class="body">
+<div class="pull">pull to refresh</div>
+<div class="band"><div class="k"><i></i>SUNDAY · 1:38PM · EARLY WINDOW</div>
+  <div class="t">Leading in 2 of 4</div>
+  <div class="bnums"><div><b class="g">148.6</b><span>your points</span></div>
+    <div><b>2-2</b><span>if it ended now</span></div>
+    <div><b class="c">26</b><span>still to play</span></div></div></div>
+<div class="gm"><div><b>DET 21</b> · CHI 14<span class="cl"><span class="rz">RZ</span>Q2 2:31 · 1st and goal</span></div><div class="ex hot"><b>5</b>your men</div></div>
+<div class="gm"><div><b>BUF 13</b> · MIA 10<span class="cl">Q2 7:40 · 2nd and 6</span></div><div class="ex"><b>4</b>your men</div></div>
+<div class="lgrow win"><div class="l1"><b>The Kreeper League</b><span class="wp g">58%</span></div>
+  <div class="l2"><span>FAABfreebird <b>41.7</b></span><span class="mg g">+6.2</span><span class="op">35.5 Big Flipper</span></div>
+  <div class="l3"><i></i>Daniels 18.4 · <i></i>Stevenson 6.2</div></div>
+<div class="lgrow win"><div class="l1"><b>Babies and Boomer</b><span class="wp g">71%</span></div>
+  <div class="l2"><span>Guys who Fuck <b>52.9</b></span><span class="mg g">+14.8</span><span class="op">38.1 Rome Wasnt…</span></div>
+  <div class="l3"><i></i>Nacua 9.8 · <i></i>Gibbs 11.9</div></div>
+<div class="lgrow close"><div class="l1"><b>7½ Men</b><span class="wp a">46%</span></div>
+  <div class="l2"><span>Clayton's Kids <b>33.4</b></span><span class="mg d">-3.1</span><span class="op">36.5 Beantown Hurt</span></div>
+  <div class="l3"><i></i>Daniels 18.4</div></div>
+<div class="lgrow lose"><div class="l1"><b>Show us your TD's</b><span class="wp d">19%</span></div>
+  <div class="l2"><span>Bad Life <b>20.6</b></span><span class="mg d">-21.4</span><span class="op">42.0 Tua Tugginmy…</span></div>
+  <div class="l3"><i></i>Cook 9.4</div></div>
+</div><div class="nav"><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div></div>
+<div class="dev"><div class="devlab">Today · drawer open<span>tap a league</span></div><div class="screen"><div class="top"><div class="lrow"><span class="lchip on"><i class="me"></i>Kreeper</span><span class="lchip"><i class="up"></i>B&B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div><div class="wk">WK 2 · SUN 1:38</div></div><div class="body">
+<div class="lgrow win open"><div class="l1"><b>The Kreeper League</b><span class="wp g">58%</span></div>
+  <div class="l2"><span>FAABfreebird <b>41.7</b></span><span class="mg g">+6.2</span><span class="op">35.5 Big Flipper</span></div></div>
+<div class="drawer"><div class="slot"><div class="sl"><span class="badge QB">QB</span><span class="sw me">+6.8</span></div><div class="pcard on me"><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11566.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/was.png" alt="" loading="lazy"></div><div class="t"><div class="who"><b>J. Daniels</b><span class="pt">QB · WAS</span></div><div class="rail"><i style="width:58%"></i><div class="dot" style="left:58%"></div></div><div class="meta">Q2 4:12 · 14-10 @ DAL</div><div class="stat">9/13 · 121 yd · 1 TD</div></div><div class="val"><b>18.4</b><span class="s"><span class="up">24.6</span> final</span></div></div><div class="pcard on op"><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/4984.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/buf.png" alt="" loading="lazy"></div><div class="t"><div class="who"><b>J. Allen</b><span class="pt">QB · BUF</span></div><div class="rail"><i style="width:42%"></i><div class="dot" style="left:42%"></div></div><div class="meta">Q2 7:40 · 10-13 vs MIA</div><div class="stat">8/14 · 96 yd · 1 TD</div></div><div class="val"><b>12.1</b><span class="s"><span class="dn">17.8</span> final</span></div></div></div><div class="slot"><div class="sl"><span class="badge RB">RB</span><span class="sw op">-3.3</span></div><div class="pcard on me"><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/7611.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/ne.png" alt="" loading="lazy"></div><div class="t"><div class="who"><b>R. Stevenson</b><span class="pt">RB · NE</span></div><div class="rail"><i style="width:44%"></i><div class="dot" style="left:44%"></div></div><div class="meta">Q2 9:55 · 7-7 vs PIT</div><div class="stat">8 car, 32 yd</div></div><div class="val"><b>6.2</b><span class="s"><span class="dn">13.1</span> final</span></div></div><div class="pcard on op"><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9221.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/det.png" alt="" loading="lazy"></div><div class="t"><div class="who"><b>J. Gibbs</b><span class="pt">RB · DET</span></div><div class="rail"><i style="width:56%"></i><div class="dot" style="left:56%"></div></div><div class="meta"><span class="rz">RZ</span>Q2 2:31 · 21-14 @ CHI</div><div class="stat">9 car, 64 yd, 1 TD</div></div><div class="val"><b>11.9</b><span class="s"><span class="up">16.4</span> final</span></div></div></div><div class="bench"><span class="k">bench · 22.6 sitting</span>
+  <div class="chips"><span class="bc">Waddle 9.8</span><span class="bc">Kincaid 7.1</span><span class="bc">Pollard 5.7</span></div></div></div>
+</div><div class="nav"><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div></div>
+<div class="dev"><div class="devlab">Live<span>one matchup, slot by slot</span></div><div class="screen"><div class="top"><div class="lrow"><span class="lchip on"><i class="me"></i>Kreeper</span><span class="lchip"><i class="up"></i>B&B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div><div class="wk">WK 2 · SUN 1:38</div></div><div class="body">
+<div class="hero"><div class="hl"><div><b>Brandon</b><span>9 to play</span></div>
+  <div class="hm"><span class="k">live</span><b class="g">+6.2</b><span>margin</span></div>
+  <div class="hr"><b>Chase</b><span>4 to play</span></div></div>
+  <div class="hs"><b>41.7</b><div class="hbar"><i style="width:58%"></i></div><b class="op">35.5</b></div>
+  <div class="hsub"><span>58% win</span><span>proj 138 – 132</span></div></div>
+<div class="sh">Slot by slot</div>
+<div class="slot"><div class="sl"><span class="badge QB">QB</span><span class="sw me">+6.8</span></div><div class="pcard on me"><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11566.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/was.png" alt="" loading="lazy"></div><div class="t"><div class="who"><b>J. Daniels</b><span class="pt">QB · WAS</span></div><div class="rail"><i style="width:58%"></i><div class="dot" style="left:58%"></div></div><div class="meta">Q2 4:12 · 14-10 @ DAL</div><div class="stat">9/13 · 121 yd · 1 TD · 4 car, 31 yd</div></div><div class="val"><b>18.4</b><span class="s"><span class="up">24.6</span> final</span></div></div><div class="pcard on op"><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/4984.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/buf.png" alt="" loading="lazy"></div><div class="t"><div class="who"><b>J. Allen</b><span class="pt">QB · BUF</span></div><div class="rail"><i style="width:42%"></i><div class="dot" style="left:42%"></div></div><div class="meta">Q2 7:40 · 10-13 vs MIA</div><div class="stat">8/14 · 96 yd · 1 TD</div></div><div class="val"><b>12.1</b><span class="s"><span class="dn">17.8</span> final</span></div></div></div><div class="slot"><div class="sl"><span class="badge RB">RB</span><span class="sw op">-3.3</span></div><div class="pcard on me"><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/7611.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/ne.png" alt="" loading="lazy"></div><div class="t"><div class="who"><b>R. Stevenson</b><span class="pt">RB · NE</span></div><div class="rail"><i style="width:44%"></i><div class="dot" style="left:44%"></div></div><div class="meta">Q2 9:55 · 7-7 vs PIT</div><div class="stat">8 car, 32 yd · 1/1 rec, 8 yd</div></div><div class="val"><b>6.2</b><span class="s"><span class="dn">13.1</span> final</span></div></div><div class="pcard on op"><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9221.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/det.png" alt="" loading="lazy"></div><div class="t"><div class="who"><b>J. Gibbs</b><span class="pt">RB · DET</span></div><div class="rail"><i style="width:56%"></i><div class="dot" style="left:56%"></div></div><div class="meta"><span class="rz">RZ</span>Q2 2:31 · 21-14 @ CHI</div><div class="stat">9 car, 64 yd, 1 TD · 2/2 rec, 15 yd</div></div><div class="val"><b>11.9</b><span class="s"><span class="up">16.4</span> final</span></div></div></div><div class="slot"><div class="sl"><span class="badge RB">RB</span><span class="sw me">+0.6</span></div><div class="pcard pre me"><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9224.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/cin.png" alt="" loading="lazy"></div><div class="t"><div class="who"><b>C. Brown</b><span class="pt">RB · CIN</span></div><div class="rail pre"><i style="width:48%"></i><div class="dot" style="left:48%"></div></div><div class="meta">Sun 4:25 · @ HOU · dome</div><div class="stat">locks in 3h 12m</div></div><div class="val"><b>&mdash;</b><span class="s">15.5 proj</span></div></div><div class="pcard on op"><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8138.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/buf.png" alt="" loading="lazy"></div><div class="t"><div class="who"><b>J. Cook</b><span class="pt">RB · BUF</span></div><div class="rail"><i style="width:52%"></i><div class="dot" style="left:52%"></div></div><div class="meta">Q2 7:40 · 10-13 vs MIA</div><div class="stat">11 car, 44 yd · 1/1 rec, 6 yd</div></div><div class="val"><b>9.4</b><span class="s"><span class="dn">14.9</span> final</span></div></div></div></div><div class="nav"><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div></div>
+</div>
+
+<p class="note"><b>What the phone does differently.</b> A slot is a stack, not a pair: your man on top in the panel colour, the
+opponent's underneath a shade darker, with the position and the margin between them. Nothing scrolls sideways, nothing is
+truncated to fit two columns, and the stat line still fits on one line at 412px. The league strip at the top scrolls; the tab bar
+never moves.</p>
+
+<div class="rail-row">
+<div class="dev"><div class="devlab">Lineup<span>the only screen that asks for a decision</span></div><div class="screen"><div class="top"><div class="lrow"><span class="lchip on"><i class="me"></i>Kreeper</span><span class="lchip"><i class="up"></i>B&B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div><div class="wk">WK 2 · SUN 1:38</div></div><div class="body">
+<div class="alert"><div class="ak">16 MIN TO LOCK</div>
+  <div class="at"><b>Chris Olave</b> is questionable · hamstring</div>
+  <div class="ad">Start <b>Jaylen Waddle</b> instead — worth <b>+2.9</b> this week.</div>
+  <div class="ab"><span class="bt pri">Make the swap</span><span class="bt">Keep Olave</span></div></div>
+<div class="sh">Now on Sleeper vs set this</div>
+<div class="swap"><div class="sw-l"><span class="slot">WR</span>
+  <div class="two"><div class="pcard pre me"><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8144.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/no.png" alt="" loading="lazy"></div><div class="t"><div class="who"><b>C. Olave</b><span class="pt">WR · NO</span></div><div class="rail pre"><i style="width:50%"></i><div class="dot" style="left:50%"></div></div><div class="meta">Sun 1:00 · @ BAL</div><div class="stat">questionable · hamstring</div></div><div class="val"><b>&mdash;</b><span class="s">15.6 proj</span></div></div></div>
+  <div class="arrow">swap ↓ +2.9</div>
+  <div class="two"><div class="pcard pre me"><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/7526.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/den.png" alt="" loading="lazy"></div><div class="t"><div class="who"><b>J. Waddle</b><span class="pt">WR · DEN</span></div><div class="rail pre"><i style="width:50%"></i><div class="dot" style="left:50%"></div></div><div class="meta">Sun 1:00 · vs KC</div><div class="stat">on the bench</div></div><div class="val"><b>&mdash;</b><span class="s">18.5 proj</span></div></div></div></div></div>
+<div class="sh">The rest is already right</div>
+<div class="ok">8 of 9 slots optimal · next lock <b>16 min</b> · last change 2h ago</div>
+</div><div class="nav"><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div></div>
+<div class="dev"><div class="devlab">Wire<span>waivers, rankings, movers</span></div><div class="screen"><div class="top"><div class="lrow"><span class="lchip on"><i class="me"></i>Kreeper</span><span class="lchip"><i class="up"></i>B&B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div><div class="wk">WK 2 · SUN 1:38</div></div><div class="body">
+<div class="seg2"><span class="on">Waivers</span><span>Rankings</span><span>Movers</span></div>
+<div class="wrow"><span class="rk">1</span><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11636.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/sea.png" alt="" loading="lazy"></div>
+  <div class="t"><b>Jaxon Smith-Njigba</b><span>WR · SEA · 38% rostered</span>
+  <div class="why">Ballers #3 · adds <b>+4.1</b> to your week</div></div>
+  <div class="bid"><b>$18–24</b><span>of $100</span></div></div>
+<div class="wrow"><span class="rk">2</span><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9509.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/nyj.png" alt="" loading="lazy"></div>
+  <div class="t"><b>Braelon Allen</b><span>RB · NYJ · 51% rostered</span>
+  <div class="why">Hall out · adds <b>+3.4</b></div></div>
+  <div class="bid"><b>$12–15</b><span>of $100</span></div></div>
+<div class="wrow"><span class="rk">3</span><div class="av"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/10222.jpg" alt="" loading="lazy"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/lac.png" alt="" loading="lazy"></div>
+  <div class="t"><b>Quentin Johnston</b><span>WR · LAC · 29% rostered</span>
+  <div class="why">Ballers #9 · adds <b>+2.2</b></div></div>
+  <div class="bid"><b>$5–8</b><span>of $100</span></div></div>
+<div class="claim">Claims open in Sleeper · FAAB left <b>$100</b></div>
+</div><div class="nav"><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div></div>
+<div class="dev"><div class="devlab">Notifications<span>what actually buzzes you</span></div><div class="screen"><div class="body">
+<div class="nsheet">
+  <div class="ntf"><div class="nh"><span class="app">Bloody Sunday</span><span class="ago">now</span></div>
+    <div class="nt">16 min to lock · Kreeper</div>
+    <div class="nb2">Chris Olave questionable (hamstring). Start Jaylen Waddle instead — worth +2.9.</div>
+    <div class="nact"><span>Make the swap</span><span>Open league</span></div></div>
+  <div class="ntf"><div class="nh"><span class="app">Bloody Sunday</span><span class="ago">2m</span></div>
+    <div class="nt">7½ Men just flipped</div>
+    <div class="nb2">Beantown Hurt went ahead — 46% now, was 61% at kickoff. Gibbs scored twice.</div></div>
+  <div class="ntf quiet"><div class="nh"><span class="app">Bloody Sunday · ongoing</span></div>
+    <div class="nt">Game day · watching 4 leagues</div>
+    <div class="nb2">Checking every minute while games are on. Tap to open · swipe to stop.</div></div>
+</div>
+<div class="ncap">The phone does this itself — no server, no Firebase. Ordinary 15-minute checks the rest of
+the week, once a minute inside a game window, with that last ongoing notice while it does (Android requires it).</div>
+</div><div class="nav"><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div></div>
+</div>
+
+<p class="note"><b>Lineup leads with the decision.</b> On the phone you are usually opening this app because something needs
+doing, so the lock warning is the first thing on the screen with two fat thumb targets, and the "everything else is fine" line is
+the small print underneath. <b>Wire</b> keeps the three boards behind a segmented control because they are the same list read three
+ways. <b>Notifications</b> are the two you picked — a lock warning with the swap in the body, and a win-probability flip — plus the
+ongoing "Game day" notice Android requires while the app checks once a minute.</p>
+
+<div class="rail-row">
+<div class="dev"><div class="devlab">No signal<span>last known, not an error page</span></div><div class="screen"><div class="top"><div class="lrow"><span class="lchip on"><i class="me"></i>Kreeper</span><span class="lchip"><i class="up"></i>B&B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div><div class="wk">WK 2 · SUN 1:38</div></div><div class="body">
+<div class="offbar">No signal · showing 1:38pm</div>
+
+<div class="pull">pull to refresh</div>
+<div class="band"><div class="k"><i></i>SUNDAY · 1:38PM · EARLY WINDOW</div>
+  <div class="t">Leading in 2 of 4</div>
+  <div class="bnums"><div><b class="g">148.6</b><span>your points</span></div>
+    <div><b>2-2</b><span>if it ended now</span></div>
+    <div><b class="c">26</b><span>still to play</span></div></div></div>
+<div class="gm"><div><b>DET 21</b> · CHI 14<span class="cl"><span class="rz">RZ</span>Q2 2:31 · 1st and goal</span></div><div class="ex hot"><b>5</b>your men</div></div>
+<div class="gm"><div><b>BUF 13</b> · MIA 10<span class="cl">Q2 7:40 · 2nd and 6</span></div><div class="ex"><b>4</b>your men</div></div>
+<div class="lgrow win"><div class="l1"><b>The Kreeper League</b><span class="wp g">58%</span></div>
+  <div class="l2"><span>FAABfreebird <b>41.7</b></span><span class="mg g">+6.2</span><span class="op">35.5 Big Flipper</span></div>
+  <div class="l3"><i></i>Daniels 18.4 · <i></i>Stevenson 6.2</div></div>
+<div class="lgrow win"><div class="l1"><b>Babies and Boomer</b><span class="wp g">71%</span></div>
+  <div class="l2"><span>Guys who Fuck <b>52.9</b></span><span class="mg g">+14.8</span><span class="op">38.1 Rome Wasnt…</span></div>
+  <div class="l3"><i></i>Nacua 9.8 · <i></i>Gibbs 11.9</div></div>
+<div class="lgrow close"><div class="l1"><b>7½ Men</b><span class="wp a">46%</span></div>
+  <div class="l2"><span>Clayton's Kids <b>33.4</b></span><span class="mg d">-3.1</span><span class="op">36.5 Beantown Hurt</span></div>
+  <div class="l3"><i></i>Daniels 18.4</div></div>
+<div class="lgrow lose"><div class="l1"><b>Show us your TD's</b><span class="wp d">19%</span></div>
+  <div class="l2"><span>Bad Life <b>20.6</b></span><span class="mg d">-21.4</span><span class="op">42.0 Tua Tugginmy…</span></div>
+  <div class="l3"><i></i>Cook 9.4</div></div>
+</div><div class="nav"><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div></div>
+</div>
+
+<p class="note"><b>Offline</b> shows the last screen it loaded with a bar saying how old it is, because a dead stadium Wi-Fi at
+1:38pm should still tell you where you stood at 1:38pm.</p>
+
+</body></html>
