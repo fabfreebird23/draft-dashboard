@@ -44,6 +44,13 @@ theme.inject(st, dark=st.session_state.get("dark_mode", True))
 # (the phone app, which draws its own top bar and tab bar and must not have the
 # web ones under them). A browser gets neither and keeps its chrome.
 SHELL = (st.query_params.get("shell") or ("mac" if st.query_params.get("mac") else "")).lower()
+# A build marker in the page. Streamlit Cloud redeploys app.py but can keep
+# IMPORTED modules from the previous container — theme.py's CSS was a build
+# behind while the gate in this file was already live — so "which build is
+# actually serving" has to be answerable from outside, without a login.
+st.markdown(f'<div id="bs-build" data-theme="{theme.fingerprint()}" '
+            f'data-shell="{SHELL or "web"}" style="display:none"></div>',
+            unsafe_allow_html=True)
 if SHELL:
     _hide = "[data-testid='stToolbar'],[data-testid='stDecoration']"
     if SHELL == "android":

@@ -6,9 +6,10 @@
 # resident; GitHub's scheduler is best-effort and sometimes late, which is fine
 # for this (a few minutes of drift costs nothing).
 #
-# Requires the app to be PUBLIC: a private app answers an unauthenticated
-# request at the edge with a redirect to its login page and the container is
-# never woken, so this job would keep nothing awake.
+# Streamlit answers a cookie-less request with a 303 to its own /-/login
+# handshake — that is the ANONYMOUS session bootstrap, not a sign-in wall, so
+# the ping has to carry a cookie jar and follow it or it looks like a failure
+# and never reaches the app.
 name: keep-awake
 
 on:
@@ -24,11 +25,10 @@ jobs:
         env:
           APP_URL: ${{ vars.APP_URL || 'https://draft-dashboar-kbqgjjbr3vu9gu4bivzev4.streamlit.app' }}
         run: |
-          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 60 \
-                  -A 'bloody-sunday-keepalive' "$APP_URL/_stcore/health" || echo 000)
-          echo "health -> $code"
-          # A redirect means the app is private and this ping is doing nothing;
-          # say so loudly rather than passing a green tick every ten minutes.
-          if [ "$code" = "303" ] || [ "$code" = "302" ]; then
-            echo "::warning::App looks private ($code) — the container is not being woken."
+          jar=$(mktemp)
+          code=$(curl -sSL -c "$jar" -b "$jar" -o /dev/null -w '%{http_code}' \
+                  --max-time 90 -A 'bloody-sunday-keepalive' "$APP_URL/" || echo 000)
+          echo "app -> $code"
+          if [ "$code" != "200" ]; then
+            echo "::warning::App answered $code — it may be asleep, private, or broken."
           fi
