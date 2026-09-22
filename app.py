@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import os
 import pathlib as _pathlib
 import streamlit as st
 
@@ -54,6 +55,51 @@ if SHELL:
     if SHELL == "android":
         st.markdown("<style>.block-container{padding:.35rem .6rem 2rem !important;}</style>",
                     unsafe_allow_html=True)
+
+
+def _gate() -> bool:
+    """A PIN, but only where one is configured.
+
+    The Cloud app has to be PUBLIC for the phone to reach it — an Android
+    WebView cannot get through Streamlit's own login, and Google refuses its
+    SSO inside one. Public means the URL is the only thing between a stranger
+    and his four leagues, so a PIN sits in front of it: set `app_pin` in the
+    Cloud app's secrets and nothing else opens without it.
+
+    Locally there is no secret, so there is no gate — the Mac app and a dev
+    server are already behind the machine they run on.
+    """
+    pin = ""
+    try:
+        pin = str(st.secrets.get("app_pin", "") or "")
+    except Exception:  # noqa: BLE001  no secrets file at all
+        pin = ""
+    pin = pin or os.environ.get("DRAFTROOM_PIN", "")
+    if not pin:
+        return True
+    if st.session_state.get("_unlocked"):
+        return True
+    # The app shells carry it in the URL, so he never types it.
+    if str(st.query_params.get("key") or "") == pin:
+        st.session_state["_unlocked"] = True
+        try:
+            del st.query_params["key"]   # don't leave it sitting in the URL
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+    st.markdown('<div class="lock">' + theme.cherry_svg(40)
+                + '<div class="t">Bloody Sunday</div>'
+                + '<div class="d">This one is private. Enter the code.</div></div>',
+                unsafe_allow_html=True)
+    with st.container(key="lockbox"):
+        got = st.text_input("code", type="password", label_visibility="collapsed",
+                            placeholder="code")
+        if got and got.strip() == pin:
+            st.session_state["_unlocked"] = True
+            st.rerun()
+        elif got:
+            st.error("Not that one.")
+    return False
 
 
 # ----------------------------------------------------------------- cached data
@@ -811,6 +857,8 @@ def _league_switcher(ctx) -> None:
 
 
 def main():
+    if not _gate():
+        return
     _deep_link()
     if "league" not in st.session_state:
         league_picker()

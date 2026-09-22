@@ -1802,6 +1802,12 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
    and a tint all at once, and nothing in it read as the loudest.
    The rail is the man's share of the slot's points, so a glance down the
    middle says which seats are being won without reading a number. */
+/* the lock screen, for the public Cloud copy */
+.lock{ text-align:center; padding:16vh 0 10px; }
+.lock .t{ font-family:'Oswald',sans-serif; font-weight:600; font-size:28px; margin-top:14px; }
+.lock .d{ color:var(--mut2); font-size:13px; margin-top:6px; }
+[class*="st-key-lockbox"]{ max-width:260px; margin:10px auto 0; }
+
 .h2h{ display:flex; flex-direction:column; gap:6px; }
 .h2h-pair{ display:grid; grid-template-columns:1fr 58px 1fr; align-items:stretch; }
 .h2h-side{ background:var(--panel); border:1px solid var(--line); border-radius:12px;
