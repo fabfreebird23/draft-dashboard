@@ -32,7 +32,14 @@ object Config {
         Tab("Live", "Live", R.drawable.ic_live),
         Tab("Lineup", "Lineup", R.drawable.ic_lineup),
         Tab("Wire", "Waivers", R.drawable.ic_wire),
-        Tab("More", "Matchup", R.drawable.ic_more),
+        Tab("More", MORE, R.drawable.ic_more),
+    )
+
+    /** The tab bar holds five; the dashboard has more than five screens. The
+     *  last pill opens these rather than standing for one of them. */
+    const val MORE = "__more__"
+    val MORE_TABS = listOf(
+        "Command Center", "Rankings", "Matchup", "Trades", "Playoffs", "League", "Keepers",
     )
 
     data class League(val label: String, val slug: String)

@@ -50,6 +50,9 @@ class MainActivity : AppCompatActivity() {
      */
     @Volatile private var atTop = true
 
+    /** The pill to go back to when the More sheet is dismissed unused. */
+    private var lastTabId = 0
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -139,6 +142,7 @@ class MainActivity : AppCompatActivity() {
 
         // ---- the tab bar --------------------------------------------------
         val nav = BottomNavigationView(this).apply {
+            id = NAV_ID
             setBackgroundColor(PANEL)
             // Five tabs, five labels. Material hides the labels of unselected
             // items once there are more than three, which leaves four unnamed
@@ -150,7 +154,11 @@ class MainActivity : AppCompatActivity() {
                 menu.add(0, i, i, t.label).setIcon(t.icon)
             }
             setOnItemSelectedListener { item ->
-                go(Config.TABS[item.itemId], league)
+                val t = Config.TABS[item.itemId]
+                if (t.tab == Config.MORE) showMore() else {
+                    lastTabId = item.itemId
+                    go(t, league)
+                }
                 true
             }
         }
@@ -187,13 +195,51 @@ class MainActivity : AppCompatActivity() {
                     drawChips()
                     // Today is all four leagues at once, so a chip press there
                     // means "show me this one" — it moves to Live.
-                    go(if (tab.tab == null) Config.TABS[1] else tab, lg)
+                    go(if (tab.tab == null || tab.tab == Config.MORE) Config.TABS[1] else tab, lg)
                 }
             }
             val lp = LinearLayout.LayoutParams(WRAP, WRAP)
             lp.rightMargin = dp(6)
             chips.addView(chip, lp)
         }
+    }
+
+    /**
+     * The screens that do not fit the bar.
+     *
+     * Five pills is the most a thumb wants; the dashboard has ten screens. The
+     * last pill used to BE one of them (Matchup), which quietly put Rankings,
+     * Trades, Playoffs, League and Keepers out of reach — this is the sheet
+     * that gives them back. Dismissing it without choosing puts the bar back
+     * where it was, so a stray tap does not leave "More" lit over Lineup.
+     */
+    private fun showMore() {
+        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+        val list = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(PANEL)
+            setPadding(0, dp(8), 0, dp(16))
+        }
+        var chose = false
+        Config.MORE_TABS.forEach { name ->
+            list.addView(TextView(this).apply {
+                text = name
+                textSize = 16f
+                setTextColor(0xFFF2EEF0.toInt())
+                setPadding(dp(22), dp(16), dp(22), dp(16))
+                setOnClickListener {
+                    chose = true
+                    performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+                    go(Config.Tab(name, name, R.drawable.ic_more), league)
+                    sheet.dismiss()
+                }
+            }, LinearLayout.LayoutParams(MATCH, WRAP))
+        }
+        sheet.setContentView(list)
+        sheet.setOnDismissListener {
+            if (!chose) findViewById<BottomNavigationView>(NAV_ID)?.selectedItemId = lastTabId
+        }
+        sheet.show()
     }
 
     private fun go(t: Config.Tab, lg: Config.League) {
@@ -281,6 +327,7 @@ class MainActivity : AppCompatActivity() {
             })();
         """
 
+        const val NAV_ID = 0x7BADBEEF
         const val BG = 0xFF141314.toInt()
         const val PANEL = 0xFF191718.toInt()
         const val CRIMSON = 0xFFFF336C.toInt()
