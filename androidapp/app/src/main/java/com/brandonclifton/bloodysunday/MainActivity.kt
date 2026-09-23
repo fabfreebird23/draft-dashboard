@@ -38,6 +38,18 @@ class MainActivity : AppCompatActivity() {
     private var tab = Config.TABS[0]
     private var lastGood = 0L
 
+    /**
+     * Whether the PAGE is scrolled to its top — which is not the same question
+     * as whether the WebView is.
+     *
+     * Streamlit scrolls an element inside the document, so the WebView's own
+     * scroll position never leaves zero and SwipeRefreshLayout believes it is
+     * always at the top: every downward swipe, including the one that just
+     * means "go back up", reloaded the page. The inner scroller reports here
+     * instead, and the refresh gesture is only armed when it is really at rest.
+     */
+    @Volatile private var atTop = true
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,12 +91,14 @@ class MainActivity : AppCompatActivity() {
             settings.loadWithOverviewMode = false
             setBackgroundColor(BG)
             overScrollMode = View.OVER_SCROLL_NEVER
+            addJavascriptInterface(Bridge(), "BSHost")
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(v: WebView?, url: String?) {
                     refresher.isRefreshing = false
                     lastGood = System.currentTimeMillis()
                     offline.visibility = View.GONE
                     v?.evaluateJavascript(STRIP_CLOUD_CHROME, null)
+                    v?.evaluateJavascript(WATCH_SCROLL, null)
                 }
 
                 override fun onReceivedError(v: WebView, req: WebResourceRequest,
@@ -104,6 +118,7 @@ class MainActivity : AppCompatActivity() {
             setColorSchemeColors(CRIMSON)
             setProgressBackgroundColorSchemeColor(PANEL)
             addView(web, ViewGroup.LayoutParams(MATCH, MATCH))
+            setOnChildScrollUpCallback { _, _ -> !atTop }
             setOnRefreshListener {
                 performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
                 web.reload()
@@ -180,6 +195,14 @@ class MainActivity : AppCompatActivity() {
         if (web.canGoBack()) web.goBack() else super.onBackPressed()
     }
 
+    /** The page telling the shell where it is scrolled to. */
+    inner class Bridge {
+        @android.webkit.JavascriptInterface
+        fun scroll(top: Int) {
+            atTop = top <= 2
+        }
+    }
+
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     companion object {
@@ -200,6 +223,34 @@ class MainActivity : AppCompatActivity() {
               };
               kill();
               new MutationObserver(kill).observe(document.body, {childList: true, subtree: true});
+            })();
+        """
+
+        /**
+         * Find whatever is actually scrolling and report it back. Cloud puts the
+         * app in an iframe, so the element is a document down; it also arrives
+         * late, hence the retry rather than a single attempt.
+         */
+        private const val WATCH_SCROLL = """
+            (function () {
+              function hook() {
+                const fr = document.querySelector('iframe');
+                const d = (fr && fr.contentDocument) || document;
+                const el = d.querySelector('[data-testid="stMain"]')
+                        || d.scrollingElement || d.documentElement;
+                if (!el || el.__bsHooked) return !!el;
+                el.__bsHooked = true;
+                const send = () => {
+                  try { BSHost.scroll(Math.round(el.scrollTop || 0)); } catch (e) {}
+                };
+                el.addEventListener('scroll', send, {passive: true});
+                send();
+                return true;
+              }
+              if (!hook()) {
+                let n = 0;
+                const t = setInterval(() => { if (hook() || ++n > 30) clearInterval(t); }, 500);
+              }
             })();
         """
 
