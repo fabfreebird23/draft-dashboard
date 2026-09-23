@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "week": 3,
-  "published": "2026-09-23T04:44",
+  "published": "2026-09-23T06:45",
   "players": {
     "Jordan Love|GB": {
       "name": "Jordan Love",
@@ -43,7 +43,7 @@
         "pass_int": 0.45,
         "pass_yd": 229.5,
         "rush_yd": 8.49,
-        "td": 0.137
+        "td": 0.136
       }
     },
     "Michael Penix Jr.|ATL": {
@@ -86,7 +86,7 @@
         "pass_int": 0.48,
         "pass_yd": 203.5,
         "rush_yd": 3.5,
-        "td": 0.075
+        "td": 0.074
       }
     },
     "Bijan Robinson|ATL": {
@@ -117,7 +117,7 @@
         "rush_yd": 77.5,
         "rec": 4.51,
         "rec_yd": 40.5,
-        "td": 0.739
+        "td": 0.736
       }
     },
     "Brian Robinson|ATL": {
@@ -161,7 +161,7 @@
       "exp": {
         "rush_yd": 16.5,
         "rec_yd": 8.49,
-        "td": 0.288
+        "td": 0.287
       }
     },
     "Kaleb Johnson|GB": {
@@ -180,7 +180,7 @@
       },
       "exp": {
         "rush_yd": 37.5,
-        "td": 0.346
+        "td": 0.344
       }
     },
     "Marshawn Lloyd|GB": {
@@ -199,8 +199,8 @@
         },
         "rec_yd": {
           "line": 5.5,
-          "over": "-115",
-          "under": "-115"
+          "over": "-120",
+          "under": "-110"
         },
         "td": {
           "price": "+185",
@@ -210,8 +210,8 @@
       "exp": {
         "rush_yd": 27.5,
         "rec": 1.38,
-        "rec_yd": 5.5,
-        "td": 0.339
+        "rec_yd": 5.51,
+        "td": 0.337
       }
     },
     "Christian Watson|GB": {
@@ -220,8 +220,8 @@
       "lines": {
         "rec": {
           "line": 4.5,
-          "over": "-135",
-          "under": "+105"
+          "over": "-145",
+          "under": "+110"
         },
         "rec_yd": {
           "line": 65.5,
@@ -234,9 +234,9 @@
         }
       },
       "exp": {
-        "rec": 4.54,
+        "rec": 4.55,
         "rec_yd": 65.5,
-        "td": 0.4
+        "td": 0.398
       }
     },
     "Drake London|ATL": {
@@ -261,7 +261,7 @@
       "exp": {
         "rec": 5.47,
         "rec_yd": 65.5,
-        "td": 0.324
+        "td": 0.323
       }
     },
     "Jahan Dotson|ATL": {
@@ -311,7 +311,7 @@
       "exp": {
         "rec": 3.53,
         "rec_yd": 36.5,
-        "td": 0.202
+        "td": 0.201
       }
     },
     "Matthew Golden|GB": {
@@ -336,7 +336,7 @@
       "exp": {
         "rec": 4.45,
         "rec_yd": 54.5,
-        "td": 0.346
+        "td": 0.344
       }
     },
     "Tucker Kraft|GB": {
@@ -354,14 +354,42 @@
           "under": "-115"
         },
         "td": {
-          "price": "+190",
-          "prob": 0.3448275862068966
+          "price": "+185",
+          "prob": 0.3508771929824561
         }
       },
       "exp": {
         "rec": 3.58,
         "rec_yd": 44.5,
-        "td": 0.331
+        "td": 0.337
+      }
+    },
+    "Nick Folk|ATL": {
+      "name": "Nick Folk",
+      "team": "ATL",
+      "lines": {
+        "kick_pts": {
+          "line": 6.5,
+          "over": "+105",
+          "under": "-135"
+        }
+      },
+      "exp": {
+        "kick_pts": 6.46
+      }
+    },
+    "Trey Smack|GB": {
+      "name": "Trey Smack",
+      "team": "GB",
+      "lines": {
+        "kick_pts": {
+          "line": 7.5,
+          "over": "-120",
+          "under": "-110"
+        }
+      },
+      "exp": {
+        "kick_pts": 7.51
       }
     },
     "Skyy Moore|GB": {
@@ -387,7 +415,7 @@
         }
       },
       "exp": {
-        "td": 0.137
+        "td": 0.136
       }
     },
     "Olamide Zaccheaus|ATL": {
@@ -413,7 +441,7 @@
         }
       },
       "exp": {
-        "td": 0.083
+        "td": 0.082
       }
     },
     "Nick Muse|ATL": {
@@ -465,7 +493,7 @@
         }
       },
       "exp": {
-        "td": 0.063
+        "td": 0.062
       }
     },
     "Josh Whyle|GB": {
@@ -492,6 +520,19 @@
       },
       "exp": {
         "td": 0.031
+      }
+    },
+    "Chris Blair|ATL": {
+      "name": "Chris Blair",
+      "team": "ATL",
+      "lines": {
+        "td": {
+          "price": "+5000",
+          "prob": 0.0196078431372549
+        }
+      },
+      "exp": {
+        "td": 0.015
       }
     },
     "KC Concepcion|CLE": {
@@ -1901,12 +1942,12 @@
       "team": "LV",
       "lines": {
         "td": {
-          "price": "-117",
-          "prob": 0.5391705069124424
+          "price": "-114",
+          "prob": 0.5327102803738317
         }
       },
       "exp": {
-        "td": 2.02
+        "td": 0.681
       }
     },
     "Chris Olave|NOR": {
@@ -1914,12 +1955,12 @@
       "team": "NOR",
       "lines": {
         "td": {
-          "price": "+175",
-          "prob": 0.36363636363636365
+          "price": "+145",
+          "prob": 0.40816326530612246
         }
       },
       "exp": {
-        "td": 1.179
+        "td": 0.47
       }
     },
     "Travis Etienne|NOR": {
@@ -1927,12 +1968,181 @@
       "team": "NOR",
       "lines": {
         "td": {
-          "price": "+150",
-          "prob": 0.4
+          "price": "+140",
+          "prob": 0.4166666666666667
         }
       },
       "exp": {
-        "td": 1.332
+        "td": 0.483
+      }
+    },
+    "Tyler Shough|NOR": {
+      "name": "Tyler Shough",
+      "team": "NOR",
+      "lines": {
+        "td": {
+          "price": "+310",
+          "prob": 0.24390243902439024
+        }
+      },
+      "exp": {
+        "td": 0.25
+      }
+    },
+    "Juwan Johnson|NOR": {
+      "name": "Juwan Johnson",
+      "team": "NOR",
+      "lines": {
+        "td": {
+          "price": "+285",
+          "prob": 0.2597402597402597
+        }
+      },
+      "exp": {
+        "td": 0.269
+      }
+    },
+    "Devaughn Vele|NOR": {
+      "name": "Devaughn Vele",
+      "team": "NOR",
+      "lines": {
+        "td": {
+          "price": "+290",
+          "prob": 0.2564102564102564
+        }
+      },
+      "exp": {
+        "td": 0.265
+      }
+    },
+    "Noah Fant|NOR": {
+      "name": "Noah Fant",
+      "team": "NOR",
+      "lines": {
+        "td": {
+          "price": "+600",
+          "prob": 0.14285714285714285
+        }
+      },
+      "exp": {
+        "td": 0.138
+      }
+    },
+    "Alvin Kamara|NOR": {
+      "name": "Alvin Kamara",
+      "team": "NOR",
+      "lines": {
+        "td": {
+          "price": "+225",
+          "prob": 0.3076923076923077
+        }
+      },
+      "exp": {
+        "td": 0.329
+      }
+    },
+    "Bryce Lance|NOR": {
+      "name": "Bryce Lance",
+      "team": "NOR",
+      "lines": {
+        "td": {
+          "price": "+400",
+          "prob": 0.2
+        }
+      },
+      "exp": {
+        "td": 0.2
+      }
+    },
+    "Mike Washington Jr.|LV": {
+      "name": "Mike Washington Jr.",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+420",
+          "prob": 0.19230769230769232
+        }
+      },
+      "exp": {
+        "td": 0.191
+      }
+    },
+    "Tre Tucker|LV": {
+      "name": "Tre Tucker",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+265",
+          "prob": 0.273972602739726
+        }
+      },
+      "exp": {
+        "td": 0.287
+      }
+    },
+    "Jalen Nailor|LV": {
+      "name": "Jalen Nailor",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+390",
+          "prob": 0.20408163265306123
+        }
+      },
+      "exp": {
+        "td": 0.204
+      }
+    },
+    "Jack Bech|LV": {
+      "name": "Jack Bech",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+500",
+          "prob": 0.16666666666666666
+        }
+      },
+      "exp": {
+        "td": 0.163
+      }
+    },
+    "Michael Mayer|LV": {
+      "name": "Michael Mayer",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+460",
+          "prob": 0.17857142857142858
+        }
+      },
+      "exp": {
+        "td": 0.176
+      }
+    },
+    "Brock Bowers|LV": {
+      "name": "Brock Bowers",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+200",
+          "prob": 0.3333333333333333
+        }
+      },
+      "exp": {
+        "td": 0.363
+      }
+    },
+    "Kirk Cousins|LV": {
+      "name": "Kirk Cousins",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+1800",
+          "prob": 0.05263157894736842
+        }
+      },
+      "exp": {
+        "td": 0.048
       }
     }
   }
