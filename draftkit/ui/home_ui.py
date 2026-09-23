@@ -100,7 +100,9 @@ def _days_label(d) -> str:
 
 def render(presets, on_pick, board_age_fn=None) -> None:
     head = st.columns([3, 2])
-    with head[0]:
+    with head[0], st.container(key="hmlogo"):
+        # Keyed so a shell that draws its own identity (the phone's league
+        # strip) can hide it rather than stack two wordmarks.
         st.markdown(f'<h1>{theme.logo_html(34)}</h1>', unsafe_allow_html=True)
     with head[1], st.container(key="hmphase"):
         # Same control as the per-league topbar, doing the analogous job: which half

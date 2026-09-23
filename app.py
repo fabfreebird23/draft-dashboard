@@ -56,8 +56,14 @@ if SHELL:
     if SHELL == "android":
         # The app owns navigation: its league strip replaces the topbar and its
         # tab bar replaces the nav row. Two of each is worse than none.
+        # Everything the app draws itself, or that a phone has no room for:
+        # the nav rows, the league topbar, the Home wordmark and its view
+        # control (the Today tab IS that control), and both sets of live
+        # cadence controls — pull-to-refresh is the phone's refresh.
         _hide += (",.st-key-navbar,.st-key-navbar_more,.st-key-dr_topbar"
-                  ",.st-key-lv_ctl")
+                  ",.st-key-lv_ctl,.st-key-hmphase,.st-key-hmlogo,.st-key-la_ctl"
+                  ",[data-testid='stAppDeployButton']"
+                  ",.stAppHeader h1:first-of-type")
     st.markdown(f"<style>{_hide}{{display:none !important;}}</style>", unsafe_allow_html=True)
     if SHELL == "android":
         st.markdown("<style>.block-container{padding:.35rem .6rem 2rem !important;}</style>",

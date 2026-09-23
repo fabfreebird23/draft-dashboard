@@ -84,6 +84,7 @@ class MainActivity : AppCompatActivity() {
                     refresher.isRefreshing = false
                     lastGood = System.currentTimeMillis()
                     offline.visibility = View.GONE
+                    v?.evaluateJavascript(STRIP_CLOUD_CHROME, null)
                 }
 
                 override fun onReceivedError(v: WebView, req: WebResourceRequest,
@@ -113,6 +114,11 @@ class MainActivity : AppCompatActivity() {
         // ---- the tab bar --------------------------------------------------
         val nav = BottomNavigationView(this).apply {
             setBackgroundColor(PANEL)
+            // Five tabs, five labels. Material hides the labels of unselected
+            // items once there are more than three, which leaves four unnamed
+            // glyphs and one word.
+            labelVisibilityMode = com.google.android.material.navigation
+                .NavigationBarView.LABEL_VISIBILITY_LABELED
             itemActiveIndicatorColor = android.content.res.ColorStateList.valueOf(0x22FF336C)
             Config.TABS.forEachIndexed { i, t ->
                 menu.add(0, i, i, t.label).setIcon(t.icon)
@@ -177,6 +183,26 @@ class MainActivity : AppCompatActivity() {
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     companion object {
+        /**
+         * Streamlit Cloud wraps the app in its own page and floats a "Manage
+         * app" button and a badge over it. Those belong to the OUTER document,
+         * where the dashboard's stylesheet cannot reach, so they are taken out
+         * from here — once when the page settles, and again on any late arrival.
+         */
+        private const val STRIP_CLOUD_CHROME = """
+            (function () {
+              const kill = () => {
+                document.querySelectorAll(
+                  '[data-testid="manage-app-button"],[class*="_profileContainer_"],' +
+                  '[class*="_viewerBadge_"],[class*="_terminalButton_"],' +
+                  'iframe[src*="statuspage.io"]'
+                ).forEach(e => e.style.display = 'none');
+              };
+              kill();
+              new MutationObserver(kill).observe(document.body, {childList: true, subtree: true});
+            })();
+        """
+
         const val BG = 0xFF141314.toInt()
         const val PANEL = 0xFF191718.toInt()
         const val CRIMSON = 0xFFFF336C.toInt()
