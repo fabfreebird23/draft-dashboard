@@ -92,6 +92,14 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(BG)
             overScrollMode = View.OVER_SCROLL_NEVER
             addJavascriptInterface(Bridge(), "BSHost")
+            webChromeClient = object : android.webkit.WebChromeClient() {
+                override fun onConsoleMessage(m: android.webkit.ConsoleMessage): Boolean {
+                    if (BuildConfig.DEBUG) {
+                        android.util.Log.d("bs-shell", "console: ${m.message()} @${m.lineNumber()}")
+                    }
+                    return true
+                }
+            }
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(v: WebView?, url: String?) {
                     refresher.isRefreshing = false
@@ -118,8 +126,11 @@ class MainActivity : AppCompatActivity() {
             setColorSchemeColors(CRIMSON)
             setProgressBackgroundColorSchemeColor(PANEL)
             addView(web, ViewGroup.LayoutParams(MATCH, MATCH))
-            setOnChildScrollUpCallback { _, _ -> !atTop }
+            // Two sources, because either can be the one that moves: the page
+            // inside (reported by the bridge) or the WebView's own document.
+            setOnChildScrollUpCallback { _, _ -> !atTop || web.canScrollVertically(-1) }
             setOnRefreshListener {
+                android.util.Log.d("bs-shell", "pull refresh (atTop=$atTop)")
                 performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
                 web.reload()
             }
@@ -199,7 +210,9 @@ class MainActivity : AppCompatActivity() {
     inner class Bridge {
         @android.webkit.JavascriptInterface
         fun scroll(top: Int) {
+            val was = atTop
             atTop = top <= 2
+            if (was != atTop) android.util.Log.d("bs-shell", "scroll top=$top atTop=$atTop")
         }
     }
 
@@ -231,26 +244,40 @@ class MainActivity : AppCompatActivity() {
          * app in an iframe, so the element is a document down; it also arrives
          * late, hence the retry rather than a single attempt.
          */
+        /**
+         * Report where the page is scrolled to.
+         *
+         * Guessing which element scrolls was wrong twice — Cloud nests the app
+         * in an iframe and Streamlit's scroller is not the document — so this
+         * does not guess. A scroll event does not bubble, but it can be caught
+         * on the way DOWN, so one capturing listener per same-origin document
+         * sees every scroller there is and reports the one that moved. Frames
+         * arrive late, hence the retry.
+         */
         private const val WATCH_SCROLL = """
             (function () {
-              function hook() {
-                const fr = document.querySelector('iframe');
-                const d = (fr && fr.contentDocument) || document;
-                const el = d.querySelector('[data-testid="stMain"]')
-                        || d.scrollingElement || d.documentElement;
-                if (!el || el.__bsHooked) return !!el;
-                el.__bsHooked = true;
-                const send = () => {
-                  try { BSHost.scroll(Math.round(el.scrollTop || 0)); } catch (e) {}
-                };
-                el.addEventListener('scroll', send, {passive: true});
-                send();
-                return true;
+              function attach(d) {
+                if (!d || d.__bsHooked) return;
+                d.__bsHooked = true;
+                d.addEventListener('scroll', function (e) {
+                  const t = e.target;
+                  const top = (t && t.scrollTop != null) ? t.scrollTop
+                            : (d.scrollingElement ? d.scrollingElement.scrollTop : 0);
+                  try { BSHost.scroll(Math.round(top)); } catch (err) {}
+                }, true);
               }
-              if (!hook()) {
-                let n = 0;
-                const t = setInterval(() => { if (hook() || ++n > 30) clearInterval(t); }, 500);
+              function sweep() {
+                attach(document);
+                document.querySelectorAll('iframe').forEach(function (f) {
+                  // Cloud sometimes wraps the app in a same-origin frame and
+                  // sometimes serves it flat; a cross-origin one (the status
+                  // badge) simply refuses, which is fine — it never scrolls.
+                  try { if (f.contentDocument) attach(f.contentDocument); } catch (err) {}
+                });
               }
+              sweep();
+              let n = 0;
+              const t = setInterval(function () { sweep(); if (++n > 60) clearInterval(t); }, 500);
             })();
         """
 

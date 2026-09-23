@@ -1,10 +1,16 @@
+# The page is dark before a single line of our CSS arrives.
+#
+# Streamlit paints its own theme first, and its default is light — which on a
+# phone means a full grey screen with a spinner on every load, and a white flash
+# on every reload. The app has been dark since the badge it was named after, so
+# the server may as well say so from the first paint.
 [theme]
 base = "dark"
-primaryColor = "#e02557"
-backgroundColor = "#161415"
-secondaryBackgroundColor = "#232022"
+backgroundColor = "#141314"
+secondaryBackgroundColor = "#1f1d1e"
 textColor = "#f2eef0"
+primaryColor = "#ff336c"
 font = "sans serif"
 
-[server]
-headless = true
+[browser]
+gatherUsageStats = false
