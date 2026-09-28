@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "week": 3,
-  "published": "2026-09-28T04:30",
+  "published": "2026-09-28T10:02",
   "players": {
     "Case Keenum|CHI": {
       "name": "Case Keenum",
@@ -9,8 +9,8 @@
       "lines": {
         "pass_td": {
           "line": 0.5,
-          "over": "-230",
-          "under": "+170"
+          "over": "-220",
+          "under": "+165"
         },
         "pass_att": {
           "line": 28.5,
@@ -27,9 +27,14 @@
           "over": "+175",
           "under": "-240"
         },
+        "rush_yd": {
+          "line": 5.5,
+          "over": "-110",
+          "under": "-120"
+        },
         "td": {
-          "price": "+1400",
-          "prob": 0.06666666666666667
+          "price": "+1500",
+          "prob": 0.0625
         }
       },
       "exp": {
@@ -37,7 +42,8 @@
         "pass_att": 28.53,
         "pass_int": 0.53,
         "pass_yd": 196.31,
-        "td": 0.056
+        "rush_yd": 5.49,
+        "td": 0.052
       }
     },
     "Jalen Hurts|PHI": {
@@ -51,16 +57,16 @@
         },
         "pass_att": {
           "line": 27.5,
-          "over": "-110",
-          "under": "-120"
+          "over": "-130",
+          "under": "EVEN"
         },
         "pass_int": {
           "line": 0.5,
-          "over": "+130",
-          "under": "-170"
+          "over": "+135",
+          "under": "-180"
         },
         "pass_yd": {
-          "line": 245.5,
+          "line": 246.5,
           "over": "+175",
           "under": "-240"
         },
@@ -70,31 +76,17 @@
           "under": "-120"
         },
         "td": {
-          "price": "+140",
-          "prob": 0.4166666666666667
+          "price": "+145",
+          "prob": 0.40816326530612246
         }
       },
       "exp": {
         "pass_td": 1.44,
-        "pass_att": 27.47,
-        "pass_int": 0.41,
-        "pass_yd": 241.57,
+        "pass_att": 27.58,
+        "pass_int": 0.4,
+        "pass_yd": 242.56,
         "rush_yd": 24.48,
-        "td": 0.441
-      }
-    },
-    "Tyson Bagent|CHI": {
-      "name": "Tyson Bagent",
-      "team": "CHI",
-      "lines": {
-        "pass_yd": {
-          "line": 204.5,
-          "over": "+175",
-          "under": "-240"
-        }
-      },
-      "exp": {
-        "pass_yd": 201.23
+        "td": 0.426
       }
     },
     "D'Andre Swift|CHI": {
@@ -102,19 +94,19 @@
       "team": "CHI",
       "lines": {
         "rush_yd": {
-          "line": 70.5,
+          "line": 71.5,
           "over": "+145",
           "under": "-190"
         },
         "rec": {
-          "line": 1.5,
-          "over": "-165",
-          "under": "+125"
+          "line": 2.5,
+          "over": "+145",
+          "under": "-190"
         },
         "rec_yd": {
-          "line": 12.5,
-          "over": "-110",
-          "under": "-120"
+          "line": 13.5,
+          "over": "-120",
+          "under": "-110"
         },
         "td": {
           "price": "EVEN",
@@ -122,10 +114,10 @@
         }
       },
       "exp": {
-        "rush_yd": 69.68,
-        "rec": 1.58,
-        "rec_yd": 12.49,
-        "td": 0.567
+        "rush_yd": 70.67,
+        "rec": 2.38,
+        "rec_yd": 13.51,
+        "td": 0.563
       }
     },
     "Kyle Monangai|CHI": {
@@ -133,18 +125,30 @@
       "team": "CHI",
       "lines": {
         "rush_yd": {
-          "line": 46.5,
+          "line": 48.5,
           "over": "+165",
           "under": "-220"
         },
+        "rec": {
+          "line": 1.5,
+          "over": "+120",
+          "under": "-160"
+        },
+        "rec_yd": {
+          "line": 8.5,
+          "over": "-115",
+          "under": "-115"
+        },
         "td": {
-          "price": "+180",
-          "prob": 0.35714285714285715
+          "price": "+185",
+          "prob": 0.3508771929824561
         }
       },
       "exp": {
-        "rush_yd": 45.82,
-        "td": 0.361
+        "rush_yd": 47.79,
+        "rec": 1.42,
+        "rec_yd": 8.5,
+        "td": 0.351
       }
     },
     "Saquon Barkley|PHI": {
@@ -158,13 +162,13 @@
         },
         "rec": {
           "line": 2.5,
-          "over": "+125",
-          "under": "-165"
+          "over": "+130",
+          "under": "-170"
         },
         "rec_yd": {
-          "line": 12.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 11.5,
+          "over": "-120",
+          "under": "-110"
         },
         "td": {
           "price": "-110",
@@ -173,9 +177,9 @@
       },
       "exp": {
         "rush_yd": 90.63,
-        "rec": 2.42,
-        "rec_yd": 12.5,
-        "td": 0.607
+        "rec": 2.41,
+        "rec_yd": 11.51,
+        "td": 0.603
       }
     },
     "Tank Bigsby|PHI": {
@@ -183,7 +187,31 @@
       "team": "PHI",
       "lines": {
         "rush_yd": {
-          "line": 11.5,
+          "line": 12.5,
+          "over": "-110",
+          "under": "-120"
+        },
+        "td": {
+          "price": "+525",
+          "prob": 0.16
+        }
+      },
+      "exp": {
+        "rush_yd": 12.49,
+        "td": 0.142
+      }
+    },
+    "Cole Kmet|CHI": {
+      "name": "Cole Kmet",
+      "team": "CHI",
+      "lines": {
+        "rec": {
+          "line": 1.5,
+          "over": "+115",
+          "under": "-150"
+        },
+        "rec_yd": {
+          "line": 8.5,
           "over": "-115",
           "under": "-115"
         },
@@ -193,33 +221,9 @@
         }
       },
       "exp": {
-        "rush_yd": 11.5,
-        "td": 0.126
-      }
-    },
-    "Cole Kmet|CHI": {
-      "name": "Cole Kmet",
-      "team": "CHI",
-      "lines": {
-        "rec": {
-          "line": 1.5,
-          "over": "EVEN",
-          "under": "-130"
-        },
-        "rec_yd": {
-          "line": 9.5,
-          "over": "-110",
-          "under": "-120"
-        },
-        "td": {
-          "price": "+700",
-          "prob": 0.125
-        }
-      },
-      "exp": {
-        "rec": 1.47,
-        "rec_yd": 9.49,
-        "td": 0.109
+        "rec": 1.44,
+        "rec_yd": 8.5,
+        "td": 0.125
       }
     },
     "Colston Loveland|CHI": {
@@ -228,11 +232,11 @@
       "lines": {
         "rec": {
           "line": 3.5,
-          "over": "EVEN",
-          "under": "-130"
+          "over": "+120",
+          "under": "-160"
         },
         "rec_yd": {
-          "line": 45.5,
+          "line": 41.5,
           "over": "+150",
           "under": "-200"
         },
@@ -242,9 +246,9 @@
         }
       },
       "exp": {
-        "rec": 3.47,
-        "rec_yd": 44.93,
-        "td": 0.206
+        "rec": 3.42,
+        "rec_yd": 40.98,
+        "td": 0.204
       }
     },
     "DeVonta Smith|PHI": {
@@ -269,7 +273,7 @@
       "exp": {
         "rec": 5.52,
         "rec_yd": 80.75,
-        "td": 0.361
+        "td": 0.359
       }
     },
     "Dontayvion Wicks|PHI": {
@@ -287,14 +291,39 @@
           "under": "-190"
         },
         "td": {
-          "price": "+310",
-          "prob": 0.24390243902439024
+          "price": "+320",
+          "prob": 0.23809523809523808
         }
       },
       "exp": {
         "rec": 3.42,
         "rec_yd": 50.9,
-        "td": 0.229
+        "td": 0.221
+      }
+    },
+    "Johnny Mundt|PHI": {
+      "name": "Johnny Mundt",
+      "team": "PHI",
+      "lines": {
+        "rec": {
+          "line": 1.5,
+          "over": "+145",
+          "under": "-190"
+        },
+        "rec_yd": {
+          "line": 6.5,
+          "over": "-120",
+          "under": "-110"
+        },
+        "td": {
+          "price": "+725",
+          "prob": 0.12121212121212122
+        }
+      },
+      "exp": {
+        "rec": 1.38,
+        "rec_yd": 6.51,
+        "td": 0.105
       }
     },
     "Kalif Raymond|CHI": {
@@ -303,23 +332,23 @@
       "lines": {
         "rec": {
           "line": 2.5,
-          "over": "-125",
-          "under": "-105"
+          "over": "-120",
+          "under": "-110"
         },
         "rec_yd": {
-          "line": 24.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 23.5,
+          "over": "-120",
+          "under": "-110"
         },
         "td": {
-          "price": "+525",
-          "prob": 0.16
+          "price": "+600",
+          "prob": 0.14285714285714285
         }
       },
       "exp": {
-        "rec": 2.52,
-        "rec_yd": 24.5,
-        "td": 0.143
+        "rec": 2.51,
+        "rec_yd": 23.52,
+        "td": 0.125
       }
     },
     "Luther Burden III|CHI": {
@@ -328,36 +357,6 @@
       "lines": {
         "rec": {
           "line": 3.5,
-          "over": "-120",
-          "under": "-110"
-        },
-        "rec_yd": {
-          "line": 47.5,
-          "over": "+150",
-          "under": "-200"
-        },
-        "td": {
-          "price": "+370",
-          "prob": 0.2127659574468085
-        }
-      },
-      "exp": {
-        "rec": 3.51,
-        "rec_yd": 46.91,
-        "td": 0.196
-      }
-    },
-    "Makai Lemon|PHI": {
-      "name": "Makai Lemon",
-      "team": "PHI",
-      "lines": {
-        "rec": {
-          "line": 2.5,
-          "over": "-125",
-          "under": "-105"
-        },
-        "rec_yd": {
-          "line": 26.5,
           "over": "-110",
           "under": "-120"
         },
@@ -367,9 +366,33 @@
         }
       },
       "exp": {
-        "rec": 2.52,
-        "rec_yd": 26.47,
-        "td": 0.175
+        "rec": 3.49,
+        "td": 0.174
+      }
+    },
+    "Makai Lemon|PHI": {
+      "name": "Makai Lemon",
+      "team": "PHI",
+      "lines": {
+        "rec": {
+          "line": 2.5,
+          "over": "-120",
+          "under": "-110"
+        },
+        "rec_yd": {
+          "line": 28.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "+400",
+          "prob": 0.2
+        }
+      },
+      "exp": {
+        "rec": 2.51,
+        "rec_yd": 28.5,
+        "td": 0.181
       }
     },
     "Rome Odunze|CHI": {
@@ -378,8 +401,8 @@
       "lines": {
         "rec": {
           "line": 2.5,
-          "over": "+110",
-          "under": "-145"
+          "over": "+115",
+          "under": "-150"
         },
         "rec_yd": {
           "line": 25.5,
@@ -387,29 +410,29 @@
           "under": "-115"
         },
         "td": {
-          "price": "+460",
-          "prob": 0.17857142857142858
+          "price": "+500",
+          "prob": 0.16666666666666666
         }
       },
       "exp": {
-        "rec": 2.45,
+        "rec": 2.44,
         "rec_yd": 25.5,
-        "td": 0.161
+        "td": 0.148
       }
     },
-    "Zach Ertz|WAS": {
+    "Zach Ertz|PHI": {
       "name": "Zach Ertz",
-      "team": "WAS",
+      "team": "PHI",
       "lines": {
         "rec": {
           "line": 1.5,
-          "over": "+105",
-          "under": "-135"
+          "over": "EVEN",
+          "under": "-130"
         },
         "rec_yd": {
-          "line": 10.5,
-          "over": "-110",
-          "under": "-120"
+          "line": 9.5,
+          "over": "-120",
+          "under": "-110"
         },
         "td": {
           "price": "+500",
@@ -417,9 +440,9 @@
         }
       },
       "exp": {
-        "rec": 1.46,
-        "rec_yd": 10.49,
-        "td": 0.149
+        "rec": 1.47,
+        "rec_yd": 9.51,
+        "td": 0.148
       }
     },
     "Cairo Santos|CHI": {
@@ -468,12 +491,12 @@
       "team": "PHI",
       "lines": {
         "td": {
-          "price": "+625",
-          "prob": 0.13793103448275862
+          "price": "+600",
+          "prob": 0.14285714285714285
         }
       },
       "exp": {
-        "td": 0.121
+        "td": 0.125
       }
     },
     "Zavion Thomas|CHI": {
@@ -520,12 +543,25 @@
       "team": "PHI",
       "lines": {
         "td": {
-          "price": "+1400",
-          "prob": 0.06666666666666667
+          "price": "+1200",
+          "prob": 0.07692307692307693
         }
       },
       "exp": {
-        "td": 0.056
+        "td": 0.065
+      }
+    },
+    "E.J. Jenkins|PHI": {
+      "name": "E.J. Jenkins",
+      "team": "PHI",
+      "lines": {
+        "td": {
+          "price": "+1700",
+          "prob": 0.05555555555555555
+        }
+      },
+      "exp": {
+        "td": 0.046
       }
     },
     "Darius Cooper|PHI": {
@@ -541,30 +577,17 @@
         "td": 0.086
       }
     },
-    "Johnny Mundt|PHI": {
-      "name": "Johnny Mundt",
-      "team": "PHI",
-      "lines": {
-        "td": {
-          "price": "+700",
-          "prob": 0.125
-        }
-      },
-      "exp": {
-        "td": 0.109
-      }
-    },
     "Roschon Johnson|CHI": {
       "name": "Roschon Johnson",
       "team": "CHI",
       "lines": {
         "td": {
-          "price": "+2500",
-          "prob": 0.038461538461538464
+          "price": "+1900",
+          "prob": 0.05
         }
       },
       "exp": {
-        "td": 0.032
+        "td": 0.042
       }
     },
     "Jahdae Walker|CHI": {
