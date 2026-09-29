@@ -16,13 +16,14 @@ object Config {
      *  strangers out. It never has to be typed — it rides in every URL. */
     const val PIN = "476207"
 
-    /** Label shown on the chip, and the league slug the page understands.
-     *  A PREFIX is enough, so these survive a rename on Sleeper. */
+    /** Label shown on the chip, and the league's slug in app.py's SAVED_LEAGUES.
+     *  Explicit ASCII slugs, not derived from the name: "7½ Men" derives to
+     *  "7½-men", and a link that guessed "7-1-2" landed on Home instead. */
     val LEAGUES = listOf(
         League("Kreeper", "kreeper"),
         League("B&B", "babies"),
-        League("7½ Men", "7-1-2"),
-        League("TD's", "show-us"),
+        League("7½ Men", "seven-half"),
+        League("TD's", "tds"),
     )
 
     /** Bottom bar, left to right. `tab` is the dashboard's own tab name;

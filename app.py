@@ -372,17 +372,17 @@ def _secret(name: str) -> str:
 MY_SLEEPER_ID = "964703051971887104"          # same account in all three leagues
 
 SAVED_LEAGUES = [
-    {"label": "The Kreeper League", "platform": "sleeper",
+    {"label": "The Kreeper League", "slug": "kreeper", "platform": "sleeper",
      "league_id": "1310907162930733056", "season": 2026, "my_team": MY_SLEEPER_ID,
      "keeper": True},
-    {"label": "Babies and Boomer", "platform": "sleeper",
+    {"label": "Babies and Boomer", "slug": "babies", "platform": "sleeper",
      "league_id": "1312885282554535936", "season": 2026, "my_team": MY_SLEEPER_ID,
      "keeper": True},
-    {"label": "7\u00bd Men", "platform": "sleeper",
+    {"label": "7\u00bd Men", "slug": "seven-half", "platform": "sleeper",
      "league_id": "1388606375239643136", "season": 2026, "my_team": MY_SLEEPER_ID,
      "keeper": True},
     # Public league — readable with no espn_s2/SWID, so no credentials are stored.
-    {"label": "Show us your TD's", "platform": "espn",
+    {"label": "Show us your TD's", "slug": "tds", "platform": "espn",
      "league_id": "798873", "season": 2026, "my_team": "12", "keeper": False},
 ]
 
@@ -468,8 +468,12 @@ def _deep_link() -> None:
                                           "season": "In-season"}.get(want_view, "All")
         st.session_state.pop("league", None)
         return
+    # The preset's own "slug" first — a label is for people and changes shape
+    # ("7½ Men" slugs to "7½-men", which no phone link was ever going to say) —
+    # then the derived slug, so an old link that spelled the name still lands.
     preset = next((p for p in SAVED_LEAGUES
-                   if want_lg and slug(p["label"]).startswith(want_lg)), None)
+                   if want_lg and (p.get("slug", "").startswith(want_lg)
+                                   or slug(p["label"]).startswith(want_lg))), None)
     if preset:
         st.session_state.league = sel_for(preset)
     if want_tab:

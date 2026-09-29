@@ -193,9 +193,10 @@ class MainActivity : AppCompatActivity() {
                     performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
                     league = lg
                     drawChips()
-                    // Today is all four leagues at once, so a chip press there
-                    // means "show me this one" — it moves to Live.
-                    go(if (tab.tab == null || tab.tab == Config.MORE) Config.TABS[1] else tab, lg)
+                    // A chip changes the league and keeps the screen: Rankings
+                    // in Kreeper -> Rankings in 7½ Men. Only Today, which is all
+                    // four leagues and so has no league to change, moves to Live.
+                    go(if (tab.tab == null) Config.TABS[1] else tab, lg)
                 }
             }
             val lp = LinearLayout.LayoutParams(WRAP, WRAP)
@@ -244,7 +245,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun go(t: Config.Tab, lg: Config.League) {
         tab = t
-        web.loadUrl(Config.url(t, lg))
+        val u = Config.url(t, lg)
+        if (BuildConfig.DEBUG) android.util.Log.d("bs-shell", "go -> $u")
+        web.loadUrl(u)
     }
 
     @Deprecated("Deprecated in Java")
