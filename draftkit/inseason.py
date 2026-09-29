@@ -137,7 +137,11 @@ def faab(meta) -> Optional[dict]:
     spent = {str(r.get("owner_id")): int((r.get("settings") or {}).get("waiver_budget_used") or 0)
              for r in rows if r.get("owner_id")}
     left = sorted(budget - v for v in spent.values()) or [budget]
-    return {"budget": budget, "spent": spent,
+    # `by_owner` is the name the docstring promises and every caller reads.
+    # This returned only "spent", so each screen's lookup found nothing and
+    # counted his spend as $0 — "$100 of $100" in Kreeper with $6 gone. Both
+    # names point at the same dict so an old caller can't drift again.
+    return {"budget": budget, "by_owner": spent, "spent": spent,
             "median_left": left[len(left) // 2]}
 
 
