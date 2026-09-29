@@ -54,6 +54,20 @@ class MainActivity : AppCompatActivity() {
      */
     @Volatile private var atTop = true
 
+    /**
+     * The freeze frame. Every navigation is a full page load, and a Streamlit
+     * page boots in view — blank, then a skeleton, then content arriving top
+     * to bottom. So the shell photographs the page it is leaving, lays the
+     * photograph over the WebView, loads underneath it, and lifts it only when
+     * the new page has FINISHED: Streamlit's Stop button is gone, there is real
+     * content, and nothing has changed for a moment. Page to page, he sees the
+     * old screen and then the new one, nothing in between.
+     */
+    private lateinit var freeze: android.widget.ImageView
+    private lateinit var progress: View
+    private var navSeq = 0
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+
     /** Set when the code moves the bar itself, so the move is not a navigation. */
     private var quietSelect = false
 
@@ -89,6 +103,17 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(offline, LinearLayout.LayoutParams(MATCH, WRAP))
 
+        // A hairline, not a spinner: enough to say the tap was heard while the
+        // old page stays up, and nothing that looks like the page churning.
+        progress = com.google.android.material.progressindicator.LinearProgressIndicator(this).apply {
+            isIndeterminate = true
+            setIndicatorColor(CRIMSON)
+            trackColor = PANEL
+            trackThickness = dp(2)
+            visibility = View.INVISIBLE
+        }
+        root.addView(progress, LinearLayout.LayoutParams(MATCH, dp(2)))
+
         // ---- the page ----------------------------------------------------
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
@@ -117,6 +142,7 @@ class MainActivity : AppCompatActivity() {
                     offline.visibility = View.GONE
                     v?.evaluateJavascript(STRIP_CLOUD_CHROME, null)
                     v?.evaluateJavascript(WATCH_SCROLL, null)
+                    v?.evaluateJavascript(READY_WATCH.replace("__SEQ__", navSeq.toString()), null)
                 }
 
                 override fun onReceivedError(v: WebView, req: WebResourceRequest,
@@ -129,20 +155,30 @@ class MainActivity : AppCompatActivity() {
                     offline.text = if (lastGood == 0L) "No signal"
                         else "No signal · showing ${Ago.of(lastGood)}"
                     offline.visibility = View.VISIBLE
+                    unfreeze(navSeq)
                 }
             }
+        }
+        freeze = android.widget.ImageView(this).apply {
+            scaleType = android.widget.ImageView.ScaleType.FIT_XY
+            visibility = View.GONE
+            isClickable = true      // a tap on the old page must not reach the new one
+        }
+        val stage = android.widget.FrameLayout(this).apply {
+            addView(web, ViewGroup.LayoutParams(MATCH, MATCH))
+            addView(freeze, ViewGroup.LayoutParams(MATCH, MATCH))
         }
         refresher = SwipeRefreshLayout(this).apply {
             setColorSchemeColors(CRIMSON)
             setProgressBackgroundColorSchemeColor(PANEL)
-            addView(web, ViewGroup.LayoutParams(MATCH, MATCH))
+            addView(stage, ViewGroup.LayoutParams(MATCH, MATCH))
             // Two sources, because either can be the one that moves: the page
             // inside (reported by the bridge) or the WebView's own document.
             setOnChildScrollUpCallback { _, _ -> !atTop || web.canScrollVertically(-1) }
             setOnRefreshListener {
                 android.util.Log.d("bs-shell", "pull refresh (atTop=$atTop)")
                 performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
-                web.reload()
+                freezeThen { web.reload() }
             }
         }
         root.addView(refresher, LinearLayout.LayoutParams(MATCH, 0, 1f))
@@ -264,11 +300,56 @@ class MainActivity : AppCompatActivity() {
         sheet.show()
     }
 
+    /** Photograph the page, lay it over the WebView, then run [load]. */
+    private fun freezeThen(load: () -> Unit) {
+        val seq = ++navSeq
+        progress.visibility = View.VISIBLE
+        val w = web.width
+        val h = web.height
+        if (w <= 0 || h <= 0 || freeze.visibility == View.VISIBLE) {
+            // nothing to photograph yet (first load), or already frozen on the
+            // previous page — keep that photograph and just load the new one
+            load()
+            armTimeout(seq)
+            return
+        }
+        val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+        val loc = IntArray(2)
+        web.getLocationInWindow(loc)
+        val rect = android.graphics.Rect(loc[0], loc[1], loc[0] + w, loc[1] + h)
+        // PixelCopy reads what is actually on the glass. WebView.draw() into a
+        // Canvas often comes back blank with hardware acceleration on.
+        android.view.PixelCopy.request(window, rect, bmp, { result ->
+            if (seq == navSeq && result == android.view.PixelCopy.SUCCESS) {
+                freeze.setImageBitmap(bmp)
+                freeze.alpha = 1f
+                freeze.visibility = View.VISIBLE
+            }
+            load()
+            armTimeout(seq)
+        }, handler)
+    }
+
+    /** A page that never says it is done still gets shown, after a while. */
+    private fun armTimeout(seq: Int) = handler.postDelayed({ unfreeze(seq) }, 25_000)
+
+    /** The new page is done: lift the photograph. Stale calls are ignored. */
+    private fun unfreeze(seq: Int) {
+        if (seq != navSeq) return
+        refresher.isRefreshing = false
+        progress.visibility = View.INVISIBLE
+        if (freeze.visibility != View.VISIBLE) return
+        freeze.animate().alpha(0f).setDuration(110).withEndAction {
+            freeze.visibility = View.GONE
+            freeze.setImageDrawable(null)
+        }.start()
+    }
+
     private fun go(t: Config.Tab, lg: Config.League) {
         tab = t
         val u = Config.url(t, lg)
         if (BuildConfig.DEBUG) android.util.Log.d("bs-shell", "go -> $u")
-        web.loadUrl(u)
+        freezeThen { web.loadUrl(u) }
     }
 
     @Deprecated("Deprecated in Java")
@@ -278,6 +359,9 @@ class MainActivity : AppCompatActivity() {
 
     /** The page telling the shell where it is scrolled to. */
     inner class Bridge {
+        @android.webkit.JavascriptInterface
+        fun ready(seq: Int) = runOnUiThread { unfreeze(seq) }
+
         @android.webkit.JavascriptInterface
         fun scroll(top: Int) {
             val was = atTop
@@ -349,6 +433,41 @@ class MainActivity : AppCompatActivity() {
               let n = 0;
               const t = setInterval(function () { sweep(); if (++n > 60) clearInterval(t); }, 500);
             })();
+        """
+
+        /**
+         * Done is three things at once: Streamlit's status widget has no Stop
+         * button (it holds one exactly while the script runs), the page has
+         * real content, and that content has not changed for two polls. Any one
+         * alone lies — a page can sit still half-drawn waiting on a slow read.
+         */
+        private const val READY_WATCH = """
+            (function (seq) {
+              function doc() {
+                const f = document.querySelector('iframe');
+                try {
+                  if (f && f.contentDocument &&
+                      f.contentDocument.querySelector('[data-testid="stMain"]')) return f.contentDocument;
+                } catch (e) {}
+                return document;
+              }
+              let last = -1, still = 0, n = 0;
+              const t = setInterval(function () {
+                n++;
+                const d = doc();
+                const sw = d.querySelector('[data-testid="stStatusWidget"]');
+                const running = !!(sw && /stop/i.test(sw.innerText || ''));
+                const main = d.querySelector('[data-testid="stMainBlockContainer"]');
+                const len = main ? main.innerText.length : 0;
+                const busy = running || len < 150;
+                still = (!busy && len === last) ? still + 1 : 0;
+                last = len;
+                if (still >= 2 || n > 160) {
+                  clearInterval(t);
+                  try { BSHost.ready(seq); } catch (e) {}
+                }
+              }, 150);
+            })(__SEQ__);
         """
 
         const val BG = 0xFF141314.toInt()
