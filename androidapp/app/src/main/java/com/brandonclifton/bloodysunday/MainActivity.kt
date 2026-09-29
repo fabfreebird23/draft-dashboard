@@ -34,6 +34,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var refresher: SwipeRefreshLayout
     private lateinit var chips: LinearLayout
     private lateinit var offline: TextView
+
+    /** Held directly: looking it up by a hand-made id returned null, which
+     *  silently left the bar unmoved and a selection guard armed. */
+    private lateinit var nav: BottomNavigationView
     private var league = Config.LEAGUES[0]
     private var tab = Config.TABS[0]
     private var lastGood = 0L
@@ -49,6 +53,9 @@ class MainActivity : AppCompatActivity() {
      * instead, and the refresh gesture is only armed when it is really at rest.
      */
     @Volatile private var atTop = true
+
+    /** Set when the code moves the bar itself, so the move is not a navigation. */
+    private var quietSelect = false
 
     /** The pill to go back to when the More sheet is dismissed unused. */
     private var lastTabId = 0
@@ -141,8 +148,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(refresher, LinearLayout.LayoutParams(MATCH, 0, 1f))
 
         // ---- the tab bar --------------------------------------------------
-        val nav = BottomNavigationView(this).apply {
-            id = NAV_ID
+        nav = BottomNavigationView(this).apply {
             setBackgroundColor(PANEL)
             // Five tabs, five labels. Material hides the labels of unselected
             // items once there are more than three, which leaves four unnamed
@@ -154,6 +160,7 @@ class MainActivity : AppCompatActivity() {
                 menu.add(0, i, i, t.label).setIcon(t.icon)
             }
             setOnItemSelectedListener { item ->
+                if (quietSelect) { quietSelect = false; return@setOnItemSelectedListener true }
                 val t = Config.TABS[item.itemId]
                 if (t.tab == Config.MORE) showMore() else {
                     lastTabId = item.itemId
@@ -196,7 +203,18 @@ class MainActivity : AppCompatActivity() {
                     // A chip changes the league and keeps the screen: Rankings
                     // in Kreeper -> Rankings in 7½ Men. Only Today, which is all
                     // four leagues and so has no league to change, moves to Live.
-                    go(if (tab.tab == null) Config.TABS[1] else tab, lg)
+                    if (tab.tab == null) {
+                        // Leaving Today for Live: light Live in the bar too.
+                        // selectedItemId is the only call that repaints the bar
+                        // (menu isChecked does not), and it fires the listener —
+                        // so the listener is told to stand down for this one.
+                        quietSelect = true
+                        nav.selectedItemId = 1
+                        lastTabId = 1
+                        go(Config.TABS[1], lg)
+                    } else {
+                        go(tab, lg)
+                    }
                 }
             }
             val lp = LinearLayout.LayoutParams(WRAP, WRAP)
@@ -238,7 +256,10 @@ class MainActivity : AppCompatActivity() {
         }
         sheet.setContentView(list)
         sheet.setOnDismissListener {
-            if (!chose) findViewById<BottomNavigationView>(NAV_ID)?.selectedItemId = lastTabId
+            if (!chose) {
+                quietSelect = true
+                nav.selectedItemId = lastTabId
+            }
         }
         sheet.show()
     }
@@ -330,7 +351,6 @@ class MainActivity : AppCompatActivity() {
             })();
         """
 
-        const val NAV_ID = 0x7BADBEEF
         const val BG = 0xFF141314.toInt()
         const val PANEL = 0xFF191718.toInt()
         const val CRIMSON = 0xFFFF336C.toInt()
