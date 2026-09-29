@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "week": 4,
-  "published": "2026-09-29T01:02",
+  "published": "2026-09-29T04:03",
   "players": {
     "Aaron Rodgers|PIT": {
       "name": "Aaron Rodgers",
@@ -86,7 +86,7 @@
         "pass_int": 0.51,
         "pass_yd": 186.5,
         "rush_yd": 29.5,
-        "td": 0.168
+        "td": 0.167
       }
     },
     "Jaylen Warren|PIT": {
@@ -117,7 +117,7 @@
         "rush_yd": 65.5,
         "rec": 3.44,
         "rec_yd": 22.5,
-        "td": 0.599
+        "td": 0.597
       }
     },
     "Quinshon Judkins|CLE": {
@@ -148,7 +148,7 @@
         "rush_yd": 55.44,
         "rec": 2.4,
         "rec_yd": 12.51,
-        "td": 0.492
+        "td": 0.491
       }
     },
     "Darnell Washington|PIT": {
@@ -198,7 +198,7 @@
       "exp": {
         "rec": 2.56,
         "rec_yd": 33.53,
-        "td": 0.203
+        "td": 0.202
       }
     },
     "DK Metcalf|PIT": {
@@ -223,7 +223,7 @@
       "exp": {
         "rec": 3.51,
         "rec_yd": 42.5,
-        "td": 0.279
+        "td": 0.278
       }
     },
     "Harold Fannin Jr.|CLE": {
@@ -248,7 +248,7 @@
       "exp": {
         "rec": 4.5,
         "rec_yd": 41.5,
-        "td": 0.237
+        "td": 0.236
       }
     },
     "Jerry Jeudy|CLE": {
@@ -323,7 +323,7 @@
       "exp": {
         "rec": 3.46,
         "rec_yd": 32.5,
-        "td": 0.193
+        "td": 0.192
       }
     },
     "Pat Freiermuth|PIT": {
@@ -348,7 +348,7 @@
       "exp": {
         "rec": 3.52,
         "rec_yd": 29.47,
-        "td": 0.193
+        "td": 0.192
       }
     },
     "Raheim Sanders|CLE": {
@@ -450,7 +450,7 @@
         }
       },
       "exp": {
-        "td": 0.043
+        "td": 0.042
       }
     },
     "Ben Skowronek|PIT": {
@@ -555,6 +555,19 @@
       },
       "exp": {
         "td": 0.038
+      }
+    },
+    "Michael Burton|CLE": {
+      "name": "Michael Burton",
+      "team": "CLE",
+      "lines": {
+        "td": {
+          "price": "+6000",
+          "prob": 0.01639344262295082
+        }
+      },
+      "exp": {
+        "td": 0.013
       }
     },
     "Daniel Jones|IND": {
@@ -671,6 +684,11 @@
           "over": "-115",
           "under": "-115"
         },
+        "rec": {
+          "line": 2.5,
+          "over": "-130",
+          "under": "EVEN"
+        },
         "rec_yd": {
           "line": 19.5,
           "over": "-115",
@@ -683,6 +701,7 @@
       },
       "exp": {
         "rush_yd": 92.5,
+        "rec": 2.53,
         "rec_yd": 19.5,
         "td": 1.178
       }
@@ -969,6 +988,350 @@
         "td": 0.151
       }
     },
+    "Trey McBride|ARI": {
+      "name": "Trey McBride",
+      "team": "ARI",
+      "lines": {
+        "td": {
+          "price": "+110",
+          "prob": 0.47619047619047616
+        }
+      },
+      "exp": {
+        "td": 0.944
+      }
+    },
+    "Malik Nabers|NYG": {
+      "name": "Malik Nabers",
+      "team": "NYG",
+      "lines": {
+        "td": {
+          "price": "+145",
+          "prob": 0.40816326530612246
+        }
+      },
+      "exp": {
+        "td": 0.766
+      }
+    },
+    "Isaiah Likely|NYG": {
+      "name": "Isaiah Likely",
+      "team": "NYG",
+      "lines": {
+        "td": {
+          "price": "+240",
+          "prob": 0.29411764705882354
+        }
+      },
+      "exp": {
+        "td": 0.509
+      }
+    },
+    "Jeremiyah Love|ARI": {
+      "name": "Jeremiyah Love",
+      "team": "ARI",
+      "lines": {
+        "td": {
+          "price": "-114",
+          "prob": 0.5327102803738317
+        }
+      },
+      "exp": {
+        "td": 1.111
+      }
+    },
+    "Cam Skattebo|NYG": {
+      "name": "Cam Skattebo",
+      "team": "NYG",
+      "lines": {
+        "td": {
+          "price": "-136",
+          "prob": 0.576271186440678
+        }
+      },
+      "exp": {
+        "td": 1.254
+      }
+    },
+    "David Montgomery|HOU": {
+      "name": "David Montgomery",
+      "team": "HOU",
+      "lines": {
+        "td": {
+          "price": "-143",
+          "prob": 0.588477366255144
+        }
+      },
+      "exp": {
+        "td": 1.116
+      }
+    },
+    "Nico Collins|HOU": {
+      "name": "Nico Collins",
+      "team": "HOU",
+      "lines": {
+        "td": {
+          "price": "+115",
+          "prob": 0.46511627906976744
+        }
+      },
+      "exp": {
+        "td": 0.786
+      }
+    },
+    "CeeDee Lamb|DAL": {
+      "name": "CeeDee Lamb",
+      "team": "DAL",
+      "lines": {
+        "td": {
+          "price": "+125",
+          "prob": 0.4444444444444444
+        }
+      },
+      "exp": {
+        "td": 0.739
+      }
+    },
+    "Woody Marks|HOU": {
+      "name": "Woody Marks",
+      "team": "HOU",
+      "lines": {
+        "td": {
+          "price": "+160",
+          "prob": 0.38461538461538464
+        }
+      },
+      "exp": {
+        "td": 0.61
+      }
+    },
+    "Javonte Williams|DAL": {
+      "name": "Javonte Williams",
+      "team": "DAL",
+      "lines": {
+        "td": {
+          "price": "-174",
+          "prob": 0.635036496350365
+        }
+      },
+      "exp": {
+        "td": 1.267
+      }
+    },
+    "George Pickens|DAL": {
+      "name": "George Pickens",
+      "team": "DAL",
+      "lines": {
+        "td": {
+          "price": "+180",
+          "prob": 0.35714285714285715
+        }
+      },
+      "exp": {
+        "td": 0.555
+      }
+    },
+    "Jake Ferguson|DAL": {
+      "name": "Jake Ferguson",
+      "team": "DAL",
+      "lines": {
+        "td": {
+          "price": "+290",
+          "prob": 0.2564102564102564
+        }
+      },
+      "exp": {
+        "td": 0.372
+      }
+    },
+    "Joe Burrow|CIN": {
+      "name": "Joe Burrow",
+      "team": "CIN",
+      "lines": {
+        "pass_td": {
+          "line": 1.5,
+          "over": "-210",
+          "under": "+155"
+        },
+        "pass_yd": {
+          "line": 265.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "+900",
+          "prob": 0.1
+        }
+      },
+      "exp": {
+        "pass_td": 1.63,
+        "pass_yd": 265.5,
+        "td": 0.089
+      }
+    },
+    "Trevor Lawrence|JAX": {
+      "name": "Trevor Lawrence",
+      "team": "JAX",
+      "lines": {
+        "pass_td": {
+          "line": 1.5,
+          "over": "-145",
+          "under": "+110"
+        },
+        "pass_yd": {
+          "line": 264.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "+320",
+          "prob": 0.23809523809523808
+        }
+      },
+      "exp": {
+        "pass_td": 1.55,
+        "pass_yd": 264.5,
+        "td": 0.229
+      }
+    },
+    "Bhayshul Tuten|JAX": {
+      "name": "Bhayshul Tuten",
+      "team": "JAX",
+      "lines": {
+        "rush_yd": {
+          "line": 53.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "-114",
+          "prob": 0.5327102803738317
+        }
+      },
+      "exp": {
+        "rush_yd": 53.5,
+        "td": 0.641
+      }
+    },
+    "Chase Brown|CIN": {
+      "name": "Chase Brown",
+      "team": "CIN",
+      "lines": {
+        "rush_yd": {
+          "line": 65.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "-174",
+          "prob": 0.635036496350365
+        }
+      },
+      "exp": {
+        "rush_yd": 65.5,
+        "td": 0.85
+      }
+    },
+    "Ja'Marr Chase|CIN": {
+      "name": "Ja'Marr Chase",
+      "team": "CIN",
+      "lines": {
+        "rec": {
+          "line": 6.5,
+          "over": "-130",
+          "under": "EVEN"
+        },
+        "rec_yd": {
+          "line": 78.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "-114",
+          "prob": 0.5327102803738317
+        }
+      },
+      "exp": {
+        "rec": 6.53,
+        "rec_yd": 78.5,
+        "td": 0.641
+      }
+    },
+    "Jakobi Meyers|JAX": {
+      "name": "Jakobi Meyers",
+      "team": "JAX",
+      "lines": {
+        "rec": {
+          "line": 3.5,
+          "over": "-150",
+          "under": "+115"
+        },
+        "rec_yd": {
+          "line": 39.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "+245",
+          "prob": 0.2898550724637681
+        }
+      },
+      "exp": {
+        "rec": 3.56,
+        "rec_yd": 39.5,
+        "td": 0.288
+      }
+    },
+    "Parker Washington|JAX": {
+      "name": "Parker Washington",
+      "team": "JAX",
+      "lines": {
+        "rec": {
+          "line": 5.5,
+          "over": "-105",
+          "under": "-125"
+        },
+        "rec_yd": {
+          "line": 73.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "+145",
+          "prob": 0.40816326530612246
+        }
+      },
+      "exp": {
+        "rec": 5.48,
+        "rec_yd": 73.5,
+        "td": 0.442
+      }
+    },
+    "Tee Higgins|CIN": {
+      "name": "Tee Higgins",
+      "team": "CIN",
+      "lines": {
+        "rec": {
+          "line": 4.5,
+          "over": "+115",
+          "under": "-150"
+        },
+        "rec_yd": {
+          "line": 59.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "+145",
+          "prob": 0.40816326530612246
+        }
+      },
+      "exp": {
+        "rec": 4.44,
+        "rec_yd": 59.5,
+        "td": 0.442
+      }
+    },
     "Samaje Perine|CIN": {
       "name": "Samaje Perine",
       "team": "CIN",
@@ -1006,19 +1369,6 @@
       },
       "exp": {
         "td": 0.166
-      }
-    },
-    "Joe Burrow|CIN": {
-      "name": "Joe Burrow",
-      "team": "CIN",
-      "lines": {
-        "td": {
-          "price": "+900",
-          "prob": 0.1
-        }
-      },
-      "exp": {
-        "td": 0.089
       }
     },
     "Colbie Young|CIN": {
@@ -1112,19 +1462,6 @@
         "td": 0.217
       }
     },
-    "Trevor Lawrence|JAX": {
-      "name": "Trevor Lawrence",
-      "team": "JAX",
-      "lines": {
-        "td": {
-          "price": "+320",
-          "prob": 0.23809523809523808
-        }
-      },
-      "exp": {
-        "td": 0.229
-      }
-    },
     "Chris Rodriguez|JAX": {
       "name": "Chris Rodriguez",
       "team": "JAX",
@@ -1164,22 +1501,204 @@
         "td": 0.089
       }
     },
-    "Chase Brown|CIN": {
-      "name": "Chase Brown",
-      "team": "CIN",
+    "Khalil Shakir|BUF": {
+      "name": "Khalil Shakir",
+      "team": "BUF",
       "lines": {
         "td": {
-          "price": "-174",
-          "prob": 0.635036496350365
+          "price": "+220",
+          "prob": 0.3125
         }
       },
       "exp": {
-        "td": 0.85
+        "td": 0.33
       }
     },
-    "Tee Higgins|CIN": {
-      "name": "Tee Higgins",
-      "team": "CIN",
+    "Dawson Knox|BUF": {
+      "name": "Dawson Knox",
+      "team": "BUF",
+      "lines": {
+        "td": {
+          "price": "+625",
+          "prob": 0.13793103448275862
+        }
+      },
+      "exp": {
+        "td": 0.131
+      }
+    },
+    "Keon Coleman|BUF": {
+      "name": "Keon Coleman",
+      "team": "BUF",
+      "lines": {
+        "td": {
+          "price": "+420",
+          "prob": 0.19230769230769232
+        }
+      },
+      "exp": {
+        "td": 0.188
+      }
+    },
+    "Josh Palmer|BUF": {
+      "name": "Josh Palmer",
+      "team": "BUF",
+      "lines": {
+        "td": {
+          "price": "+500",
+          "prob": 0.16666666666666666
+        }
+      },
+      "exp": {
+        "td": 0.161
+      }
+    },
+    "Efton Chism|NE": {
+      "name": "Efton Chism",
+      "team": "NE",
+      "lines": {
+        "td": {
+          "price": "+1600",
+          "prob": 0.058823529411764705
+        }
+      },
+      "exp": {
+        "td": 0.053
+      }
+    },
+    "Hunter Henry|NE": {
+      "name": "Hunter Henry",
+      "team": "NE",
+      "lines": {
+        "td": {
+          "price": "+240",
+          "prob": 0.29411764705882354
+        }
+      },
+      "exp": {
+        "td": 0.307
+      }
+    },
+    "Romeo Doubs|NE": {
+      "name": "Romeo Doubs",
+      "team": "NE",
+      "lines": {
+        "td": {
+          "price": "+235",
+          "prob": 0.29850746268656714
+        }
+      },
+      "exp": {
+        "td": 0.312
+      }
+    },
+    "Mack Hollins|NE": {
+      "name": "Mack Hollins",
+      "team": "NE",
+      "lines": {
+        "td": {
+          "price": "+285",
+          "prob": 0.2597402597402597
+        }
+      },
+      "exp": {
+        "td": 0.265
+      }
+    },
+    "Drake Maye|NE": {
+      "name": "Drake Maye",
+      "team": "NE",
+      "lines": {
+        "td": {
+          "price": "+420",
+          "prob": 0.19230769230769232
+        }
+      },
+      "exp": {
+        "td": 0.188
+      }
+    },
+    "Corey Kiner|NE": {
+      "name": "Corey Kiner",
+      "team": "NE",
+      "lines": {
+        "td": {
+          "price": "+2000",
+          "prob": 0.047619047619047616
+        }
+      },
+      "exp": {
+        "td": 0.043
+      }
+    },
+    "Kyle Williams|NE": {
+      "name": "Kyle Williams",
+      "team": "NE",
+      "lines": {
+        "td": {
+          "price": "+700",
+          "prob": 0.125
+        }
+      },
+      "exp": {
+        "td": 0.118
+      }
+    },
+    "Demario Douglas|NE": {
+      "name": "Demario Douglas",
+      "team": "NE",
+      "lines": {
+        "td": {
+          "price": "+370",
+          "prob": 0.2127659574468085
+        }
+      },
+      "exp": {
+        "td": 0.211
+      }
+    },
+    "James Cook|BUF": {
+      "name": "James Cook",
+      "team": "BUF",
+      "lines": {
+        "td": {
+          "price": "-162",
+          "prob": 0.6183206106870229
+        }
+      },
+      "exp": {
+        "td": 0.848
+      }
+    },
+    "Dalton Kincaid|BUF": {
+      "name": "Dalton Kincaid",
+      "team": "BUF",
+      "lines": {
+        "td": {
+          "price": "+180",
+          "prob": 0.35714285714285715
+        }
+      },
+      "exp": {
+        "td": 0.389
+      }
+    },
+    "TreVeyon Henderson|NE": {
+      "name": "TreVeyon Henderson",
+      "team": "NE",
+      "lines": {
+        "td": {
+          "price": "+170",
+          "prob": 0.37037037037037035
+        }
+      },
+      "exp": {
+        "td": 0.407
+      }
+    },
+    "Rhamondre Stevenson|NE": {
+      "name": "Rhamondre Stevenson",
+      "team": "NE",
       "lines": {
         "td": {
           "price": "+145",
@@ -1187,59 +1706,384 @@
         }
       },
       "exp": {
-        "td": 0.442
+        "td": 0.462
       }
     },
-    "Ja'Marr Chase|CIN": {
-      "name": "Ja'Marr Chase",
-      "team": "CIN",
+    "Josh Allen|BUF": {
+      "name": "Josh Allen",
+      "team": "BUF",
       "lines": {
         "td": {
-          "price": "-114",
-          "prob": 0.5327102803738317
+          "price": "-122",
+          "prob": 0.5495495495495496
         }
       },
       "exp": {
-        "td": 0.641
+        "td": 0.702
       }
     },
-    "Jakobi Meyers|JAX": {
-      "name": "Jakobi Meyers",
-      "team": "JAX",
+    "DJ Moore|BUF": {
+      "name": "DJ Moore",
+      "team": "BUF",
       "lines": {
         "td": {
-          "price": "+245",
-          "prob": 0.2898550724637681
+          "price": "+170",
+          "prob": 0.37037037037037035
         }
       },
       "exp": {
-        "td": 0.288
+        "td": 0.407
       }
     },
-    "Bhayshul Tuten|JAX": {
-      "name": "Bhayshul Tuten",
-      "team": "JAX",
+    "Derrick Henry|BAL": {
+      "name": "Derrick Henry",
+      "team": "BAL",
       "lines": {
         "td": {
-          "price": "-114",
-          "prob": 0.5327102803738317
+          "price": "-250",
+          "prob": 0.7142857142857143
         }
       },
       "exp": {
-        "td": 0.641
+        "td": 2.104
       }
     },
-    "Parker Washington|JAX": {
-      "name": "Parker Washington",
-      "team": "JAX",
+    "Tony Pollard|TEN": {
+      "name": "Tony Pollard",
+      "team": "TEN",
       "lines": {
         "td": {
-          "price": "+145",
-          "prob": 0.40816326530612246
+          "price": "+135",
+          "prob": 0.425531914893617
         }
       },
       "exp": {
-        "td": 0.442
+        "td": 0.931
+      }
+    },
+    "Zay Flowers|BAL": {
+      "name": "Zay Flowers",
+      "team": "BAL",
+      "lines": {
+        "td": {
+          "price": "+165",
+          "prob": 0.37735849056603776
+        }
+      },
+      "exp": {
+        "td": 0.796
+      }
+    },
+    "Lamar Jackson|BAL": {
+      "name": "Lamar Jackson",
+      "team": "BAL",
+      "lines": {
+        "td": {
+          "price": "+190",
+          "prob": 0.3448275862068966
+        }
+      },
+      "exp": {
+        "td": 0.71
+      }
+    },
+    "RJ Harvey|DEN": {
+      "name": "RJ Harvey",
+      "team": "DEN",
+      "lines": {
+        "td": {
+          "price": "+215",
+          "prob": 0.31746031746031744
+        }
+      },
+      "exp": {
+        "td": 0.747
+      }
+    },
+    "Christian McCaffrey|SF": {
+      "name": "Christian McCaffrey",
+      "team": "SF",
+      "lines": {
+        "td": {
+          "price": "-275",
+          "prob": 0.7333333333333333
+        }
+      },
+      "exp": {
+        "td": 2.587
+      }
+    },
+    "J.K. Dobbins|DEN": {
+      "name": "J.K. Dobbins",
+      "team": "DEN",
+      "lines": {
+        "td": {
+          "price": "+105",
+          "prob": 0.4878048780487805
+        }
+      },
+      "exp": {
+        "td": 1.309
+      }
+    },
+    "Jaylen Waddle|DEN": {
+      "name": "Jaylen Waddle",
+      "team": "DEN",
+      "lines": {
+        "td": {
+          "price": "+200",
+          "prob": 0.3333333333333333
+        }
+      },
+      "exp": {
+        "td": 0.793
+      }
+    },
+    "Connor Heyward|LV": {
+      "name": "Connor Heyward",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+1800",
+          "prob": 0.05263157894736842
+        }
+      },
+      "exp": {
+        "td": 0.058
+      }
+    },
+    "Jalen Nailor|LV": {
+      "name": "Jalen Nailor",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+460",
+          "prob": 0.17857142857142858
+        }
+      },
+      "exp": {
+        "td": 0.211
+      }
+    },
+    "Dareke Young|LV": {
+      "name": "Dareke Young",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+2500",
+          "prob": 0.038461538461538464
+        }
+      },
+      "exp": {
+        "td": 0.042
+      }
+    },
+    "Mike Washington Jr.|LV": {
+      "name": "Mike Washington Jr.",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+380",
+          "prob": 0.20833333333333334
+        }
+      },
+      "exp": {
+        "td": 0.251
+      }
+    },
+    "Michael Mayer|LV": {
+      "name": "Michael Mayer",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+400",
+          "prob": 0.2
+        }
+      },
+      "exp": {
+        "td": 0.24
+      }
+    },
+    "Malik Benson|LV": {
+      "name": "Malik Benson",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+1100",
+          "prob": 0.08333333333333333
+        }
+      },
+      "exp": {
+        "td": 0.093
+      }
+    },
+    "Kirk Cousins|LV": {
+      "name": "Kirk Cousins",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+1500",
+          "prob": 0.0625
+        }
+      },
+      "exp": {
+        "td": 0.069
+      }
+    },
+    "Tre Tucker|LV": {
+      "name": "Tre Tucker",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+300",
+          "prob": 0.25
+        }
+      },
+      "exp": {
+        "td": 0.309
+      }
+    },
+    "Xavier Worthy|KC": {
+      "name": "Xavier Worthy",
+      "team": "KC",
+      "lines": {
+        "td": {
+          "price": "+200",
+          "prob": 0.3333333333333333
+        }
+      },
+      "exp": {
+        "td": 0.435
+      }
+    },
+    "Brock Bowers|LV": {
+      "name": "Brock Bowers",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "+200",
+          "prob": 0.3333333333333333
+        }
+      },
+      "exp": {
+        "td": 0.435
+      }
+    },
+    "Rashee Rice|KC": {
+      "name": "Rashee Rice",
+      "team": "KC",
+      "lines": {
+        "td": {
+          "price": "+140",
+          "prob": 0.4166666666666667
+        }
+      },
+      "exp": {
+        "td": 0.579
+      }
+    },
+    "Ashton Jeanty|LV": {
+      "name": "Ashton Jeanty",
+      "team": "LV",
+      "lines": {
+        "td": {
+          "price": "-148",
+          "prob": 0.5967741935483871
+        }
+      },
+      "exp": {
+        "td": 0.975
+      }
+    },
+    "Kenneth Walker|KC": {
+      "name": "Kenneth Walker",
+      "team": "KC",
+      "lines": {
+        "td": {
+          "price": "-197",
+          "prob": 0.6632996632996633
+        }
+      },
+      "exp": {
+        "td": 1.169
+      }
+    },
+    "Travis Kelce|KC": {
+      "name": "Travis Kelce",
+      "team": "KC",
+      "lines": {
+        "td": {
+          "price": "+140",
+          "prob": 0.4166666666666667
+        }
+      },
+      "exp": {
+        "td": 0.579
+      }
+    },
+    "Omarion Hampton|LAC": {
+      "name": "Omarion Hampton",
+      "team": "LAC",
+      "lines": {
+        "td": {
+          "price": "-122",
+          "prob": 0.5495495495495496
+        }
+      },
+      "exp": {
+        "td": 2.236
+      }
+    },
+    "Jaxon Smith-Njigba|SEA": {
+      "name": "Jaxon Smith-Njigba",
+      "team": "SEA",
+      "lines": {
+        "td": {
+          "price": "-125",
+          "prob": 0.5555555555555556
+        }
+      },
+      "exp": {
+        "td": 2.274
+      }
+    },
+    "Chuba Hubbard|CAR": {
+      "name": "Chuba Hubbard",
+      "team": "CAR",
+      "lines": {
+        "td": {
+          "price": "-125",
+          "prob": 0.5555555555555556
+        }
+      },
+      "exp": {
+        "td": 1.473
+      }
+    },
+    "Amon-Ra St. Brown|DET": {
+      "name": "Amon-Ra St. Brown",
+      "team": "DET",
+      "lines": {
+        "td": {
+          "price": "-136",
+          "prob": 0.576271186440678
+        }
+      },
+      "exp": {
+        "td": 1.56
+      }
+    },
+    "Jahmyr Gibbs|DET": {
+      "name": "Jahmyr Gibbs",
+      "team": "DET",
+      "lines": {
+        "td": {
+          "price": "-305",
+          "prob": 0.7530864197530864
+        }
+      },
+      "exp": {
+        "td": 2.541
       }
     }
   }
