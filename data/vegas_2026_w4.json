@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "week": 4,
-  "published": "2026-09-30T11:38",
+  "published": "2026-09-30T12:38",
   "players": {
     "Aaron Rodgers|PIT": {
       "name": "Aaron Rodgers",
@@ -62,8 +62,8 @@
         },
         "pass_int": {
           "line": 0.5,
-          "over": "-115",
-          "under": "-115"
+          "over": "-125",
+          "under": "-105"
         },
         "pass_yd": {
           "line": 186.5,
@@ -83,7 +83,7 @@
       "exp": {
         "pass_td": 0.65,
         "pass_att": 28.53,
-        "pass_int": 0.5,
+        "pass_int": 0.52,
         "pass_yd": 186.5,
         "rush_yd": 29.5,
         "td": 0.169
@@ -1146,7 +1146,7 @@
         "pass_int": 0.49,
         "pass_yd": 241.5,
         "rush_yd": 11.5,
-        "td": 0.144
+        "td": 0.145
       }
     },
     "Dak Prescott|DAL": {
@@ -1197,19 +1197,19 @@
       "team": "HOU",
       "lines": {
         "rush_yd": {
-          "line": 49.5,
+          "line": 48.5,
           "over": "-115",
           "under": "-115"
         },
         "rec": {
           "line": 1.5,
-          "over": "-135",
-          "under": "+105"
+          "over": "-125",
+          "under": "-105"
         },
         "rec_yd": {
-          "line": 11.5,
-          "over": "-110",
-          "under": "-120"
+          "line": 10.5,
+          "over": "-115",
+          "under": "-115"
         },
         "td": {
           "price": "-143",
@@ -1217,9 +1217,9 @@
         }
       },
       "exp": {
-        "rush_yd": 49.5,
-        "rec": 1.54,
-        "rec_yd": 11.49,
+        "rush_yd": 48.5,
+        "rec": 1.52,
+        "rec_yd": 10.5,
         "td": 0.736
       }
     },
@@ -1251,7 +1251,7 @@
         "rush_yd": 61.5,
         "rec": 2.54,
         "rec_yd": 13.5,
-        "td": 0.711
+        "td": 0.712
       }
     },
     "Woody Marks|HOU": {
@@ -1259,30 +1259,30 @@
       "team": "HOU",
       "lines": {
         "rush_yd": {
-          "line": 31.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 33.5,
+          "over": "-120",
+          "under": "-110"
         },
         "rec": {
           "line": 1.5,
-          "over": "-130",
-          "under": "EVEN"
+          "over": "-160",
+          "under": "+120"
         },
         "rec_yd": {
-          "line": 8.5,
+          "line": 9.5,
           "over": "-120",
           "under": "-110"
         },
         "td": {
-          "price": "+220",
-          "prob": 0.3125
+          "price": "+210",
+          "prob": 0.3225806451612903
         }
       },
       "exp": {
-        "rush_yd": 31.5,
-        "rec": 1.53,
-        "rec_yd": 8.51,
-        "td": 0.31
+        "rush_yd": 33.53,
+        "rec": 1.58,
+        "rec_yd": 9.51,
+        "td": 0.323
       }
     },
     "CeeDee Lamb|DAL": {
@@ -1332,7 +1332,7 @@
       "exp": {
         "rec": 4.55,
         "rec_yd": 44.5,
-        "td": 0.316
+        "td": 0.317
       }
     },
     "George Pickens|DAL": {
@@ -1357,7 +1357,7 @@
       "exp": {
         "rec": 4.54,
         "rec_yd": 67.5,
-        "td": 0.374
+        "td": 0.375
       }
     },
     "Jake Ferguson|DAL": {
@@ -1382,7 +1382,7 @@
       "exp": {
         "rec": 3.47,
         "rec_yd": 24.5,
-        "td": 0.238
+        "td": 0.239
       }
     },
     "Nico Collins|HOU": {
@@ -1395,19 +1395,19 @@
           "under": "-130"
         },
         "rec_yd": {
-          "line": 74.5,
+          "line": 73.5,
           "over": "-115",
           "under": "-115"
         },
         "td": {
-          "price": "+160",
-          "prob": 0.38461538461538464
+          "price": "+165",
+          "prob": 0.37735849056603776
         }
       },
       "exp": {
         "rec": 5.47,
-        "rec_yd": 74.5,
-        "td": 0.402
+        "rec_yd": 73.5,
+        "td": 0.393
       }
     },
     "Ryan Flournoy|DAL": {
@@ -1425,14 +1425,14 @@
           "under": "-115"
         },
         "td": {
-          "price": "+320",
-          "prob": 0.23809523809523808
+          "price": "+330",
+          "prob": 0.23255813953488372
         }
       },
       "exp": {
         "rec": 3.48,
         "rec_yd": 32.5,
-        "td": 0.225
+        "td": 0.22
       }
     },
     "Xavier Hutchinson|HOU": {
@@ -1479,12 +1479,12 @@
       "team": "HOU",
       "lines": {
         "td": {
-          "price": "+800",
-          "prob": 0.1111111111111111
+          "price": "+825",
+          "prob": 0.10810810810810811
         }
       },
       "exp": {
-        "td": 0.098
+        "td": 0.095
       }
     },
     "Kayshon Boutte|HOU": {
@@ -1614,7 +1614,7 @@
         }
       },
       "exp": {
-        "td": 0.032
+        "td": 0.033
       }
     },
     "Hunter Luepke|DAL": {
@@ -1653,7 +1653,7 @@
         }
       },
       "exp": {
-        "td": 0.032
+        "td": 0.033
       }
     },
     "Joe Burrow|CIN": {
@@ -2111,7 +2111,7 @@
           "under": "+105"
         },
         "pass_yd": {
-          "line": 229.5,
+          "line": 231.5,
           "over": "-115",
           "under": "-115"
         },
@@ -2129,7 +2129,7 @@
         "pass_td": 1.42,
         "pass_att": 30.53,
         "pass_int": 0.54,
-        "pass_yd": 229.5,
+        "pass_yd": 231.5,
         "rush_yd": 27.5,
         "td": 0.148
       }
@@ -2280,7 +2280,7 @@
           "under": "+110"
         },
         "rec_yd": {
-          "line": 46.5,
+          "line": 48.5,
           "over": "-115",
           "under": "-115"
         },
@@ -2291,7 +2291,7 @@
       },
       "exp": {
         "rec": 3.55,
-        "rec_yd": 46.5,
+        "rec_yd": 48.5,
         "td": 0.405
       }
     },
@@ -2305,7 +2305,7 @@
           "under": "-120"
         },
         "rec_yd": {
-          "line": 54.5,
+          "line": 52.5,
           "over": "-115",
           "under": "-115"
         },
@@ -2316,7 +2316,7 @@
       },
       "exp": {
         "rec": 4.49,
-        "rec_yd": 54.5,
+        "rec_yd": 52.5,
         "td": 0.385
       }
     },
@@ -2426,11 +2426,11 @@
       "lines": {
         "rec": {
           "line": 3.5,
-          "over": "-115",
-          "under": "-115"
+          "over": "-110",
+          "under": "-120"
         },
         "rec_yd": {
-          "line": 42.5,
+          "line": 43.5,
           "over": "-115",
           "under": "-115"
         },
@@ -2440,8 +2440,8 @@
         }
       },
       "exp": {
-        "rec": 3.5,
-        "rec_yd": 42.5,
+        "rec": 3.49,
+        "rec_yd": 43.5,
         "td": 0.256
       }
     },
