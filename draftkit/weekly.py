@@ -483,8 +483,22 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
         rookie_slot = str(raw_year).strip().lower() == "rookie" or bool(prev.get("is_rookie_keeper"))
         years_kept = _int(raw_year, 1 if rookie_slot else 0)
         note, cost, blocked = "", None, None
+        regular_alt = None
         d = drafted_round.get(pid)
-        d_round, d_by = (d if isinstance(d, tuple) else (d, "")) if d else (None, "")
+        if isinstance(d, tuple):
+            d_round, d_by, d_board = (tuple(d) + ("", ""))[:3]
+        else:
+            d_round, d_by, d_board = d, "", ""
+        own_pick = bool(d_round) and ((not me) or d_by == str(me))
+        # A rookie-board pick has no veteran round to price against: the league
+        # names a stand-in (7½ Men: R5), flat in year one — no ADP option.
+        premium = rules.get("rookie_draft_premium_round")
+        if d_board == "rookie" and premium:
+            regular_round, flat = _int(premium), True
+        else:
+            regular_round, flat = (_int(d_round) if d_round else None), False
+        if d_board == "rookie":
+            is_rookie = True
 
         if prev and rookie_slot:
             cost = _int(prev.get("cost_round"))
@@ -512,15 +526,24 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
                 note = f"year 2 · R{was} − {bump}"
                 if cost != laddered:
                     note += f" → ADP R{cost}"
-        elif is_rookie and rookie_round:
-            cost = _int(rookie_round)
+        elif is_rookie and (rookie_round or rules.get("rookie_last_rounds")) and \
+                (own_pick or not rules.get("rookie_must_be_own_draft")):
+            cost = _int(rookie_round) if rookie_round else last_round
             rookie_slot = True
             note = "rookie slot"
+            # what he costs if the rookie slots are full and he is kept as a
+            # regular keeper instead — his draft price, not the rookie one
+            regular_alt = regular_round
         elif d_round:
-            cost = _bent(_int(d_round), year_one=_int(d_round)) if policy == "discount" else _int(d_round)
-            mine = (not me) or (d_by == str(me))
-            note = f"drafted R{d_round}" + ("" if mine else " · traded for")
-            if cost != _int(d_round):
+            base = regular_round or _int(d_round)
+            cost = base if (flat or policy != "discount") else _bent(base, year_one=base)
+            if flat:
+                note = f"rookie draft · R{base} premium"
+            else:
+                note = f"drafted R{d_round}"
+            if not own_pick:
+                note += " · traded for"
+            if cost != base:
                 note += f" → ADP R{cost}"
         elif last_round:
             cost = last_round
@@ -541,6 +564,7 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
                     "cost_round": cost, "cost_pick": cost_pick, "worth": worth,
                     "surplus": round(surplus) if surplus is not None else None,
                     "rookie": bool(rookie_slotted or is_rookie), "note": note,
+                    "regular_alt": regular_alt,
                     "blocked": blocked,
                     "proj": round(float(proj.get(pid) or 0.0), 1)})
 
@@ -553,7 +577,9 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
                     key=lambda r: -r["surplus"])
     r_used = k_used = 0
     for r in ranked:
-        if r["rookie"] and rookie_round and k_used < rook_max:
+        has_rookie_slots = bool(rookie_round or rules.get("rookie_last_rounds"))
+        if r["rookie"] and has_rookie_slots and k_used < rook_max and \
+                "rookie slot" in (r.get("note") or ""):
             r["verdict"], r["slot_used"], k_used = "keep", "rookie", k_used + 1
         elif r_used < reg_max:
             # A rookie who misses the rookie allowance falls back to a REGULAR slot
@@ -562,6 +588,14 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
             # to be a rookie. ASSUMPTION: a rookie may be kept as a regular keeper.
             # If this league forbids that, the rookie rows are the ones to check.
             r["verdict"], r["slot_used"], r_used = "keep", "regular", r_used + 1
+            if r.get("rookie") and r.get("regular_alt"):
+                # 7½ Men: a rookie kept in a REGULAR slot costs his draft price
+                # (or the rookie-draft premium), not a last-round rookie pick.
+                r["cost_round"] = r["regular_alt"]
+                r["cost_pick"] = (r["regular_alt"] - 1) * max(1, n_teams) + 1
+                if r.get("worth"):
+                    r["surplus"] = round(r["cost_pick"] - r["worth"])
+                r["note"] += f" · as a regular keeper R{r['regular_alt']}"
         else:
             r["verdict"] = "cut"
     for r in out:

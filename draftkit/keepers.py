@@ -14,6 +14,8 @@ from typing import Dict, List, Optional
 
 import requests
 
+from . import sleeper_client as api
+
 # Sleeper league_id -> the keeper dashboard repo that owns its keeper data.
 # `adp_policy` is how ADP bends the price ladder in that league, copied from
 # each hub's own engine.py (the tested source of truth):
@@ -26,7 +28,34 @@ KEEPER_REPOS: Dict[str, dict] = {
                             "adp_policy": "raise_only"},
     "1312885282554535936": {"repo": "fabfreebird23/babies-and-boomer", "branch": "keeper-data",
                             "adp_policy": "discount"},
+    # 7½ Men's hub is a different program with a different file layout, so its
+    # rules are written out here rather than regex-read from its config.yaml
+    # (whose keys are named and nested differently), and its 2026 drafts are
+    # named explicitly: Sleeper holds FIVE for that season and two are junk —
+    # an abandoned 16-round rookie board duplicates real picks. The veteran
+    # draft spans two boards; the second's round 1 is the league's round 11.
+    # All of this is copied from the hub's config.yaml and halfmen/history.py.
+    "1388606375239643136": {"repo": "fabfreebird23/seven-half-men", "branch": "league-data",
+                            "adp_policy": "relief", "format": "halfmen",
+                            "rules": {"max_regular_keepers": 3, "max_rookie_keepers": 2,
+                                      "max_keep_years": 3, "year2_bump_rounds": 3,
+                                      "rookie_last_rounds": True,
+                                      "rookie_must_be_own_draft": True,
+                                      "rookie_draft_premium_round": 5,
+                                      # Sleeper's league setting says 4 rounds —
+                                      # a leftover of the split drafts. The
+                                      # veteran draft ran 14, and that is the
+                                      # board a keeper price lives on.
+                                      "draft_rounds": 14,
+                                      "enforce_owned_picks": True},
+                            "drafts": {"veteran": ["1393111328339562496", "1399627678364999680"],
+                                       "rookie": ["1391297052188626944"]}},
 }
+
+
+def configured_drafts(league_id: str) -> dict:
+    """{"veteran": [ids...], "rookie": [ids...]} when a league names its drafts."""
+    return (KEEPER_REPOS.get(str(league_id)) or {}).get("drafts") or {}
 
 
 def adp_policy(league_id: str) -> str:
@@ -106,6 +135,8 @@ def load_keeper_rules(league_id: str) -> dict:
     cfg = KEEPER_REPOS.get(str(league_id))
     if not cfg:
         return dict(_DEFAULT_KEEPER_RULES)
+    if cfg.get("rules"):
+        return {**_DEFAULT_KEEPER_RULES, **cfg["rules"]}
     for branch in ("main", "master"):
         url = _CONFIG_RAW.format(repo=cfg["repo"], branch=branch)
         try:
@@ -255,10 +286,47 @@ def load_keepers(league_id: str, season: int) -> Dict[str, List[dict]]:
                 data = json.loads(r.text)
             except Exception:  # noqa: BLE001 — malformed/truncated JSON
                 return {}
+            if cfg.get("format") == "halfmen":
+                return _filter_to_rosters(_from_halfmen(data, league_id), league_id)
             if any(data.values()):
                 return _filter_to_rosters(data, league_id)
         return {}                          # any other status: don't guess
     return {}
+
+
+def _from_halfmen(data: dict, league_id: str) -> Dict[str, List[dict]]:
+    """7½ Men's ledger -> the {owner_id: [keeper dicts]} shape the rest reads.
+
+    Its file is {"kept": [pid…], "rookie_kept": [pid…], "draw": …, "teams": …}
+    — who was kept, not at what price or in which year. That is enough while
+    the league has only one season behind it: everyone kept in 2026 is in their
+    first keeper year, and a rookie keeper carries no clock. When 2027 has a
+    ledger too, the year count has to come from the chain of ledgers, the way
+    the hub's own history.py does it.
+    """
+    kept = [str(x) for x in (data.get("kept") or [])]
+    rookie = {str(x) for x in (data.get("rookie_kept") or [])}
+    if not kept and not rookie:
+        return {}
+    owner_of = {}
+    try:
+        for r in api.get_rosters(str(league_id)) or []:
+            for pid in r.get("players") or []:
+                owner_of[str(pid)] = str(r.get("owner_id"))
+    except Exception:  # noqa: BLE001
+        return {}
+    out: Dict[str, List[dict]] = {}
+    for pid in set(kept) | rookie:
+        own = owner_of.get(pid)
+        if not own:
+            continue
+        out.setdefault(own, []).append({
+            "player_id": pid,
+            "keep_year": "Rookie" if pid in rookie else 1,
+            "is_rookie_keeper": pid in rookie,
+            "cost_round": None,
+        })
+    return out
 
 
 def _filter_to_rosters(data: Dict[str, List[dict]], league_id: str) -> Dict[str, List[dict]]:

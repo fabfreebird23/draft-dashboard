@@ -2380,7 +2380,7 @@ def _keeper_rows(ctx, g) -> list:
         rules = dict(K.load_keeper_rules(str(meta.league_id)) or {})
         if not ((rules.get("max_regular_keepers") or 0) + (rules.get("max_rookie_keepers") or 0)):
             return []
-        rules["_last_round"] = meta.draft_rounds
+        rules["_last_round"] = rules.get("draft_rounds") or meta.draft_rounds
         rules["_adp_policy"] = K.adp_policy(str(meta.league_id))
         raw = K.load_keepers(str(meta.league_id), g["season"]) or {}
         existing = {str(k.get("player_id")): k for k in (raw.get(str(g["me"])) or [])}
@@ -2952,6 +2952,27 @@ def _draft_rounds(league_id: str, owner: str = ""):
     through to "waiver add" at the last round, which made every traded-for
     keeper look like a steal it was not.
     """
+    named = K.configured_drafts(league_id)
+    if named:
+        # A league that names its drafts (7½ Men): only those boards count, a
+        # board continued from another sits after it (its round 1 is the
+        # league's round 11), and rookie-board picks are marked so they price
+        # at the rookie-draft premium instead of their rookie-board round.
+        out = {}
+        for kind in ("veteran", "rookie"):
+            offset = 0
+            for did in named.get(kind) or []:
+                try:
+                    d = api.get_draft(did) or {}
+                    picks = api.get_draft_picks(did) or []
+                except Exception:  # noqa: BLE001
+                    continue
+                for q in picks:
+                    if q.get("player_id") and q.get("round"):
+                        out.setdefault(str(q["player_id"]),
+                                       (int(q["round"]) + offset, str(q.get("picked_by") or ""), kind))
+                offset += int((d.get("settings") or {}).get("rounds") or 0)
+        return out
     try:
         did = (api.get_league(league_id) or {}).get("draft_id")
         return {str(q["player_id"]): (int(q["round"]), str(q.get("picked_by") or ""))
@@ -2973,7 +2994,7 @@ def _keepers(ctx, g) -> None:
         st.info(f"**{meta.name}** isn't configured as a keeper league in its hub, so there is "
                 "nothing to price. Set the keeper rules there and this fills in.")
         return
-    rules["_last_round"] = meta.draft_rounds
+    rules["_last_round"] = rules.get("draft_rounds") or meta.draft_rounds
     rules["_adp_policy"] = K.adp_policy(str(meta.league_id))
 
     raw = K.load_keepers(str(meta.league_id), g["season"]) or {}

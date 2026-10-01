@@ -67,3 +67,32 @@ def test_round_one_keeper_in_year_two_is_floored_not_blocked():
 def test_adp_discount_stops_at_the_last_round():
     r = run(["k"], drafted={"k": (13, "me")}, adp={"k": 217}, policy="discount")["k"]
     assert r["cost_round"] == 14                     # 14 rounds in this test league
+
+
+SEVEN = dict(RULES, max_rookie_keepers=2, rookie_last_rounds=True, rookie_must_be_own_draft=True,
+             rookie_draft_premium_round=5, _adp_policy="relief")
+
+
+def run7(pids, drafted, adp, rookies=(), me="me"):
+    class R(Reg):
+        def meta(self, pid):
+            return SimpleNamespace(name=pid, position="WR", team="X",
+                                   years_exp=0 if pid in rookies else 3)
+    rows = keeper_outlook(pids, drafted_round=drafted, existing={}, rules=SEVEN, n_teams=8,
+                          adp_rank=lambda n, p: adp.get(n), registry=R(pids), proj={}, me=me)
+    return {r["pid"]: r for r in rows}
+
+
+def test_seven_rookie_board_pick_prices_at_the_premium():
+    r = run7(["rb"], {"rb": (1, "other", "rookie")}, {"rb": 60})["rb"]
+    assert r["cost_round"] == 5 and "premium" in r["note"]      # traded for: not a rookie slot
+
+
+def test_seven_own_rookie_takes_a_rookie_slot_at_the_last_round():
+    r = run7(["rk"], {"rk": (12, "me", "veteran")}, {"rk": 90}, rookies={"rk"})["rk"]
+    assert r["cost_round"] == 14 and r["slot_used"] == "rookie"
+
+
+def test_seven_traded_for_rookie_is_a_regular_keeper_at_his_round():
+    r = run7(["rk"], {"rk": (9, "ned", "veteran")}, {"rk": 90}, rookies={"rk"})["rk"]
+    assert r["cost_round"] == 9 and "rookie slot" not in r["note"]
