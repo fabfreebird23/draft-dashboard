@@ -2381,10 +2381,11 @@ def _keeper_rows(ctx, g) -> list:
         if not ((rules.get("max_regular_keepers") or 0) + (rules.get("max_rookie_keepers") or 0)):
             return []
         rules["_last_round"] = meta.draft_rounds
+        rules["_adp_policy"] = K.adp_policy(str(meta.league_id))
         raw = K.load_keepers(str(meta.league_id), g["season"]) or {}
         existing = {str(k.get("player_id")): k for k in (raw.get(str(g["me"])) or [])}
         return W.keeper_outlook(
-            g["mine"], drafted_round=_draft_rounds(str(meta.league_id), str(g["me"])),
+            g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=str(g["me"]),
             existing=existing, rules=rules, n_teams=meta.num_teams,
             adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"])
     except Exception:  # noqa: BLE001 — a missing keeper config must not break a tab
@@ -2942,13 +2943,20 @@ def _bench_history(league_id: str, owner_id: str, upto_week: int) -> dict:
 
 # ------------------------------------------------------------------- 7 keepers
 @st.cache_data(ttl=900, show_spinner=False)
-def _draft_rounds(league_id: str, owner: str):
-    """{pid: round} for the picks THIS owner made in the league's own draft."""
+def _draft_rounds(league_id: str, owner: str = ""):
+    """{pid: (round, picked_by)} for EVERY pick in the league's own draft.
+
+    Every pick, not just his: the round travels with the player. He traded for
+    Kenneth Walker and George Pickens precisely so he could keep them at the
+    rounds Ned drafted them in — and when this kept only his own picks, both fell
+    through to "waiver add" at the last round, which made every traded-for
+    keeper look like a steal it was not.
+    """
     try:
         did = (api.get_league(league_id) or {}).get("draft_id")
-        return {str(q["player_id"]): int(q["round"])
+        return {str(q["player_id"]): (int(q["round"]), str(q.get("picked_by") or ""))
                 for q in (api.get_draft_picks(did) or [])
-                if q.get("player_id") and q.get("round") and str(q.get("picked_by")) == owner}
+                if q.get("player_id") and q.get("round")}
     except Exception:  # noqa: BLE001
         return {}
 
@@ -2966,11 +2974,12 @@ def _keepers(ctx, g) -> None:
                 "nothing to price. Set the keeper rules there and this fills in.")
         return
     rules["_last_round"] = meta.draft_rounds
+    rules["_adp_policy"] = K.adp_policy(str(meta.league_id))
 
     raw = K.load_keepers(str(meta.league_id), g["season"]) or {}
     existing = {str(k.get("player_id")): k for k in (raw.get(str(g["me"])) or [])}
     rows = W.keeper_outlook(
-        g["mine"], drafted_round=_draft_rounds(str(meta.league_id), str(g["me"])),
+        g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=str(g["me"]),
         existing=existing, rules=rules, n_teams=meta.num_teams,
         adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"])
 

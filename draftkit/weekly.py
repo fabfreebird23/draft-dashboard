@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 import statistics
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from . import lineup as LU, picks as PK, sleeper_client as api
 
@@ -406,8 +406,9 @@ def transactions(league_id: str, week: int, limit: int = 12) -> List[dict]:
 
 
 # ---------------------------------------------------------------- keepers
-def keeper_outlook(my_pids, *, drafted_round: Dict[str, int], existing: Dict[str, dict],
-                   rules: dict, n_teams: int, adp_rank, registry, proj: dict) -> List[dict]:
+def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str, dict],
+                   rules: dict, n_teams: int, adp_rank, registry, proj: dict,
+                   me: str = "") -> List[dict]:
     """What each player on your roster costs to keep NEXT year, and whether he is
     worth it.
 
@@ -417,12 +418,17 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, int], existing: Dict[str
     and a screen that says he does is worse than no screen, because it reads as a
     roster full of bargains.
 
-    Cost comes from where he actually came from:
-      · already a keeper  -> his current cost round, escalated by the league's
-        per-year bump, and unkeepable once he passes max_keep_years
-      · drafted this year -> the round he went in
+    Cost follows the league's own ladder, copied from each hub's engine.py:
+      · year 1 (never kept)  -> the round he was DRAFTED in, by whoever drafted
+        him — a traded-for player keeps the drafting team's round
+      · year 2               -> that round − year2_bump_rounds, bent by ADP per
+        the league's policy (rules["_adp_policy"]): Kreeper lets ADP only make
+        it dearer; B&B never makes him pay an earlier pick than ADP; 7½ Men takes
+        the cheaper of the two but never later than year 1
+      · year 3               -> ADP, mandatory, in every league
+      · past max_keep_years  -> not keepable
       · rookie in a rookie slot -> the league's fixed rookie round
-      · free-agent add    -> the last round
+      · undrafted pickup     -> the last round
 
     Worth is his consensus draft position. Surplus is the gap, in picks: a player
     who would go at pick 25 costing a round-14 pick (≈105th) is +80 picks of
@@ -436,10 +442,14 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, int], existing: Dict[str
         except (TypeError, ValueError):
             return default
 
+    import math
     bump = _int(rules.get("year2_bump_rounds"))
     max_years = _int(rules.get("max_keep_years"), 99)
     rookie_round = rules.get("rookie_fixed_round")
     last_round = _int(rules.get("_last_round"))
+    policy = rules.get("_adp_policy") or "raise_only"
+    if rules.get("allow_adp_discount"):
+        policy = "discount"
     out = []
     for pid in my_pids:
         pid = str(pid)
@@ -449,43 +459,83 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, int], existing: Dict[str
             continue
         is_rookie = getattr(pm, "years_exp", None) == 0
         prev = existing.get(pid) or {}
+        # ADP first: year 3 is priced by it outright and year 2 can be bent by it.
+        worth = None
+        try:
+            worth = adp_rank(pm.name, pm.position)
+        except Exception:  # noqa: BLE001
+            worth = None
+        adp_round = max(1, math.ceil(worth / max(1, n_teams))) if worth else None
+
+        def _bent(rule_cost, year_one=None):
+            """Apply this league's ADP policy to a ladder price."""
+            if not adp_round:
+                return rule_cost
+            if policy == "discount":
+                return max(rule_cost, adp_round)          # a later round is cheaper
+            if policy == "relief":
+                return min(max(rule_cost, adp_round), year_one or rule_cost)
+            return rule_cost                              # raise_only: ADP is optional
+
         rookie_slot = False
         # "Rookie" appears here as a keep_year for rookie-slot keepers.
         raw_year = prev.get("keep_year")
         rookie_slot = str(raw_year).strip().lower() == "rookie" or bool(prev.get("is_rookie_keeper"))
         years_kept = _int(raw_year, 1 if rookie_slot else 0)
         note, cost, blocked = "", None, None
+        d = drafted_round.get(pid)
+        d_round, d_by = (d if isinstance(d, tuple) else (d, "")) if d else (None, "")
 
-        if prev:
-            cost = _int(prev.get("cost_round")) - (0 if rookie_slot else bump)
+        if prev and rookie_slot:
+            cost = _int(prev.get("cost_round"))
             years_kept += 1
-            note = f"kept {years_kept}x · was R{prev.get('cost_round')}"
-            if years_kept > max_years:
+            note = f"rookie slot · was R{prev.get('cost_round')}"
+        elif prev:
+            next_year = years_kept + 1
+            years_kept = next_year
+            was = _int(prev.get("cost_round"))
+            if next_year > max_years:
+                cost = was
                 blocked = f"max {max_years} keeper years reached"
+                note = f"kept {next_year - 1}x · was R{was}"
+            elif next_year >= 3:
+                # Year 3 is ADP in every league, no choice.
+                cost = adp_round or was
+                note = (f"year {next_year} · ADP R{adp_round}" if adp_round
+                        else f"year {next_year} · ADP (not out yet)")
+            else:
+                # Year 2: off the year-1 price, which is the round he was drafted in.
+                # Floored at round 1, as the hubs' engines do — a round-1 keeper
+                # in year 2 is still a round-1 keeper, not an unkeepable one.
+                laddered = max(1, was - bump)
+                cost = _bent(laddered, year_one=was)
+                note = f"year 2 · R{was} − {bump}"
+                if cost != laddered:
+                    note += f" → ADP R{cost}"
         elif is_rookie and rookie_round:
             cost = _int(rookie_round)
             rookie_slot = True
             note = "rookie slot"
-        elif pid in drafted_round:
-            cost = _int(drafted_round[pid])
-            note = f"drafted R{drafted_round[pid]}"
+        elif d_round:
+            cost = _bent(_int(d_round), year_one=_int(d_round)) if policy == "discount" else _int(d_round)
+            mine = (not me) or (d_by == str(me))
+            note = f"drafted R{d_round}" + ("" if mine else " · traded for")
+            if cost != _int(d_round):
+                note += f" → ADP R{cost}"
         elif last_round:
             cost = last_round
             note = "waiver add"
 
-        if not cost or cost < 1:
-            if cost is not None and cost < 1:
-                blocked = blocked or "cost would pass round 1"
-            cost = max(1, cost or 1)
+        # ADP can point past the end of the draft (a kicker at ADP 217 in a
+        # 16-round league is "round 22"); the dearest a pick can be is round 1
+        # and the cheapest is the league's last round.
+        cost = max(1, cost or 1)
+        if last_round:
+            cost = min(cost, last_round)
 
         cost_pick = (cost - 1) * max(1, n_teams) + 1
         # a rookie-slot keeper occupies a rookie slot, not a regular one
         rookie_slotted = bool(rookie_slot)
-        worth = None
-        try:
-            worth = adp_rank(pm.name, pm.position)
-        except Exception:  # noqa: BLE001
-            worth = None
         surplus = (cost_pick - worth) if worth else None
         out.append({"pid": pid, "name": pm.name, "pos": pm.position, "team": pm.team,
                     "cost_round": cost, "cost_pick": cost_pick, "worth": worth,

@@ -15,10 +15,22 @@ from typing import Dict, List, Optional
 import requests
 
 # Sleeper league_id -> the keeper dashboard repo that owns its keeper data.
+# `adp_policy` is how ADP bends the price ladder in that league, copied from
+# each hub's own engine.py (the tested source of truth):
+#   raise_only  Kreeper  — yr2 = drafted round − 3; ADP may only make it DEARER
+#   discount    B&B      — never forced to pay an earlier pick than ADP, any year
+#   relief      7½ Men   — yr2 = cheaper of (drafted − 3, ADP), never later than yr1
+# Year 3 is ADP, mandatory, in all three.
 KEEPER_REPOS: Dict[str, dict] = {
-    "1310907162930733056": {"repo": "fabfreebird23/kreeper-league", "branch": "keeper-data"},
-    "1312885282554535936": {"repo": "fabfreebird23/babies-and-boomer", "branch": "keeper-data"},
+    "1310907162930733056": {"repo": "fabfreebird23/kreeper-league", "branch": "keeper-data",
+                            "adp_policy": "raise_only"},
+    "1312885282554535936": {"repo": "fabfreebird23/babies-and-boomer", "branch": "keeper-data",
+                            "adp_policy": "discount"},
 }
+
+
+def adp_policy(league_id: str) -> str:
+    return (KEEPER_REPOS.get(str(league_id)) or {}).get("adp_policy", "raise_only")
 _RAW = "https://raw.githubusercontent.com/{repo}/{branch}/data/keepers_{season}.json"
 
 
@@ -83,7 +95,7 @@ _DEFAULT_KEEPER_RULES = {
 }
 _INT_RULES = ("max_regular_keepers", "max_rookie_keepers", "max_keep_years",
               "year2_bump_rounds", "rookie_fixed_round")
-_BOOL_RULES = ("enforce_owned_picks",)
+_BOOL_RULES = ("enforce_owned_picks", "allow_adp_discount")
 
 
 def load_keeper_rules(league_id: str) -> dict:
