@@ -13,6 +13,43 @@ import os
 import pathlib as _pathlib
 import streamlit as st
 
+
+def _fresh_draftkit() -> None:
+    """Drop stale draftkit modules after a deploy, so a push never needs a Reboot.
+
+    Streamlit re-executes THIS file on every run, but everything it imports
+    stays in sys.modules for the life of the process. On Streamlit Cloud a push
+    swaps the files on disk and keeps the process — so app.py ran new code
+    against last deploy's weekly.py and keepers.py, and the keeper prices he was
+    shown were the ones that had just been fixed. That has happened four times;
+    each one cost a trip to share.streamlit.io to press Reboot.
+
+    So: fingerprint the package's files (size + mtime, which a git checkout
+    changes) and, if they differ from what the loaded copy was built from,
+    forget every draftkit module. The imports below then load fresh. Costs a
+    stat() per file per run — about sixty of them.
+    """
+    import hashlib
+    import sys
+    root = _pathlib.Path(__file__).resolve().parent / "draftkit"
+    h = hashlib.sha1()
+    for f in sorted(root.rglob("*.py")):
+        try:
+            st_ = f.stat()
+        except OSError:
+            continue
+        h.update(f"{f.relative_to(root)}:{st_.st_size}:{st_.st_mtime_ns}".encode())
+    fp = h.hexdigest()
+    loaded = sys.modules.get("draftkit")
+    if loaded is not None and getattr(loaded, "_bs_fingerprint", None) not in (None, fp):
+        for name in [m for m in sys.modules if m == "draftkit" or m.startswith("draftkit.")]:
+            del sys.modules[name]
+    import draftkit
+    draftkit._bs_fingerprint = fp
+
+
+_fresh_draftkit()
+
 from draftkit import positional as _PZ
 from draftkit import seating as _SEAT
 from draftkit import boardsync as _BS

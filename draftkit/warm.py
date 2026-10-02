@@ -174,9 +174,14 @@ def kick(presets: List[dict], fns: Optional[dict] = None,
     if not enabled:
         return
     MODE = "light" if want == "light" else "full"
+    import sys
     with _lock:
-        if _started:
+        # Process-wide, not module-wide: app.py drops stale draftkit modules
+        # after a deploy, and a re-imported warm.py would otherwise start a
+        # second warming thread beside the first.
+        if _started or getattr(sys, "_bs_warm_started", False):
             return
+        sys._bs_warm_started = True
         _fns.update(fns or {})
         if not all(k in _fns for k in ("sel", "ctx", "phase")):
             return
