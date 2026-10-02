@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "week": 4,
-  "published": "2026-10-02T00:56",
+  "published": "2026-10-02T01:56",
   "players": {
     "Daniel Jones|IND": {
       "name": "Daniel Jones",
@@ -66,7 +66,7 @@
           "under": "EVEN"
         },
         "pass_yd": {
-          "line": 214.5,
+          "line": 213.5,
           "over": "-115",
           "under": "-115"
         },
@@ -84,7 +84,7 @@
         "pass_td": 1.41,
         "pass_att": 30.56,
         "pass_int": 0.53,
-        "pass_yd": 214.5,
+        "pass_yd": 213.5,
         "rush_yd": 26.5,
         "td": 0.201
       }
@@ -1930,6 +1930,11 @@
           "over": "-115",
           "under": "-115"
         },
+        "rec": {
+          "line": 2.5,
+          "over": "+140",
+          "under": "-185"
+        },
         "rec_yd": {
           "line": 10.5,
           "over": "-115",
@@ -1942,6 +1947,7 @@
       },
       "exp": {
         "rush_yd": 16.5,
+        "rec": 2.39,
         "rec_yd": 10.5,
         "td": 0.159
       }
@@ -2202,6 +2208,53 @@
         "td": 0.26
       }
     },
+    "Tez Johnson|TB": {
+      "name": "Tez Johnson",
+      "team": "TB",
+      "lines": {
+        "rec_yd": {
+          "line": 9.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "+600",
+          "prob": 0.14285714285714285
+        }
+      },
+      "exp": {
+        "rec_yd": 9.5,
+        "td": 0.115
+      }
+    },
+    "Chase McLaughlin|TB": {
+      "name": "Chase McLaughlin",
+      "team": "TB",
+      "lines": {
+        "kick_pts": {
+          "line": 5.5,
+          "over": "-130",
+          "under": "EVEN"
+        }
+      },
+      "exp": {
+        "kick_pts": 5.53
+      }
+    },
+    "Trey Smack|GB": {
+      "name": "Trey Smack",
+      "team": "GB",
+      "lines": {
+        "kick_pts": {
+          "line": 6.5,
+          "over": "-145",
+          "under": "+110"
+        }
+      },
+      "exp": {
+        "kick_pts": 6.55
+      }
+    },
     "Bo Melton|GB": {
       "name": "Bo Melton",
       "team": "GB",
@@ -2330,19 +2383,6 @@
       },
       "exp": {
         "td": 0.015
-      }
-    },
-    "Tez Johnson|TB": {
-      "name": "Tez Johnson",
-      "team": "TB",
-      "lines": {
-        "td": {
-          "price": "+600",
-          "prob": 0.14285714285714285
-        }
-      },
-      "exp": {
-        "td": 0.115
       }
     },
     "Joe Burrow|CIN": {
@@ -3128,9 +3168,9 @@
           "under": "-170"
         },
         "rec_yd": {
-          "line": 12.5,
-          "over": "-120",
-          "under": "-110"
+          "line": 14.5,
+          "over": "-115",
+          "under": "-115"
         },
         "td": {
           "price": "EVEN",
@@ -3140,7 +3180,7 @@
       "exp": {
         "rush_yd": 69.5,
         "rec": 2.41,
-        "rec_yd": 12.51,
+        "rec_yd": 14.5,
         "td": 0.534
       }
     },
@@ -3173,9 +3213,9 @@
           "under": "-110"
         },
         "rec_yd": {
-          "line": 14.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 13.5,
+          "over": "-120",
+          "under": "-110"
         },
         "td": {
           "price": "+525",
@@ -3184,7 +3224,7 @@
       },
       "exp": {
         "rec": 1.51,
-        "rec_yd": 14.5,
+        "rec_yd": 13.51,
         "td": 0.134
       }
     },
@@ -3219,8 +3259,8 @@
       "lines": {
         "rec": {
           "line": 3.5,
-          "over": "-160",
-          "under": "+120"
+          "over": "-150",
+          "under": "+115"
         },
         "rec_yd": {
           "line": 57.5,
@@ -3233,7 +3273,7 @@
         }
       },
       "exp": {
-        "rec": 3.58,
+        "rec": 3.56,
         "rec_yd": 57.5,
         "td": 0.243
       }
@@ -5507,6 +5547,56 @@
         "td": 0.154
       }
     },
+    "Jordan Addison|MIN": {
+      "name": "Jordan Addison",
+      "team": "MIN",
+      "lines": {
+        "rec": {
+          "line": 4.5,
+          "over": "+115",
+          "under": "-150"
+        },
+        "rec_yd": {
+          "line": 54.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "+125",
+          "prob": 0.4444444444444444
+        }
+      },
+      "exp": {
+        "rec": 4.44,
+        "rec_yd": 54.5,
+        "td": 0.588
+      }
+    },
+    "T.J. Hockenson|MIN": {
+      "name": "T.J. Hockenson",
+      "team": "MIN",
+      "lines": {
+        "rec": {
+          "line": 4.5,
+          "over": "-105",
+          "under": "-125"
+        },
+        "rec_yd": {
+          "line": 36.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "+160",
+          "prob": 0.38461538461538464
+        }
+      },
+      "exp": {
+        "rec": 4.48,
+        "rec_yd": 36.5,
+        "td": 0.486
+      }
+    },
     "Will Reichard|MIN": {
       "name": "Will Reichard",
       "team": "MIN",
@@ -5545,19 +5635,6 @@
       },
       "exp": {
         "td": 0.571
-      }
-    },
-    "Jordan Addison|MIN": {
-      "name": "Jordan Addison",
-      "team": "MIN",
-      "lines": {
-        "td": {
-          "price": "+125",
-          "prob": 0.4444444444444444
-        }
-      },
-      "exp": {
-        "td": 0.588
       }
     },
     "Demond Claiborne|MIN": {
@@ -5636,19 +5713,6 @@
       },
       "exp": {
         "td": 0.035
-      }
-    },
-    "T.J. Hockenson|MIN": {
-      "name": "T.J. Hockenson",
-      "team": "MIN",
-      "lines": {
-        "td": {
-          "price": "+160",
-          "prob": 0.38461538461538464
-        }
-      },
-      "exp": {
-        "td": 0.486
       }
     },
     "Tai Felton|MIN": {
@@ -6936,7 +7000,7 @@
       "team": "SEA",
       "lines": {
         "rush_yd": {
-          "line": 45.5,
+          "line": 44.5,
           "over": "-115",
           "under": "-115"
         },
@@ -6946,8 +7010,27 @@
         }
       },
       "exp": {
-        "rush_yd": 45.5,
+        "rush_yd": 44.5,
         "td": 0.448
+      }
+    },
+    "Keaton Mitchell|LAC": {
+      "name": "Keaton Mitchell",
+      "team": "LAC",
+      "lines": {
+        "rush_yd": {
+          "line": 16.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "+440",
+          "prob": 0.18518518518518517
+        }
+      },
+      "exp": {
+        "rush_yd": 16.5,
+        "td": 0.166
       }
     },
     "Omarion Hampton|LAC": {
@@ -7145,19 +7228,6 @@
       },
       "exp": {
         "kick_pts": 8.46
-      }
-    },
-    "Keaton Mitchell|LAC": {
-      "name": "Keaton Mitchell",
-      "team": "LAC",
-      "lines": {
-        "td": {
-          "price": "+440",
-          "prob": 0.18518518518518517
-        }
-      },
-      "exp": {
-        "td": 0.166
       }
     },
     "Kimani Vidal|LAC": {
@@ -7627,8 +7697,8 @@
         },
         "rec_yd": {
           "line": 49.5,
-          "over": "-115",
-          "under": "-115"
+          "over": "-120",
+          "under": "-110"
         },
         "td": {
           "price": "+210",
@@ -7637,7 +7707,7 @@
       },
       "exp": {
         "rec": 4.48,
-        "rec_yd": 49.5,
+        "rec_yd": 49.55,
         "td": 0.312
       }
     },
@@ -8034,9 +8104,9 @@
           "under": "-110"
         },
         "rec": {
-          "line": 3.5,
-          "over": "+130",
-          "under": "-170"
+          "line": 2.5,
+          "over": "-180",
+          "under": "+135"
         },
         "rec_yd": {
           "line": 15.5,
@@ -8050,7 +8120,7 @@
       },
       "exp": {
         "rush_yd": 36.54,
-        "rec": 3.41,
+        "rec": 2.6,
         "rec_yd": 15.5,
         "td": 0.559
       }
@@ -8155,11 +8225,11 @@
       "lines": {
         "rec": {
           "line": 6.5,
-          "over": "-135",
-          "under": "+105"
+          "over": "-150",
+          "under": "+115"
         },
         "rec_yd": {
-          "line": 85.5,
+          "line": 86.5,
           "over": "-115",
           "under": "-115"
         },
@@ -8169,8 +8239,8 @@
         }
       },
       "exp": {
-        "rec": 6.54,
-        "rec_yd": 85.5,
+        "rec": 6.56,
+        "rec_yd": 86.5,
         "td": 0.559
       }
     },
