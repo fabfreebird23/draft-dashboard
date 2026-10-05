@@ -517,6 +517,11 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
             pm = registry.meta(pid)
         except Exception:  # noqa: BLE001
             continue
+        # Keepers are skill players in every one of these leagues — a kicker or
+        # a team defense has no keeper price, and listing them put the Bills
+        # (with a broken photo) on B&B's keeper screen.
+        if (getattr(pm, "position", "") or "").upper() not in ("QB", "RB", "WR", "TE"):
+            continue
         is_rookie = getattr(pm, "years_exp", None) == 0
         prev = existing.get(pid) or {}
         # ADP first: year 3 is priced by it outright and year 2 can be bent by it.

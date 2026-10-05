@@ -2295,7 +2295,14 @@ def h2h_face_html(sleeper_pid, team: str, side: str) -> str:
     player with no headshot gets the CDN's own grey tile, which is what it
     serves for a rookie anyway — so there is nothing to fall back to.
     """
-    hs = _SLEEPER_HS % _esc(str(sleeper_pid)) if sleeper_pid else ""
+    # A team defense's Sleeper id IS its team code ("BUF"), and there's no
+    # player photo at that id — the card showed a broken image. Use the team
+    # logo as the face instead, with no corner logo on top of itself.
+    pid_s = str(sleeper_pid or "")
+    if pid_s.isalpha():
+        logo = _SLEEPER_TM % _esc(pid_s.lower())
+        return f'<div class="h2h-av {side}"><img class="hs" src="{logo}" alt="" loading="lazy"></div>'
+    hs = _SLEEPER_HS % _esc(pid_s) if sleeper_pid else ""
     tm = _SLEEPER_TM % _esc((team or "").lower()) if team else ""
     img = f'<img class="hs" src="{hs}" alt="" loading="lazy">' if hs else '<div class="hs"></div>'
     logo = f'<img class="tm" src="{tm}" alt="" loading="lazy">' if tm else ""
