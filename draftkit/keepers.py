@@ -444,6 +444,13 @@ def predict_keepers(league_id: str, value, current_season: int,
         ever_rookie = set()
         for _s in kept_sets.values():
             ever_rookie |= _s.get("rookie", set())
+        # ...but only while it's unbroken: he has to have been kept in a ROOKIE
+        # slot in the most recent draft. A rookie keeper who lapsed — traded
+        # away, released, back in the pool and re-drafted (a 2023 rookie keeper
+        # re-drafted in round 4 in 2026) — is an ordinary player now. Without
+        # last season's keeper record we can't tell, so keep the old behaviour.
+        _last = kept_sets.get(draft_season) or {}
+        carried_rookie = _last.get("rookie", set()) if _last.get("all") else ever_rookie
 
         def _kept_streak(pid: str) -> int:
             n = 0
@@ -474,7 +481,7 @@ def predict_keepers(league_id: str, value, current_season: int,
                 # year IS the prior draft — i.e. this year's first-time rookie
                 # keepers, who have no history to carry yet.
                 is_rookie = (pid_drafter.get(pid) == str(owner)
-                            and (pid in ever_rookie
+                            and (pid in carried_rookie
                                  or (ye is not None and ye == rookie_gap)))
                 (rookies if is_rookie else regular).append((pid, rnd))
 
