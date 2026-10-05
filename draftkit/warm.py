@@ -188,3 +188,82 @@ def kick(presets: List[dict], fns: Optional[dict] = None,
         _started = True
         threading.Thread(target=_loop, args=([dict(p) for p in presets],),
                          daemon=True, name="draftroom-warm").start()
+
+
+# --------------------------------------------------------- the league he is in
+# Light mode (Streamlit Cloud) builds Home and the live screens for all four
+# leagues and stops there: the free-agent optimiser and the rankings rows are the
+# two that hold real memory, four leagues of them on a 1 GB container is a
+# restart waiting to happen, and so Rankings opened cold — about thirty seconds
+# on the phone. But he is only ever IN one league. So when a league opens, its
+# heavy boards are built in the background for that league alone, and by the
+# time he taps Rankings or Waivers they are already there.
+_focus_lock = threading.Lock()
+_focus = {"want": None, "running": False, "done": set()}
+
+
+def focus(ctx: dict) -> None:
+    """Build this league's heavy boards in the background. Safe on every rerun.
+
+    Skipped in full mode, where the pass above already builds every league.
+    One league at a time: if he switches while one is building, the newest
+    request wins and the old one finishes what it started and stops.
+    """
+    if MODE == "full" and _started:
+        return
+    try:
+        from .ui import in_season_ui as IS
+        from . import config
+        week = IS.current_week()
+        key = (ctx["league_key"], week, IS._slow_bucket(config.current_season(), week))
+    except Exception:  # noqa: BLE001
+        return
+    with _focus_lock:
+        if key in _focus["done"]:
+            return
+        _focus["want"] = (key, ctx)
+        if _focus["running"]:
+            return
+        _focus["running"] = True
+    threading.Thread(target=_focus_loop, daemon=True, name="draftroom-focus").start()
+
+
+def _focus_loop() -> None:
+    while True:
+        with _focus_lock:
+            job = _focus["want"]
+            _focus["want"] = None
+            if job is None:
+                _focus["running"] = False
+                return
+        key, ctx = job
+        t0 = time.time()
+        try:
+            _heavy(ctx, key[1], key[2])
+            with _focus_lock:
+                _focus["done"].add(key)
+                # remember a handful, not the season
+                if len(_focus["done"]) > 12:
+                    _focus["done"] = set(list(_focus["done"])[-8:])
+            print(f"[warm] focus {key[0]} {round(time.time() - t0, 1)}s", flush=True)
+        except Exception as e:  # noqa: BLE001
+            print(f"[warm] focus {key[0]} FAILED {type(e).__name__}: {e}", flush=True)
+
+
+def _heavy(ctx: dict, week: int, slow: int) -> None:
+    """The two boards light mode leaves cold: the optimiser pass and the rows."""
+    from .ui import in_season_ui as IS
+    from . import config
+    fast = IS._refresh_bucket(config.current_season(), week)
+    g = IS._gather_cached(ctx["league_key"], week, fast, ctx)
+    pn = IS._panels(ctx, g)
+    lk, reg = ctx["league_key"], ctx["registry"]
+    owner_of = {}
+    for oid, r in (g.get("rosters") or {}).items():
+        for pid in r.get("players") or []:
+            owner_of[str(pid)] = str(oid)
+    taken = frozenset(owner_of)
+    IS._fa_gain_cached(lk, week, slow, ctx, g, taken)
+    IS._waiver_board_cached(lk, week, slow, ctx, g, taken)
+    for pos in ("FLEX", "ALL"):
+        IS._rk_rows_cached(lk, week, slow, pos, reg, g, pn, owner_of, IS._PANEL_VER)

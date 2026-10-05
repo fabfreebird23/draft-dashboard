@@ -950,6 +950,9 @@ def main():
             _wk = in_season_ui.current_week()
             ctx = _ctx_cached(json.dumps(sel, sort_keys=True, default=str),
                               in_season_ui._slow_bucket(config.current_season(), _wk))
+            # Build THIS league's Rankings and Waivers boards in the background
+            # while he reads whatever he opened — see warm.focus.
+            _warm.focus(ctx)
         else:
             ctx = build_context(sel)
     except EspnAuthError as e:
