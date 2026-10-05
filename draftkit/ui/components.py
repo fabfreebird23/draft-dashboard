@@ -2434,7 +2434,7 @@ def keeper_card_html(r: dict) -> str:
     v = r.get("verdict")
     verdict = {"keep": ("KEEP", "g"), "blocked": ("DONE", "m")}.get(v, ("CUT", "d"))
     sur = r.get("surplus")
-    sub = (f'{sur:+d} picks' if isinstance(sur, int) else (f"worth pick {r['worth']:.0f}"
+    sub = (f'{sur:+d} value' if isinstance(sur, int) else (f"worth pick {r['worth']:.0f}"
                                                           if r.get("worth") else "unranked"))
     steps = []
     for i, st in enumerate(r.get("ladder") or []):

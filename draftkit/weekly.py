@@ -406,9 +406,59 @@ def transactions(league_id: str, week: int, limit: int = 12) -> List[dict]:
 
 
 # ---------------------------------------------------------------- keepers
+def talent_value(rank) -> int:
+    """Draft-value curve at an overall ADP rank: #1 ≈ 100, decaying ~3.5% a
+    pick. Steep on purpose — the gap between the 1st and 35th player is far
+    bigger than between the 60th and 95th."""
+    return max(1, round(100 * (0.965 ** (max(1, int(rank)) - 1))))
+
+
+def replacement_by_round(league_kept, n_teams: int, rounds: int, adp_rank) -> Dict[int, int]:
+    """{round: talent of the player that round's pick actually lands once the
+    league's keepers are off the board}.
+
+    A keeper league drafts from a depleted pool: with ~40 keepers a 1st-round
+    pick doesn't land a 1st-rounder, it lands whoever is left. Keepers also
+    occupy picks, so each round has fewer free picks than teams; a round is
+    valued at its middle free pick. `league_kept` is {owner: [keeper dicts]}
+    as load_keepers returns it — the REAL keepers, not a projection (projected
+    keepers are chosen by this value, which would be circular).
+    """
+    from collections import Counter
+    kept_ranks, per_round = set(), Counter()
+    for picks in (league_kept or {}).values():
+        for k in picks or []:
+            try:
+                r = adp_rank(k.get("player_name") or "", k.get("position") or "")
+            except Exception:  # noqa: BLE001
+                r = None
+            if r:
+                kept_ranks.add(int(r))
+            if str(k.get("cost_round")).isdigit():
+                per_round[int(k["cost_round"])] += 1
+
+    def nth_available(n: int) -> int:
+        seen, rank = -1, 0
+        while True:
+            rank += 1
+            if rank in kept_ranks:
+                continue
+            seen += 1
+            if seen >= n:
+                return rank
+
+    out, cum = {}, 0
+    for rnd in range(1, max(1, rounds) + 1):
+        free = max(1, n_teams - per_round[rnd])
+        out[rnd] = talent_value(nth_available(int(cum + free / 2)))
+        cum += free
+    return out
+
+
 def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str, dict],
                    rules: dict, n_teams: int, adp_rank, registry, proj: dict,
-                   me: str = "", next_season: Optional[int] = None) -> List[dict]:
+                   me: str = "", next_season: Optional[int] = None,
+                   league_kept: Optional[Dict[str, List[dict]]] = None) -> List[dict]:
     """What each player on your roster costs to keep NEXT year, and whether he is
     worth it.
 
@@ -430,9 +480,12 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
       · rookie in a rookie slot -> the league's fixed rookie round
       · undrafted pickup     -> the last round
 
-    Worth is his consensus draft position. Surplus is the gap, in picks: a player
-    who would go at pick 25 costing a round-14 pick (≈105th) is +80 picks of
-    surplus, and that is a number you can rank a roster by.
+    Surplus is keeper VALUE: his talent (talent_value at his consensus ADP)
+    minus what his cost round's pick would actually land in this league's
+    keeper-depleted draft (replacement_by_round over the league's real
+    keepers). It used to be the gap in picks — cost pick minus ADP pick — which
+    scored an elite player kept in the 1st as ~0 even though that 1st-round
+    pick would only have landed the ~11th-35th best player left.
     """
     def _int(v, default=0):
         """Keeper records are hand-maintained in the hub, so a field that is an int
@@ -450,6 +503,13 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
     policy = rules.get("_adp_policy") or "raise_only"
     if rules.get("allow_adp_discount"):
         policy = "discount"
+    repl = replacement_by_round(league_kept, max(1, n_teams), last_round or 16, adp_rank)
+
+    def _value(worth_rank, cost_round):
+        if not worth_rank or not cost_round:
+            return None
+        return talent_value(worth_rank) - repl.get(int(cost_round), 1)
+
     out = []
     for pid in my_pids:
         pid = str(pid)
@@ -593,7 +653,7 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
         cost_pick = (cost - 1) * max(1, n_teams) + 1
         # a rookie-slot keeper occupies a rookie slot, not a regular one
         rookie_slotted = bool(rookie_slot)
-        surplus = (cost_pick - worth) if worth else None
+        surplus = _value(worth, cost)
         out.append({"pid": pid, "name": pm.name, "pos": pm.position, "team": pm.team,
                     "cost_round": cost, "cost_pick": cost_pick, "worth": worth,
                     "surplus": round(surplus) if surplus is not None else None,
@@ -630,7 +690,7 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
                 r["cost_round"] = r["regular_alt"]
                 r["cost_pick"] = (r["regular_alt"] - 1) * max(1, n_teams) + 1
                 if r.get("worth"):
-                    r["surplus"] = round(r["cost_pick"] - r["worth"])
+                    r["surplus"] = _value(r["worth"], r["regular_alt"])
                 r["note"] += f" · as a regular keeper R{r['regular_alt']}"
         else:
             r["verdict"] = "cut"
@@ -742,7 +802,7 @@ def analyze_trade(my_pids, their_pids, send, get, slots, proj, registry, *,
       week      what it does to your lineup THIS week
       rest      the same, multiplied out over the weeks left — a small weekly edge
                 compounds, and a 2-point gain for eleven weeks is a real haul
-      keeper    surplus handed over vs surplus received, in draft picks
+      keeper    keeper value handed over vs received (talent points, see keeper_outlook)
       capital   draft picks in and out, in pick positions — the currency half of
                 every keeper-league offer, and the half this could not see at all
                 until it took send_picks/get_picks
@@ -821,10 +881,10 @@ def analyze_trade(my_pids, their_pids, send, get, slots, proj, registry, *,
         verdict, why = ("reject",
                         f"a {week_delta:+.1f}/wk lineup gain does not pay for "
                         f"{abs(cap_delta)} picks of draft capital")
-    elif keeper_delta is not None and keeper_delta <= -40 and week_delta < 4:
+    elif keeper_delta is not None and keeper_delta <= -25 and week_delta < 4:
         verdict, why = ("reject",
                         f"a {week_delta:+.1f}/wk lineup gain does not pay for "
-                        f"{abs(keeper_delta)} picks of keeper surplus")
+                        f"{abs(keeper_delta)} of keeper value")
     elif their_delta <= 0.05 and cap_delta < 0:
         # Their side of the capital is exactly the negative of ours. Saying "they
         # have no reason to accept" while handing them a first is the screen

@@ -2328,7 +2328,7 @@ def _waivers(ctx, g) -> None:
             pm = reg.meta(p)
             if r and r["verdict"] == "keep":
                 verdict = _chip(f'keeper +{r["surplus"]} — hold', "bad")
-            elif r and (r["surplus"] or -99) > -10:
+            elif r and (r["surplus"] or -99) > -5:
                 verdict = _chip(f'next keeper up (R{r["cost_round"]})', "warn")
             else:
                 verdict = _chip("safe drop", "ok")
@@ -2509,7 +2509,7 @@ def _keeper_rows(ctx, g) -> list:
             g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=str(g["me"]),
             existing=existing, rules=rules, n_teams=meta.num_teams,
             adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"],
-            next_season=int(g["season"]) + 1)
+            next_season=int(g["season"]) + 1, league_kept=raw)
     except Exception:  # noqa: BLE001 — a missing keeper config must not break a tab
         return []
 
@@ -2670,7 +2670,7 @@ def _trades(ctx, g) -> None:
                            if any(p == q for q, _s in i["_ships_keeper"]))
                 _alert("amb", "!", f'<b>These verdicts are about this week only.</b> The deal above '
                                    f'ships <b>{who}</b>, who the Keepers tab rates at <b>+{worst} '
-                                   f'picks of surplus</b> next year. A couple of points a week is '
+                                   f'keeper value</b> next year. A couple of points a week is '
                                    f'rarely worth a keeper that cheap — check the Keepers tab before '
                                    f'you send it.')
         else:
@@ -2796,7 +2796,7 @@ def _analyzer(ctx, g, oid, opp) -> None:
         ("Rest of season", f'{r["rest"]:+.0f}', f"over {weeks_left} weeks",
          "var(--green)" if r["rest"] > 0 else "var(--red)"),
         ("Keeper surplus", "—" if r["keeper"] is None else f'{r["keeper"]:+d}',
-         "in draft picks, next year" if r["keeper"] is not None else "no keepers involved",
+         "keeper value, next year" if r["keeper"] is not None else "no keepers involved",
          "var(--green)" if (r["keeper"] or 0) > 0 else
          ("var(--red)" if r["keeper"] is not None else "var(--muted)")),
         ("Draft capital", "—" if r["capital"] is None else f'{r["capital"]:+d}',
@@ -3125,7 +3125,7 @@ def _keepers(ctx, g) -> None:
         g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=str(g["me"]),
         existing=existing, rules=rules, n_teams=meta.num_teams,
         adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"],
-            next_season=int(g["season"]) + 1)
+            next_season=int(g["season"]) + 1, league_kept=raw)
 
     keeps = [r for r in rows if r["verdict"] == "keep"]
     blocked = [r for r in rows if r["verdict"] == "blocked"]
@@ -3134,7 +3134,7 @@ def _keepers(ctx, g) -> None:
         ("Keeper slots", f"{reg_max + rook_max}",
          f"{reg_max} regular + {rook_max} rookie", "var(--ink)"),
         ("Your best value", best["name"].split()[-1] if best else "—",
-         f"+{best['surplus']} picks of surplus" if best else "—", "var(--green)"),
+         f"+{best['surplus']} keeper value" if best else "—", "var(--green)"),
         ("Blocked", f"{len(blocked)}",
          blocked[0]["blocked"] if blocked else "none aged out", 
          "var(--red)" if blocked else "var(--muted)"),
@@ -3150,9 +3150,12 @@ def _keepers(ctx, g) -> None:
     st.markdown('<div class="ws-h">Your roster, priced year by year</div>', unsafe_allow_html=True)
     st.markdown('<div class="kl-grid">' + "".join(C.keeper_card_html(r) for r in rows) + '</div>',
                 unsafe_allow_html=True)
-    st.caption("**Surplus is in draft picks**: a player who would go at pick 27 costing a "
-               "round-14 pick (≈105th) is +78. Cost comes from where he actually came from — "
-               "an existing keeper's round plus this league's "
+    st.caption("**Value** is what keeping him is worth: his talent (a draft-value curve, the #1 "
+               "player ≈ 100) minus what his cost round's pick would actually land in this "
+               "league's draft once everyone's keepers are off the board. So an elite player "
+               "kept early still scores — an early pick only lands whoever's left — and a star "
+               "at a last-round price scores best of all. Cost comes from where he actually came "
+               "from — an existing keeper's round plus this league's "
                f"−{rules.get('year2_bump_rounds', 0)}-round-per-year escalation, the round you "
                "drafted him, the fixed rookie round, or the last round for a waiver add.")
 
@@ -3163,15 +3166,15 @@ def _keepers(ctx, g) -> None:
             b = blocked[0]
             _alert("red", "⊘", f'<b>{b["name"]} has aged out</b> — {b["blocked"]}. He is a rental '
                                f'from here, so his trade value only falls. If you are selling, sell early.')
-        cheap = [r for r in keeps if (r["surplus"] or 0) > 40]
+        cheap = [r for r in keeps if (r["surplus"] or 0) >= 25]
         if cheap:
             _alert("ok", "◎", "<b>" + ", ".join(r["name"] for r in cheap[:3]) + "</b> "
                               "cost a late pick and are worth an early one. Those are the players "
                               "an in-season trade should be built around, not the ones you sell.")
-        edge = [r for r in rows if r["verdict"] == "cut" and (r["surplus"] or -99) > -10]
+        edge = [r for r in rows if r["verdict"] == "cut" and (r["surplus"] or -99) > -5]
         if edge:
             _alert("amb", "!", f'<b>{edge[0]["name"]}</b> is the first man out — '
-                               f'{edge[0]["surplus"]} picks. If anyone above him gets hurt or '
+                               f'{edge[0]["surplus"]:+d} value. If anyone above him gets hurt or '
                                f'traded, he is your replacement keeper.')
         _alert("ok", "$", f'A waiver add costs <b>round {meta.draft_rounds}</b> to keep, so a '
                           f'mid-season breakout is the cheapest keeper available. Every claim '
