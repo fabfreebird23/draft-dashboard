@@ -13,7 +13,7 @@ slow.
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 from . import config, gametime as GT, inseason, phase as PH, sleeper_client as api, weekly as W, weekview as WV
 from .providers import get_provider
@@ -146,6 +146,7 @@ def pulse(preset: dict, registry, week: int, byes: Optional[dict] = None) -> dic
                                       starters=starters)
         risky = avail["at_risk"]
         out["injuries"] = [(a["name"], a["status"], a.get("cost_if_out")) for a in risky]
+        out["injury_rows"] = risky
         out["moves"] = lc["moves"]
         adv = WV.slot_advice(cur, registry, games) if lc["have_current"] else []
         _benching = {str(m["out"]) for m in lc["moves"]}
@@ -195,6 +196,10 @@ def pulse(preset: dict, registry, week: int, byes: Optional[dict] = None) -> dic
                 pass
         if started and phase != "done":
             chips.insert(0, (f'{len(ps["pre"]) + len(ps["live"])} still to play', "l"))
+        try:
+            out["inbox"] = _inbox(out, registry, games, week, preset, started)
+        except Exception:  # noqa: BLE001 — an inbox that fails is an empty inbox
+            out["inbox"] = []
         out["chips"] = chips[:3]
         out["tone"] = ("live" if (started and phase != "done") else
                        {0: "go", 1: "warn", 2: "bad"}[worst])
@@ -272,3 +277,89 @@ def _num(s) -> float:
         return float(s)
     except (TypeError, ValueError):
         return 0.0
+
+
+
+# ------------------------------------------------------------------- the inbox
+def _next_waivers_ts(now: float) -> float:
+    """The next waiver run: Wednesday 3am Eastern, which is when Sleeper clears."""
+    import datetime as _dt
+    utc = _dt.timezone.utc
+    t = _dt.datetime.fromtimestamp(now, utc)
+    days = (2 - t.weekday()) % 7          # Monday=0 … Wednesday=2
+    run = (t + _dt.timedelta(days=days)).replace(hour=7, minute=0, second=0, microsecond=0)
+    if run.timestamp() <= now:
+        run += _dt.timedelta(days=7)
+    return run.timestamp()
+
+
+def _inbox(out: dict, registry, games: dict, week: int, preset: dict, started: bool) -> List[dict]:
+    """The things in this league that need him, each with WHEN it stops mattering.
+
+    Home merges these across all four leagues and sorts them by that time, so the
+    list reads in the order things lock: a questionable starter on Thursday night
+    before a claim that clears Wednesday morning before a Sunday re-seat. Every
+    item names the one action that clears it and the screen that action lives on.
+    """
+    import time as _t
+    now = _t.time()
+    lg = preset.get("label") or out.get("name") or ""
+    items: List[dict] = []
+
+    def kick(pid) -> float:
+        try:
+            return GT.kickoff_ts(WV.game_of(registry, games, pid)) or 0.0
+        except Exception:  # noqa: BLE001
+            return 0.0
+
+    def when_label(ts: float) -> str:
+        """'Sun 1:00' — the day and the kickoff, in the clock he lives on."""
+        if not ts:
+            return "this week"
+        return _t.strftime("%a %-I:%M", _t.localtime(ts))
+
+    risky = {str(a["pid"]): a for a in (out.get("injury_rows") or [])}
+    seen = set()
+    for m in (out.get("moves") or [])[:3]:
+        o, i = str(m["out"]), str(m["in"])
+        k = min(x for x in (kick(o), kick(i)) if x) if (kick(o) or kick(i)) else 0.0
+        if k and k < now:
+            continue                              # already locked: nothing to do
+        name_o, name_i = registry.meta(o).name, registry.meta(i).name
+        inj = risky.get(o)
+        items.append({
+            "kind": "LOCK" if inj else "LINEUP", "league": lg, "pid": o,
+            "team": (registry.meta(o).team or ""),
+            "title": f"{name_o} is {inj['status'].lower()}" if inj else f"Start {name_i}",
+            "detail": (f"start {name_i} instead" if inj else f"over {name_o}"),
+            "gain": float(m.get("gain") or 0), "ts": k, "when": when_label(k),
+            "nav": "Lineup", "action": "Make the swap",
+            "key": f"{preset.get('league_id')}|move|{o}|{i}|{week}"})
+        seen.add(o)
+    for pid, a in risky.items():
+        if pid in seen:
+            continue
+        k = kick(pid)
+        if k and k < now:
+            continue
+        items.append({
+            "kind": "LOCK", "league": lg, "pid": pid, "team": a.get("team") or "",
+            "title": f"{a['name']} is {str(a['status']).lower()}",
+            "detail": "nobody on your bench does better — the wire might",
+            "gain": -float(a.get("cost_if_out") or 0), "ts": k, "when": when_label(k),
+            "nav": "Waivers", "action": "Find a sub",
+            "key": f"{preset.get('league_id')}|inj|{pid}|{week}"})
+    c = out.get("claim")
+    if c and not started:
+        bid = c.get("bid") or {}
+        ts = _next_waivers_ts(now)
+        items.append({
+            "kind": "CLAIM", "league": lg, "pid": str(c.get("pid") or ""),
+            "team": (registry.meta(c["pid"]).team if c.get("pid") else "") or "",
+            "title": c.get("name") or "a free agent",
+            "detail": ("bid ${}–{} of ${}".format(bid["low"], bid["high"], c.get("left"))
+                       if bid else "worth a claim"),
+            "gain": float(c.get("gain") or 0), "ts": ts, "when": "waivers Wed",
+            "nav": "Waivers", "action": "Queue claim", "bid": bid,
+            "key": f"{preset.get('league_id')}|claim|{c.get('pid')}|{week}"})
+    return items

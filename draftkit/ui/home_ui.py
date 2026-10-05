@@ -213,6 +213,56 @@ def _pulses_cached(presets_json: str, week: int, bucket: int):
         return list(ex.map(_one, presets))
 
 
+def _inbox(presets, pulses, on_pick) -> None:
+    """Today: the things that need him, across every league, in lock order.
+
+    Four league rows each with its own Decide button made him open each league
+    to find out what it wanted. This is that question answered once: every
+    lineup swap, injured starter and worthwhile claim from all four, sorted by
+    when it stops mattering, each with the one action that clears it.
+    """
+    from .. import userstate as US
+    from . import components as C
+    by_label = {p.get("label"): p for p in presets}
+    gone = US.dismissed()
+    items = sorted((it for pu in pulses if pu.get("ok") for it in (pu.get("inbox") or [])
+                    if it.get("key") not in gone),
+                   key=lambda it: it.get("ts") or 9e18)
+    nxt = next((it["when"] for it in items if it.get("kind") != "CLAIM"), "")
+    st.markdown(C.inbox_head_html(len(items), f"first lock {nxt}" if nxt else ""),
+                unsafe_allow_html=True)
+    for i, it in enumerate(items):
+        st.markdown(C.inbox_item_html(it), unsafe_allow_html=True)
+        with st.container(key=f"ibact_{i}"):
+            a, b = st.columns(2)
+            if a.button(it.get("action") or "Open", key=f"ib_go_{i}", type="primary",
+                        use_container_width=True):
+                preset = by_label.get(it.get("league"))
+                if it.get("kind") == "CLAIM" and preset:
+                    US.add_claim(f'{preset["platform"]}_{preset["league_id"]}',
+                                 {"pid": it.get("pid"), "name": it.get("title"),
+                                  "bid": (it.get("bid") or {}).get("low"),
+                                  "range": it.get("bid"), "gain": it.get("gain"),
+                                  "drop": None})
+                if preset:
+                    st.session_state[f'nav_in_{preset["platform"]}_{preset["league_id"]}'] = \
+                        it.get("nav") or "Command Center"
+                    on_pick(preset)
+            if b.button("Not now", key=f"ib_no_{i}", use_container_width=True):
+                US.dismiss(it["key"])
+                rerun_here()
+    short = {"The Kreeper League": "Kreeper", "Babies and Boomer": "B&B",
+             "Show us your TD's": "TD's"}
+    busy = {it.get("league") for it in items}
+    quiet = [short.get(pr.get("label"), pr.get("label")) for pr, pu in zip(presets, pulses)
+             if pu.get("ok") and pr.get("label") not in busy]
+    if items:
+        st.markdown(C.inbox_quiet_html(quiet), unsafe_allow_html=True)
+    st.markdown(C.inbox_strip_html([
+        (short.get(pr.get("label"), pr.get("label")), pu.get("win_pct"))
+        for pr, pu in zip(presets, pulses) if pu.get("ok")]), unsafe_allow_html=True)
+
+
 def _render_pulse(presets, on_pick) -> None:
     from .. import gametime as GT, weekpulse as WP
     from . import components as C
@@ -222,6 +272,7 @@ def _render_pulse(presets, on_pick) -> None:
     from .. import config
     games = GT.load_week(config.current_season(), week)
     phase = GT.week_phase(games)
+    _inbox(presets, pulses, on_pick)
     band = WP.day_band(pulses, week, phase)
     st.markdown(C.day_band_html(kicker=band["kicker"], title=band["title"], sub=band["sub"],
                                 number=band.get("number"), number_label=band.get("label", "")),

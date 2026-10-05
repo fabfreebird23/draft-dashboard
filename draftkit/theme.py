@@ -1802,6 +1802,39 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
    and a tint all at once, and nothing in it read as the loudest.
    The rail is the man's share of the slot's points, so a glance down the
    middle says which seats are being won without reading a number. */
+/* ---- Today's inbox: one list across every league, in lock order ---- */
+.ib-head{ padding:4px 2px 10px; }
+.ib-head .k{ font-family:'Roboto Mono',ui-monospace,monospace; font-size:9.5px; letter-spacing:.13em;
+  color:var(--crimson); }
+.ib-head .t{ font-family:'Oswald',sans-serif; font-weight:500; font-size:24px; margin-top:4px; }
+.ib-head .s{ font-size:12px; color:var(--mut2); margin-top:2px; }
+.ib-item{ background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--line2);
+  border-radius:12px; padding:10px 12px 8px; }
+.ib-item.ib-lock{ border-left-color:var(--amber); background:linear-gradient(90deg,rgba(240,179,87,.08),var(--panel) 60%); }
+.ib-item.ib-claim{ border-left-color:#5fdc8f; }
+.ib-item.ib-lineup{ border-left-color:var(--crimson); }
+.ib-item .ib-tag{ display:flex; gap:8px; align-items:center; font-family:'Roboto Mono',ui-monospace,monospace;
+  font-size:9px; letter-spacing:.1em; }
+.ib-item .ib-kind{ color:var(--amber); } .ib-item.ib-claim .ib-kind{ color:#5fdc8f; }
+.ib-item.ib-lineup .ib-kind{ color:var(--crimson); }
+.ib-item .ib-lg{ color:var(--ink); } .ib-item .ib-when{ margin-left:auto; color:var(--mut2); }
+.ib-item .ib-row{ display:grid; grid-template-columns:38px 1fr auto; gap:10px; align-items:center; margin-top:8px; }
+.ib-item .ib-row .h2h-av,.ib-item .ib-row .h2h-av .hs{ width:38px; height:38px; }
+.ib-item .ib-txt b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:15px; display:block; }
+.ib-item .ib-txt span{ font-size:11.5px; color:var(--muted); }
+.ib-item .ib-gain{ font-family:'Oswald',sans-serif; font-weight:600; font-size:20px; color:#5fdc8f; }
+.ib-item .ib-gain.dn{ color:#ff6b6b; }
+[class*="st-key-ibact_"]{ margin:-2px 0 8px; }
+[class*="st-key-ibact_"] [data-testid="stHorizontalBlock"]{ gap:8px; }
+[class*="st-key-ibact_"] .stButton button{ width:100%; border-radius:9px; font-size:12.5px; padding:6px 0; }
+.ib-quiet{ font-family:'Roboto Mono',ui-monospace,monospace; font-size:10px; color:var(--mut2);
+  border:1px dashed var(--line2); border-radius:10px; padding:8px 11px; margin:4px 0 10px; }
+.ib-strip{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:6px 0 14px; }
+.ib-strip .m{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:7px 9px; }
+.ib-strip b{ display:block; font-family:'Oswald',sans-serif; font-weight:500; font-size:12px; }
+.ib-strip span{ font-family:'Oswald',sans-serif; font-weight:600; font-size:17px; }
+.ib-strip .g{ color:#5fdc8f; } .ib-strip .a{ color:var(--amber); } .ib-strip .d{ color:#ff6b6b; }
+
 /* the lock screen, for the public Cloud copy */
 .lock{ text-align:center; padding:16vh 0 10px; }
 .lock .t{ font-family:'Oswald',sans-serif; font-weight:600; font-size:28px; margin-top:14px; }

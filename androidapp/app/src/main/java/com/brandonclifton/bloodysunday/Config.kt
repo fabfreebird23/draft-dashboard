@@ -50,7 +50,7 @@ object Config {
     fun url(tab: Tab, league: League): String {
         val sb = StringBuilder("$BASE/?shell=android&key=$PIN")
         if (tab.tab == null) {
-            sb.append("&view=all")
+            sb.append("&view=today")
         } else {
             sb.append("&league=").append(league.slug).append("&tab=").append(tab.tab)
         }

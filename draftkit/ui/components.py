@@ -2358,3 +2358,52 @@ def h2h_pair_html(left: dict, right: dict, *, slot: str, swing=None) -> str:
             + f'<div class="h2h-mid"><div class="h2h-badge {_esc(pos)}">{_esc(slot)}</div>'
             f'<div class="h2h-swing {tone}">{_esc(txt)}</div></div>'
             + h2h_side_html(right, "r") + '</div>')
+
+
+# --------------------------------------------------------------- Today's inbox
+_KIND_TONE = {"LOCK": "ib-lock", "LINEUP": "ib-lineup", "CLAIM": "ib-claim"}
+
+
+def inbox_head_html(n: int, next_lock: str = "") -> str:
+    """"3 things need you" — or, with nothing to do, says so and stops."""
+    if not n:
+        return ('<div class="ib-head"><div class="k">TODAY</div>'
+                '<div class="t">Nothing needs you</div>'
+                f'<div class="s">{_esc(next_lock or "Every lineup is set and no claim is worth making.")}</div></div>')
+    return ('<div class="ib-head"><div class="k">TODAY'
+            + (f' · {_esc(next_lock)}' if next_lock else "") + '</div>'
+            f'<div class="t">{n} thing{"s" if n != 1 else ""} need{"" if n != 1 else "s"} you</div>'
+            '<div class="s">Across every league, in the order they lock.</div></div>')
+
+
+def inbox_item_html(it: dict) -> str:
+    """One thing to do: what kind, which league, when it locks, who, the gain.
+
+    Every inner class is ib-prefixed: theme.py already styles bare .lg, .row and
+    .tag for other screens, and the first draft of this card inherited them.
+    """
+    tone = _KIND_TONE.get(it.get("kind"), "")
+    g = float(it.get("gain") or 0)
+    gain = (f'<div class="ib-gain {"dn" if g < 0 else ""}">{g:+.1f}</div>' if abs(g) >= 0.05 else "")
+    return (f'<div class="ib-item {tone}"><div class="ib-tag"><span class="ib-kind">{_esc(it.get("kind", ""))}</span>'
+            f'<span class="ib-lg">{_esc(it.get("league", ""))}</span>'
+            f'<span class="ib-when">{_esc(it.get("when", ""))}</span></div>'
+            f'<div class="ib-row">{h2h_face_html(it.get("pid"), it.get("team") or "", "l")}'
+            f'<div class="ib-txt"><b>{_esc(it.get("title", ""))}</b><span>{_esc(it.get("detail", ""))}</span></div>'
+            f'{gain}</div></div>')
+
+
+def inbox_quiet_html(names) -> str:
+    if not names:
+        return ""
+    return (f'<div class="ib-quiet">{_esc(" · ".join(names))} — nothing waiting there</div>')
+
+
+def inbox_strip_html(rows) -> str:
+    """The win probabilities, shrunk: worth a glance, not a job."""
+    cells = []
+    for name, pct in rows:
+        cls = "" if pct is None else ("g" if pct >= 55 else ("d" if pct < 45 else "a"))
+        val = "—" if pct is None else f"{pct:.0f}%"
+        cells.append(f'<div class="m"><b>{_esc(name)}</b><span class="{cls}">{val}</span></div>')
+    return '<div class="ib-strip">' + "".join(cells) + "</div>"

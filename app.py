@@ -501,8 +501,11 @@ def _deep_link() -> None:
     if want_view:
         # The phone's Today tab is Home on its all-leagues view, and it must
         # leave any league it was in — otherwise Today would open inside one.
+        # "today" is Home itself — the inbox and the leagues — which is what the
+        # phone's Today tab opens; "live" is the all-leagues live screen.
         st.session_state["home_phase"] = {"all": "Live · all", "live": "Live · all",
-                                          "season": "In-season"}.get(want_view, "All")
+                                          "season": "In-season",
+                                          "today": "All"}.get(want_view, "All")
         st.session_state.pop("league", None)
         return
     # The preset's own "slug" first — a label is for people and changes shape
