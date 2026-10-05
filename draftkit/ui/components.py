@@ -2407,3 +2407,47 @@ def inbox_strip_html(rows) -> str:
         val = "—" if pct is None else f"{pct:.0f}%"
         cells.append(f'<div class="m"><b>{_esc(name)}</b><span class="{cls}">{val}</span></div>')
     return '<div class="ib-strip">' + "".join(cells) + "</div>"
+
+
+# --------------------------------------------------------------- keeper ladder
+def keeper_tray_html(keeps, reg_max: int, rook_max: int) -> str:
+    """The five he would keep, as faces in their slots — the answer first."""
+    reg = [r for r in keeps if r.get("slot_used") == "regular"][:reg_max]
+    rk = [r for r in keeps if r.get("slot_used") == "rookie"][:rook_max]
+    cells = []
+    for kind, rows, n in (("reg", reg, reg_max), ("rk", rk, rook_max)):
+        for i in range(n):
+            if i < len(rows):
+                r = rows[i]
+                cells.append(f'<div class="kt-slot {kind}">{h2h_face_html(r.get("face"), r.get("team") or "", "l")}'
+                             f'<b>R{r["cost_round"]}</b><span>{_esc(r["name"].split()[-1])}</span></div>')
+            else:
+                cells.append(f'<div class="kt-slot {kind} empty"><div class="kt-empty"></div><b>—</b><span>open</span></div>')
+    return (f'<div class="kt-tray"><div class="kt-k">YOUR {reg_max + rook_max} FOR NEXT YEAR · '
+            f'{reg_max} REGULAR + {rook_max} ROOKIE</div>'
+            f'<div class="kt-slots" style="grid-template-columns:repeat({reg_max + rook_max},1fr)">'
+            + "".join(cells) + '</div></div>')
+
+
+def keeper_card_html(r: dict) -> str:
+    """One player's whole price ladder, with the verdict and why."""
+    v = r.get("verdict")
+    verdict = {"keep": ("KEEP", "g"), "blocked": ("DONE", "m")}.get(v, ("CUT", "d"))
+    sur = r.get("surplus")
+    sub = (f'{sur:+d} picks' if isinstance(sur, int) else (f"worth pick {r['worth']:.0f}"
+                                                          if r.get("worth") else "unranked"))
+    steps = []
+    for i, st in enumerate(r.get("ladder") or []):
+        cls = st.get("state", "")
+        if st.get("adp"):
+            cls += " adp"
+        steps.append(f'<div class="kl-st {cls}"><span>{_esc(st["season"])}</span><b>{_esc(st["price"])}</b></div>')
+        if i < len(r["ladder"]) - 1:
+            steps.append('<div class="kl-ar">→</div>')
+    return (f'<div class="kl-card {v or ""}"><div class="kl-head">'
+            f'{h2h_face_html(r.get("face"), r.get("team") or "", "l")}'
+            f'<div class="kl-who"><b>{_esc(r["name"])}</b><span>{_esc(r.get("note") or "")}</span></div>'
+            f'<div class="kl-v"><b class="{verdict[1]}">{verdict[0]}</b><span>{_esc(sub)}</span></div></div>'
+            f'<div class="kl-ladder">{"".join(steps)}</div>'
+            + (f'<div class="kl-why">{_esc(r["blocked"])}</div>' if r.get("blocked") else "")
+            + '</div>')

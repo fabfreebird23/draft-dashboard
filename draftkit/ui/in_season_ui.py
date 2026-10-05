@@ -2387,7 +2387,8 @@ def _keeper_rows(ctx, g) -> list:
         return W.keeper_outlook(
             g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=str(g["me"]),
             existing=existing, rules=rules, n_teams=meta.num_teams,
-            adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"])
+            adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"],
+            next_season=int(g["season"]) + 1)
     except Exception:  # noqa: BLE001 — a missing keeper config must not break a tab
         return []
 
@@ -3002,7 +3003,8 @@ def _keepers(ctx, g) -> None:
     rows = W.keeper_outlook(
         g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=str(g["me"]),
         existing=existing, rules=rules, n_teams=meta.num_teams,
-        adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"])
+        adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"],
+            next_season=int(g["season"]) + 1)
 
     keeps = [r for r in rows if r["verdict"] == "keep"]
     blocked = [r for r in rows if r["verdict"] == "blocked"]
@@ -3019,28 +3021,13 @@ def _keepers(ctx, g) -> None:
          f"max {rules.get('max_keep_years', '—')} keep years", "var(--muted)"),
     ])
 
-    st.markdown('<div class="ws-h">Your roster, priced for next year</div>', unsafe_allow_html=True)
-    body = []
-    for r in rows:
-        worth = f"pick {r['worth']:.0f}" if r["worth"] else '<span class="ws-fnt">unranked</span>'
-        if r["surplus"] is None:
-            sur = '<span class="ws-fnt">—</span>'
-        elif r["surplus"] > 0:
-            sur = f'<b class="ws-up">+{r["surplus"]}</b>'
-        else:
-            sur = f'<span class="ws-dn">{r["surplus"]}</span>'
-        if r["verdict"] == "keep":
-            v = _chip(f'keep · {r.get("slot_used", "")} slot', "ok")
-        elif r["verdict"] == "blocked":
-            v = _chip(r["blocked"] or "can't keep", "bad")
-        else:
-            v = _chip("cut", "nil")
-        body.append([
-            f'<b>{r["name"]}</b> {_pos_pill(r["pos"])} <span class="ws-fnt">{r["team"]}</span>',
-            f'R{r["cost_round"]} <span class="ws-fnt">≈ pick {r["cost_pick"]}</span>',
-            worth, sur, v, f'<span class="ws-fnt">{r["note"]}</span>'])
-    st.markdown(_tbl(["Player", "Costs", "~Worth", "~Surplus", "Verdict", ""], body,
-                     widths=["26%", "22%", "88px", "82px", "168px", "auto"], wide=True),
+    # The answer first — the five he would keep, as faces in their slots — then
+    # every player's whole price ladder. The table this replaces showed one
+    # number per player, which is why the keeper bugs of September were
+    # invisible: a price with no rule beside it cannot be checked.
+    st.markdown(C.keeper_tray_html(keeps, reg_max, rook_max), unsafe_allow_html=True)
+    st.markdown('<div class="ws-h">Your roster, priced year by year</div>', unsafe_allow_html=True)
+    st.markdown('<div class="kl-grid">' + "".join(C.keeper_card_html(r) for r in rows) + '</div>',
                 unsafe_allow_html=True)
     st.caption("**Surplus is in draft picks**: a player who would go at pick 27 costing a "
                "round-14 pick (≈105th) is +78. Cost comes from where he actually came from — "

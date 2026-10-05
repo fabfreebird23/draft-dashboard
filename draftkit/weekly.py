@@ -408,7 +408,7 @@ def transactions(league_id: str, week: int, limit: int = 12) -> List[dict]:
 # ---------------------------------------------------------------- keepers
 def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str, dict],
                    rules: dict, n_teams: int, adp_rank, registry, proj: dict,
-                   me: str = "") -> List[dict]:
+                   me: str = "", next_season: Optional[int] = None) -> List[dict]:
     """What each player on your roster costs to keep NEXT year, and whether he is
     worth it.
 
@@ -556,6 +556,40 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
         if last_round:
             cost = min(cost, last_round)
 
+        # ---- the ladder: what he costs this year and every year he can be kept
+        # after it, so the rule behind the number is on the card. Year 3 is ADP by
+        # rule, whatever ADP turns out to be by then — so it is shown as ADP, not
+        # as today's ADP round dressed up as a prediction.
+        S = next_season
+        lab = (lambda k: str(S + k)) if S else (lambda k: f"+{k}" if k else "next")
+        ladder = []
+        if prev and not rookie_slot:
+            ladder.append({"season": lab(-1) if S else "now",
+                           "price": f"R{_int(prev.get('cost_round'))}", "state": "past"})
+        if blocked:
+            ladder.append({"season": lab(0), "price": "—", "state": "blocked"})
+        elif rookie_slot:
+            ladder.append({"season": lab(0), "price": f"R{cost}", "state": "now"})
+            ladder.append({"season": lab(1), "price": "no clock", "state": "rookie"})
+        else:
+            ny = years_kept if prev else 1
+            cur_lab = "ADP" if ny >= 3 else f"R{cost}"
+            if ny >= 3 and adp_round:
+                cur_lab = f"ADP R{cost}"
+            ladder.append({"season": lab(0), "price": cur_lab, "state": "now",
+                           "adp": ny >= 3})
+            if ny == 1:
+                nxt = max(1, cost - bump) if bump else cost
+                nxt = _bent(nxt, year_one=cost)
+                ladder.append({"season": lab(1), "price": f"R{nxt}", "state": "future"})
+                ladder.append({"season": lab(2), "price": "ADP", "state": "future", "adp": True})
+            elif ny == 2:
+                ladder.append({"season": lab(1), "price": "ADP", "state": "future", "adp": True})
+            if ny >= max_years:
+                ladder.append({"season": lab(1 if ny >= 3 else 2), "price": "done",
+                               "state": "end"})
+        next_year = ("Rookie" if rookie_slot else (years_kept if prev else 1))
+
         cost_pick = (cost - 1) * max(1, n_teams) + 1
         # a rookie-slot keeper occupies a rookie slot, not a regular one
         rookie_slotted = bool(rookie_slot)
@@ -565,6 +599,8 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
                     "surplus": round(surplus) if surplus is not None else None,
                     "rookie": bool(rookie_slotted or is_rookie), "note": note,
                     "regular_alt": regular_alt,
+                    "ladder": ladder, "next_year": next_year,
+                    "face": getattr(pm, "sleeper_pid", None) or pid,
                     "blocked": blocked,
                     "proj": round(float(proj.get(pid) or 0.0), 1)})
 

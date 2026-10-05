@@ -1802,6 +1802,37 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
    and a tint all at once, and nothing in it read as the loudest.
    The rail is the man's share of the slot's points, so a glance down the
    middle says which seats are being won without reading a number. */
+/* ---- Keepers: the tray and each player's price ladder ---- */
+.kt-tray{ background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:10px 12px; margin:4px 0 12px; }
+.kt-k{ font-family:'Roboto Mono',ui-monospace,monospace; font-size:9.5px; letter-spacing:.12em; color:var(--mut2); }
+.kt-slots{ display:grid; gap:8px; margin-top:9px; }
+.kt-slot{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 0 7px; border-radius:10px;
+  border:1px solid var(--line2); background:var(--panel2); min-width:0; }
+.kt-slot.rk{ border-color:rgba(181,156,240,.45); }
+.kt-slot .h2h-av,.kt-slot .h2h-av .hs{ width:36px; height:36px; }
+.kt-slot b{ font-family:'Roboto Mono',ui-monospace,monospace; font-size:11px; }
+.kt-slot span{ font-size:10.5px; color:var(--muted); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 4px; }
+.kt-slot.empty{ opacity:.5; } .kt-empty{ width:36px; height:36px; border-radius:10px; border:1px dashed var(--line2); }
+.kl-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.kl-card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+.kl-card.keep{ border-color:rgba(95,220,143,.35); } .kl-card.blocked{ opacity:.6; }
+.kl-head{ display:grid; grid-template-columns:38px 1fr auto; gap:10px; align-items:center; }
+.kl-head .h2h-av,.kl-head .h2h-av .hs{ width:38px; height:38px; }
+.kl-who{ min-width:0; } .kl-who b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:15px; display:block; }
+.kl-who span{ font-size:11px; color:var(--mut2); }
+.kl-v{ text-align:right; } .kl-v b{ font-family:'Oswald',sans-serif; font-weight:600; font-size:15px; display:block; }
+.kl-v span{ font-family:'Roboto Mono',ui-monospace,monospace; font-size:9.5px; color:var(--mut2); }
+.kl-v .g{ color:#5fdc8f; } .kl-v .d{ color:#ff6b6b; } .kl-v .m{ color:var(--mut2); }
+.kl-ladder{ display:flex; align-items:center; gap:6px; margin-top:10px; }
+.kl-st{ flex:1; min-width:0; border:1px solid var(--line2); border-radius:9px; padding:6px 8px; background:var(--panel2); }
+.kl-st span{ display:block; font-family:'Roboto Mono',ui-monospace,monospace; font-size:8.5px; letter-spacing:.1em; color:var(--mut2); }
+.kl-st b{ font-family:'Oswald',sans-serif; font-weight:600; font-size:15px; white-space:nowrap; }
+.kl-st.now{ border-color:var(--crimson); background:rgba(255,51,108,.08); }
+.kl-st.past{ opacity:.45; } .kl-st.adp b{ color:var(--amber); } .kl-st.end b,.kl-st.blocked b{ color:var(--mut2); }
+.kl-st.rookie b{ color:#b59cf0; font-size:12px; }
+.kl-ar{ color:var(--mut2); font-size:12px; }
+.kl-why{ font-size:11px; color:var(--mut2); margin-top:7px; }
+
 /* ---- Today's inbox: one list across every league, in lock order ---- */
 .ib-head{ padding:4px 2px 10px; }
 .ib-head .k{ font-family:'Roboto Mono',ui-monospace,monospace; font-size:9.5px; letter-spacing:.13em;
@@ -2165,6 +2196,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
    Streamlit already stacks its own st.columns below ~640px, so this only has to
    deal with the app's own CSS grids and the few strips that must NOT stack. */
 @media (max-width:760px){
+  .kl-grid{ grid-template-columns:1fr; }
   /* Two men side by side do not fit a phone, so the slot becomes three stacked
      bands with the position in the middle — the same reading order, top to
      bottom instead of left to right. */
