@@ -1802,6 +1802,42 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
    and a tint all at once, and nothing in it read as the loudest.
    The rail is the man's share of the slot's points, so a glance down the
    middle says which seats are being won without reading a number. */
+/* ---- Waivers: the claim builder ---- */
+.cb-budget{ background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:11px 13px; margin:4px 0 10px; }
+.cb-k{ display:flex; justify-content:space-between; align-items:baseline; }
+.cb-k span{ font-family:'Roboto Mono',ui-monospace,monospace; font-size:9.5px; letter-spacing:.12em; color:var(--mut2); }
+.cb-k b{ font-family:'Oswald',sans-serif; font-weight:600; font-size:24px; }
+.cb-k small{ font-family:'Inter',sans-serif; font-size:12px; color:var(--mut2); font-weight:400; }
+.cb-bar{ height:8px; border-radius:99px; background:var(--panel2); margin:9px 0 7px; display:flex; overflow:hidden; }
+.cb-bar .spent{ background:var(--mut2); } .cb-bar .queued{ background:var(--crimson); }
+.cb-l{ display:flex; justify-content:space-between; gap:10px; font-family:'Roboto Mono',ui-monospace,monospace;
+  font-size:10px; color:var(--mut2); }
+.cb-l b{ color:var(--ink); } .cb-l .over{ color:#ff6b6b; }
+.cb-l i.q{ display:inline-block; width:7px; height:7px; border-radius:2px; background:var(--crimson); margin-right:5px; }
+.cb-row{ display:grid; grid-template-columns:18px 38px 1fr 70px; gap:9px; align-items:center;
+  background:var(--panel); border:1px solid var(--line); border-radius:12px 12px 4px 4px; padding:9px 11px; margin-top:8px; }
+.cb-row .h2h-av,.cb-row .h2h-av .hs{ width:38px; height:38px; }
+.cb-pr{ font-family:'Oswald',sans-serif; font-weight:600; font-size:16px; color:var(--mut2); text-align:center; }
+.cb-t{ min-width:0; } .cb-t b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:15px; display:block; }
+.cb-t span{ font-size:11px; color:var(--mut2); }
+.cb-v{ text-align:right; } .cb-v b{ font-family:'Oswald',sans-serif; font-weight:600; font-size:19px; display:block; }
+.cb-v span{ font-family:'Roboto Mono',ui-monospace,monospace; font-size:8.5px; color:var(--mut2); }
+[class*="st-key-cbctl_"]{ background:#1b191a; border:1px solid var(--line); border-top:0; border-radius:0 0 12px 12px;
+  padding:6px 10px 8px; margin-top:-8px; }
+[class*="st-key-cbctl_"] [data-testid="stHorizontalBlock"]{ gap:6px; align-items:center; }
+/* The controls stay ONE row even on a phone: Streamlit stacks columns below
+   ~640px, which put the bid, the drop and three arrow buttons on five rows. */
+[class*="st-key-cbctl_"] [data-testid="stHorizontalBlock"]{ flex-direction:row !important;
+  flex-wrap:nowrap !important; }
+[class*="st-key-cbctl_"] [data-testid="stColumn"]{ min-width:0 !important; width:auto !important; }
+[class*="st-key-cbctl_"] [data-testid="stColumn"]:nth-child(1){ flex:2.2 1 0 !important; }
+[class*="st-key-cbctl_"] [data-testid="stColumn"]:nth-child(2){ flex:3.2 1 0 !important; }
+[class*="st-key-cbctl_"] [data-testid="stColumn"]:nth-child(n+3){ flex:0 0 34px !important; }
+[class*="st-key-cbctl_"] .stButton button{ padding:3px 0; min-height:0; font-size:12px; border-radius:7px; }
+.cb-empty{ font-size:12px; color:var(--mut2); border:1px dashed var(--line2); border-radius:11px; padding:10px 12px; margin:6px 0; }
+.cb-go{ display:block; text-align:center; padding:10px 0; border-radius:11px; background:var(--crimson);
+  color:#fff !important; font-weight:600; font-size:13.5px; text-decoration:none; margin:10px 0 4px; }
+
 /* ---- Keepers: the tray and each player's price ladder ---- */
 .kt-tray{ background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:10px 12px; margin:4px 0 12px; }
 .kt-k{ font-family:'Roboto Mono',ui-monospace,monospace; font-size:9.5px; letter-spacing:.12em; color:var(--mut2); }

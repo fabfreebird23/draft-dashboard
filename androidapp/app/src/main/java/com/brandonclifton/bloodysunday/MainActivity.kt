@@ -120,6 +120,10 @@ class MainActivity : AppCompatActivity() {
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
             settings.mediaPlaybackRequiresUserGesture = false
+            // A target=_blank link asks for a new window; without this the
+            // WebView swallows the tap and nothing happens.
+            settings.setSupportMultipleWindows(true)
+            settings.javaScriptCanOpenWindowsAutomatically = true
             // Streamlit reflows to the width it is given; the phone layer in
             // theme.py does the rest. No desktop viewport, no pinch-zoom.
             settings.useWideViewPort = false
@@ -128,6 +132,23 @@ class MainActivity : AppCompatActivity() {
             overScrollMode = View.OVER_SCROLL_NEVER
             addJavascriptInterface(Bridge(), "BSHost")
             webChromeClient = object : android.webkit.WebChromeClient() {
+                // _blank links (Sleeper, ESPN, the keeper hubs) arrive here.
+                // Catch the URL in a throwaway WebView and hand it to Android,
+                // so a Sleeper link opens the Sleeper app if it is installed.
+                override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean,
+                                            resultMsg: android.os.Message): Boolean {
+                    val catcher = WebView(view.context)
+                    catcher.webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(v: WebView, req: WebResourceRequest): Boolean {
+                            openOutside(req.url.toString())
+                            return true
+                        }
+                    }
+                    (resultMsg.obj as WebView.WebViewTransport).webView = catcher
+                    resultMsg.sendToTarget()
+                    return true
+                }
+
                 override fun onConsoleMessage(m: android.webkit.ConsoleMessage): Boolean {
                     if (BuildConfig.DEBUG) {
                         android.util.Log.d("bs-shell", "console: ${m.message()} @${m.lineNumber()}")
@@ -136,6 +157,14 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             webViewClient = object : WebViewClient() {
+                // The dashboard stays in here; anything off-site goes to Android.
+                override fun shouldOverrideUrlLoading(v: WebView, req: WebResourceRequest): Boolean {
+                    val host = req.url.host ?: return false
+                    if (host.endsWith("streamlit.app") || host.endsWith("streamlit.io")) return false
+                    openOutside(req.url.toString())
+                    return true
+                }
+
                 override fun onPageFinished(v: WebView?, url: String?) {
                     refresher.isRefreshing = false
                     lastGood = System.currentTimeMillis()
@@ -367,6 +396,15 @@ class MainActivity : AppCompatActivity() {
             val was = atTop
             atTop = top <= 2
             if (was != atTop) android.util.Log.d("bs-shell", "scroll top=$top atTop=$atTop")
+        }
+    }
+
+    private fun openOutside(url: String) {
+        try {
+            startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                android.net.Uri.parse(url)))
+        } catch (e: Exception) {
+            android.util.Log.w("bs-shell", "no app for $url")
         }
     }
 

@@ -2451,3 +2451,35 @@ def keeper_card_html(r: dict) -> str:
             f'<div class="kl-ladder">{"".join(steps)}</div>'
             + (f'<div class="kl-why">{_esc(r["blocked"])}</div>' if r.get("blocked") else "")
             + '</div>')
+
+
+# --------------------------------------------------------------- claim builder
+def claim_budget_html(left: int, budget: int, queued: int) -> str:
+    """FAAB as a bar: what is gone, what the queue would spend, what is left after."""
+    budget = max(1, int(budget or 0))
+    spent = max(0, budget - int(left or 0))
+    q = max(0, min(int(queued or 0), int(left or 0)))
+    after = max(0, int(left or 0) - q)
+    over = int(queued or 0) > int(left or 0)
+    return (f'<div class="cb-budget"><div class="cb-k"><span>FAAB</span>'
+            f'<b>${int(left or 0)} <small>left of ${budget}</small></b></div>'
+            f'<div class="cb-bar"><i class="spent" style="width:{100 * spent / budget:.0f}%"></i>'
+            f'<i class="queued" style="width:{100 * q / budget:.0f}%"></i></div>'
+            f'<div class="cb-l"><span><i class="q"></i>queued ${int(queued or 0)}</span>'
+            + (f'<span class="over">more than you have — Sleeper will skip the ones it can\'t pay for</span>'
+               if over else f'<span>if everything clears <b>${after}</b></span>')
+            + '</div></div>')
+
+
+def claim_row_html(i: int, c: dict) -> str:
+    """One claim in the queue: priority, the man, the drop that pays for him, the bid."""
+    rng = c.get("range") or {}
+    rtxt = f'range ${rng.get("low")}–{rng.get("high")}' if rng.get("high") else "your call"
+    drop = c.get("drop_name") or "no drop — open spot"
+    gain = c.get("gain")
+    gtxt = f' · {gain:+.1f} to your week' if isinstance(gain, (int, float)) else ""
+    return (f'<div class="cb-row"><div class="cb-pr">{i}</div>'
+            f'{h2h_face_html(c.get("face") or c.get("pid"), c.get("team") or "", "l")}'
+            f'<div class="cb-t"><b>{_esc(c.get("name") or "")}</b>'
+            f'<span>drop {_esc(drop)}{_esc(gtxt)}</span></div>'
+            f'<div class="cb-v"><b>${int(c.get("bid") or 0)}</b><span>{_esc(rtxt)}</span></div></div>')

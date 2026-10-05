@@ -1957,6 +1957,124 @@ def _waiver_board_cached(league_key: str, week: int, bucket: int, _ctx, _g, _tak
                           byes=_g["byes"], week=_g["week"], limit=14, ecr=_g.get("ros"))
 
 
+
+def _claim_builder(ctx, g, board, left: int, budget: int, weeks_left: int) -> None:
+    """The whole Wednesday: claims in priority order, a bid and a drop for each,
+    and what the budget looks like if they all clear.
+
+    The tab used to show one claim card and leave the order, the bids and the
+    drops to be worked out in Sleeper. This keeps the plan — persisted, because
+    on the phone every tab press is a fresh session and a queue that forgot
+    itself between Today and Waivers would not be a queue. Sleeper still takes
+    the claims; this hands it a finished list.
+    """
+    from .. import userstate as US
+    reg, lk = ctx["registry"], ctx["league_key"]
+    queue = US.claims(lk)
+
+    # the drop candidates: his bench, lowest projection first — the suggestion
+    # is the first one, and he can pick any other
+    lc = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"])
+    bench = sorted(((float(g["proj"].get(str(p), 0) or 0), str(p)) for p in lc.get("bench") or []))
+    drop_opts = ["(no drop — open spot)"] + [reg.meta(p).name for _v, p in bench]
+    drop_pid = {reg.meta(p).name: p for _v, p in bench}
+
+    def _fill(c: dict) -> dict:
+        """Price and face a queued claim from today's board, once."""
+        c = dict(c)
+        row = next((r for r in board if str(r["pid"]) == str(c.get("pid"))), None)
+        if c.get("gain") is None and row:
+            c["gain"] = row["gain"]
+        if not c.get("range") and c.get("gain") is not None:
+            c["range"] = W.bid_guidance(float(c["gain"]), left, weeks_left)
+        if c.get("bid") is None:
+            c["bid"] = (c.get("range") or {}).get("low") or 1
+        try:
+            pm = reg.meta(c["pid"])
+            c.setdefault("name", pm.name)
+            c["face"] = getattr(pm, "sleeper_pid", None) or c["pid"]
+            c["team"] = pm.team or ""
+        except Exception:  # noqa: BLE001
+            pass
+        if c.get("drop") is None and "drop" not in c.get("_set", []) and bench:
+            # Each claim drops a DIFFERENT man by default, lowest projection
+            # first in priority order — if two claims clear, he cannot cut the
+            # same player twice. A drop he chose himself is left alone.
+            free = [p for _v, p in bench if p not in used_drops]
+            c["drop"] = free[0] if free else None
+        if c.get("drop"):
+            used_drops.add(c["drop"])
+        c["drop_name"] = reg.meta(c["drop"]).name if c.get("drop") else None
+        return c
+
+    used_drops = {c.get("drop") for c in queue if c.get("drop") and "drop" in c.get("_set", [])}
+    queue = [_fill(c) for c in queue]
+    queued = sum(int(c.get("bid") or 0) for c in queue)
+    st.markdown('<div class="ws-h">Your claims for Wednesday</div>', unsafe_allow_html=True)
+    st.markdown(C.claim_budget_html(left, budget, queued), unsafe_allow_html=True)
+
+    def _save(rows):
+        US.save_claims(lk, [{k: v for k, v in r.items()
+                             if k in ("pid", "name", "bid", "range", "gain", "drop", "_set")}
+                            for r in rows])
+
+    if not queue:
+        st.markdown('<div class="cb-empty">No claims queued. Add one from the board below, '
+                    'or from Today.</div>', unsafe_allow_html=True)
+    for i, c in enumerate(queue):
+        st.markdown(C.claim_row_html(i + 1, c), unsafe_allow_html=True)
+        with st.container(key=f"cbctl_{lk}_{c['pid']}"):
+            a, b, u, d, x = st.columns([2.6, 3.2, 0.8, 0.8, 0.8])
+            rng = c.get("range") or {}
+            lo, hi = int(rng.get("low") or 1), int(rng.get("high") or max(1, int(c["bid"])))
+            opts = sorted({lo, (lo + hi) // 2, hi, int(c["bid"])})
+            bid = a.selectbox("Bid", opts, index=opts.index(int(c["bid"])), key=f"cb_bid_{lk}_{c['pid']}",
+                              format_func=lambda v: f"${v}", label_visibility="collapsed")
+            cur_drop = c.get("drop_name") or drop_opts[0]
+            dname = b.selectbox("Drop", drop_opts,
+                                index=drop_opts.index(cur_drop) if cur_drop in drop_opts else 0,
+                                key=f"cb_drop_{lk}_{c['pid']}", label_visibility="collapsed")
+            changed = False
+            if bid != int(c["bid"]):
+                queue[i]["bid"], changed = int(bid), True
+            new_drop = drop_pid.get(dname)
+            if new_drop != c.get("drop"):
+                queue[i]["drop"], changed = new_drop, True
+                queue[i]["_set"] = list(set(queue[i].get("_set", [])) | {"drop"})
+            if u.button("↑", key=f"cb_up_{lk}_{c['pid']}", disabled=i == 0):
+                queue[i - 1], queue[i] = queue[i], queue[i - 1]
+                changed = True
+            if d.button("↓", key=f"cb_dn_{lk}_{c['pid']}", disabled=i == len(queue) - 1):
+                queue[i + 1], queue[i] = queue[i], queue[i + 1]
+                changed = True
+            if x.button("✕", key=f"cb_rm_{lk}_{c['pid']}", help="Take him off the list"):
+                queue.pop(i)
+                _save(queue)
+                rerun_here()
+            if changed:
+                _save(queue)
+                rerun_here()
+
+    # add from the board: the best adds not already queued
+    have = {str(c["pid"]) for c in queue}
+    adds = [r for r in board if r.get("gain", 0) > 0.05 and str(r["pid"]) not in have][:4]
+    if adds:
+        cols = st.columns(len(adds))
+        for col, r in zip(cols, adds):
+            if col.button(f'+ {r["name"].split()[-1]} {r["gain"]:+.1f}', key=f"cb_add_{lk}_{r['pid']}",
+                          use_container_width=True):
+                US.add_claim(lk, {"pid": str(r["pid"]), "name": r["name"], "gain": r["gain"],
+                                  "range": W.bid_guidance(float(r["gain"]), left, weeks_left),
+                                  "bid": None, "drop": None})
+                rerun_here()
+    if queue:
+        lid = str(ctx["meta"].league_id)
+        st.markdown(f'<a class="cb-go" href="https://sleeper.com/leagues/{lid}/players" '
+                    f'target="_blank" rel="noopener">Open these claims in Sleeper ↗</a>',
+                    unsafe_allow_html=True)
+        st.caption("Sleeper takes the claims. This works out the order, the bids and the drops, "
+                   "and keeps them until you clear them — claim #1 first, the rest as contingencies.")
+
 def _waivers(ctx, g) -> None:
     meta, reg = ctx["meta"], ctx["registry"]
     taken = {p for r in g["rosters"].values() for p in r["players"]}
@@ -1979,6 +2097,9 @@ def _waivers(ctx, g) -> None:
          "free agents who would start for you", "var(--green)"),
         ("Roster", f"{len(g['mine'])}", "players", "var(--muted)"),
     ])
+
+    if budget:
+        _claim_builder(ctx, g, board, left, budget, weeks_left)
 
     # ---- the top add, as the swap it actually is -----------------------------
     # A waiver claim is two moves, not one: the table below ranks the adds, and
