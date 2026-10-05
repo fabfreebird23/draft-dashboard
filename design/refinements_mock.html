@@ -1,0 +1,198 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Bloody Sunday · four refinements</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141314;--panel:#1f1d1e;--panel2:#292627;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#8c8286;
+ --crimson:#ff336c;--g:#5fdc8f;--a:#f0b357;--r:#ff6b6b;--fd:'Oswald',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'Roboto Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:#0c0b0c;color:var(--ink);font-family:var(--fb);margin:0;padding:24px 24px 70px;font-size:13px}
+h1{font-family:var(--fd);font-weight:600;font-size:28px;margin:0 0 6px}
+.sub{color:var(--muted);max-width:110ch;line-height:1.55;margin:0 0 26px}
+.ref{display:grid;grid-template-columns:412px 1fr;gap:34px;align-items:start;margin:0 0 46px}
+.ref h2{font-family:var(--fd);font-weight:600;font-size:22px;margin:4px 0 4px}
+.ref h2 em{font-style:normal;color:var(--crimson);font-family:var(--fm);font-size:12px;letter-spacing:.14em;margin-right:10px;vertical-align:middle}
+.ref .why{color:var(--muted);line-height:1.6;max-width:62ch}
+.ref .why b{color:var(--ink);font-weight:600}
+.ref .why p{margin:0 0 12px}
+.ref .cost{font-family:var(--fm);font-size:11px;color:var(--mut2);border-top:1px solid var(--line);padding-top:10px;margin-top:6px;max-width:62ch;line-height:1.55}
+.screen{width:412px;height:915px;border-radius:26px;border:1px solid #2a2527;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.body{flex:1;overflow:hidden;padding:8px 12px 10px}
+.top{padding:10px 12px 9px;border-bottom:1px solid var(--line);background:#191718}
+.lrow{display:flex;gap:6px}
+.lchip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;border:1px solid var(--line2);font-size:12px;color:var(--muted)}
+.lchip.on{border-color:var(--crimson);color:var(--ink);background:rgba(255,51,108,.1)}
+.lchip i{width:6px;height:6px;border-radius:50%} .lchip i.me{background:var(--crimson)} .lchip i.up{background:var(--g)} .lchip i.warn{background:var(--a)} .lchip i.dn{background:var(--r)}
+.nav{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:#191718;padding:7px 4px 10px}
+.nb{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--mut2)} .nb svg{width:21px;height:21px} .nb span{font-size:10px}
+.nb.on{color:var(--crimson)} .nb.on span{color:var(--ink)}
+.av{position:relative;flex:none} .av .hs{width:100%;height:100%;border-radius:10px;object-fit:cover;object-position:top center;background:var(--panel2);border:1px solid var(--line2);display:block}
+.av .tm{position:absolute;width:15px;height:15px;right:-4px;bottom:-3px;object-fit:contain;background:var(--bg);border-radius:4px;padding:1px;border:1px solid var(--line)}
+.sh{font-family:var(--fm);font-size:9px;letter-spacing:.14em;color:var(--mut2);margin:12px 0 7px}
+.small{font-size:11px;color:var(--mut2);line-height:1.5;margin-top:10px}
+.g{color:var(--g)} .a{color:var(--a)} .d{color:var(--r)} .m{color:var(--mut2)}
+/* A inbox */
+.ibhead{padding:6px 2px 10px} .ibhead .k{font-family:var(--fm);font-size:9px;letter-spacing:.13em;color:var(--crimson)}
+.ibhead .t{font-family:var(--fd);font-weight:500;font-size:24px;margin-top:4px} .ibhead .s{font-size:12px;color:var(--mut2);margin-top:2px}
+.item{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line2);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.item.lock{border-left-color:var(--a);background:linear-gradient(90deg,rgba(240,179,87,.08),var(--panel) 60%)}
+.item.claim{border-left-color:var(--g)}
+.tag{display:flex;gap:8px;align-items:center;font-family:var(--fm);font-size:9px;letter-spacing:.1em}
+.tag .kind{color:var(--a)} .item.claim .tag .kind{color:var(--g)} .tag .lg{color:var(--ink)} .tag .when{margin-left:auto;color:var(--mut2)}
+.row{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;margin-top:8px}
+.row .av{width:38px;height:38px}
+.txt b{font-family:var(--fd);font-weight:500;font-size:15px;display:block} .txt span{font-size:11.5px;color:var(--muted)}
+.gain{font-family:var(--fd);font-weight:600;font-size:20px;color:var(--g)}
+.acts{display:flex;gap:8px;margin-top:10px} .bt{flex:1;text-align:center;padding:8px 0;border-radius:9px;border:1px solid var(--line2);font-size:12.5px;font-weight:600;color:var(--muted)}
+.bt.pri{background:var(--crimson);border-color:var(--crimson);color:#fff}
+.quiet{font-family:var(--fm);font-size:10px;color:var(--mut2);border:1px dashed var(--line2);border-radius:10px;padding:8px 11px;margin:4px 0 10px}
+.mini{display:grid;grid-template-columns:repeat(4,1fr);gap:6px} .mini .m{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 8px}
+.mini b{display:block;font-family:var(--fd);font-weight:500;font-size:12px;color:var(--ink)} .mini span{font-family:var(--fd);font-weight:600;font-size:16px}
+/* B keepers */
+.tray{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:10px 12px;margin:2px 0 10px}
+.tk{font-family:var(--fm);font-size:9px;letter-spacing:.12em;color:var(--mut2)}
+.slots{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:9px}
+.sl{display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 0 6px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2)}
+.sl.rk{border-color:rgba(181,156,240,.45)} .sl b{font-family:var(--fm);font-size:10px} .sl .av{width:34px;height:34px}
+.kc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.kc.keep{border-color:rgba(95,220,143,.35)} .kc.blocked{opacity:.6}
+.kh{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center} .kh .av{width:38px;height:38px}
+.kt b{font-family:var(--fd);font-weight:500;font-size:15px;display:block} .kt span{font-size:11px;color:var(--mut2)}
+.kv{text-align:right} .kv b{font-family:var(--fd);font-weight:600;font-size:15px;display:block} .kv span{font-family:var(--fm);font-size:9.5px;color:var(--mut2)}
+.ladder{display:flex;align-items:center;gap:6px;margin-top:10px}
+.st{flex:1;border:1px solid var(--line2);border-radius:9px;padding:6px 8px;background:var(--panel2)}
+.st span{display:block;font-family:var(--fm);font-size:8.5px;letter-spacing:.1em;color:var(--mut2)} .st b{font-family:var(--fd);font-weight:600;font-size:15px}
+.st.now{border-color:var(--crimson);background:rgba(255,51,108,.08)} .st.past{opacity:.45} .st.adp b{color:var(--a)}
+.ar{color:var(--mut2);font-size:12px} .kn{font-size:11.5px;color:var(--muted);margin-top:8px}
+/* C claims */
+.budget{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:11px 13px;margin:2px 0 4px}
+.bk{display:flex;justify-content:space-between;align-items:baseline} .bk span{font-family:var(--fm);font-size:9px;letter-spacing:.12em;color:var(--mut2)}
+.bk b{font-family:var(--fd);font-weight:600;font-size:24px} .bk small{font-family:var(--fb);font-size:12px;color:var(--mut2);font-weight:400}
+.bbar{height:8px;border-radius:99px;background:var(--panel2);margin:9px 0 7px;display:flex;overflow:hidden}
+.bbar .spent{background:var(--mut2)} .bbar .queued{background:var(--crimson)}
+.bl{display:flex;justify-content:space-between;font-family:var(--fm);font-size:10px;color:var(--mut2)} .bl b{color:var(--ink)}
+.bl i.q{display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--crimson);margin-right:5px}
+.cl{display:grid;grid-template-columns:14px 18px 38px 1fr 62px;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 10px;margin-bottom:7px}
+.cl.dim{opacity:.6} .cl .av{width:38px;height:38px} .grip{color:#544c4f;font-size:12px;letter-spacing:-2px} .pr{font-family:var(--fd);font-weight:600;font-size:15px;color:var(--mut2)}
+.ct b{font-family:var(--fd);font-weight:500;font-size:14px;display:block} .ct span{font-size:11px;color:var(--mut2)}
+.bids{display:flex;gap:5px;margin-top:6px} .bids span{font-family:var(--fm);font-size:10px;padding:3px 7px;border-radius:6px;border:1px solid var(--line2);color:var(--muted)}
+.bids span.on{border-color:var(--crimson);color:var(--ink);background:rgba(255,51,108,.1)} .bids .c{color:var(--mut2)}
+.cv{text-align:right} .cv b{font-family:var(--fd);font-weight:600;font-size:18px;display:block} .cv span{font-family:var(--fm);font-size:8.5px;color:var(--mut2)}
+.go{margin-top:12px;text-align:center;padding:11px 0;border-radius:11px;background:var(--crimson);color:#fff;font-weight:600;font-size:13.5px}
+/* D swing */
+.swh{padding:6px 2px 10px} .swh .k{font-family:var(--fm);font-size:9px;letter-spacing:.13em;color:var(--crimson)}
+.swh .k i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--crimson);margin-right:6px}
+.swh .t{font-family:var(--fd);font-weight:500;font-size:24px;margin-top:4px} .swh .t b{font-weight:600} .swh .s{font-size:12px;color:var(--mut2);margin-top:2px}
+.pl{display:grid;grid-template-columns:38px 1fr 64px;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:7px}
+.pl .av{width:38px;height:38px} .pt b{font-family:var(--fd);font-weight:500;font-size:14.5px} .pt span{font-family:var(--fm);font-size:10px;color:var(--muted);margin-left:6px}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px} .ch{font-family:var(--fm);font-size:9.5px;padding:2px 6px;border-radius:5px;border:1px solid}
+.ch.me{color:var(--crimson);border-color:rgba(255,51,108,.4)} .ch.op{color:var(--g);border-color:rgba(95,220,143,.35)}
+.nt{text-align:right} .nt b{font-family:var(--fd);font-weight:600;font-size:19px;display:block} .nt span{font-family:var(--fm);font-size:9px;color:var(--mut2)}
+.nt.up b{color:var(--g)} .nt.dn b{color:var(--r)} .nt.tie b{color:var(--mut2)}
+</style></head><body>
+<h1>Four refinements</h1>
+<p class="sub">Each one answers something this app made you do the long way in the last two weeks. Every frame is the phone at real size
+(412 × 915), on your actual rosters, and every one works on the Mac too, because it is the same page.</p>
+
+<div class="ref"><div class="screen"><div class="top"><div class="lrow"><span class="lchip on"><i class="me"></i>Kreeper</span><span class="lchip"><i class="up"></i>B&B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div></div><div class="body">
+<div class="ibhead"><div class="k">SATURDAY · WEEK 5 · FIRST LOCK SUN 1:00 · 22H</div>
+  <div class="t">3 things need you</div>
+  <div class="s">Across four leagues, in the order they lock.</div></div>
+<div class="item lock">
+  <div class="tag"><span class="kind">LOCK</span><span class="lg">Kreeper</span><span class="when">Sun 1:00</span></div>
+  <div class="row"><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8144.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/no.png" alt=""></div><div class="txt"><b>Chris Olave is questionable</b>
+    <span>hamstring · start Jaylen Waddle instead</span></div><div class="gain">+2.9</div></div>
+  <div class="acts"><span class="bt pri">Make the swap</span><span class="bt">Keep him</span></div></div>
+<div class="item claim">
+  <div class="tag"><span class="kind">CLAIM</span><span class="lg">B&amp;B</span><span class="when">waivers Wed</span></div>
+  <div class="row"><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11576.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/nyj.png" alt=""></div><div class="txt"><b>Braelon Allen</b>
+    <span>Hall out · bid $28–43 of $100</span></div><div class="gain">+7.2</div></div>
+  <div class="acts"><span class="bt pri">Queue claim</span><span class="bt">Not now</span></div></div>
+<div class="item claim">
+  <div class="tag"><span class="kind">CLAIM</span><span class="lg">7½ Men</span><span class="when">waivers Wed</span></div>
+  <div class="row"><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/7523.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/jax.png" alt=""></div><div class="txt"><b>Trevor Lawrence</b>
+    <span>streams over Goff · bid $5–9 of $96</span></div><div class="gain">+3.2</div></div>
+  <div class="acts"><span class="bt pri">Queue claim</span><span class="bt">Not now</span></div></div>
+<div class="quiet">TD's lineup is optimal · nothing waiting there</div>
+<div class="mini">
+  <div class="m"><b>Kreeper</b><span class="g">58%</span></div><div class="m"><b>B&amp;B</b><span class="g">71%</span></div>
+  <div class="m"><b>7½ Men</b><span class="a">46%</span></div><div class="m"><b>TD's</b><span class="d">19%</span></div>
+</div>
+</div><div class="nav"><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div><div>
+  <h2><em>01</em>Today becomes an inbox</h2>
+  <div class="why"><p>Today shows four league rows, each with its own <b>Decide</b> or <b>Fix lineup</b> button, and you open each one to find out what it wants. This turns them into <b>one list of the things that need you, across all four leagues, in the order they lock</b>, each with the one action that resolves it. A league with nothing to do gets a single quiet line instead of a button.</p>
+  <p>The four win probabilities shrink to a strip at the bottom. They're worth a glance, but they aren't jobs.</p></div>
+  <div class="cost">Built from what Command Center already works out per league (lock warnings, the top claim, the swap). New work: merging four leagues into one list and sorting it by lock time. Server-side, roughly a day.</div>
+</div></div>
+
+<div class="ref"><div class="screen"><div class="top"><div class="lrow"><span class="lchip on"><i class="me"></i>Kreeper</span><span class="lchip"><i class="up"></i>B&B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div></div><div class="body">
+<div class="tray"><div class="tk">YOUR 5 FOR 2027 · 3 REGULAR + 2 ROOKIE</div>
+  <div class="slots">
+   <div class="sl reg"><div class="av" style="width:34px;height:34px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8137.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/dal.png" alt=""></div><b>R4</b></div>
+   <div class="sl reg"><div class="av" style="width:34px;height:34px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8151.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/kc.png" alt=""></div><b>R3</b></div>
+   <div class="sl reg"><div class="av" style="width:34px;height:34px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/4046.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/kc.png" alt=""></div><b>R14</b></div>
+   <div class="sl rk"><div class="av" style="width:34px;height:34px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/nyg.png" alt=""></div><b>R14</b></div>
+   <div class="sl rk"><div class="av" style="width:34px;height:34px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/13294.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/phi.png" alt=""></div><b>R14</b></div>
+  </div></div>
+<div class="kc keep">
+  <div class="kh"><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8151.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/kc.png" alt=""></div><div class="kt"><b>Kenneth Walker</b><span>traded for · Ned drafted him R3</span></div>
+    <div class="kv"><b class="g">KEEP</b><span>worth pick 16</span></div></div>
+  <div class="ladder"><div class="st  now"><span>2027</span><b>R3</b></div><div class="ar">→</div><div class="st "><span>2028</span><b>R1</b></div><div class="ar">→</div><div class="st adp"><span>2029</span><b>ADP</b></div></div>
+  <div class="kn">Cheap now, a 1st in 2028, then whatever the market says.</div></div>
+<div class="kc">
+  <div class="kh"><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9488.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/sea.png" alt=""></div><div class="kt"><b>Jaxon Smith-Njigba</b><span>kept 2025, 2026 · year 3 next</span></div>
+    <div class="kv"><b class="d">CUT</b><span>−4 picks</span></div></div>
+  <div class="ladder"><div class="st past"><span>2025</span><b>R4</b></div><div class="ar">→</div><div class="st past"><span>2026</span><b>R1</b></div><div class="ar">→</div><div class="st adp now"><span>2027</span><b>ADP R1</b></div></div>
+  <div class="kn">Year 3 is ADP by rule, and his ADP is the 1st round.</div></div>
+<div class="kc blocked">
+  <div class="kh"><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8130.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/ari.png" alt=""></div><div class="kt"><b>Trey McBride</b><span>kept 3 years</span></div>
+    <div class="kv"><b class="m">DONE</b><span>back in the pool</span></div></div>
+  <div class="ladder"><div class="st past"><span>2024</span><b>R3</b></div><div class="ar">→</div><div class="st past"><span>2025</span><b>R1</b></div><div class="ar">→</div><div class="st past"><span>2026</span><b>ADP</b></div></div>
+</div>
+</div><div class="nav"><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div><div>
+  <h2><em>02</em>Keepers shows the whole ladder</h2>
+  <div class="why"><p>The keeper bugs we just fixed were invisible because the screen showed only one number per player. This shows <b>each player's price for every year he can be kept</b>: Walker R3 now, R1 in 2028, then ADP. Year 3's "ADP, by rule" is printed on the card, so you can check the price instead of trusting it.</p>
+  <p>A tray at the top holds the <b>five players the board would keep</b> (3 regular + 2 rookie, faces and rounds), so the answer comes before the reasoning.</p></div>
+  <div class="cost">The prices already come out of keeper_outlook. New work: running it one and two years ahead, plus the tray. About a day.</div>
+</div></div>
+
+<div class="ref"><div class="screen"><div class="top"><div class="lrow"><span class="lchip on"><i class="me"></i>Kreeper</span><span class="lchip"><i class="up"></i>B&B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div></div><div class="body">
+<div class="budget"><div class="bk"><span>KREEPER · FAAB</span><b>$94 <small>left of $100</small></b></div>
+  <div class="bbar"><i class="spent" style="width:6%"></i><i class="queued" style="width:26%"></i></div>
+  <div class="bl"><span><i class="q"></i>queued $26</span><span>after Wednesday <b>$68</b></span></div></div>
+<div class="sh">YOUR CLAIM ORDER · DRAG TO REORDER</div>
+<div class="cl">
+  <div class="grip">⋮⋮</div><div class="pr">1</div><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11576.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/nyj.png" alt=""></div>
+  <div class="ct"><b>Braelon Allen</b><span>drop Keaton Mitchell · +3.4 to your week</span>
+    <div class="bids"><span>$12</span><span class="on">$18</span><span>$24</span><span class="c">other</span></div></div>
+  <div class="cv"><b>$18</b><span>Ballers $12–24</span></div></div>
+<div class="cl">
+  <div class="grip">⋮⋮</div><div class="pr">2</div><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/7523.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/jax.png" alt=""></div>
+  <div class="ct"><b>Trevor Lawrence</b><span>drop Jared Goff · +1.1</span>
+    <div class="bids"><span class="on">$4</span><span>$6</span><span>$9</span><span class="c">other</span></div></div>
+  <div class="cv"><b>$4</b><span>QB streamer</span></div></div>
+<div class="cl dim">
+  <div class="grip">⋮⋮</div><div class="pr">3</div><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/nyg.png" alt=""></div>
+  <div class="ct"><b>Contingency</b><span>if #1 fails · drop Keaton Mitchell</span>
+    <div class="bids"><span class="on">$4</span><span>$8</span><span class="c">other</span></div></div>
+  <div class="cv"><b>$4</b><span>backup</span></div></div>
+<div class="go">Open these claims in Sleeper</div>
+<div class="small">Sleeper takes the claims; this works out the order, the bids and who to drop.</div>
+</div><div class="nav"><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div><div>
+  <h2><em>03</em>Waivers becomes a claim builder</h2>
+  <div class="why"><p>Wire shows one claim card at a time, and the order, bids and drops are left for you to work out in Sleeper. This builds the whole Wednesday: <b>claims in priority order (drag to reorder), a bid per claim chosen from the Ballers' range, who to drop for each, and a budget bar</b> showing $94 now and $68 if everything clears.</p>
+  <p>A contingency claim (if #1 fails) is a first-class row, because that's how FAAB actually gets won. Sleeper still takes the claims; this hands it a finished plan.</p></div>
+  <div class="cost">Uses the FAAB fix from this week, the Ballers' bid ranges and the free-agent gain pass. New work: a saved claim queue per league, and reordering on the phone. One to two days. It needs care: a wrong drop costs a player.</div>
+</div></div>
+
+<div class="ref"><div class="screen"><div class="top"><div class="lrow"><span class="lchip"><i class="me"></i>Kreeper</span><span class="lchip on"><i class="up"></i>B&B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div></div><div class="body">
+<div class="swh"><div class="k"><i></i>LIVE · 3 GAMES</div>
+  <div class="t">Net today <b class="g">+14.6</b></div>
+  <div class="s">Every play that touched one of your four leagues, netted across all of them.</div></div>
+<div class="pl"><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9221.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/det.png" alt=""></div><div class="pt"><b>Jahmyr Gibbs</b><span>12-yd TD run</span><div class="chips"><span class="ch me">+6.1 yours · B&amp;B</span><span class="ch op">−6.1 against · Kreeper</span></div></div><div class="nt tie"><b>0.0</b><span>just now</span></div></div><div class="pl"><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9509.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/atl.png" alt=""></div><div class="pt"><b>Bijan Robinson</b><span>41-yd run</span><div class="chips"><span class="ch me">+4.1 yours · B&amp;B</span><span class="ch me">+4.1 yours · 7½ Men</span></div></div><div class="nt up"><b>+8.2</b><span>1m</span></div></div><div class="pl"><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/4984.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/buf.png" alt=""></div><div class="pt"><b>Josh Allen</b><span>22-yd TD pass</span><div class="chips"><span class="ch op">−4.4 against · Kreeper</span></div></div><div class="nt dn"><b>−4.4</b><span>3m</span></div></div><div class="pl"><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9488.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/sea.png" alt=""></div><div class="pt"><b>Jaxon Smith-Njigba</b><span>9 rec · 3rd catch for 31</span><div class="chips"><span class="ch me">+4.6 yours · Kreeper</span></div></div><div class="nt up"><b>+4.6</b><span>4m</span></div></div><div class="pl"><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9493.jpg" alt=""><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/lar.png" alt=""></div><div class="pt"><b>Puka Nacua</b><span>TD reception</span><div class="chips"><span class="ch me">+8.8 yours · B&amp;B</span><span class="ch op">−8.8 against · TD's</span></div></div><div class="nt tie"><b>0.0</b><span>6m</span></div></div>
+<div class="small">A touchdown you have on one side and face on the other is worth nothing to your Sunday — the feed says so instead of buzzing twice.</div>
+</div><div class="nav"><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div><div>
+  <h2><em>04</em>Live shows the net, not the noise</h2>
+  <div class="why"><p>You have Gibbs in one league and face him in another. Right now a Gibbs touchdown is good news on one screen and bad news on the next, and the alerts fire for both. This feed <b>nets each play across all four leagues</b>: Gibbs's TD is +6.1 in B&amp;B and −6.1 in Kreeper, so <b>net 0.0</b>, and it says so once.</p>
+  <p>The header becomes one number for your whole Sunday (net +14.6), which no single league screen can give you.</p></div>
+  <div class="cost">The exposure join (who is yours and who is against you, per league) already exists for Live · all. New work: a per-play feed and netting. The phone alerts can use the same net, so a play that cancels out never buzzes. About a day.</div>
+</div></div>
+</body></html>
