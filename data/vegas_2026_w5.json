@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "week": 5,
-  "published": "2026-10-06T12:27",
+  "published": "2026-10-06T13:27",
   "players": {
     "Dak Prescott|DAL": {
       "name": "Dak Prescott",
@@ -23,7 +23,7 @@
           "under": "-125"
         },
         "pass_yd": {
-          "line": 265.5,
+          "line": 264.5,
           "over": "-115",
           "under": "-115"
         },
@@ -41,7 +41,7 @@
         "pass_td": 1.65,
         "pass_att": 33.57,
         "pass_int": 0.48,
-        "pass_yd": 265.5,
+        "pass_yd": 264.5,
         "rush_yd": 9.51,
         "td": 0.149
       }
@@ -66,27 +66,27 @@
           "under": "+145"
         },
         "pass_yd": {
-          "line": 180.5,
+          "line": 179.5,
           "over": "-115",
           "under": "-115"
         },
         "rush_yd": {
           "line": 45.5,
-          "over": "-110",
-          "under": "-120"
+          "over": "-115",
+          "under": "-115"
         },
         "td": {
-          "price": "+290",
-          "prob": 0.2564102564102564
+          "price": "+285",
+          "prob": 0.2597402597402597
         }
       },
       "exp": {
         "pass_td": 0.67,
         "pass_att": 28.47,
         "pass_int": 0.62,
-        "pass_yd": 180.5,
-        "rush_yd": 45.45,
-        "td": 0.253
+        "pass_yd": 179.5,
+        "rush_yd": 45.5,
+        "td": 0.257
       }
     },
     "Bucky Irving|TB": {
@@ -94,7 +94,7 @@
       "team": "TB",
       "lines": {
         "rush_yd": {
-          "line": 57.5,
+          "line": 52.5,
           "over": "-115",
           "under": "-115"
         },
@@ -109,15 +109,15 @@
           "under": "-115"
         },
         "td": {
-          "price": "+170",
-          "prob": 0.37037037037037035
+          "price": "+175",
+          "prob": 0.36363636363636365
         }
       },
       "exp": {
-        "rush_yd": 57.5,
+        "rush_yd": 52.5,
         "rec": 2.42,
         "rec_yd": 13.5,
-        "td": 0.395
+        "td": 0.386
       }
     },
     "Javonte Williams|DAL": {
@@ -156,14 +156,14 @@
       "team": "TB",
       "lines": {
         "rush_yd": {
-          "line": 10.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 11.5,
+          "over": "-110",
+          "under": "-120"
         },
         "rec": {
           "line": 1.5,
-          "over": "-145",
-          "under": "+110"
+          "over": "-150",
+          "under": "+115"
         },
         "rec_yd": {
           "line": 9.5,
@@ -176,8 +176,8 @@
         }
       },
       "exp": {
-        "rush_yd": 10.5,
-        "rec": 1.55,
+        "rush_yd": 11.49,
+        "rec": 1.56,
         "rec_yd": 9.49,
         "td": 0.175
       }
@@ -211,9 +211,9 @@
           "under": "-125"
         },
         "rec_yd": {
-          "line": 29.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 30.5,
+          "over": "-110",
+          "under": "-120"
         },
         "td": {
           "price": "+500",
@@ -222,7 +222,7 @@
       },
       "exp": {
         "rec": 3.48,
-        "rec_yd": 29.5,
+        "rec_yd": 30.47,
         "td": 0.156
       }
     },
@@ -382,23 +382,23 @@
       "lines": {
         "rec": {
           "line": 1.5,
-          "over": "-190",
-          "under": "+145"
+          "over": "-165",
+          "under": "+125"
         },
         "rec_yd": {
-          "line": 22.5,
+          "line": 20.5,
           "over": "-120",
           "under": "-110"
         },
         "td": {
-          "price": "+460",
-          "prob": 0.17857142857142858
+          "price": "+500",
+          "prob": 0.16666666666666666
         }
       },
       "exp": {
-        "rec": 1.62,
-        "rec_yd": 22.52,
-        "td": 0.168
+        "rec": 1.58,
+        "rec_yd": 20.52,
+        "td": 0.156
       }
     },
     "Tez Johnson|TB": {
@@ -407,23 +407,23 @@
       "lines": {
         "rec": {
           "line": 1.5,
-          "over": "+155",
-          "under": "-210"
+          "over": "+150",
+          "under": "-200"
         },
         "rec_yd": {
-          "line": 10.5,
-          "over": "-120",
-          "under": "-110"
+          "line": 11.5,
+          "over": "-115",
+          "under": "-115"
         },
         "td": {
-          "price": "+700",
-          "prob": 0.125
+          "price": "+625",
+          "prob": 0.13793103448275862
         }
       },
       "exp": {
-        "rec": 1.37,
-        "rec_yd": 10.51,
-        "td": 0.114
+        "rec": 1.38,
+        "rec_yd": 11.5,
+        "td": 0.127
       }
     },
     "Kameron Johnson|TB": {
@@ -548,12 +548,12 @@
       "team": "TB",
       "lines": {
         "td": {
-          "price": "+390",
-          "prob": 0.20408163265306123
+          "price": "+380",
+          "prob": 0.20833333333333334
         }
       },
       "exp": {
-        "td": 0.195
+        "td": 0.199
       }
     },
     "Emari Demercado|DAL": {
