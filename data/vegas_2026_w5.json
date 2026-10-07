@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "week": 5,
-  "published": "2026-10-06T20:52",
+  "published": "2026-10-06T21:52",
   "players": {
     "Dak Prescott|DAL": {
       "name": "Dak Prescott",
@@ -19,8 +19,8 @@
         },
         "pass_int": {
           "line": 0.5,
-          "over": "-105",
-          "under": "-125"
+          "over": "EVEN",
+          "under": "-130"
         },
         "pass_yd": {
           "line": 265.5,
@@ -40,7 +40,7 @@
       "exp": {
         "pass_td": 1.65,
         "pass_att": 33.57,
-        "pass_int": 0.48,
+        "pass_int": 0.47,
         "pass_yd": 265.5,
         "rush_yd": 9.51,
         "td": 0.154
@@ -52,8 +52,8 @@
       "lines": {
         "pass_td": {
           "line": 0.5,
-          "over": "-260",
-          "under": "+190"
+          "over": "-250",
+          "under": "+185"
         },
         "pass_att": {
           "line": 28.5,
@@ -66,27 +66,27 @@
           "under": "+145"
         },
         "pass_yd": {
-          "line": 179.5,
+          "line": 181.5,
           "over": "-115",
           "under": "-115"
         },
         "rush_yd": {
-          "line": 45.5,
+          "line": 44.5,
           "over": "-115",
           "under": "-115"
         },
         "td": {
-          "price": "+290",
-          "prob": 0.2564102564102564
+          "price": "+280",
+          "prob": 0.2631578947368421
         }
       },
       "exp": {
-        "pass_td": 0.68,
+        "pass_td": 0.67,
         "pass_att": 28.53,
         "pass_int": 0.62,
-        "pass_yd": 179.5,
-        "rush_yd": 45.5,
-        "td": 0.25
+        "pass_yd": 181.5,
+        "rush_yd": 44.5,
+        "td": 0.258
       }
     },
     "Bucky Irving|TB": {
@@ -94,30 +94,30 @@
       "team": "TB",
       "lines": {
         "rush_yd": {
-          "line": 52.5,
-          "over": "-115",
-          "under": "-115"
-        },
-        "rec": {
-          "line": 2.5,
-          "over": "+115",
-          "under": "-150"
-        },
-        "rec_yd": {
-          "line": 12.5,
+          "line": 51.5,
           "over": "-120",
           "under": "-110"
         },
+        "rec": {
+          "line": 2.5,
+          "over": "+130",
+          "under": "-170"
+        },
+        "rec_yd": {
+          "line": 12.5,
+          "over": "-115",
+          "under": "-115"
+        },
         "td": {
-          "price": "+185",
-          "prob": 0.3508771929824561
+          "price": "+190",
+          "prob": 0.3448275862068966
         }
       },
       "exp": {
-        "rush_yd": 52.5,
-        "rec": 2.44,
-        "rec_yd": 12.51,
-        "td": 0.364
+        "rush_yd": 51.55,
+        "rec": 2.41,
+        "rec_yd": 12.5,
+        "td": 0.358
       }
     },
     "Javonte Williams|DAL": {
@@ -125,7 +125,7 @@
       "team": "DAL",
       "lines": {
         "rush_yd": {
-          "line": 72.5,
+          "line": 74.5,
           "over": "-115",
           "under": "-115"
         },
@@ -145,10 +145,10 @@
         }
       },
       "exp": {
-        "rush_yd": 72.5,
+        "rush_yd": 74.5,
         "rec": 2.52,
         "rec_yd": 15.5,
-        "td": 1.019
+        "td": 1.023
       }
     },
     "Kenneth Gainwell|TB": {
@@ -156,14 +156,14 @@
       "team": "TB",
       "lines": {
         "rush_yd": {
-          "line": 12.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 11.5,
+          "over": "-120",
+          "under": "-110"
         },
         "rec": {
           "line": 1.5,
-          "over": "-185",
-          "under": "+140"
+          "over": "-170",
+          "under": "+130"
         },
         "rec_yd": {
           "line": 10.5,
@@ -176,8 +176,8 @@
         }
       },
       "exp": {
-        "rush_yd": 12.5,
-        "rec": 1.61,
+        "rush_yd": 11.51,
+        "rec": 1.59,
         "rec_yd": 10.5,
         "td": 0.173
       }
@@ -188,8 +188,8 @@
       "lines": {
         "rush_yd": {
           "line": 16.5,
-          "over": "-115",
-          "under": "-115"
+          "over": "-110",
+          "under": "-120"
         },
         "td": {
           "price": "+600",
@@ -197,7 +197,7 @@
         }
       },
       "exp": {
-        "rush_yd": 16.5,
+        "rush_yd": 16.48,
         "td": 0.13
       }
     },
@@ -207,11 +207,11 @@
       "lines": {
         "rec": {
           "line": 3.5,
-          "over": "-105",
-          "under": "-125"
+          "over": "EVEN",
+          "under": "-130"
         },
         "rec_yd": {
-          "line": 28.5,
+          "line": 27.5,
           "over": "-115",
           "under": "-115"
         },
@@ -221,8 +221,8 @@
         }
       },
       "exp": {
-        "rec": 3.48,
-        "rec_yd": 28.5,
+        "rec": 3.47,
+        "rec_yd": 27.5,
         "td": 0.154
       }
     },
@@ -236,7 +236,7 @@
           "under": "-135"
         },
         "rec_yd": {
-          "line": 80.5,
+          "line": 79.5,
           "over": "-115",
           "under": "-115"
         },
@@ -247,8 +247,8 @@
       },
       "exp": {
         "rec": 6.46,
-        "rec_yd": 80.5,
-        "td": 0.653
+        "rec_yd": 79.5,
+        "td": 0.655
       }
     },
     "Chris Godwin|TB": {
@@ -257,11 +257,11 @@
       "lines": {
         "rec": {
           "line": 3.5,
-          "over": "-105",
-          "under": "-125"
+          "over": "-110",
+          "under": "-120"
         },
         "rec_yd": {
-          "line": 29.5,
+          "line": 28.5,
           "over": "-115",
           "under": "-115"
         },
@@ -271,8 +271,8 @@
         }
       },
       "exp": {
-        "rec": 3.48,
-        "rec_yd": 29.5,
+        "rec": 3.49,
+        "rec_yd": 28.5,
         "td": 0.166
       }
     },
@@ -282,23 +282,23 @@
       "lines": {
         "rec": {
           "line": 2.5,
-          "over": "-170",
-          "under": "+130"
+          "over": "-165",
+          "under": "+125"
         },
         "rec_yd": {
-          "line": 31.5,
-          "over": "-120",
-          "under": "-110"
+          "line": 33.5,
+          "over": "-115",
+          "under": "-115"
         },
         "td": {
-          "price": "+270",
-          "prob": 0.2702702702702703
+          "price": "+265",
+          "prob": 0.273972602739726
         }
       },
       "exp": {
-        "rec": 2.59,
-        "rec_yd": 31.53,
-        "td": 0.265
+        "rec": 2.58,
+        "rec_yd": 33.5,
+        "td": 0.271
       }
     },
     "George Pickens|DAL": {
@@ -323,7 +323,7 @@
       "exp": {
         "rec": 4.49,
         "rec_yd": 60.5,
-        "td": 0.527
+        "td": 0.529
       }
     },
     "Jake Ferguson|DAL": {
@@ -341,14 +341,14 @@
           "under": "-110"
         },
         "td": {
-          "price": "+230",
-          "prob": 0.30303030303030304
+          "price": "+235",
+          "prob": 0.29850746268656714
         }
       },
       "exp": {
         "rec": 3.49,
         "rec_yd": 27.53,
-        "td": 0.304
+        "td": 0.3
       }
     },
     "Ryan Flournoy|DAL": {
@@ -373,7 +373,7 @@
       "exp": {
         "rec": 3.42,
         "rec_yd": 31.5,
-        "td": 0.242
+        "td": 0.243
       }
     },
     "Ted Hurst|TB": {
@@ -382,13 +382,13 @@
       "lines": {
         "rec": {
           "line": 1.5,
-          "over": "-150",
-          "under": "+115"
+          "over": "-160",
+          "under": "+120"
         },
         "rec_yd": {
           "line": 20.5,
-          "over": "-110",
-          "under": "-120"
+          "over": "-120",
+          "under": "-110"
         },
         "td": {
           "price": "+500",
@@ -396,8 +396,8 @@
         }
       },
       "exp": {
-        "rec": 1.56,
-        "rec_yd": 20.48,
+        "rec": 1.58,
+        "rec_yd": 20.52,
         "td": 0.154
       }
     },
@@ -407,13 +407,13 @@
       "lines": {
         "rec": {
           "line": 1.5,
-          "over": "+125",
-          "under": "-165"
+          "over": "+130",
+          "under": "-170"
         },
         "rec_yd": {
-          "line": 14.5,
-          "over": "-110",
-          "under": "-120"
+          "line": 13.5,
+          "over": "-115",
+          "under": "-115"
         },
         "td": {
           "price": "+600",
@@ -421,8 +421,8 @@
         }
       },
       "exp": {
-        "rec": 1.42,
-        "rec_yd": 14.49,
+        "rec": 1.41,
+        "rec_yd": 13.5,
         "td": 0.13
       }
     },
@@ -431,12 +431,12 @@
       "team": "TB",
       "lines": {
         "td": {
-          "price": "+1900",
-          "prob": 0.05
+          "price": "+2200",
+          "prob": 0.043478260869565216
         }
       },
       "exp": {
-        "td": 0.043
+        "td": 0.038
       }
     },
     "Bauer Sharp|TB": {
@@ -444,12 +444,12 @@
       "team": "TB",
       "lines": {
         "td": {
-          "price": "+4000",
-          "prob": 0.024390243902439025
+          "price": "+3300",
+          "prob": 0.029411764705882353
         }
       },
       "exp": {
-        "td": 0.021
+        "td": 0.025
       }
     },
     "Ko Kieft|TB": {
@@ -470,12 +470,12 @@
       "team": "DAL",
       "lines": {
         "td": {
-          "price": "+1000",
-          "prob": 0.09090909090909091
+          "price": "+1100",
+          "prob": 0.08333333333333333
         }
       },
       "exp": {
-        "td": 0.08
+        "td": 0.074
       }
     },
     "Kavontae Turpin|DAL": {
@@ -514,7 +514,7 @@
         }
       },
       "exp": {
-        "td": 0.067
+        "td": 0.068
       }
     },
     "Brevyn Spann-Ford|DAL": {
@@ -535,12 +535,12 @@
       "team": "TB",
       "lines": {
         "td": {
-          "price": "+2500",
-          "prob": 0.038461538461538464
+          "price": "+3300",
+          "prob": 0.029411764705882353
         }
       },
       "exp": {
-        "td": 0.033
+        "td": 0.025
       }
     },
     "Sean Tucker|TB": {
@@ -548,12 +548,12 @@
       "team": "TB",
       "lines": {
         "td": {
-          "price": "+380",
-          "prob": 0.20833333333333334
+          "price": "+400",
+          "prob": 0.2
         }
       },
       "exp": {
-        "td": 0.197
+        "td": 0.189
       }
     },
     "Emari Demercado|DAL": {
@@ -566,7 +566,7 @@
         }
       },
       "exp": {
-        "td": 0.067
+        "td": 0.068
       }
     },
     "Camden Brown|DAL": {
@@ -574,12 +574,12 @@
       "team": "DAL",
       "lines": {
         "td": {
-          "price": "+2500",
-          "prob": 0.038461538461538464
+          "price": "+2200",
+          "prob": 0.043478260869565216
         }
       },
       "exp": {
-        "td": 0.033
+        "td": 0.038
       }
     }
   }
