@@ -16,6 +16,7 @@ from typing import Optional
 
 import streamlit as st
 
+from .. import faabmarket as FM
 from .. import (config, ecr as ECR, gametime as GT, inseason, keepers as K, lineup as LU, phase as PH,
                 picks as PK, projections as PJ, schedule as SCH, sleeper_client as api,
                 weekly as W, weekview as WV)
@@ -449,7 +450,7 @@ def _top_claim(ctx, g):
         fa = inseason.faab(meta) or {}
         budget = int(fa.get("budget") or 0)
         left = max(0, budget - int((fa.get("by_owner") or {}).get(str(g["me"]), 0) or 0))
-        bid = W.bid_guidance(top["gain"], left, max(1, 14 - g["week"])) if left else None
+        bid = FM.bid(meta, g["week"], top, budget, left, max(1, 14 - g["week"])) if left else None
         own = ((g.get("ros") or {}).get(str(top["pid"])) or {}).get("owned")
         from .. import udk_waivers as UW
         _wv = (_udk_wv(g["season"], g["week"], reg) or {}).get(str(top["pid"]))
@@ -1985,8 +1986,13 @@ def _claim_builder(ctx, g, board, left: int, budget: int, weeks_left: int) -> No
         row = next((r for r in board if str(r["pid"]) == str(c.get("pid"))), None)
         if c.get("gain") is None and row:
             c["gain"] = row["gain"]
-        if not c.get("range") and c.get("gain") is not None:
-            c["range"] = W.bid_guidance(float(c["gain"]), left, weeks_left)
+        if c.get("gain") is not None and (c.get("range") or {}).get("mode") is None:
+            c["range"] = FM.bid(ctx["meta"], g["week"], dict(row or {}, gain=c["gain"], pid=c.get("pid")),
+                                  budget, left, weeks_left)
+            # a bid saved under the old value-only pricing ($28 for a $2
+            # market) goes with it, unless he picked that number himself
+            if "bid" not in (c.get("_set") or []):
+                c["bid"] = None
         if c.get("bid") is None:
             c["bid"] = (c.get("range") or {}).get("low") or 1
         try:
@@ -2037,6 +2043,7 @@ def _claim_builder(ctx, g, board, left: int, budget: int, weeks_left: int) -> No
             changed = False
             if bid != int(c["bid"]):
                 queue[i]["bid"], changed = int(bid), True
+                queue[i]["_set"] = list(set(queue[i].get("_set", [])) | {"bid"})
             new_drop = drop_pid.get(dname)
             if new_drop != c.get("drop"):
                 queue[i]["drop"], changed = new_drop, True
@@ -2064,7 +2071,7 @@ def _claim_builder(ctx, g, board, left: int, budget: int, weeks_left: int) -> No
             if col.button(f'+ {r["name"].split()[-1]} {r["gain"]:+.1f}', key=f"cb_add_{lk}_{r['pid']}",
                           use_container_width=True):
                 US.add_claim(lk, {"pid": str(r["pid"]), "name": r["name"], "gain": r["gain"],
-                                  "range": W.bid_guidance(float(r["gain"]), left, weeks_left),
+                                  "range": FM.bid(ctx["meta"], g["week"], r, budget, left, weeks_left),
                                   "bid": None, "drop": None})
                 rerun_here()
     if queue:
@@ -2088,9 +2095,12 @@ def _waivers(ctx, g) -> None:
     left = max(0, budget - spent) if budget else 0
     weeks_left = max(1, 14 - g["week"])
 
+    _wpos = None if budget else inseason.waiver_position(meta, str(g["me"]))
     _tiles([
         ("FAAB left", f"${left}" if budget else "—",
-         f"of ${budget}" if budget else "no FAAB in this league", "var(--ink)"),
+         f"of ${budget}" if budget else "no FAAB in this league", "var(--ink)")
+        if budget or not _wpos else
+        ("Waiver priority", f"#{_wpos}", "priority decides claims here, not bids", "var(--ink)"),
         ("Weeks left", f"{weeks_left}", f"≈ ${left/weeks_left:.0f} per week" if left else "—",
          "var(--muted)"),
         ("Upgrades available", f"{sum(1 for r in board if r['starts'])}",
@@ -2108,7 +2118,7 @@ def _waivers(ctx, g) -> None:
     # holding on purpose is something only you know about.
     _top = next((r for r in board if r["gain"] > 0.05), None)
     if _top:
-        _bid = W.bid_guidance(_top["gain"], left, weeks_left)
+        _bid = FM.bid(meta, g["week"], _top, budget, left, weeks_left)
         _lc = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"])
         _bench = sorted(((float(g["proj"].get(str(p), 0) or 0), str(p))
                          for p in _lc.get("bench") or []))
@@ -2143,9 +2153,11 @@ def _waivers(ctx, g) -> None:
                    ("Gain", f'{_top["gain"]:+.1f}', "on"),
                    ("Rostered", f'{_own:.0f}%' if _own is not None else "—",
                     "warn" if (_own or 0) >= 40 else ""),
-                   ("FAAB left", f"${left}" if budget else "—", "")],
+                   ("FAAB left", f"${left}", "") if budget else
+                   ("Priority", f"#{_wpos}" if _wpos else "—", "")],
             reasons=_reasons,
-            foot=f'{_bid["note"]} · {weeks_left} weeks left',
+            foot=(f'{_bid["note"]} · {weeks_left} weeks left' if budget else
+                  "waiver priority decides here — put him at #1 if you want him"),
             tone="good"), unsafe_allow_html=True)
 
     # ---- the Ballers' own waiver list, joined to THIS league --------------
@@ -2206,8 +2218,10 @@ def _waivers(ctx, g) -> None:
     rows = []
     ecr, ros = g.get("ecr") or {}, g.get("ros") or {}
     for r in board[:12]:
-        bid = W.bid_guidance(r["gain"], left, weeks_left)
-        if r["gain"] > 0.05:
+        bid = FM.bid(meta, g["week"], r, budget, left, weeks_left)
+        if r["gain"] > 0.05 and bid.get("mode") == "priority":
+            verdict, kind = "claim", "ok"
+        elif r["gain"] > 0.05:
             verdict, kind = f"${bid['low']}–{bid['high']}", "ok"
         else:
             verdict, kind = "$0 — no upgrade", "nil"
@@ -2234,6 +2248,12 @@ def _waivers(ctx, g) -> None:
                "the percentage of leagues everywhere that already have him: under ~40% and he is "
                "probably a quiet add, over that and you are in a bidding war whether you like it "
                "or not.")
+    _mk = FM.market_for(meta, g["week"]) if budget else None
+    if _mk and _mk.summary():
+        st.caption(f"**Bids are priced from this league's own history** — {_mk.summary()}. "
+                   "Each bid is what beat the runner-up on similar claims (projected about as "
+                   "well, same stretch of the season), surer for a bigger upgrade, never more "
+                   "than he is worth to your lineup.")
     if _ecr_missing(g):
         st.caption(_ecr_missing(g))
 

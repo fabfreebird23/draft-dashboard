@@ -128,8 +128,12 @@ def faab(meta) -> Optional[dict]:
         return None
     try:
         lg = api.get_league(str(meta.league_id)) or {}
-        budget = int((lg.get("settings") or {}).get("waiver_budget") or 0)
-        if not budget:
+        st_ = lg.get("settings") or {}
+        budget = int(st_.get("waiver_budget") or 0)
+        # Sleeper keeps a waiver_budget on leagues that don't bid (B&B is
+        # waiver_type 1, reverse standings) — that showed "$100 of $100" and
+        # dollar bids in a league where priority decides. 2 is FAAB.
+        if not budget or int(st_.get("waiver_type", 2) or 0) != 2:
             return None
         rows = api.get_rosters(str(meta.league_id)) or []
     except Exception:  # noqa: BLE001
@@ -143,6 +147,19 @@ def faab(meta) -> Optional[dict]:
     # names point at the same dict so an old caller can't drift again.
     return {"budget": budget, "by_owner": spent, "spent": spent,
             "median_left": left[len(left) // 2]}
+
+
+def waiver_position(meta, owner_id: str) -> Optional[int]:
+    """His place in the waiver order, for a league that runs on priority."""
+    if getattr(meta, "platform", "") != "sleeper":
+        return None
+    try:
+        for r in api.get_rosters(str(meta.league_id)) or []:
+            if str(r.get("owner_id")) == str(owner_id):
+                return int((r.get("settings") or {}).get("waiver_position") or 0) or None
+    except Exception:  # noqa: BLE001
+        return None
+    return None
 
 
 # --------------------------------------------------------------------- opponent

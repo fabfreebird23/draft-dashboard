@@ -95,6 +95,12 @@ def _warm_league(preset: dict, week: int) -> str:
     else:
         IS._fa_gain_cached(lk, week, slow, ctx, g, taken)       # the optimiser pass
         IS._waiver_board_cached(lk, week, slow, ctx, g, taken)
+    try:  # the league's FAAB market: ~5 s of Sleeper reads the first time
+        from . import faabmarket as FM
+        FM.market_for(ctx["meta"], week)
+        FM.hot_pids()
+    except Exception:  # noqa: BLE001
+        pass
         d = mark()
         # FLEX is what Rankings opens on; ALL is the second click most days.
         for pos in ("FLEX", "ALL"):

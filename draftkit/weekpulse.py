@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+from . import faabmarket as FM
 from . import config, gametime as GT, inseason, phase as PH, sleeper_client as api, weekly as W, weekview as WV
 from .providers import get_provider
 
@@ -184,7 +185,7 @@ def pulse(preset: dict, registry, week: int, byes: Optional[dict] = None) -> dic
                     fa = inseason.faab(meta) or {}
                     budget = int(fa.get("budget") or 0)
                     left = max(0, budget - int((fa.get("by_owner") or {}).get(me, 0) or 0))
-                    bid = W.bid_guidance(top["gain"], left, max(1, 14 - week)) if left else None
+                    bid = FM.bid(meta, week, top, budget, left, max(1, 14 - week)) if left else None
                     out["claim"] = {**top, "bid": bid, "left": left}
                     out["n_claims"] = 1
                     chips.append((f'{top["name"].split()[-1]} +{top["gain"]:.1f}'
