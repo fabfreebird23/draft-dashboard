@@ -1113,6 +1113,16 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .ss-t b.g{ color:#5fdc8f; } .ss-t em{ font-style:normal; font-size:10.5px; color:var(--mut2); }
 .ss-call{ margin-top:8px; padding:9px 12px; border-radius:11px; border:1px solid rgba(95,220,143,.45);
   background:rgba(95,220,143,.07); color:#5fdc8f; font-family:'Oswald',sans-serif; font-weight:500; font-size:16px; }
+
+/* ---- the per-tab fact strip (replaces the four-tile row) ---- */
+.ws-strip{ display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 18px; padding:9px 2px 10px;
+  margin:0 0 12px; border-bottom:1px solid var(--line); }
+.ws-sf{ display:inline-flex; align-items:baseline; gap:6px; font-size:12.5px; color:var(--muted); white-space:nowrap; }
+.ws-sf b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:16px; }
+.ws-sf em{ font-style:normal; color:var(--muted); }
+.ws-sf i{ font-style:normal; color:var(--mut2); font-size:11.5px; }
+.ws-sf + .ws-sf::before{ content:""; width:3px; height:3px; border-radius:50%; background:var(--line2);
+  margin-right:12px; align-self:center; }
 /* a score that moved on this poll flashes once, then settles */
 @keyframes h2hfresh{ 0%{background:rgba(95,220,143,.32);box-shadow:0 0 0 1px rgba(95,220,143,.6);}
   100%{background:transparent;box-shadow:0 0 0 1px transparent;} }
@@ -2513,6 +2523,57 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   .dr-cheat{ grid-template-columns:repeat(2,1fr); }
   .st-wrap{ grid-template-columns:1fr; }
 }
+/* ==== One card grammar =====================================================
+   Every card built this season brought its own header, padding and number
+   size. These rules put them on one shape: a 12px-radius panel, a mono
+   kicker, an Oswald headline, numbers in one size on the right, and a quiet
+   footnote. Later rules win, so this sits after the per-feature blocks. */
+.wr-item,.wr-season,.sa-box,.sa-must,.ss-box,.cb-budget,.kt-tray,.kl-card,.ib-item{
+  border-radius:12px !important; padding:11px 13px !important; border-color:var(--line) !important; }
+.wr-k,.sa-k,.ss-k,.cb-k span,.kt-k,.wr-tag,.sa-mk,.ib-tag{
+  font-family:'Roboto Mono',monospace !important; font-size:9.5px !important; letter-spacing:.13em !important; }
+.wr-t,.ss-call,.ct-h{ font-family:'Oswald',sans-serif !important; font-weight:500 !important; }
+.wr-tiles b,.ss-t b,.td-tiles b{ font-size:18px !important; }
+.wr-note,.sa-cap,.sa-mn,.kn{ font-size:12px !important; line-height:1.5 !important; }
+.ws-h{ font-size:10.5px !important; letter-spacing:.14em !important; margin:18px 0 8px !important; }
+
+/* notes: short = one quiet line; long = folded behind ⓘ */
+.ws-note{ font-size:11.5px; color:var(--mut2); margin:4px 0 10px; line-height:1.5; }
+.ws-note b{ color:var(--muted); font-weight:600; }
+details.ws-why{ margin:4px 0 12px; font-size:11.5px; color:var(--mut2); }
+details.ws-why summary{ cursor:pointer; list-style:none; display:flex; gap:7px; align-items:baseline; }
+details.ws-why summary::-webkit-details-marker{ display:none; }
+details.ws-why summary span{ color:var(--muted); font-size:12px; }
+details.ws-why[open] summary{ color:var(--muted); }
+details.ws-why > div{ margin:6px 0 0 19px; line-height:1.55; color:var(--muted); max-width:90ch; }
+details.ws-why b{ color:var(--ink); font-weight:600; }
+
+/* drawers: a section folded to one line that says what's inside */
+[data-testid="stExpander"]{ border:0 !important; border-top:1px solid var(--line) !important; border-radius:0 !important;
+  background:transparent !important; margin:0 !important; }
+[data-testid="stExpander"] details{ border:0 !important; background:transparent !important; }
+[data-testid="stExpander"] summary{ padding:11px 2px !important; }
+[data-testid="stExpander"] summary p{ font-size:13px !important; color:var(--muted) !important; }
+[data-testid="stExpander"] summary p strong{ font-family:'Oswald',sans-serif; font-weight:500; font-size:14.5px;
+  color:var(--ink); letter-spacing:.01em; margin-right:6px; }
+[data-testid="stExpanderDetails"]{ padding:2px 2px 14px !important; }
+.st-key-drawers{ border-bottom:1px solid var(--line); margin-top:10px; }
+
+/* a tab's lead: the one decision it exists for, as a sentence */
+.ld{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin:0 0 6px; }
+.ld.go{ border-color:rgba(95,220,143,.35); } .ld.warn{ border-color:rgba(240,179,87,.4); }
+.ld-k{ display:flex; gap:8px; align-items:baseline; font-family:'Roboto Mono',monospace; font-size:9.5px; letter-spacing:.13em; color:var(--crimson); }
+.ld-k span{ margin-left:auto; color:var(--mut2); letter-spacing:.06em; }
+.ld-t{ font-family:'Oswald',sans-serif; font-weight:500; font-size:22px; margin-top:5px; color:var(--ink); }
+.ld-s{ font-size:13px; color:var(--muted); line-height:1.5; margin-top:3px; max-width:80ch; }
+.ld-s b{ color:var(--ink); font-weight:600; }
+.ld-r{ display:flex; align-items:center; gap:10px; margin-top:11px; padding-top:10px; border-top:1px solid var(--line); }
+.ld-r .h2h-av{ width:34px; height:34px; flex:none; }
+.ld-r .n b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:15px; display:block; color:var(--ink); }
+.ld-r .n span{ font-size:11.5px; color:var(--mut2); }
+.ld-r .v{ margin-left:auto; text-align:right; }
+.ld-r .v b{ font-family:'Oswald',sans-serif; font-weight:600; font-size:18px; color:#5fdc8f; display:block; }
+.ld-r .v span{ font-size:10.5px; color:var(--mut2); }
 </style>
 
 """
@@ -2750,6 +2811,7 @@ DARK = """
 .pk-red{ background:#3a1020 !important; color:#ff8fae !important; }
 .pk-nil{ background:#2c282a !important; color:#a2989c !important; }
 .hm-note i{ }
+
 </style>
 """
 

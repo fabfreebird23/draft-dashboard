@@ -1177,7 +1177,9 @@ def main():
                     "phase", ["Pre-season", "In-season"], key=pkey,
                     selection_mode="single", label_visibility="collapsed") or st.session_state[pkey]
         with head[2]:
-            st.markdown(f'<div class="tb-row tb-pills">{pills}{cluster}</div>',
+            # In season the team count and scoring are facts he set once in
+            # August; the header keeps only the data-health dots.
+            st.markdown(f'<div class="tb-row tb-pills">{"" if _drafted else pills}{cluster}</div>',
                         unsafe_allow_html=True)
         with head[3], st.container(key="tb_more"):
             with st.popover("⋯", use_container_width=True):

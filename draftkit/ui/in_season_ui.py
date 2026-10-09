@@ -12,6 +12,7 @@ Heavy lifting lives in ``draftkit.weekly``; this module gathers and paints.
 """
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 import streamlit as st
@@ -126,13 +127,49 @@ def _tbl(head, rows, widths=None, wide: bool = False) -> str:
 
 
 def _tiles(items) -> None:
-    cols = st.columns(len(items))
-    for c, (label, value, sub, colour) in zip(cols, items):
-        with c:
-            st.markdown(
-                f'<div class="ws-tile"><div class="ws-tl">{label}</div>'
-                f'<div class="ws-tv" style="color:{colour}">{value}</div>'
-                f'<div class="ws-ts">{sub}</div></div>', unsafe_allow_html=True)
+    """A tab's headline facts as ONE line, not a row of four boxes.
+
+    The boxes were 90px tall on every tab and two of the four rarely changed a
+    decision; one strip reads left to right and leaves the screen to the answer.
+    `items` keeps its old shape — (label, value, sub, colour) — so every tab
+    switched over without being touched. A None item is skipped."""
+    parts = []
+    for it in items:
+        if not it:
+            continue
+        label, value, sub, colour = it
+        parts.append(f'<span class="ws-sf"><b style="color:{colour}">{value}</b>'
+                     f'<em>{label}</em>' + (f'<i>{sub}</i>' if sub else "") + '</span>')
+    st.markdown('<div class="ws-strip">' + "".join(parts) + '</div>', unsafe_allow_html=True)
+
+
+def _md_inline(text: str) -> str:
+    """**bold**, *italic* and `code` → HTML, for notes rendered as raw HTML."""
+    t = C._esc(text)
+    t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t)
+    t = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"<i>\1</i>", t)
+    return re.sub(r"`(.+?)`", r"<code>\1</code>", t)
+
+
+def _note(text: str, where=None) -> None:
+    """The explanations that used to sit under every section as a caption.
+
+    Short ones (a status — "nobody else plays TE") stay visible as one quiet
+    line. Long ones fold behind ⓘ with their first sentence as the label, so
+    the gist is still on screen and the paragraph is a tap away. 16 captions
+    across the tabs were mostly read once; this keeps them without the wall."""
+    tgt = where or st
+    plain = re.sub(r"[*`]", "", text or "").strip()
+    if not plain:
+        return
+    if len(plain) <= 110:
+        tgt.markdown(f'<div class="ws-note">{_md_inline(text)}</div>', unsafe_allow_html=True)
+        return
+    first = re.split(r"(?<=[.!?—])\s", plain, maxsplit=1)[0].rstrip("—").strip()
+    if len(first) > 84:
+        first = first[:82].rsplit(" ", 1)[0] + "…"
+    tgt.markdown(f'<details class="ws-why"><summary><span>ⓘ</span>{C._esc(first)}</summary>'
+                 f'<div>{_md_inline(text)}</div></details>', unsafe_allow_html=True)
 
 
 def _alert(kind, icon, html) -> None:
@@ -383,16 +420,13 @@ _TAB_LINK = {"Command Center": "team", "Live": "matchup", "Lineup": "team", "Ran
 
 
 def _link_bar(ctx, tab: str, week: int) -> str:
+    """One link: the league site's page for the tab he's on. Five links on the
+    nav row were five things to read on every screen to use one of them."""
     ln = _links(ctx, week)
     plat = "ESPN" if ctx["meta"].platform == "espn" else "Sleeper"
-    lead = _TAB_LINK.get(tab, "team")
-    order = [lead] + [k for k in ("team", "waivers", "matchup", "trades", "league") if k != lead]
-    parts = []
-    for k in order:
-        lab, url = ln[k]
-        cls = ' class="on"' if k == lead else ""
-        parts.append(f'<a{cls} href="{url}" target="_blank" rel="noopener">{lab} ↗</a>')
-    return (f'<div class="ws-ext"><span>on {plat}</span>' + "".join(parts) + '</div>')
+    lab, url = ln[_TAB_LINK.get(tab, "team")]
+    return (f'<div class="ws-ext"><a class="on" href="{url}" target="_blank" rel="noopener" '
+            f'title="{lab} on {plat}">{plat} ↗</a></div>')
 
 
 # ---------------------------------------------------------------------- render
@@ -410,7 +444,7 @@ def render(ctx, summary=None, tab="Command Center") -> None:
                    "this league in the app config.")
         return
     if _preseason():
-        st.caption("**Preseason** — projections are live, but records, results and "
+        _note("**Preseason** — projections are live, but records, results and "
                    "transactions stay empty until week 1 kicks off.")
 
     if tab == "Command Center":
@@ -771,7 +805,7 @@ def _command(ctx, g) -> None:
         st.markdown(C.lineup_bars_html(rows, header="Starting",
                                        proj_label="Pts" if started else "Projected"),
                     unsafe_allow_html=True)
-        st.caption((f"Actual points for men who have played, projections for the rest. "
+        _note((f"Actual points for men who have played, projections for the rest. "
                     f"Read from {_plat}.") if started else
                    (f"Bars are shares of your biggest starter. Read from {_plat}: your lineup "
                     f"projects **{lc['current_total']:.1f}**, the best available is "
@@ -820,10 +854,10 @@ def _command(ctx, g) -> None:
                          rows,
                          widths=["44px", "31%", "56px", "92px", "22%", "54px", "146px"],
                          wide=True), unsafe_allow_html=True)
-        st.caption("Only changes that alter *who plays* are listed — the platform labelling a "
+        _note("Only changes that alter *who plays* are listed — the platform labelling a "
                    "man RB where the optimiser calls him FLEX is not a move.")
         if _ecr_missing(g):
-            st.caption(_ecr_missing(g))
+            _note(_ecr_missing(g))
 
 
 
@@ -1043,7 +1077,7 @@ def _live_body(ctx, g, *, bound_auto: bool, bound_every: int) -> None:
             C.live_event_html(name=e["name"], delta=e["d"], total=e["to"],
                               ago=int(max(0, now - e["ts"])), mine=e["mine"])
             for e in events[:8]), unsafe_allow_html=True)
-    st.caption("Polls on the cadence above. The clock, score and possession come from ESPN and "
+    _note("Polls on the cadence above. The clock, score and possession come from ESPN and "
                "move every few seconds; the fantasy points come from Sleeper, whose own feed "
                "updates in bursts — measured at roughly once a minute during play, so a change "
                "stays marked for a couple of minutes after it lands rather than blinking once.")
@@ -1229,7 +1263,7 @@ def _start_sit(ctx, g, lc) -> None:
                      index=cands.index(a_def) if a_def in cands else 0)
     same = [p for p in cands if p != a and pos(p) == pos(a)]
     if not same:
-        st.caption(f"Nobody else on your roster plays {pos(a)}.")
+        _note(f"Nobody else on your roster plays {pos(a)}.")
         return
     b_def = best[2] if (best and best[1] == a and best[2] in same) else max(same, key=pj)
     b = c2.selectbox(f"vs another {pos(a)}", same, format_func=lab, key=f"{kb}_{pos(a)}",
@@ -1315,7 +1349,7 @@ def _lineup(ctx, g) -> None:
         lc_src["gain"] = round(lc_src["optimal_total"] - lc_src["current_total"], 1)
         missing = [p for p in g["mine"] if str(p) not in score and reg.meta(p).position in ("QB", "RB", "WR", "TE")]
         if missing:
-            st.caption(f"{src} doesn't rank " + ", ".join(reg.meta(p).name for p in missing[:5])
+            _note(f"{src} doesn't rank " + ", ".join(reg.meta(p).name for p in missing[:5])
                        + (" and others" if len(missing) > 5 else "")
                        + " — they sort behind everyone it does.")
         lc = lc_src
@@ -1471,7 +1505,7 @@ def _lineup(ctx, g) -> None:
                      f'<b>{reg.meta(pid).name}</b> ({slot}) <em>· tap one, then the other</em>')
     if steps:
         st.markdown(C.steps_html(f"On {_plat}, in this order", steps), unsafe_allow_html=True)
-        st.caption(f"{_plat} swaps two players when you tap them in turn, so every re-seat is written "
+        _note(f"{_plat} swaps two players when you tap them in turn, so every re-seat is written "
                    "as a pair. Ties in kickoff are not moves. Seating never changes the points, "
                    "only how much of the week stays open.")
 
@@ -1489,7 +1523,7 @@ def _lineup(ctx, g) -> None:
     st.markdown(_tbl(["", "Set this", "~Proj", "FantasyPros · Flock · The Ballers"], rows,
                      widths=["44px", "30%", "60px", "auto"], wide=True), unsafe_allow_html=True)
     _n = {k: len(v) for k, v in pn.items()}
-    st.caption(f"Positional rank on each panel. FantasyPros {_n.get('fp', 0)} players · "
+    _note(f"Positional rank on each panel. FantasyPros {_n.get('fp', 0)} players · "
                f"Flock {_n.get('flock', 0)} ({', '.join(sorted({a for r in (pn.get('flock') or {}).values() for a in (r.get('ranks') or {})}))}) · "
                f"The Ballers {_n.get('ffb', 0)} (Andy, Mike, Jason — their projections scored under this "
                f"league's settings). Neither Flock nor the Ballers rank K or D/ST.")
@@ -1983,7 +2017,7 @@ def _rankings(ctx, g) -> None:
         st.session_state.pop(fkey, None)
     _n = {"fp": len(fp), "flock": len(fl), "ffb": len(fb), "vegas": len(pn.get("vegas") or {})}
     _vpub = next((r.get("published") for r in (pn.get("vegas") or {}).values() if r.get("published")), None)
-    st.caption(f"Colour is by third of the position on each column — a yellow 22 at WR is a WR2, not a "
+    _note(f"Colour is by third of the position on each column — a yellow 22 at WR is a WR2, not a "
                f"warning. **Spread** is best–worst across the panels, red when they disagree. "
                f"{'ALL sorts by projection and shows positional ranks — pick a position to rank by a panel.' if all_view else ('Cross-position ranks, RB/WR/TE against each other (FantasyPros FLEX list, Flock with the QBs taken out, the Ballers by points).' if cross else 'Positional ranks.')} "
                f"FantasyPros {_n['fp']} · Flock {_n['flock']} · the Ballers {_n['ffb']} · Vegas "
@@ -2196,26 +2230,27 @@ def _claim_builder(ctx, g, board, left: int, budget: int, weeks_left: int) -> No
         st.markdown(f'<a class="cb-go" href="https://sleeper.com/leagues/{lid}/players" '
                     f'target="_blank" rel="noopener">Open these claims in Sleeper ↗</a>',
                     unsafe_allow_html=True)
-        st.caption("Sleeper takes the claims. This works out the order, the bids and the drops, "
+        _note("Sleeper takes the claims. This works out the order, the bids and the drops, "
                    "and keeps them until you clear them — claim #1 first, the rest as contingencies.")
 
-def _waiver_recap(ctx, g, left: int, budget: int) -> None:
-    """The last waiver run he was in, for six days after it ran."""
+def _waiver_recap(ctx, g):
+    """The last waiver run he was in, for six days after it ran:
+    (rec, dressed rows, "Tue 12:01 PM") or None."""
     import datetime as _dt, time as _t
     from .. import userstate as US, waiverrecap as WR
     meta = ctx["meta"]
     if getattr(meta, "platform", "") != "sleeper":
-        return
+        return None
     try:
         rosters = api.get_rosters(str(meta.league_id)) or []
         rid = next((r["roster_id"] for r in rosters if str(r.get("owner_id")) == str(g["me"])), None)
         if rid is None:
-            return
+            return None
         rec = WR.recap(str(meta.league_id), rid, g["week"])
     except Exception:  # noqa: BLE001
-        return
+        return None
     if not rec or not rec["claims"] or _t.time() - rec["ts"] / 1000 > 6 * 86400:
-        return
+        return None
     owner_of_rid = {r["roster_id"]: str(r.get("owner_id")) for r in rosters}
     sugg = US.suggestions(ctx["league_key"])
     reg = ctx["registry"]
@@ -2238,11 +2273,138 @@ def _waiver_recap(ctx, g, left: int, budget: int) -> None:
         when_s = when.strftime("%a %-I:%M %p")
     except Exception:  # noqa: BLE001
         when_s = f"week {rec['week']}"
-    st.markdown(C.waiver_recap_html(rec, when=when_s, left=left, budget=budget, rows=rows),
-                unsafe_allow_html=True)
+    return rec, rows, when_s
+
+
+def _drawer(title: str, summary: str = "", expanded: bool = False, key: str = ""):
+    """A section folded to one line that says what's in it.
+
+    Streamlit 1.50 can't report whether an expander is open, and a rerun closes
+    it — so a widget inside that causes a rerun marks its drawer (`_keep_open`)
+    and the drawer opens itself again on the way back."""
+    if key and st.session_state.get(f"drawer_{key}"):
+        expanded = True
+    return st.expander(f"**{title}**" + (f"  ·  {summary}" if summary else ""), expanded=expanded)
+
+
+def _keep_open(key: str):
+    """on_change callback for a widget that lives in drawer `key`."""
+    return lambda: st.session_state.__setitem__(f"drawer_{key}", True)
+
+
+def _lead_html(kick: str, right: str, title: str, sentence: str, row: str = "", tone: str = "") -> str:
+    return (f'<div class="ld {tone}"><div class="ld-k">{C._esc(kick)}<span>{C._esc(right)}</span></div>'
+            f'<div class="ld-t">{C._esc(title)}</div><div class="ld-s">{sentence}</div>{row}</div>')
+
+
+def _lead_row(ctx, g, pid, sub: str, val: str, val_sub: str) -> str:
+    reg = ctx["registry"]
+    pm = reg.meta(pid)
+    face = C.h2h_face_html(getattr(pm, "sleeper_pid", None) or pid, pm.team or "", "l")
+    return (f'<div class="ld-r">{face}<div class="n"><b>{C._esc(pm.name)}</b><span>{C._esc(sub)}</span></div>'
+            f'<div class="v"><b>{C._esc(val)}</b><span>{C._esc(val_sub)}</span></div></div>')
+
+
+def _waivers_run_label() -> str:
+    import datetime as _dt, time as _t
+    from .. import weekpulse as WP
+    try:
+        from zoneinfo import ZoneInfo
+        ts = WP._next_waivers_ts(_t.time())
+        return _dt.datetime.fromtimestamp(ts, ZoneInfo("America/New_York")).strftime("%a %-I:%M %p")
+    except Exception:  # noqa: BLE001
+        return "Wed 3:00 AM"
+
+
+def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> None:
+    """Every free agent worth a look in ONE table, each source a column.
+
+    This used to be four sections — the Ballers' list, our own ranking, Sleeper's
+    trending adds and (further down) the drop list — and the same men appeared
+    in up to three of them. Now the sources are columns and the lenses are
+    pills over the same rows."""
+    from .. import udk_waivers as UW
+    reg, meta, lk = ctx["registry"], ctx["meta"], ctx["league_key"]
+    try:
+        tr = api.get_trending("add", 24, 200) or {}
+    except Exception:  # noqa: BLE001
+        tr = {}
+    ecr, ros = g.get("ecr") or {}, g.get("ros") or {}
+    by_pid = {str(r["pid"]): r for r in board}
+    skill_wv = {pid: r for pid, r in (wv or {}).items() if not r.get("is_dst")}
+    pids = set(by_pid) | {p for p in skill_wv if p not in taken}
+    pids |= {str(p) for p in list(tr)[:60] if str(p) not in taken}
+    rows = []
+    for pid in pids:
+        try:
+            pm = reg.meta(pid)
+        except Exception:  # noqa: BLE001
+            continue
+        if (pm.position or "").upper() not in ("QB", "RB", "WR", "TE"):
+            continue
+        gain = by_pid.get(pid, {}).get("gain")
+        if gain is None:
+            gain = gain_of.get(pid)
+        wr = skill_wv.get(pid)
+        rows.append({"pid": pid, "name": pm.name, "pos": pm.position, "team": pm.team or "",
+                     "proj": float(g["proj"].get(pid, 0) or 0), "gain": float(gain or 0),
+                     "ballers": int(wr["consensus"]) if (wr and wr.get("consensus")) else None,
+                     "ballers_bid": UW.bid(wr, left or budget) if wr else None,
+                     "adds": int(tr.get(pid) or tr.get(int(pid) if pid.isdigit() else pid) or 0),
+                     "owned": (ros.get(pid) or ecr.get(pid) or {}).get("owned")})
+    lenses = {"All": lambda r: True,
+              "Starts for you": lambda r: r["gain"] > 0.05,
+              "Trending": lambda r: r["adds"] > 0,
+              "Ballers' list": lambda r: r["ballers"] is not None}
+    counts = {k: sum(1 for r in rows if f(r)) for k, f in lenses.items()}
+    # plain labels: a count in the label would change under the saved choice
+    labels = list(lenses)
+    pick = st.segmented_control("lens", labels, key=f"fa_lens_{lk}", selection_mode="single",
+                                default=labels[0], label_visibility="collapsed",
+                                on_change=_keep_open(f"fa_{lk}")) or labels[0]
+    lens = pick if pick in lenses else labels[0]
+    show = [r for r in rows if lenses[lens](r)]
+    _note(" · ".join(f"{k.lower()} {counts[k]}" for k in lenses))
+    order = {"Trending": lambda r: (-r["adds"], -r["gain"]),
+             "Ballers' list": lambda r: (r["ballers"] or 999, -r["gain"])}
+    show.sort(key=order.get(lens, lambda r: (-r["gain"], r["ballers"] or 999, -r["adds"], -r["proj"])))
+    out = []
+    for r in show[:25]:
+        if r["gain"] > 0.05:
+            b = FM.bid(meta, g["week"], r, budget, left, weeks_left) if budget else None
+            bid = (_chip("claim", "ok") if (b is None or b.get("mode") == "priority")
+                   else _chip(f'${b["low"]}–{b["high"]}', "ok"))
+        else:
+            bid = '<span class="ws-fnt">—</span>'
+        _av = W.availability(reg.meta(r["pid"]))
+        _fl = (" " + _chip(_av["status"][:4], "bad" if _av["severity"] >= 3 else "warn")) if _av["status"] else ""
+        out.append([
+            f'<b>{_esc_(r["name"])}</b> {_pos_pill(r["pos"])}{_fl}',
+            f'{r["proj"]:.1f}',
+            (f'<b class="ws-up">+{r["gain"]:.1f}</b>' if r["gain"] > 0.05 else '<span class="ws-fnt">+0.0</span>'),
+            (f'#{r["ballers"]}' + (f' <span class="ws-fnt">${r["ballers_bid"][0]}–{r["ballers_bid"][1]}</span>'
+                                   if r["ballers_bid"] else "")) if r["ballers"] else '<span class="ws-fnt">—</span>',
+            (f'+{r["adds"] / 1000:.0f}k' if r["adds"] >= 1000 else (f'+{r["adds"]}' if r["adds"] else '<span class="ws-fnt">—</span>')),
+            (f'{r["owned"]:.0f}%' if r["owned"] is not None else '<span class="ws-fnt">—</span>'),
+            bid,
+        ])
+    if out:
+        st.markdown(_tbl(["Player", "~Proj", "~+You", "Ballers", "Adds 24h", "~Rostered", "Bid here"], out,
+                         widths=["auto", "62px", "70px", "112px", "80px", "84px", "100px"], wide=True),
+                    unsafe_allow_html=True)
+    else:
+        _note("Nobody fits this filter right now.")
+    _mk = FM.market_for(meta, g["week"]) if budget else None
+    _note("**+You** is what he'd add to your starting lineup this week — a player who doesn't crack "
+          "your nine is worth $0 to you however highly he's ranked elsewhere. **Ballers** is the "
+          "Fantasy Footballers' rank and their FAAB range in this league's dollars. **Adds 24h** is "
+          "Sleeper-wide. **Bid here** is priced from this league's own history"
+          + (f" — {_mk.summary()}." if (_mk and _mk.summary()) else "."))
 
 
 def _waivers(ctx, g) -> None:
+    """Lead with the claim (or that there isn't one), then everything else in
+    drawers that say what they hold. Was five sections and four tables."""
     meta, reg = ctx["meta"], ctx["registry"]
     taken = {p for r in g["rosters"].values() for p in r["players"]}
     # The board is the slow part of this tab (an optimiser pass per free agent),
@@ -2254,271 +2416,172 @@ def _waivers(ctx, g) -> None:
     spent = int((fa.get("by_owner") or {}).get(str(g["me"]), 0) or 0)
     left = max(0, budget - spent) if budget else 0
     weeks_left = max(1, 14 - g["week"])
-
     _wpos = None if budget else inseason.waiver_position(meta, str(g["me"]))
+    run_at = _waivers_run_label()
+    n_up = sum(1 for r in board if r["starts"])
+
     _tiles([
-        ("FAAB left", f"${left}" if budget else "—",
-         f"of ${budget}" if budget else "no FAAB in this league", "var(--ink)")
-        if budget or not _wpos else
-        ("Waiver priority", f"#{_wpos}", "priority decides claims here, not bids", "var(--ink)"),
-        ("Weeks left", f"{weeks_left}", f"≈ ${left/weeks_left:.0f} per week" if left else "—",
-         "var(--muted)"),
-        ("Upgrades available", f"{sum(1 for r in board if r['starts'])}",
-         "free agents who would start for you", "var(--green)"),
-        ("Roster", f"{len(g['mine'])}", "players", "var(--muted)"),
+        ("FAAB", f"${left}", f"of ${budget}", "var(--ink)") if budget else
+        (("waiver priority", f"#{_wpos}", "", "var(--ink)") if _wpos else None),
+        ("weeks left", f"{weeks_left}", "", "var(--ink)"),
+        ("waivers run", run_at, "", "var(--ink)"),
+        ("free agents start for you", f"{n_up}", "", "var(--green)" if n_up else "var(--mut2)"),
     ])
 
-    if budget:
-        _waiver_recap(ctx, g, left, budget)
+    # ---- the lead: the claim, or that there isn't one ------------------------
+    top = next((r for r in board if r["gain"] >= 1.0), None)
+    close = next((r for r in board if r["gain"] > 0.05), None)
+    _lc = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"])
+    _bench = sorted(((float(g["proj"].get(str(p), 0) or 0), str(p)) for p in _lc.get("bench") or []))
+    drop = reg.meta(_bench[0][1]).name if _bench else None
+    kick = f"WAIVERS · WEEK {g['week']}"
+    if top:
+        b = FM.bid(meta, g["week"], top, budget, left, weeks_left) if budget else None
+        own = ((g.get("ros") or {}).get(str(top["pid"])) or (g.get("ecr") or {}).get(str(top["pid"])) or {}).get("owned")
+        if budget and b and b.get("mode") != "priority":
+            how = f'Bid <b>${b["low"]}–{b["high"]}</b>' + (f', drop <b>{_esc_(drop)}</b>' if drop else "") + "."
+        else:
+            how = (f'Waiver priority <b>#{_wpos}</b> decides it' if _wpos else "Put the claim in") + \
+                  (f', drop <b>{_esc_(drop)}</b>' if drop else "") + "."
+        st.markdown(_lead_html(kick, f"claims run {run_at}", f'Claim {top["name"]}',
+                               f'He adds <b>{top["gain"]:+.1f}</b> to your starting lineup this week. {how}',
+                               _lead_row(ctx, g, top["pid"],
+                                         f'{top["pos"]} · {reg.meta(top["pid"]).team} · {top["proj"]:.1f} proj'
+                                         + (f' · {own:.0f}% rostered' if own is not None else ""),
+                                         f'{top["gain"]:+.1f}', "to your week"), "go"),
+                    unsafe_allow_html=True)
+    elif close:
+        st.markdown(_lead_html(kick, f"claims run {run_at}", "No claim worth making this week",
+                               f'Nobody on the wire beats a starter by a point. The closest is '
+                               f'<b>{_esc_(close["name"])}</b> at {close["gain"]:+.1f} — a tiebreak, not a claim.',
+                               _lead_row(ctx, g, close["pid"],
+                                         f'{close["pos"]} · {reg.meta(close["pid"]).team} · {close["proj"]:.1f} proj',
+                                         f'{close["gain"]:+.1f}', "to your week")),
+                    unsafe_allow_html=True)
+    else:
+        st.markdown(_lead_html(kick, f"claims run {run_at}", "No claim worth making this week",
+                               "No free agent would start for you. Your nine are the nine."),
+                    unsafe_allow_html=True)
+
+    # the claim builder shows only when there's something to build
+    from .. import userstate as US
+    queued = US.claims(ctx["league_key"])
+    if budget and (queued or top):
         _claim_builder(ctx, g, board, left, budget, weeks_left)
 
-    # ---- the top add, as the swap it actually is -----------------------------
-    # A waiver claim is two moves, not one: the table below ranks the adds, and
-    # this card names the drop that pays for it — the lowest-projected man who is
-    # NOT in your starting lineup. It is a suggestion, not a rule; a stash you are
-    # holding on purpose is something only you know about.
-    _top = next((r for r in board if r["gain"] > 0.05), None)
-    if _top:
-        _bid = FM.bid(meta, g["week"], _top, budget, left, weeks_left)
-        _lc = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"])
-        _bench = sorted(((float(g["proj"].get(str(p), 0) or 0), str(p))
-                         for p in _lc.get("bench") or []))
-        _drop = _bench[0] if _bench else None
-        _weak = W.weakest_slot(g["mine"], g["slots"], g["proj"], reg,
-                               byes=g["byes"], week=g["week"])
-        _own = ((g.get("ros") or {}).get(str(_top["pid"]))
-                or (g.get("ecr") or {}).get(str(_top["pid"])) or {}).get("owned")
-        _reasons = []
-        if _weak:
-            _reasons.append((f'He plays your weakest slot' if _top["pos"] in str(_weak[0])
-                             else 'He cracks your starting lineup',
-                             f'your {_weak[0]} projects {_weak[1]:.1f} · '
-                             f'this adds {_top["gain"]:+.1f} to the week', "starter", "g"))
-        if _own is not None:
-            _reasons.append((f'{_own:.0f}% rostered everywhere',
-                             'under ~40% is a quiet add; over that and you are in a '
-                             'bidding war whether you like it or not',
-                             "contested" if _own >= 40 else "quiet",
-                             "w" if _own >= 40 else ""))
-        st.markdown(C.card_html(
-            wash="var(--green)", wash2="var(--panel2)",
-            left={"crest": "+", "name": _top["name"],
-                  "sub": f'add · {_top["pos"]} · {_top["proj"]:.1f} proj'},
-            right=({"crest": "−", "name": reg.meta(_drop[1]).name,
-                    "sub": f'drop · {(reg.meta(_drop[1]).position or "")} · '
-                           f'{_drop[0]:.1f} proj'} if _drop else None),
-            mid={"pill": (f'${_bid["low"]}–{_bid["high"]} of ${left}' if left
-                          else f'{_top["gain"]:+.1f}/wk'),
-                 "sit": f'<b>{_top["gain"]:+.1f}</b> to your week'},
-            cells=[("Bid", f'${_bid["low"]}–{_bid["high"]}' if left else "—", "on" if left else ""),
-                   ("Gain", f'{_top["gain"]:+.1f}', "on"),
-                   ("Rostered", f'{_own:.0f}%' if _own is not None else "—",
-                    "warn" if (_own or 0) >= 40 else ""),
-                   ("FAAB left", f"${left}", "") if budget else
-                   ("Priority", f"#{_wpos}" if _wpos else "—", "")],
-            reasons=_reasons,
-            foot=(f'{_bid["note"]} · {weeks_left} weeks left' if budget else
-                  "waiver priority decides here — put him at #1 if you want him"),
-            tone="good"), unsafe_allow_html=True)
-
-    # ---- the Ballers' own waiver list, joined to THIS league --------------
-    # Their board ranks a claim and puts a price on it, which nothing else here
-    # does. What it cannot know is who is already rostered in an 8-team league —
-    # so their list is filtered to the men actually free, and the ones that are
-    # gone are counted rather than hidden.
+    # ---- everything else, folded ----------------------------------------------
     from .. import udk_waivers as UW
     wv = _udk_wv(g["season"], g["week"], reg)
-    if wv:
-        # D/ST are numbered on their own list, so mixing them in would print two
-        # #1s; they belong with the streamers below, where they are chipped.
-        skill = {pid: r for pid, r in wv.items() if not r["is_dst"]}
-        free = {pid: r for pid, r in skill.items() if pid not in taken}
-        gone = len(skill) - len(free)
-        # The 14-row board only prices its own top adds, so most of their list
-        # came back blank. This is the same optimiser pass over 150 free agents
-        # the Rankings tab uses, cached on the same clock.
-        gain_of = _fa_gain_cached(ctx["league_key"], g["week"],
-                                  _slow_bucket(g["season"], g["week"]), ctx, g,
-                                  frozenset(taken))
-        _cap = 20
-        st.markdown('<div class="ws-h">The Fantasy Footballers\' waiver list · '
-                    f'week {g["week"]}</div>', unsafe_allow_html=True)
-        rws = []
-        _ordered = sorted(free.items(), key=lambda kv: (kv[1]["consensus"] or 99))
-        for pid, r in _ordered[:_cap]:
-            b = UW.bid(r, left or budget)
-            gn = gain_of.get(pid)
-            by = " · ".join(f'{a[:1].upper()}{int(v)}' for a, v in r["by"].items())
-            _av = W.availability(reg.meta(pid)) if not r["is_dst"] else {"status": "", "severity": 0}
-            _fl = (" " + _chip(_av["status"][:4], "bad" if _av["severity"] >= 3 else "warn")
-                   ) if _av.get("status") else ""
-            rws.append([
-                f'<b class="ws-sl">{int(r["consensus"] or 0)}</b>',
-                f'<b>{_esc_(r["name"])}</b> {_pos_pill(r["pos"])}{_fl}',
-                f'<span class="ws-fnt">{by}</span>',
-                (f'${b[0]}–{b[1]}' if b else '<span class="ws-fnt">—</span>'),
-                (f'<b class="ws-up">+{gn:.1f}</b>' if (gn or 0) > 0.05 else
-                 '<span class="ws-fnt">no upgrade</span>' if gn is not None else
-                 '<span class="ws-fnt">—</span>'),
-            ])
-        st.markdown(_tbl(["#", "Player", "~Andy · Jason · Mike", "~They bid", "~Adds to you"],
-                         rws, widths=["38px", "auto", "128px", "96px", "116px"], wide=True),
-                    unsafe_allow_html=True)
-        _more = max(0, len(_ordered) - _cap)
-        st.caption(f"Their consensus order, their own FAAB range converted to this league's "
-                   f"${left or budget} budget, and what each man would add to **your** starting "
-                   f"lineup. {gone} of their {len(skill)} targets "
-                   f"{'is' if gone == 1 else 'are'} already rostered here and left out"
-                   + (f", and {_more} further down their list are not shown" if _more else "")
-                   + ". A high Ballers rank with **no upgrade** beside it is a good player who "
-                   f"does not crack your nine — theirs is a general list, that column is yours. "
-                   f"Their defense streamers are chipped in **Streaming** below.")
-
-    st.markdown('<div class="ws-h">Ranked by what they add to YOUR starting lineup</div>',
-                unsafe_allow_html=True)
-    rows = []
-    ecr, ros = g.get("ecr") or {}, g.get("ros") or {}
-    for r in board[:12]:
-        bid = FM.bid(meta, g["week"], r, budget, left, weeks_left)
-        if r["gain"] > 0.05 and bid.get("mode") == "priority":
-            verdict, kind = "claim", "ok"
-        elif r["gain"] > 0.05:
-            verdict, kind = f"${bid['low']}–{bid['high']}", "ok"
-        else:
-            verdict, kind = "$0 — no upgrade", "nil"
-        _av = W.availability(reg.meta(r["pid"]))
-        _fl = (" " + _chip(_av["status"][:4], "bad" if _av["severity"] >= 3 else "warn")
-               ) if _av["status"] else ""
-        _wv = (wv or {}).get(str(r["pid"]))
-        _wvc = (_chip(f'Ballers #{int(_wv["consensus"])}', "acc")
-                if (_wv and _wv.get("consensus")) else "")
-        rows.append([
-            f'<b>{r["name"]}</b> {_pos_pill(r["pos"])}{_fl} {_wvc}',
-            f'{r["proj"]:.1f}',
-            _ecr_cell(ecr.get(str(r["pid"]))),
-            _owned_cell(ros.get(str(r["pid"])) or ecr.get(str(r["pid"]))),
-            (f'<b class="ws-up">+{r["gain"]}</b>' if r["gain"] > 0.05
-             else '<span class="ws-fnt">+0.0</span>'),
-            _chip(verdict, kind),
-        ])
-    st.markdown(_tbl(["Player", "~Proj", "Experts", "~Rostered", "~Adds to lineup", "Bid"], rows,
-                     widths=["auto", "62px", "92px", "92px", "112px", "126px"], wide=True),
-                unsafe_allow_html=True)
-    st.caption("A player who would not crack your starting lineup is worth **$0 to you**, however "
-               "highly he is ranked elsewhere — that is what this column is for. **Rostered** is "
-               "the percentage of leagues everywhere that already have him: under ~40% and he is "
-               "probably a quiet add, over that and you are in a bidding war whether you like it "
-               "or not.")
-    _mk = FM.market_for(meta, g["week"]) if budget else None
-    if _mk and _mk.summary():
-        st.caption(f"**Bids are priced from this league's own history** — {_mk.summary()}. "
-                   "Each bid is what beat the runner-up on similar claims (projected about as "
-                   "well, same stretch of the season), surer for a bigger upgrade, never more "
-                   "than he is worth to your lineup.")
-    if _ecr_missing(g):
-        st.caption(_ecr_missing(g))
-
-    # ---- streaming: the wire's defenses and kickers by THIS week's matchup ----
-    # Nothing else in the engine ranks by opponent. For a D/ST the number is the
-    # other team's implied total; for a K it is his own team's. The line comes
-    # from the same scoreboard read that orders kickoffs, so it costs nothing.
-    games = g.get("games") or {}
-    _start_kd = [p for p in g["slots"] if p in ("K", "DST")]
-    if games and _start_kd:
-        st.markdown('<div class="ws-h">Streaming — by this week\'s matchup</div>',
-                    unsafe_allow_html=True)
-        sc = st.columns(2)
-        for col, pos in zip(sc, ("DST", "K")):
-            if pos not in _start_kd:
-                continue
-            # Candidates come from the REGISTRY, not the projection map: ESPN's
-            # weekly projections carry no kickers or defenses, so ranking from
-            # the map showed his own two and nobody to stream for.
-            cands, _seen = [], set()
-            _want = (pos, "DEF") if pos == "DST" else (pos,)
-            for pl in reg.by_norm.values():
-                pid = str(getattr(pl, "sleeper_pid", "") or "")
-                if not pid or pid in taken or pid in _seen:
-                    continue
-                if (pl.position or "").upper() not in _want or not pl.team:
-                    continue
-                _seen.add(pid)
-                cands.append({"pid": pid, "name": pl.name, "team": pl.team,
-                              "proj": float(g["proj"].get(pid, 0) or 0)})
-            # yours, for the comparison row
-            mine_pos = [p for p in g["mine"]
-                        if (reg.meta(p).position or "").upper() in ((pos, "DEF") if pos == "DST" else (pos,))]
-            ranked = WV.stream_rank(cands, reg, games, pos)[:6]
-            mine_r = WV.stream_rank([{"pid": p, "name": reg.meta(p).name, "team": reg.meta(p).team,
-                                      "proj": float(g["proj"].get(p, 0) or 0)} for p in mine_pos],
-                                    reg, games, pos)
-            rws = []
-            for r in (mine_r + ranked):
-                own = r["pid"] in set(mine_pos)
-                imp = "—" if r["implied"] is None else f'{r["implied"]:.1f}'
-                edge = ("" if r["edge"] is None else
-                        _chip(f'{r["edge"]:+.1f}', "ok" if r["edge"] > 1 else "warn" if r["edge"] > -1 else "bad"))
-                _sw = (wv or {}).get(str(r["pid"]))
-                rws.append([(f'<b>{r["name"]}</b>' if own else r["name"])
-                            + (" " + _chip("yours", "acc") if own else "")
-                            + (" " + _chip(f'Ballers #{int(_sw["consensus"])}', "ok")
-                               if (_sw and _sw.get("consensus")) else ""),
-                            f'{r["opp"]} · {r["day"]}', imp, f'{r["proj"]:.1f}', edge])
-            with col:
-                st.markdown(_tbl(["", "Game", ("Opp implied" if pos == "DST" else "Own implied"),
-                                  "~Proj", "Edge"], rws,
-                                 widths=["auto", "118px", "78px", "56px", "64px"]),
+    gain_of = _fa_gain_cached(ctx["league_key"], g["week"], _slow_bucket(g["season"], g["week"]),
+                              ctx, g, frozenset(taken))
+    with st.container(key="drawers"):
+        if budget and not (queued or top):
+            with _drawer("Your claims", "none queued"):
+                _claim_builder(ctx, g, board, left, budget, weeks_left)
+        rc = _waiver_recap(ctx, g) if budget else None
+        if rc:
+            rec, rrows, when_s = rc
+            won = [r for r in rrows if r["won"]]
+            summ = (f'won {len(won)} of {len(rrows)} · ${sum(r["bid"] for r in won)} spent'
+                    + (f' · {won[0]["name"]}' if won else ""))
+            with _drawer("Last waiver run", summ):
+                st.markdown(C.waiver_recap_html(rec, when=when_s, left=left, budget=budget, rows=rrows),
                             unsafe_allow_html=True)
-        st.caption("**Opp implied** is the points Vegas expects the defense to give up — lower is "
-                   "better for a D/ST. **Own implied** is the points a kicker's own team is expected "
-                   "to score — a kicker on a favourite gets attempts. Edge is the gap from a 22-point "
-                   "average game.")
-
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown('<div class="ws-h">Trending across fantasy</div>', unsafe_allow_html=True)
         try:
-            tr = api.get_trending("add", 24, 8) or {}
+            tr = api.get_trending("add", 24, 200) or {}
         except Exception:  # noqa: BLE001
             tr = {}
-        mine_set = {str(p) for p in g["mine"]}
-        rws = []
-        for pid, ct in list(tr.items())[:6]:
-            pid = str(pid)
-            gain = next((r["gain"] for r in board if r["pid"] == pid), None)
-            note = (_chip("already yours", "acc") if pid in mine_set else
-                    _chip("rostered", "nil") if pid in taken else
-                    _chip(f"+{gain} to you", "ok") if (gain or 0) > 0.05 else
-                    _chip("no upgrade for you", "nil"))
-            try:
-                pm = reg.meta(pid)
-                rws.append([f'{pm.name} {_pos_pill(pm.position)}', f"+{ct:,}", note])
-            except Exception:  # noqa: BLE001
-                continue
-        st.markdown(_tbl(["Player", "~24h adds", "For you"], rws), unsafe_allow_html=True)
-    with c2:
-        st.markdown('<div class="ws-h">Drop candidates — keeper aware</div>', unsafe_allow_html=True)
-        started = {str(p) for _, p in W.lineup_check(g["mine"], g["slots"], g["proj"], reg,
-                                                     g["byes"], g["week"])["spots"] if p}
+        hot = next((reg.meta(str(p)).name for p in tr if str(p) not in taken), None)
+        with _drawer("Free agents", f'{n_up} start for you' + (f' · {hot} most added' if hot else ""),
+                     key=f"fa_{ctx['league_key']}"):
+            _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left)
+        _start_kd = [p for p in g["slots"] if p in ("K", "DST")]
+        if (g.get("games") or {}) and _start_kd:
+            with _drawer("Streaming", "defenses and kickers by this week's matchup"):
+                _streaming(ctx, g, taken, wv, _start_kd)
+        started = {str(p) for _, p in _lc["spots"] if p}
         krows = {r["pid"]: r for r in _keeper_rows(ctx, g)}
-        rws = []
-        for p in sorted(g["mine"], key=lambda x: float(g["proj"].get(x, 0) or 0)):
-            if p in started:
+        safe = next((reg.meta(p).name for p in sorted(g["mine"], key=lambda x: float(g["proj"].get(x, 0) or 0))
+                     if p not in started and not (krows.get(str(p)) and krows[str(p)]["verdict"] == "keep")), None)
+        with _drawer("Drop candidates", (f"{safe} first" if safe else "") + " · keeper-aware"):
+            _drop_list(ctx, g, started, krows)
+
+
+def _streaming(ctx, g, taken, wv, _start_kd) -> None:
+    """The wire's defenses and kickers ranked by THIS week's matchup."""
+    reg, games = ctx["registry"], g.get("games") or {}
+    sc = st.columns(2)
+    for col, pos in zip(sc, ("DST", "K")):
+        if pos not in _start_kd:
+            continue
+        # Candidates come from the REGISTRY, not the projection map: ESPN's
+        # weekly projections carry no kickers or defenses, so ranking from
+        # the map showed his own two and nobody to stream for.
+        cands, _seen = [], set()
+        _want = (pos, "DEF") if pos == "DST" else (pos,)
+        for pl in reg.by_norm.values():
+            pid = str(getattr(pl, "sleeper_pid", "") or "")
+            if not pid or pid in taken or pid in _seen:
                 continue
-            r = krows.get(str(p))
-            pm = reg.meta(p)
-            if r and r["verdict"] == "keep":
-                verdict = _chip(f'keeper +{r["surplus"]} — hold', "bad")
-            elif r and (r["surplus"] or -99) > -5:
-                verdict = _chip(f'next keeper up (R{r["cost_round"]})', "warn")
-            else:
-                verdict = _chip("safe drop", "ok")
-            rws.append([f'{pm.name} {_pos_pill(pm.position)}',
-                        f'{float(g["proj"].get(p,0) or 0):.1f}', verdict])
-            if len(rws) >= 5:
-                break
-        st.markdown(_tbl(["Player", "~Proj", "Verdict"], rws), unsafe_allow_html=True)
-        st.caption("Dropping a cheap keeper is a next-season decision disguised as a roster move.")
+            if (pl.position or "").upper() not in _want or not pl.team:
+                continue
+            _seen.add(pid)
+            cands.append({"pid": pid, "name": pl.name, "team": pl.team,
+                          "proj": float(g["proj"].get(pid, 0) or 0)})
+        # yours, for the comparison row
+        mine_pos = [p for p in g["mine"]
+                    if (reg.meta(p).position or "").upper() in ((pos, "DEF") if pos == "DST" else (pos,))]
+        ranked = WV.stream_rank(cands, reg, games, pos)[:6]
+        mine_r = WV.stream_rank([{"pid": p, "name": reg.meta(p).name, "team": reg.meta(p).team,
+                                  "proj": float(g["proj"].get(p, 0) or 0)} for p in mine_pos],
+                                reg, games, pos)
+        rws = []
+        for r in (mine_r + ranked):
+            own = r["pid"] in set(mine_pos)
+            imp = "—" if r["implied"] is None else f'{r["implied"]:.1f}'
+            edge = ("" if r["edge"] is None else
+                    _chip(f'{r["edge"]:+.1f}', "ok" if r["edge"] > 1 else "warn" if r["edge"] > -1 else "bad"))
+            _sw = (wv or {}).get(str(r["pid"]))
+            rws.append([(f'<b>{r["name"]}</b>' if own else r["name"])
+                        + (" " + _chip("yours", "acc") if own else "")
+                        + (" " + _chip(f'Ballers #{int(_sw["consensus"])}', "ok")
+                           if (_sw and _sw.get("consensus")) else ""),
+                        f'{r["opp"]} · {r["day"]}', imp, f'{r["proj"]:.1f}', edge])
+        with col:
+            st.markdown(_tbl(["", "Game", ("Opp implied" if pos == "DST" else "Own implied"),
+                              "~Proj", "Edge"], rws,
+                             widths=["auto", "118px", "78px", "56px", "64px"]),
+                        unsafe_allow_html=True)
+    _note("**Opp implied** is the points Vegas expects the defense to give up — lower is "
+               "better for a D/ST. **Own implied** is the points a kicker's own team is expected "
+               "to score — a kicker on a favourite gets attempts. Edge is the gap from a 22-point "
+               "average game.")
+
+
+
+def _drop_list(ctx, g, started, krows) -> None:
+    """Bench men, lowest projection first, with what dropping each costs next year."""
+    reg = ctx["registry"]
+    rws = []
+    for p in sorted(g["mine"], key=lambda x: float(g["proj"].get(x, 0) or 0)):
+        if p in started:
+            continue
+        r = krows.get(str(p))
+        pm = reg.meta(p)
+        if r and r["verdict"] == "keep":
+            verdict = _chip(f'keeper +{r["surplus"]} — hold', "bad")
+        elif r and (r["surplus"] or -99) > -5:
+            verdict = _chip(f'next keeper up (R{r["cost_round"]})', "warn")
+        else:
+            verdict = _chip("safe drop", "ok")
+        rws.append([f'{pm.name} {_pos_pill(pm.position)}',
+                    f'{float(g["proj"].get(p,0) or 0):.1f}', verdict])
+        if len(rws) >= 5:
+            break
+    st.markdown(_tbl(["Player", "~Proj", "Verdict"], rws), unsafe_allow_html=True)
+    _note("Dropping a cheap keeper is a next-season decision disguised as a roster move.")
+
+
 
 
 # ------------------------------------------------------------------- 3 matchup
@@ -2620,7 +2683,7 @@ def _matchup(ctx, g) -> None:
              _still_rows(ocur, reg, g, opp_live, g["proj"])),
         ]), unsafe_allow_html=True)
     _plat = "ESPN" if ctx["meta"].platform == "espn" else "Sleeper"
-    st.caption(f"Both lineups as currently **set** on {_plat}. Play your best lineup and he plays "
+    _note(f"Both lineups as currently **set** on {_plat}. Play your best lineup and he plays "
                f"his and it's {bm:.1f} – {obm:.1f}, {100*wp_best:.0f}% you. Win probability treats "
                f"each team total as a normal distribution — the spread comes from position-level "
                f"weekly variance, so a boom/bust roster reads differently from a steady one with "
@@ -2743,7 +2806,7 @@ def _trades(ctx, g) -> None:
     oid, opp = order[labels.index(pick)]
     _analyzer(ctx, g, oid, opp)
     if not any(counts.values()):
-        st.caption("No team in the league has a deal that improves both lineups right now. "
+        _note("No team in the league has a deal that improves both lineups right now. "
                    "That is common with freshly drafted rosters — it changes as byes and "
                    "injuries create real holes.")
 
@@ -2762,7 +2825,6 @@ def _trades(ctx, g) -> None:
          "lowest-projected slot you start", "var(--amber)"),
         ("Deepest position", f"{surplus[0]} ×{surplus[1]}" if surplus else "—",
          "where you can afford to sell", "var(--green)"),
-        ("Partner", pick, f"{len(opp)} players", "var(--ink)"),
         ("Your lineup", f"{base_mine:.1f}", "projected this week", "var(--muted)"),
     ])
 
@@ -2812,17 +2874,17 @@ def _trades(ctx, g) -> None:
             st.markdown(_tbl(["Player", "", "Costs", "~Surplus"], rws,
                              widths=["auto", "48px", "38%", "76px"], wide=True),
                         unsafe_allow_html=True)
-            st.caption("In a keeper league every trade is two trades: this season's points and "
+            _note("In a keeper league every trade is two trades: this season's points and "
                        "next season's price. A player who costs a last-round pick and is worth "
                        "an early one is rarely worth a couple of points a week.")
         else:
-            st.caption("No keeper rules configured for this league.")
+            _note("No keeper rules configured for this league.")
 
     with _tables:
         st.markdown('<div class="ws-h">Proposals, scored for both sides</div>',
                     unsafe_allow_html=True)
     if not ideas:
-        _tables.caption("Nothing with this team improves your lineup this week — one-for-one or packaged.")
+        _note(where=_tables, text="Nothing with this team improves your lineup this week — one-for-one or packaged.")
     else:
         keeps = _keep_list(ctx, g)
         rows = []
@@ -2846,7 +2908,7 @@ def _trades(ctx, g) -> None:
                               widths=["84px", "31%", "31%", "68px", "68px", "126px"], wide=True),
                          unsafe_allow_html=True)
         if mutual:
-            _tables.caption(f"**{len(mutual)} of these actually clear** — both lineups improve. Those are "
+            _note(where=_tables, text=f"**{len(mutual)} of these actually clear** — both lineups improve. Those are "
                        "the ones to send. The rest are listed so you can see they were considered "
                        "and rejected, not overlooked.")
             risky = [i for i in mutual if i.get("_ships_keeper")]
@@ -2860,10 +2922,10 @@ def _trades(ctx, g) -> None:
                                    f'rarely worth a keeper that cheap — check the Keepers tab before '
                                    f'you send it.')
         else:
-            _tables.caption("**None of these help both sides.** One-for-ones only work when two managers "
+            _note(where=_tables, text="**None of these help both sides.** One-for-ones only work when two managers "
                        "have mirrored holes, which is rare; packages are where most real trades "
                        "live, and none clears here either. Try another partner.")
-        _tables.caption("A 2-for-1 also costs you a roster spot, which this does not price — the freed "
+        _note(where=_tables, text="A 2-for-1 also costs you a roster spot, which this does not price — the freed "
                    "slot is only worth something if there is a waiver add worth making.")
 
 
@@ -2903,7 +2965,7 @@ def _analyzer(ctx, g, oid, opp) -> None:
     reg = ctx["registry"]
     them = _owner_name(ctx, oid)
     st.markdown('<div class="ws-h">Build or check a trade</div>', unsafe_allow_html=True)
-    st.caption(f"Paste in a real proposal — yours or one **{them}** sent you — and see what it "
+    _note(f"Paste in a real proposal — yours or one **{them}** sent you — and see what it "
                "does to your week, your rest of season, and your keepers.")
 
     mine_names = {reg.meta(p).name: p for p in g["mine"]}
@@ -2926,7 +2988,7 @@ def _analyzer(ctx, g, oid, opp) -> None:
                           key=f"ws_an_getp_{ctx['league_key']}",
                           placeholder=f"{them}'s future draft picks")
     if (not send and not sendp) or (not get and not getp):
-        st.caption("Put at least one player or pick on each side.")
+        _note("Put at least one player or pick on each side.")
         return
 
     weeks_left = max(1, 14 - g["week"])
@@ -2952,8 +3014,6 @@ def _analyzer(ctx, g, oid, opp) -> None:
                         send_picks=[my_picks[k] for k in sendp],
                         get_picks=[their_picks[k] for k in getp], n_teams=n_teams)
 
-    tone = {"accept": "var(--green)", "reject": "var(--red)",
-            "marginal": "var(--amber)"}.get(r["verdict"], "var(--amber)")
 
     # What the deal does to the season, not just the week: the real remaining
     # schedule played 4,000 times with both teams' new lineups.
@@ -3014,31 +3074,7 @@ def _analyzer(ctx, g, oid, opp) -> None:
         tone={"accept": "good", "reject": "bad"}.get(r["verdict"], "warn")),
         unsafe_allow_html=True)
 
-    _tiles([
-        ("This week", f'{r["week"]:+.1f}', f'{r["mine_before"]:.0f} → {r["mine_after"]:.0f} pts',
-         "var(--green)" if r["week"] > 0 else "var(--red)"),
-        ("Rest of season", f'{r["rest"]:+.0f}', f"over {weeks_left} weeks",
-         "var(--green)" if r["rest"] > 0 else "var(--red)"),
-        ("Keeper surplus", "—" if r["keeper"] is None else f'{r["keeper"]:+d}',
-         "keeper value, next year" if r["keeper"] is not None else "no keepers involved",
-         "var(--green)" if (r["keeper"] or 0) > 0 else
-         ("var(--red)" if r["keeper"] is not None else "var(--muted)")),
-        ("Draft capital", "—" if r["capital"] is None else f'{r["capital"]:+d}',
-         ("in pick positions, next year" if r["capital"] is not None
-          else "no picks in this deal"),
-         "var(--green)" if (r["capital"] or 0) > 0 else
-         ("var(--red)" if r["capital"] is not None else "var(--muted)")),
-        # Their capital is the mirror of ours, so a deal that reads as nothing for
-        # them on lineup can still be an obvious yes on picks. Say which.
-        ("For them", f'{r["them"]:+.1f}',
-         ("they accept" if r["them"] > 0.05 else
-          (f'lineup no, but +{abs(r["capital"])} picks yes' if (r["capital"] or 0) < 0
-           else "they have no reason to")),
-         "var(--green)" if (r["them"] > 0.05 or (r["capital"] or 0) < 0) else "var(--muted)"),
-    ])
-    st.markdown(f'<div class="ws-verdict" style="border-color:{tone}">'
-                f'<b style="color:{tone}">{r["verdict"].upper()}</b> — {r["why"]}</div>',
-                unsafe_allow_html=True)
+    # (the verdict is the card's own footer; it was printed twice)
 
     a, b = st.columns([1, 1], gap="medium")
     with a:
@@ -3074,7 +3110,7 @@ def _analyzer(ctx, g, oid, opp) -> None:
                                f'<b class="ws-up">+{k["surplus"]}</b>']
                               for n, k in r["out_keepers"]],
                              widths=["auto", "44%", "84px"], wide=True), unsafe_allow_html=True)
-            st.caption("These cost a late pick and are worth an early one. Giving one up is a "
+            _note("These cost a late pick and are worth an early one. Giving one up is a "
                        "next-season decision, and the week number above does not price it.")
         if r["picks_out"] or r["picks_in"]:
             st.markdown('<div class="ws-h">Picks changing hands</div>', unsafe_allow_html=True)
@@ -3088,7 +3124,7 @@ def _analyzer(ctx, g, oid, opp) -> None:
                                   f'overall</span>'])
             st.markdown(_tbl(["", "Pick", "~Worth"], prows,
                              widths=["78px", "auto", "42%"], wide=True), unsafe_allow_html=True)
-            st.caption("Every pick is priced at the **middle of its round** — next year's draft "
+            _note("Every pick is priced at the **middle of its round** — next year's draft "
                        "order follows standings that haven't happened, so a 2027 1st is not "
                        "assumed to be the 1.01. The scale is linear in picks, which understates "
                        "the very top of round one.")
@@ -3105,7 +3141,7 @@ def _analyzer(ctx, g, oid, opp) -> None:
         if counters and r["them"] <= 0.05:
             st.markdown('<div class="ws-h">Counters that might actually clear</div>',
                         unsafe_allow_html=True)
-            st.caption("Same ask, different player from you — the realistic negotiation.")
+            _note("Same ask, different player from you — the realistic negotiation.")
             st.markdown(_tbl(["Send instead", "~You", "~Them"],
                              [[c["send_names"][0], f'<b class="ws-up">+{c["you"]}</b>',
                                f'<span class="ws-up">+{c["them"]}</span>'] for c in counters],
@@ -3265,7 +3301,7 @@ def _playoffs(ctx, g) -> None:
             st.markdown(_tbl(["Player", f"Weeks {wks[0]}–{wks[-1]}" if wks else "Slate", "Grade"], rws),
                         unsafe_allow_html=True)
         else:
-            st.caption("Playoff strength-of-schedule needs the DvP table — it builds on the "
+            _note("Playoff strength-of-schedule needs the DvP table — it builds on the "
                        "Live Draft tab and is cached for the season.")
 
 
@@ -3319,7 +3355,7 @@ def _league(ctx, g) -> None:
     st.markdown(_tbl(["#", "Team", "Record", "~Proj/wk", "~Points for", "Luck"], rws,
                      widths=["34px", "auto", "76px", "84px", "94px", "120px"]),
                 unsafe_allow_html=True)
-    st.caption("Luck compares wins to an all-play record — how often this team's scoring would have "
+    _note("Luck compares wins to an all-play record — how often this team's scoring would have "
                "beaten the rest of the league. A 2–0 team scoring bottom-third regresses, and that is "
                "the week to trade with them.")
 
@@ -3328,7 +3364,7 @@ def _league(ctx, g) -> None:
         st.markdown('<div class="ws-h">Recent league activity</div>', unsafe_allow_html=True)
         tx = W.transactions(str(meta.league_id), g["week"]) if meta.platform == "sleeper" else []
         if not tx:
-            st.caption("No completed transactions yet.")
+            _note("No completed transactions yet.")
         else:
             rid_to_name = {}
             for oid, r in g["rosters"].items():
@@ -3476,7 +3512,7 @@ def _keepers(ctx, g) -> None:
     st.markdown('<div class="ws-h">Your roster, priced year by year</div>', unsafe_allow_html=True)
     st.markdown('<div class="kl-grid">' + "".join(C.keeper_card_html(r) for r in rows) + '</div>',
                 unsafe_allow_html=True)
-    st.caption("**Value** is what keeping him is worth: his talent (a draft-value curve, the #1 "
+    _note("**Value** is what keeping him is worth: his talent (a draft-value curve, the #1 "
                "player ≈ 100) minus what his cost round's pick would actually land in this "
                "league's draft once everyone's keepers are off the board. So an elite player "
                "kept early still scores — an early pick only lands whoever's left — and a star "
@@ -3512,6 +3548,6 @@ def _keepers(ctx, g) -> None:
         st.markdown(_tbl(["Slot type", "~Used", "~Max"],
                          [["Regular", str(used_r), str(reg_max)],
                           ["Rookie", str(used_k), str(rook_max)]]), unsafe_allow_html=True)
-        st.caption("A rookie who misses the rookie allowance falls back to a regular slot rather "
+        _note("A rookie who misses the rookie allowance falls back to a regular slot rather "
                    "than being cut — otherwise a +64 rookie loses his place to a −19 veteran. "
                    "**If this league forbids that**, the rookie rows are the ones to check.")
