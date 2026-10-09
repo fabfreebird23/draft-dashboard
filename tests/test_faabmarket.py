@@ -57,3 +57,17 @@ def test_no_upgrade_means_no_spend():
     mk = FM.Market(_rows(), 2026, 6)
     r = FM.recommend(mk, gain=0.0, proj=10.0, budget=100, left=94, weeks_left=8)
     assert r["high"] == 0
+
+
+def test_season_sim_real_schedule():
+    from draftkit import weekly as W
+    means = {"a": 120, "b": 100, "c": 100, "d": 80}
+    sds = {t: 15 for t in means}
+    recs = {t: (2, 2) for t in means}
+    sched = {6: [("a", "b"), ("c", "d")], 7: [("a", "c"), ("b", "d")], 8: [("a", "d"), ("b", "c")]}
+    out = W.season_sim(means, sds, recs, {t: 0 for t in means}, sched, 2, "b", n_sims=4000)
+    assert out["teams"]["a"]["playoff_pct"] > out["teams"]["d"]["playoff_pct"]
+    assert abs(sum(out["seeds"]) - 100) <= 2
+    wk = {w["week"]: w for w in out["weeks"]}
+    assert wk[6]["opp"] == "a" and wk[6]["p_win"] < 30          # b vs the best team
+    assert all(w["if_win"] >= w["if_lose"] for w in out["weeks"])

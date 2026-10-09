@@ -2544,3 +2544,43 @@ def waiver_recap_html(rec: dict, *, when: str, left: int, budget: int, rows: lis
              f'<div><span>OVERPAID</span><b class="{"g" if s.get("over", 0) <= 5 else "a"}">${s.get("over", 0)}</b>'
              f'<em>over the runner-up</em></div></div></div>')
     return f'<div class="wr">{head}{"".join(items)}{tally}</div>'
+
+
+# ------------------------------------------------------------- season arc
+def season_arc_html(*, pct: int, record: str, seeds: list, playoff_teams: int,
+                    weeks: list, n_sims: int) -> str:
+    """Playoff odds as a season: where he finishes, each week's game, and the
+    one game that moves the odds most."""
+    def tone(p):
+        return "g" if p >= 60 else ("a" if p >= 50 else "d")
+    top = max(seeds) or 1
+    likely = seeds.index(max(seeds)) + 1
+    bars = "".join(
+        f'<div class="sa-sd{" in" if i < playoff_teams else ""}"><b>{p}%</b>'
+        f'<i style="height:{max(3, 64 * p / top):.0f}px"></i><span>{i + 1}</span></div>'
+        for i, p in enumerate(seeds))
+    must = max(weeks, key=lambda w: w["swing"]) if weeks else None
+    strip = "".join(
+        f'<div class="sa-wk{" must" if must and w["week"] == must["week"] else ""}">'
+        f'<span>W{w["week"]}</span><b class="{tone(w["p_win"])}">{w["p_win"]}</b>'
+        f'<i class="{tone(w["p_win"])}" style="height:{max(4, w["p_win"] * 0.42):.0f}px"></i>'
+        f'<em>{_esc((w.get("opp_name") or "")[:7])}</em></div>' for w in weeks)
+    card = ""
+    if must and must["swing"] >= 5:
+        card = (f'<div class="sa-must"><div class="sa-mk"><span>BIGGEST GAME</span>'
+                f'<b>WEEK {must["week"]} · vs {_esc(must.get("opp_name") or "")}</b>'
+                f'<em>{must["p_win"]}%</em></div>'
+                f'<div class="sa-mn">Win it and your odds go to <b class="g">{must["if_win"]}%</b>; '
+                f'lose and they drop to <b class="d">{must["if_lose"]}%</b>. '
+                f'No other week moves them as much ({must["swing"]} points).</div></div>')
+    return (f'<div class="sa">'
+            f'<div class="sa-box"><div class="sa-k">WHERE YOU FINISH · {record} NOW · {n_sims:,} SEASONS</div>'
+            f'<div class="sa-seeds">{bars}</div>'
+            f'<div class="sa-cap">Top {playoff_teams} make it. Most likely: <b>{_ordinal(likely)}</b>.</div></div>'
+            f'<div class="sa-k" style="margin:12px 0 7px">WEEK BY WEEK · YOUR WIN %</div>'
+            f'<div class="sa-strip" style="grid-template-columns:repeat({max(1, len(weeks))},1fr)">{strip}</div>'
+            f'{card}</div>')
+
+
+def _ordinal(n: int) -> str:
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"

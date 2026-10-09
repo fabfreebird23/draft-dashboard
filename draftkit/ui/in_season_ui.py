@@ -2972,18 +2972,65 @@ def _analyzer(ctx, g, oid, opp) -> None:
 
 
 # ------------------------------------------------------------------ 5 playoffs
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _fixtures(platform: str, league_id: str, first: int, last: int, _provider=None) -> dict:
+    """{week: [(owner_a, owner_b), ...]} for the weeks still to play.
+
+    Keyed by the same owner ids g["rosters"] uses: Sleeper owner_id (matchups
+    come by roster_id and are paired on matchup_id), ESPN teamId."""
+    out = {}
+    if platform == "sleeper":
+        try:
+            r2o = {r["roster_id"]: str(r.get("owner_id")) for r in api.get_rosters(league_id) or []}
+        except Exception:  # noqa: BLE001
+            return {}
+        for wk in range(first, last + 1):
+            try:
+                rows = api.get_matchups(league_id, wk) or []
+            except Exception:  # noqa: BLE001
+                continue
+            by = {}
+            for r in rows:
+                if r.get("matchup_id") is not None:
+                    by.setdefault(r["matchup_id"], []).append(r2o.get(r["roster_id"]))
+            pairs = [tuple(v) for v in by.values() if len(v) == 2 and all(v)]
+            if pairs:
+                out[wk] = pairs
+    elif _provider is not None and hasattr(_provider, "get_week_pairs"):
+        for wk in range(first, last + 1):
+            try:
+                pr = _provider.get_week_pairs(wk) or {}
+            except Exception:  # noqa: BLE001
+                continue
+            seen, pairs = set(), []
+            for a, b in pr.items():
+                if a not in seen:
+                    seen |= {a, b}
+                    pairs.append((str(a), str(b)))
+            if pairs:
+                out[wk] = pairs
+    return out
+
+
+@st.cache_data(ttl=3600, show_spinner=False, max_entries=8)
+def _season_sim_cached(lk: str, week: int, bucket: int, means: dict, sds: dict, recs: dict,
+                       pf: dict, fixtures: dict, pt: int, me: str) -> dict:
+    return W.season_sim(means, sds, recs, pf, {int(k): v for k, v in fixtures.items()}, pt, me)
+
+
 def _playoffs(ctx, g) -> None:
     reg, meta = ctx["registry"], ctx["meta"]
     wks = SCH.playoff_weeks(meta)
-    means, sds, recs = {}, {}, {}
+    means, sds, recs, pf = {}, {}, {}, {}
     for oid, r in g["rosters"].items():
         if not r["players"]:
             continue
         m, s = W.team_distribution(r["players"], g["slots"], g["proj"], reg, g["byes"], g["week"])
-        means[oid] = m
-        sds[oid] = s
+        means[str(oid)] = m
+        sds[str(oid)] = s
         se = r.get("settings") or {}
-        recs[oid] = (int(se.get("wins") or 0), int(se.get("losses") or 0))
+        recs[str(oid)] = (int(se.get("wins") or 0), int(se.get("losses") or 0))
+        pf[str(oid)] = float(se.get("fpts") or 0) + float(se.get("fpts_decimal") or 0) / 100
     # From the league meta, which both providers fill in — reading Sleeper's
     # endpoint here 404'd the whole tab for the ESPN league.
     pt = int((getattr(meta, "playoff_settings", None) or {}).get("teams") or 0)
@@ -2991,9 +3038,22 @@ def _playoffs(ctx, g) -> None:
         pt = int(((api.get_league(str(meta.league_id)) or {}).get("settings") or {})
                  .get("playoff_teams") or 0)
     pt = pt or 4
-    weeks_left = max(0, (wks[0] - 1) - g["week"] + 1) if wks else 0
-    odds = W.season_odds(means, sds, recs, weeks_left, min(pt, len(means)))
-    mine = odds.get(g["me"], {})
+    last_reg = (wks[0] - 1) if wks else 14
+    weeks_left = max(0, last_reg - g["week"] + 1)
+    me = str(g["me"])
+    fx = _fixtures(meta.platform, str(meta.league_id), g["week"], last_reg,
+                   _provider=ctx.get("provider")) if weeks_left else {}
+    sim = {}
+    if fx:
+        sim = _season_sim_cached(ctx["league_key"], g["week"], _slow_bucket(g["season"], g["week"]),
+                                 means, sds, recs, pf, {str(k): v for k, v in fx.items()},
+                                 min(pt, len(means)), me)
+    if sim:
+        odds = sim["teams"]
+    else:
+        odds = {str(k): v for k, v in
+                W.season_odds(means, sds, recs, weeks_left, min(pt, len(means))).items()}
+    mine = odds.get(me, {})
 
     _tiles([
         ("Playoff odds", f'{mine.get("playoff_pct", 0)}%', f"top {pt} make it",
@@ -3003,6 +3063,13 @@ def _playoffs(ctx, g) -> None:
          "derived from this league's settings", "var(--muted)"),
         ("Weeks to play", f"{weeks_left}", "before the bracket", "var(--muted)"),
     ])
+    if sim and sim.get("weeks"):
+        wk_rows = [dict(w, opp_name=_owner_name(ctx, w["opp"])) for w in sim["weeks"]]
+        rec = recs.get(me, (0, 0))
+        st.markdown(C.season_arc_html(
+            pct=mine.get("playoff_pct", 0), record=f"{rec[0]}-{rec[1]}", seeds=sim["seeds"],
+            playoff_teams=min(pt, len(means)), weeks=wk_rows, n_sims=10000),
+            unsafe_allow_html=True)
 
     c1, c2 = st.columns(2)
     with c1:
@@ -3010,7 +3077,7 @@ def _playoffs(ctx, g) -> None:
         rws = []
         for oid, o in sorted(odds.items(), key=lambda kv: -kv[1]["playoff_pct"]):
             nm = _owner_name(ctx, oid)
-            rws.append([f'<b>{nm}</b>' if oid == g["me"] else nm,
+            rws.append([f'<b>{nm}</b>' if oid == me else nm,
                         f'{recs.get(oid,(0,0))[0]}–{recs.get(oid,(0,0))[1]}',
                         f'{means.get(oid,0):.0f}',
                         f'{o["playoff_pct"]}%', f'{o["avg_seed"]:.1f}'])

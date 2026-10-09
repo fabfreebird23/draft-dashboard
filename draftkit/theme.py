@@ -1052,6 +1052,34 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .wr-tiles b{ display:block; font-family:'Oswald',sans-serif; font-weight:600; font-size:19px; margin-top:2px; color:var(--ink); }
 .wr-tiles b.g{ color:#5fdc8f; } .wr-tiles b.a{ color:#f0b357; }
 .wr-tiles em{ font-style:normal; font-size:10.5px; color:var(--mut2); }
+
+/* ---- Playoffs: the season arc ---- */
+.sa{ margin:6px 0 16px; max-width:760px; }
+.sa-hero span{ font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.13em; color:var(--crimson); display:block; }
+.sa-hero b{ font-family:'Oswald',sans-serif; font-weight:600; font-size:40px; line-height:1.1; }
+.sa .g{ color:#5fdc8f; } .sa .a{ color:#f0b357; } .sa .d{ color:#ff6b6b; }
+.sa-box{ background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:10px 12px; margin-top:8px; }
+.sa-k{ font-family:'Roboto Mono',monospace; font-size:9.5px; letter-spacing:.13em; color:var(--mut2); }
+.sa-seeds{ display:flex; gap:6px; align-items:flex-end; height:100px; margin-top:8px; }
+.sa-sd{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:3px; }
+.sa-sd i{ width:100%; border-radius:5px 5px 2px 2px; background:var(--line2); display:block; }
+.sa-sd.in i{ background:#5fdc8f; }
+.sa-sd b{ font-family:'Roboto Mono',monospace; font-size:9.5px; font-weight:500; color:var(--muted); }
+.sa-sd span{ font-family:'Roboto Mono',monospace; font-size:9.5px; color:var(--mut2); }
+.sa-cap{ font-size:12px; color:var(--mut2); margin-top:7px; } .sa-cap b{ color:var(--ink); }
+.sa-strip{ display:grid; gap:5px; }
+.sa-wk{ background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:6px 0 5px; display:flex;
+  flex-direction:column; align-items:center; gap:3px; height:112px; justify-content:flex-end; }
+.sa-wk.must{ border-color:#f0b357; background:rgba(240,179,87,.08); }
+.sa-wk span{ font-family:'Roboto Mono',monospace; font-size:9px; color:var(--mut2); order:-2; margin-bottom:auto; }
+.sa-wk b{ font-family:'Oswald',sans-serif; font-weight:600; font-size:14px; order:-1; }
+.sa-wk i{ width:58%; border-radius:3px; display:block; }
+.sa-wk i.g{ background:rgba(95,220,143,.55); } .sa-wk i.a{ background:rgba(240,179,87,.55); } .sa-wk i.d{ background:rgba(255,107,107,.55); }
+.sa-wk em{ font-style:normal; font-size:8.5px; color:var(--mut2); }
+.sa-must{ background:var(--panel); border:1px solid var(--line); border-left:3px solid #f0b357; border-radius:12px; padding:10px 12px; margin-top:10px; }
+.sa-mk{ display:flex; gap:8px; align-items:center; font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.1em; }
+.sa-mk span{ color:#f0b357; } .sa-mk b{ color:var(--ink); font-weight:500; } .sa-mk em{ margin-left:auto; font-style:normal; color:var(--mut2); }
+.sa-mn{ font-size:12.5px; color:var(--muted); margin-top:7px; line-height:1.5; }
 /* a score that moved on this poll flashes once, then settles */
 @keyframes h2hfresh{ 0%{background:rgba(95,220,143,.32);box-shadow:0 0 0 1px rgba(95,220,143,.6);}
   100%{background:transparent;box-shadow:0 0 0 1px transparent;} }

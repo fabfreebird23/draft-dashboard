@@ -364,6 +364,68 @@ def season_odds(team_means: Dict[int, float], team_sds: Dict[int, float],
                 "avg_seed": round(seeds[t] / n_sims, 1)} for t in teams}
 
 
+def season_sim(team_means: Dict[str, float], team_sds: Dict[str, float],
+               records: Dict[str, tuple], points_for: Dict[str, float],
+               schedule: Dict[int, List[tuple]], playoff_teams: int, me: str,
+               *, n_sims: int = 10000, seed: int = 7) -> dict:
+    """The rest of the season played 10,000 times on the REAL fixture list.
+
+    season_odds pairs teams at random each week; this plays the actual remaining
+    matchups, so a brutal last month shows up as a brutal last month. Ties on
+    wins go to points for (season so far + simulated), which is how Sleeper and
+    ESPN both seed by default.
+
+    Returns {"teams": {t: {playoff_pct, avg_seed}}, "seeds": [pct per seed 1..n]
+    for `me`, "weeks": [{week, opp, p_win, if_win, if_lose, swing}] for `me`}.
+    `swing` is how far that one game moves his playoff odds — the must-win week
+    is the biggest one.
+    """
+    import numpy as np
+    teams = sorted(team_means)
+    n = len(teams)
+    if n < 2 or me not in team_means:
+        return {}
+    idx = {t: i for i, t in enumerate(teams)}
+    rng = np.random.default_rng(seed)
+    mu = np.array([team_means[t] for t in teams])
+    sd = np.array([team_sds.get(t, 20) or 20 for t in teams])
+    wins = np.tile(np.array([float(records.get(t, (0, 0))[0]) for t in teams]), (n_sims, 1))
+    pts = np.tile(np.array([float(points_for.get(t, 0) or 0) for t in teams]), (n_sims, 1))
+    m = idx[me]
+    my_week = {}
+    for wk in sorted(schedule):
+        score = rng.normal(mu, sd, size=(n_sims, n))
+        pts += score
+        for a, b in schedule[wk]:
+            if a not in idx or b not in idx:
+                continue
+            ia, ib = idx[a], idx[b]
+            aw = score[:, ia] >= score[:, ib]
+            wins[:, ia] += aw
+            wins[:, ib] += ~aw
+            if m in (ia, ib):
+                my_week[wk] = ((aw if m == ia else ~aw), b if m == ia else a)
+    # rank by wins, then points for: one key, wins weighted far above any points total
+    order = np.argsort(-(wins * 1e5 + pts), axis=1)
+    rank = np.empty_like(order)
+    rows = np.arange(n_sims)[:, None]
+    rank[rows, order] = np.arange(n)[None, :]
+    made = rank < playoff_teams
+    out = {"teams": {t: {"playoff_pct": round(100 * float(made[:, i].mean())),
+                         "avg_seed": round(float(rank[:, i].mean()) + 1, 1)} for t, i in idx.items()},
+           "seeds": [round(100 * float((rank[:, m] == k).mean())) for k in range(n)],
+           "weeks": []}
+    mine = made[:, m]
+    for wk, (won, opp) in sorted(my_week.items()):
+        pw = float(won.mean())
+        iw = float(mine[won].mean()) if won.any() else 0.0
+        il = float(mine[~won].mean()) if (~won).any() else 0.0
+        out["weeks"].append({"week": wk, "opp": opp, "p_win": round(100 * pw),
+                             "if_win": round(100 * iw), "if_lose": round(100 * il),
+                             "swing": round(100 * (iw - il))})
+    return out
+
+
 # ---------------------------------------------------------------- league pulse
 def luck(points_for: float, wins: int, games: int, league_points: List[float]) -> dict:
     """Wins above/below what this team's scoring deserved.
