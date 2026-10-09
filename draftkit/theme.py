@@ -1026,6 +1026,32 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .dr-lastpick small{ color:var(--mut2); }
 .dr-onclock{ background:#fff8ec; border:1px solid #f6d3a8; color:#9a6500; border-radius:8px;
   padding:7px 12px; margin-bottom:8px; font-weight:700; font-size:13px; animation:ocpulse 1.3s ease-in-out infinite; }
+
+/* ---- Waivers: the recap of the last run ---- */
+.wr{ margin:2px 0 14px; }
+.wr-head{ padding:2px 2px 10px; }
+.wr-k{ font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.13em; color:var(--crimson); }
+.wr-season .wr-k{ color:var(--mut2); }
+.wr-t{ font-family:'Oswald',sans-serif; font-weight:500; font-size:24px; margin-top:4px; color:var(--ink); }
+.wr-s{ font-size:12.5px; color:var(--mut2); margin-top:2px; }
+.wr-item{ background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--line2);
+  border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+.wr-item.won{ border-left-color:#5fdc8f; } .wr-item.lost{ border-left-color:#ff6b6b; }
+.wr-tag{ display:flex; gap:8px; align-items:center; font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.1em; }
+.wr-item.won .kind{ color:#5fdc8f; } .wr-item.lost .kind{ color:#ff6b6b; }
+.wr-tag .nm{ color:var(--ink); } .wr-tag .amt{ margin-left:auto; color:var(--mut2); }
+.wr-row{ display:flex; gap:10px; align-items:center; margin-top:8px; }
+.wr-row .h2h-av{ width:38px; height:38px; flex:none; }
+.wr-txt b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:15px; display:block; color:var(--ink); }
+.wr-txt span{ font-size:12px; color:var(--muted); }
+.wr-note{ font-size:12px; color:var(--muted); margin-top:8px; line-height:1.45; }
+.wr-season{ background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:10px 12px; }
+.wr-tiles{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:9px; }
+.wr-tiles>div{ background:var(--panel2); border:1px solid var(--line2); border-radius:9px; padding:7px 9px; }
+.wr-tiles span{ display:block; font-family:'Roboto Mono',monospace; font-size:9px; letter-spacing:.08em; color:var(--mut2); }
+.wr-tiles b{ display:block; font-family:'Oswald',sans-serif; font-weight:600; font-size:19px; margin-top:2px; color:var(--ink); }
+.wr-tiles b.g{ color:#5fdc8f; } .wr-tiles b.a{ color:#f0b357; }
+.wr-tiles em{ font-style:normal; font-size:10.5px; color:var(--mut2); }
 /* a score that moved on this poll flashes once, then settles */
 @keyframes h2hfresh{ 0%{background:rgba(95,220,143,.32);box-shadow:0 0 0 1px rgba(95,220,143,.6);}
   100%{background:transparent;box-shadow:0 0 0 1px transparent;} }

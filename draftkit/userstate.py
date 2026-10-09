@@ -70,3 +70,29 @@ def add_claim(league_key: str, row: dict) -> None:
         return
     rows.append(row)
     save_claims(league_key, rows)
+
+
+# --------------------------------------------------------------- suggestions
+# What the app suggested for each claim, kept after the claim leaves the queue
+# so the waiver recap can put "we said $1–4" next to what it actually took.
+def suggestions(league_key: str) -> Dict[str, dict]:
+    return dict(_get("faab_sugg", league_key, {}) or {})
+
+
+def note_suggestions(league_key: str, rows: List[dict]) -> None:
+    """{pid: {low, high, bid, ts}} for queued claims, newest wins; a month kept."""
+    cur = suggestions(league_key)
+    now = time.time()
+    changed = False
+    for r in rows:
+        rng = r.get("range") or {}
+        if not r.get("pid") or not rng.get("high"):
+            continue
+        rec = {"low": rng.get("low"), "high": rng.get("high"), "bid": r.get("bid"), "ts": now}
+        old = cur.get(str(r["pid"])) or {}
+        if (old.get("low"), old.get("high"), old.get("bid")) != (rec["low"], rec["high"], rec["bid"]):
+            cur[str(r["pid"])] = rec
+            changed = True
+    cur = {k: v for k, v in cur.items() if now - float(v.get("ts") or 0) < 30 * 86400}
+    if changed:
+        _put("faab_sugg", league_key, cur)

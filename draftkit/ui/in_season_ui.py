@@ -2031,6 +2031,20 @@ def _claim_builder(ctx, g, board, left: int, budget: int, weeks_left: int) -> No
 
     used_drops = {c.get("drop") for c in queue if c.get("drop") and "drop" in c.get("_set", [])}
     queue = [_fill(c) for c in queue]
+    # A claim for a man who's on a roster now is settled — he won it, lost it,
+    # or the player was never a free agent. Those leave the queue (their
+    # suggested bids are kept for the waiver recap) instead of sitting there
+    # until he clears them by hand.
+    taken = {str(p) for r in g["rosters"].values() for p in (r.get("players") or [])}
+    try:
+        US.note_suggestions(lk, queue)
+    except Exception:  # noqa: BLE001
+        pass
+    if any(str(c.get("pid")) in taken for c in queue):
+        queue = [c for c in queue if str(c.get("pid")) not in taken]
+        US.save_claims(lk, [{k: v for k, v in r.items()
+                             if k in ("pid", "name", "bid", "range", "gain", "drop", "_set")}
+                            for r in queue])
     queued = sum(int(c.get("bid") or 0) for c in queue)
     st.markdown('<div class="ws-h">Your claims for Wednesday</div>', unsafe_allow_html=True)
     st.markdown(C.claim_budget_html(left, budget, queued), unsafe_allow_html=True)
@@ -2098,6 +2112,49 @@ def _claim_builder(ctx, g, board, left: int, budget: int, weeks_left: int) -> No
         st.caption("Sleeper takes the claims. This works out the order, the bids and the drops, "
                    "and keeps them until you clear them — claim #1 first, the rest as contingencies.")
 
+def _waiver_recap(ctx, g, left: int, budget: int) -> None:
+    """The last waiver run he was in, for six days after it ran."""
+    import datetime as _dt, time as _t
+    from .. import userstate as US, waiverrecap as WR
+    meta = ctx["meta"]
+    if getattr(meta, "platform", "") != "sleeper":
+        return
+    try:
+        rosters = api.get_rosters(str(meta.league_id)) or []
+        rid = next((r["roster_id"] for r in rosters if str(r.get("owner_id")) == str(g["me"])), None)
+        if rid is None:
+            return
+        rec = WR.recap(str(meta.league_id), rid, g["week"])
+    except Exception:  # noqa: BLE001
+        return
+    if not rec or not rec["claims"] or _t.time() - rec["ts"] / 1000 > 6 * 86400:
+        return
+    owner_of_rid = {r["roster_id"]: str(r.get("owner_id")) for r in rosters}
+    sugg = US.suggestions(ctx["league_key"])
+    reg = ctx["registry"]
+    rows = []
+    for r in rec["claims"]:
+        r = dict(r)
+        try:
+            pm = reg.meta(r["pid"])
+            r["name"], r["team"] = pm.name, pm.team or ""
+            r["face"] = getattr(pm, "sleeper_pid", None) or r["pid"]
+        except Exception:  # noqa: BLE001
+            r["name"], r["face"] = r["pid"], r["pid"]
+        if r.get("winner") is not None:
+            r["winner_name"] = _owner_name(ctx, owner_of_rid.get(r["winner"], ""))
+        r["sugg"] = sugg.get(str(r["pid"]))
+        rows.append(r)
+    try:
+        from zoneinfo import ZoneInfo
+        when = _dt.datetime.fromtimestamp(rec["ts"] / 1000, ZoneInfo("America/New_York"))
+        when_s = when.strftime("%a %-I:%M %p")
+    except Exception:  # noqa: BLE001
+        when_s = f"week {rec['week']}"
+    st.markdown(C.waiver_recap_html(rec, when=when_s, left=left, budget=budget, rows=rows),
+                unsafe_allow_html=True)
+
+
 def _waivers(ctx, g) -> None:
     meta, reg = ctx["meta"], ctx["registry"]
     taken = {p for r in g["rosters"].values() for p in r["players"]}
@@ -2125,6 +2182,7 @@ def _waivers(ctx, g) -> None:
     ])
 
     if budget:
+        _waiver_recap(ctx, g, left, budget)
         _claim_builder(ctx, g, board, left, budget, weeks_left)
 
     # ---- the top add, as the swap it actually is -----------------------------

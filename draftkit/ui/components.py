@@ -2491,3 +2491,56 @@ def claim_row_html(i: int, c: dict) -> str:
             f'<div class="cb-t"><b>{_esc(c.get("name") or "")}</b>'
             f'<span>drop {_esc(drop)}{_esc(gtxt)}</span></div>'
             f'<div class="cb-v"><b>${int(c.get("bid") or 0)}</b><span>{_esc(rtxt)}</span></div></div>')
+
+
+# ------------------------------------------------------------- waiver recap
+def waiver_recap_html(rec: dict, *, when: str, left: int, budget: int, rows: list) -> str:
+    """The last waiver run: each claim won or lost, against the runner-up and
+    against what the app suggested, then the season's tally.
+
+    `rows` are the recap claims already dressed with name/face/team/winner_name
+    and `sugg` ({low, high} or None)."""
+    won = [r for r in rows if r["won"]]
+    spent = sum(r["bid"] for r in won)
+    head = (f'<div class="wr-head"><div class="wr-k">WAIVERS RAN · {_esc(when.upper())}</div>'
+            f'<div class="wr-t">Won {len(won)} of {len(rows)}</div>'
+            f'<div class="wr-s">${spent} spent · ${int(left)} left of ${int(budget)}</div></div>')
+    items = []
+    for r in rows:
+        sg = r.get("sugg") or {}
+        stxt = f' · we suggested ${sg["low"]}–{sg["high"]}' if sg.get("high") else ""
+        ru = r.get("runner_up")
+        if r["won"]:
+            kind, cls = "WON", "won"
+            sub = ((f'runner-up bid ${ru}' if ru is not None else "nobody else bid") + stxt)
+            if ru is None:
+                note = (f"Uncontested — ${r['bid']} more than it needed." if r["bid"]
+                        else "Uncontested, and you paid nothing for it.")
+            elif r["bid"] - ru <= 1:
+                note = f"You beat the runner-up by ${r['bid'] - ru}. That's what the suggestion aims for."
+            else:
+                note = f"${r['bid'] - ru - 1} more than it took to beat the runner-up."
+        else:
+            kind, cls = "LOST", "lost"
+            who = r.get("winner_name") or "someone"
+            sub = ((f'{who} won it at ${r.get("win_bid") or 0}' if r.get("winner") is not None
+                    else "no claim on him went through") + f' · {r["bidders"]} bids' + stxt)
+            need = (r.get("win_bid") or 0) + 1 if r.get("win_bid") is not None else None
+            note = (f"It would have taken ${need}." if need is not None
+                    else "Every claim failed — usually a roster limit or a drop that was already gone. Still a free agent.")
+            if sg.get("high") and need is not None and need > sg["high"]:
+                note += f" That's above the ${sg['high']} the market usually needs here — an outlier."
+        items.append(
+            f'<div class="wr-item {cls}"><div class="wr-tag"><span class="kind">{kind}</span>'
+            f'<span class="nm">{_esc((r.get("name") or "").upper())}</span>'
+            f'<span class="amt">${r["bid"]}</span></div>'
+            f'<div class="wr-row">{h2h_face_html(r.get("face"), r.get("team") or "", "l")}'
+            f'<div class="wr-txt"><b>{_esc(r.get("name") or "")}</b><span>{_esc(sub)}</span></div></div>'
+            f'<div class="wr-note">{_esc(note)}</div></div>')
+    s = rec.get("season") or {}
+    tally = (f'<div class="wr-season"><div class="wr-k">YOUR BIDS THIS SEASON</div><div class="wr-tiles">'
+             f'<div><span>WON</span><b>{s.get("won", 0)} of {s.get("tried", 0)}</b><em>claims</em></div>'
+             f'<div><span>PAID</span><b>${s.get("paid", 0)}</b><em>total</em></div>'
+             f'<div><span>OVERPAID</span><b class="{"g" if s.get("over", 0) <= 5 else "a"}">${s.get("over", 0)}</b>'
+             f'<em>over the runner-up</em></div></div></div>')
+    return f'<div class="wr">{head}{"".join(items)}{tally}</div>'
