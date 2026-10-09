@@ -2584,3 +2584,4 @@ def season_arc_html(*, pct: int, record: str, seeds: list, playoff_teams: int,
 
 def _ordinal(n: int) -> str:
     return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+

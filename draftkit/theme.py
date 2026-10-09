@@ -1080,6 +1080,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .sa-mk{ display:flex; gap:8px; align-items:center; font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.1em; }
 .sa-mk span{ color:#f0b357; } .sa-mk b{ color:var(--ink); font-weight:500; } .sa-mk em{ margin-left:auto; font-style:normal; color:var(--mut2); }
 .sa-mn{ font-size:12.5px; color:var(--muted); margin-top:7px; line-height:1.5; }
+
 /* a score that moved on this poll flashes once, then settles */
 @keyframes h2hfresh{ 0%{background:rgba(95,220,143,.32);box-shadow:0 0 0 1px rgba(95,220,143,.6);}
   100%{background:transparent;box-shadow:0 0 0 1px transparent;} }

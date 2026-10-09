@@ -2578,7 +2578,7 @@ def _matchup(ctx, g) -> None:
 
 
 # -------------------------------------------------------------------- 4 trades
-def _keeper_rows(ctx, g) -> list:
+def _keeper_rows(ctx, g, pids=None, from_owner=None) -> list:
     """The keeper table, priced properly — the ONE place that answers "what does
     this player cost to keep".
 
@@ -2599,8 +2599,12 @@ def _keeper_rows(ctx, g) -> list:
         rules["_adp_policy"] = K.adp_policy(str(meta.league_id))
         raw = K.load_keepers(str(meta.league_id), g["season"]) or {}
         existing = {str(k.get("player_id")): k for k in (raw.get(str(g["me"])) or [])}
+        if from_owner is not None:
+            # a player coming over in a trade brings his keeper years with him
+            for k in raw.get(str(from_owner)) or []:
+                existing.setdefault(str(k.get("player_id")), k)
         return W.keeper_outlook(
-            g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=str(g["me"]),
+            list(pids) if pids is not None else g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=str(g["me"]),
             existing=existing, rules=rules, n_teams=meta.num_teams,
             adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"],
             next_season=int(g["season"]) + 1, league_kept=raw)
@@ -2650,6 +2654,7 @@ def _trades(ctx, g) -> None:
     pick = st.selectbox("Trade partner — sorted by deals that help both sides", labels,
                         key=f"ws_tp_{ctx['league_key']}")
     oid, opp = order[labels.index(pick)]
+    _analyzer(ctx, g, oid, opp)
     if not any(counts.values()):
         st.caption("No team in the league has a deal that improves both lineups right now. "
                    "That is common with freshly drafted rosters — it changes as byes and "
@@ -2774,8 +2779,6 @@ def _trades(ctx, g) -> None:
         _tables.caption("A 2-for-1 also costs you a roster spot, which this does not price — the freed "
                    "slot is only worth something if there is a waiver add worth making.")
 
-    _analyzer(ctx, g, oid, opp)
-
 
 def _roster_id(g, owner_id):
     return (g["rosters"].get(str(owner_id)) or {}).get("roster_id")
@@ -2812,8 +2815,7 @@ def _analyzer(ctx, g, oid, opp) -> None:
     """
     reg = ctx["registry"]
     them = _owner_name(ctx, oid)
-    st.markdown('<div class="ws-h" style="margin-top:18px">Analyze a specific offer</div>',
-                unsafe_allow_html=True)
+    st.markdown('<div class="ws-h">Build or check a trade</div>', unsafe_allow_html=True)
     st.caption(f"Paste in a real proposal — yours or one **{them}** sent you — and see what it "
                "does to your week, your rest of season, and your keepers.")
 
@@ -2842,14 +2844,52 @@ def _analyzer(ctx, g, oid, opp) -> None:
 
     weeks_left = max(1, 14 - g["week"])
     n_teams = int(getattr(ctx["meta"], "num_teams", 12) or 12)
-    r = W.analyze_trade(g["mine"], opp, [mine_names[n] for n in send], [opp_names[n] for n in get],
+    # Keeper value both ways. Who you'd ship is priced on today's roster; who
+    # you'd get is priced on the roster AFTER the trade — his own draft round
+    # and keeper years travel with him, and "worth keeping" means making your
+    # best five once he's there. Before this, only the outgoing half counted.
+    _get_p = [opp_names[n] for n in get]
+    _sent = {str(mine_names[n]) for n in send}
+    in_rows = []
+    if _get_p:
+        try:
+            _after = [p for p in g["mine"] if str(p) not in _sent] + _get_p
+            in_rows = [k for k in _keeper_rows(ctx, g, pids=_after, from_owner=oid)
+                       if str(k["pid"]) in {str(p) for p in _get_p}]
+        except Exception:  # noqa: BLE001
+            in_rows = []
+    in_keep = [(reg.meta(k["pid"]).name, k) for k in in_rows]
+    r = W.analyze_trade(g["mine"], opp, [mine_names[n] for n in send], _get_p,
                         g["slots"], g["proj"], reg, byes=g["byes"], week=g["week"],
-                        keeper_rows=_keeper_rows(ctx, g), weeks_left=weeks_left,
+                        keeper_rows=_keeper_rows(ctx, g) + in_rows, weeks_left=weeks_left,
                         send_picks=[my_picks[k] for k in sendp],
                         get_picks=[their_picks[k] for k in getp], n_teams=n_teams)
 
     tone = {"accept": "var(--green)", "reject": "var(--red)",
             "marginal": "var(--amber)"}.get(r["verdict"], "var(--amber)")
+
+    # What the deal does to the season, not just the week: the real remaining
+    # schedule played 4,000 times with both teams' new lineups.
+    odds = None
+    try:
+        si = _sim_inputs(ctx, g)
+        if si["fx"]:
+            me = str(g["me"])
+            sent = {str(mine_names[n]) for n in send}
+            got = {str(opp_names[n]) for n in get}
+            my_new = [p for p in g["mine"] if str(p) not in sent] + [opp_names[n] for n in get]
+            th_new = [p for p in opp if str(p) not in got] + [mine_names[n] for n in send]
+            fx = {int(k): v for k, v in si["fx"].items()}
+            base = W.season_sim(si["means"], si["sds"], si["recs"], si["pf"], fx, si["pt"], me,
+                                n_sims=4000)
+            means, sds = dict(si["means"]), dict(si["sds"])
+            for who, pids in ((me, my_new), (str(oid), th_new)):
+                means[who], sds[who] = W.team_distribution(pids, g["slots"], g["proj"], reg,
+                                                           g["byes"], g["week"])
+            after = W.season_sim(means, sds, si["recs"], si["pf"], fx, si["pt"], me, n_sims=4000)
+            odds = (base["teams"][me]["playoff_pct"], after["teams"][me]["playoff_pct"])
+    except Exception:  # noqa: BLE001
+        odds = None
 
     # ---- the offer as a card: two sides, four numbers, the verdict -----------
     # A trade is the most two-sided screen in the app, so it takes the card shape
@@ -2865,6 +2905,9 @@ def _analyzer(ctx, g, oid, opp) -> None:
     if r["capital"] is not None:
         _cells.append(("Draft capital", f'{r["capital"]:+d}',
                        "on" if r["capital"] > 0 else "bad"))
+    if odds:
+        _cells.append(("Playoff odds", f'{odds[0]}→{odds[1]}%',
+                       "on" if odds[1] > odds[0] else ("bad" if odds[1] < odds[0] else "")))
     _rs = [(f'They gain {r["them"]:+.1f} a week',
             ("they have a reason to say yes" if r["them"] > 0.05 else
              (f'lineup no, but {abs(r["capital"])} picks of capital yes'
@@ -2925,6 +2968,17 @@ def _analyzer(ctx, g, oid, opp) -> None:
         st.markdown(_tbl(["", "Now", "After the trade"], rows,
                          widths=["46px", "42%", "42%"], wide=True), unsafe_allow_html=True)
     with b:
+        if in_keep:
+            st.markdown('<div class="ws-h">Next year\'s price for who you get</div>',
+                        unsafe_allow_html=True)
+            st.markdown(_tbl(["Player", "Costs", "~Surplus"],
+                             [[n, (f'R{k["cost_round"]} <span class="ws-fnt">{k["note"]}</span>'
+                                   if k.get("cost_round") else '<span class="ws-fnt">—</span>'),
+                               ('<span class="ws-dn">can\'t be kept</span>' if k.get("blocked") else
+                                (f'<b class="ws-up">+{k["surplus"]}</b>' if (k.get("surplus") or 0) > 0
+                                 else f'<span class="ws-fnt">{k.get("surplus") if k.get("surplus") is not None else "—"}</span>'))]
+                              for n, k in in_keep],
+                             widths=["auto", "44%", "96px"], wide=True), unsafe_allow_html=True)
         if r["out_keepers"]:
             st.markdown('<div class="ws-h">Keepers you would be shipping</div>',
                         unsafe_allow_html=True)
@@ -3016,6 +3070,30 @@ def _fixtures(platform: str, league_id: str, first: int, last: int, _provider=No
 def _season_sim_cached(lk: str, week: int, bucket: int, means: dict, sds: dict, recs: dict,
                        pf: dict, fixtures: dict, pt: int, me: str) -> dict:
     return W.season_sim(means, sds, recs, pf, {int(k): v for k, v in fixtures.items()}, pt, me)
+
+
+def _sim_inputs(ctx, g) -> dict:
+    """Everything the season sim needs, built once for Playoffs and the trade desk."""
+    reg, meta = ctx["registry"], ctx["meta"]
+    wks = SCH.playoff_weeks(meta)
+    means, sds, recs, pf = {}, {}, {}, {}
+    for oid, r in g["rosters"].items():
+        if not r["players"]:
+            continue
+        m, s_ = W.team_distribution(r["players"], g["slots"], g["proj"], reg, g["byes"], g["week"])
+        means[str(oid)], sds[str(oid)] = m, s_
+        se = r.get("settings") or {}
+        recs[str(oid)] = (int(se.get("wins") or 0), int(se.get("losses") or 0))
+        pf[str(oid)] = float(se.get("fpts") or 0) + float(se.get("fpts_decimal") or 0) / 100
+    pt = int((getattr(meta, "playoff_settings", None) or {}).get("teams") or 0)
+    if not pt and meta.platform == "sleeper":
+        pt = int(((api.get_league(str(meta.league_id)) or {}).get("settings") or {})
+                 .get("playoff_teams") or 0)
+    pt = min(pt or 4, max(1, len(means)))
+    last_reg = (wks[0] - 1) if wks else 14
+    fx = _fixtures(meta.platform, str(meta.league_id), g["week"], last_reg,
+                   _provider=ctx.get("provider")) if last_reg >= g["week"] else {}
+    return {"means": means, "sds": sds, "recs": recs, "pf": pf, "pt": pt, "fx": fx}
 
 
 def _playoffs(ctx, g) -> None:
