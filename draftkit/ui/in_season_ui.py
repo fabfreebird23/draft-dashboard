@@ -1193,6 +1193,90 @@ def _source_scores(pn: dict, g: dict, src: str):
     return score, (lambda pid: labels.get(str(pid)) or f'{float(proj.get(str(pid), 0) or 0):.1f}')
 
 
+def _start_sit(ctx, g, lc) -> None:
+    """Two players at one position, side by side: floor/median/ceiling, the
+    matchup, the kickoff, and what starting each does to the win probability.
+
+    The default pair is the closest call on the roster — a starter and the best
+    bench man at his position — because that's the one he'd open this for."""
+    reg, lk = ctx["registry"], ctx["league_key"]
+    games, proj = g.get("games") or {}, g["proj"]
+    starters = [str(p) for p in (g.get("starters") or []) if p and str(p) != "0"]
+    roster = [str(p) for p in g["mine"]]
+    pos = lambda p: (reg.meta(p).position or "").upper()
+    pj = lambda p: float(proj.get(str(p), 0) or 0)
+    if not starters:
+        return
+    # the closest call: smallest gap between a starter and a bench man at his position
+    best = None
+    for s_ in starters:
+        for b in roster:
+            if b in starters or pos(b) != pos(s_) or pos(b) in ("K", "DEF", "DST"):
+                continue
+            gap = abs(pj(s_) - pj(b))
+            if best is None or gap < best[0]:
+                best = (gap, s_, b)
+    cands = [p for p in roster if pos(p) not in ("K", "DEF", "DST")]
+    if len(cands) < 2:
+        return
+    lab = lambda p: f"{reg.meta(p).name} · {pos(p)} · {pj(p):.1f}"
+    st.markdown('<div class="ws-h" style="margin-top:14px">Start or sit — compare two</div>',
+                unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    ka, kb = f"ss_a_{lk}", f"ss_b_{lk}"
+    a_def = best[1] if best else cands[0]
+    a = c1.selectbox("Player", cands, format_func=lab, key=ka,
+                     index=cands.index(a_def) if a_def in cands else 0)
+    same = [p for p in cands if p != a and pos(p) == pos(a)]
+    if not same:
+        st.caption(f"Nobody else on your roster plays {pos(a)}.")
+        return
+    b_def = best[2] if (best and best[1] == a and best[2] in same) else max(same, key=pj)
+    b = c2.selectbox(f"vs another {pos(a)}", same, format_func=lab, key=f"{kb}_{pos(a)}",
+                     index=same.index(b_def))
+
+    dvp = ctx.get("dvp") or {}
+
+    def card(p):
+        pm = reg.meta(p)
+        m = pj(p)
+        sd = W.player_sd(pm.position, m)
+        gm = games.get((pm.team or "").upper()) or {}
+        opp = gm.get("opp") or ""
+        rank = (dvp.get(pm.position) or dvp.get((pm.position or "").upper()) or {}).get(opp)
+        return {"pid": p, "name": pm.name, "team": pm.team or "", "pos": pm.position,
+                "face": getattr(pm, "sleeper_pid", None) or p, "mean": m,
+                "floor": max(0.0, m - 1.28 * sd), "ceil": m + 1.28 * sd,
+                "opp": opp, "home": gm.get("home"), "when": GT.day_label(gm) if gm else "",
+                "kick": GT.kickoff_ts(gm) if gm else 0.0, "dvp": rank,
+                "starting": p in starters}
+    A, B = card(a), card(b)
+
+    # win probability with each in the lineup: swap whichever is starting for
+    # the other; if neither starts, each takes the weakest starter's seat at
+    # that position; if both start, there's no decision between them
+    wp = None
+    oid, opp_pids = _opponent(ctx, g)
+    if oid and opp_pids and not (A["starting"] and B["starting"]):
+        om, osd = W.team_distribution(opp_pids, g["slots"], proj, reg, g["byes"], g["week"],
+                                      current=_opp_starters(g, oid))
+        if A["starting"] or B["starting"]:
+            seat = a if A["starting"] else b
+        else:
+            same_st = [s_ for s_ in starters if pos(s_) == pos(a)]
+            seat = min(same_st, key=pj) if same_st else None
+        if seat:
+            def total(with_p):
+                ids = [with_p if s_ == seat else s_ for s_ in starters]
+                mean = sum(pj(x) for x in ids)
+                var = sum(W.player_sd(pos(x), pj(x)) ** 2 for x in ids)
+                return mean, var ** 0.5
+            pa, pb = W.win_prob(*total(a), om, osd), W.win_prob(*total(b), om, osd)
+            wp = (round(100 * pa), round(100 * pb))
+    st.markdown(C.start_sit_html(A, B, wp, n_def=max([len(v) for v in dvp.values()] or [32])),
+                unsafe_allow_html=True)
+
+
 def _lineup(ctx, g) -> None:
     """What is on the platform beside what to set, slot by slot, seated by
     kickoff, with the taps to make in the order the platform will take them."""
@@ -1328,6 +1412,8 @@ def _lineup(ctx, g) -> None:
         set_total=("Set this", ("seated by kickoff" if src == "Projections" else f"per {src} · by kickoff"),
                    f'{lc["optimal_total"]:.1f}'),
         marks=marks), unsafe_allow_html=True)
+
+    _start_sit(ctx, g, lc)
 
     # ---- the moves, and what each panel thinks -----------------------------
     c1, c2 = st.columns(2)

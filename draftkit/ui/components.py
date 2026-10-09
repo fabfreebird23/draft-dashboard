@@ -2585,3 +2585,60 @@ def season_arc_html(*, pct: int, record: str, seeds: list, playoff_teams: int,
 def _ordinal(n: int) -> str:
     return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
 
+
+
+# ------------------------------------------------------------- start / sit
+def start_sit_html(A: dict, B: dict, wp, n_def: int = 32) -> str:
+    """Two players side by side, then the reasons and the call."""
+    hi = max(A["ceil"], B["ceil"], 1.0) * 1.08
+
+    def rng(p, cls):
+        lo, md, up = (100 * p["floor"] / hi, 100 * p["mean"] / hi, 100 * p["ceil"] / hi)
+        return (f'<div class="ss-rr"><span>{_esc(p["name"].split()[-1])}</span>'
+                f'<div class="ss-rg"><i class="ss-rl {cls}" style="left:{lo:.1f}%;width:{up - lo:.1f}%"></i>'
+                f'<i class="ss-rm" style="left:{md:.1f}%"></i></div>'
+                f'<b>{p["mean"]:.1f}</b><em>{p["floor"]:.0f}–{p["ceil"]:.0f}</em></div>')
+
+    def matchup(p):
+        if not p.get("opp"):
+            return "no game this week"
+        at = "vs" if p.get("home") else "@"
+        r = p.get("dvp")
+        if not r:
+            return f'{at} {p["opp"]}'
+        soft = r > n_def * 0.66
+        hard = r < n_def * 0.34
+        word = "a soft" if soft else ("a tough" if hard else "a middling")
+        return f'{at} {p["opp"]} — {word} {p["pos"]} matchup (#{int(r)} of {n_def}, last season)'
+
+    better = A if (wp and wp[0] >= wp[1]) or (not wp and A["mean"] >= B["mean"]) else B
+    other = B if better is A else A
+    side = lambda p, cls: (
+        f'<div class="ss-c{" on" if p is better else ""}">'
+        f'{h2h_face_html(p.get("face"), p.get("team") or "", "l")}'
+        f'<b>{_esc(p["name"])}</b><span>{_esc(p["when"] or "")}'
+        f'{" · starting" if p["starting"] else " · bench"}</span></div>')
+    reasons = [("Matchup", matchup(A) if A is better else matchup(B), "g"),
+               ("vs", matchup(other), "m")]
+    if A.get("kick") and B.get("kick") and abs(A["kick"] - B["kick"]) > 3600:
+        late = A if A["kick"] > B["kick"] else B
+        reasons.append(("Timing", f'{late["name"]} plays later — starting him keeps the seat open '
+                                  f'for late news', "a"))
+    rs = "".join(f'<div><b class="{c}">{_esc(k)}</b><span>{_esc(v)}</span></div>' for k, v, c in reasons)
+    tiles = ""
+    if wp:
+        d = abs(wp[0] - wp[1])
+        tiles = (f'<div class="ss-t"><div><span>START {_esc(A["name"].split()[-1].upper())}</span>'
+                 f'<b class="{"g" if wp[0] >= wp[1] else ""}">{wp[0]}%</b><em>win prob</em></div>'
+                 f'<div><span>START {_esc(B["name"].split()[-1].upper())}</span>'
+                 f'<b class="{"g" if wp[1] > wp[0] else ""}">{wp[1]}%</b><em>win prob</em></div>'
+                 f'<div><span>EDGE</span><b class="{"g" if d else ""}">{d:+d}</b><em>pts of win %</em></div></div>')
+    call = (f'Start {_esc(better["name"])}' if (not wp or wp[0] != wp[1])
+            else "A coin flip — go with the later kickoff")
+    if A["starting"] and B["starting"]:
+        call = "Both already start — nothing to decide between them"
+    return (f'<div class="ss"><div class="ss-pair">{side(A, "g")}<div class="ss-vs">vs</div>{side(B, "a")}</div>'
+            f'<div class="ss-box"><div class="ss-k">FLOOR · MEDIAN · CEILING</div>'
+            f'{rng(A, "g" if better is A else "a")}{rng(B, "g" if better is B else "a")}</div>'
+            f'<div class="ss-box"><div class="ss-k">WHAT DECIDES IT</div><div class="ss-why">{rs}</div></div>'
+            f'{tiles}<div class="ss-call">{call}</div></div>')

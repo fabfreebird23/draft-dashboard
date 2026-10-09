@@ -1081,6 +1081,38 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .sa-mk span{ color:#f0b357; } .sa-mk b{ color:var(--ink); font-weight:500; } .sa-mk em{ margin-left:auto; font-style:normal; color:var(--mut2); }
 .sa-mn{ font-size:12.5px; color:var(--muted); margin-top:7px; line-height:1.5; }
 
+
+/* ---- Lineup: start or sit, two players side by side ---- */
+.ss{ max-width:760px; margin:4px 0 16px; }
+.ss-pair{ display:grid; grid-template-columns:1fr 30px 1fr; align-items:center; }
+.ss-c{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 6px 9px;
+  display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; }
+.ss-c.on{ border-color:#5fdc8f; background:rgba(95,220,143,.06); }
+.ss-c .h2h-av{ width:46px; height:46px; }
+.ss-c b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:15px; color:var(--ink); }
+.ss-c span{ font-size:11px; color:var(--mut2); }
+.ss-vs{ text-align:center; font-family:'Roboto Mono',monospace; font-size:10px; color:var(--mut2); }
+.ss-box{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:9px 12px; margin-top:8px; }
+.ss-k{ font-family:'Roboto Mono',monospace; font-size:9.5px; letter-spacing:.12em; color:var(--mut2); }
+.ss-rr{ display:grid; grid-template-columns:80px 1fr 40px 46px; gap:8px; align-items:center; margin-top:10px; }
+.ss-rr span{ font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ss-rr>b{ font-family:'Oswald',sans-serif; font-weight:600; font-size:15px; text-align:right; color:var(--ink); }
+.ss-rr em{ font-style:normal; font-family:'Roboto Mono',monospace; font-size:10px; color:var(--mut2); }
+.ss-rg{ position:relative; height:10px; background:var(--panel2); border-radius:99px; }
+.ss-rl{ position:absolute; top:0; bottom:0; border-radius:99px; }
+.ss-rl.g{ background:rgba(95,220,143,.45); } .ss-rl.a{ background:rgba(240,179,87,.45); }
+.ss-rm{ position:absolute; top:-3px; width:3px; height:16px; background:var(--ink); border-radius:2px; }
+.ss-why>div{ display:grid; grid-template-columns:64px 1fr; gap:8px; margin-top:8px; font-size:12px; }
+.ss-why b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:13px; }
+.ss-why b.g{ color:#5fdc8f; } .ss-why b.a{ color:#f0b357; } .ss-why b.m{ color:var(--mut2); }
+.ss-why span{ color:var(--muted); }
+.ss-t{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:8px; }
+.ss-t>div{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:7px 9px; }
+.ss-t span{ display:block; font-family:'Roboto Mono',monospace; font-size:9px; letter-spacing:.08em; color:var(--mut2); }
+.ss-t b{ display:block; font-family:'Oswald',sans-serif; font-weight:600; font-size:19px; margin-top:2px; color:var(--ink); }
+.ss-t b.g{ color:#5fdc8f; } .ss-t em{ font-style:normal; font-size:10.5px; color:var(--mut2); }
+.ss-call{ margin-top:8px; padding:9px 12px; border-radius:11px; border:1px solid rgba(95,220,143,.45);
+  background:rgba(95,220,143,.07); color:#5fdc8f; font-family:'Oswald',sans-serif; font-weight:500; font-size:16px; }
 /* a score that moved on this poll flashes once, then settles */
 @keyframes h2hfresh{ 0%{background:rgba(95,220,143,.32);box-shadow:0 0 0 1px rgba(95,220,143,.6);}
   100%{background:transparent;box-shadow:0 0 0 1px transparent;} }
