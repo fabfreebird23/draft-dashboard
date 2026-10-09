@@ -1,0 +1,131 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bloody Sunday · compact</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141314;--panel:#1f1d1e;--panel2:#292627;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#8c8286;
+ --crimson:#ff336c;--g:#5fdc8f;--a:#f0b357;--r:#ff6b6b;--fd:'Oswald',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'Roboto Mono',ui-monospace,monospace}
+*{box-sizing:border-box} body{background:#0c0b0c;color:var(--ink);font-family:var(--fb);margin:0;padding:28px 28px 80px;font-size:13px}
+h1{font-family:var(--fd);font-weight:600;font-size:30px;margin:0 0 6px} .sub{color:var(--muted);max-width:110ch;line-height:1.55;margin:0 0 30px}
+.ref{display:grid;grid-template-columns:360px 1fr;gap:34px;align-items:start;margin:0 0 56px;border-top:1px solid var(--line);padding-top:26px}
+.ref h2{font-family:var(--fd);font-weight:600;font-size:22px;margin:0 0 8px} .ref h2 em{font-style:normal;color:var(--crimson);font-family:var(--fm);font-size:12px;letter-spacing:.14em;margin-right:10px}
+.why{color:var(--muted);line-height:1.6} .why b{color:var(--ink);font-weight:600} .why p{margin:0 0 12px}
+.nums{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0 12px} .nk{font-family:var(--fm);font-size:9px;letter-spacing:.14em;color:var(--mut2)}
+.nb{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px} .nb b{display:block;font-family:var(--fd);font-weight:600;font-size:18px;color:var(--a)} .nb span{font-size:10.5px;color:var(--mut2)}
+.cost{font-family:var(--fm);font-size:11px;color:var(--mut2);line-height:1.55}
+.stage{min-width:0}
+.app{background:var(--bg);border:1px solid #2a2527;border-radius:16px;overflow:hidden}
+.app.pad{padding:14px 16px}
+.cap{color:var(--muted);font-size:12.5px;line-height:1.55;margin:10px 4px 0;max-width:90ch}
+.ghost{font-family:var(--fm);font-size:10px;color:#5c5357;border:1px dashed #3a3436;border-radius:10px;padding:14px;margin:12px;text-align:center}
+.app.pad .ghost{margin:12px 0 0}
+.bar{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);background:#191718}
+.logo{font-family:var(--fd);font-style:italic;font-weight:600;font-size:16px;margin-right:10px;display:flex;align-items:center;gap:6px} .logo b{color:var(--crimson);font-weight:600}
+.logo i{width:16px;height:16px;border-radius:5px;background:var(--crimson);display:inline-block}
+.lg{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--line2);font-size:12px;color:var(--muted)}
+.lg.on{border-color:var(--crimson);color:var(--ink);background:rgba(255,51,108,.1)} .lg i{width:6px;height:6px;border-radius:50%}
+.lg i.me{background:var(--crimson)} .lg i.up{background:var(--g)} .lg i.warn{background:var(--a)} .lg i.dn{background:var(--r)}
+.sp{flex:1} .wk{font-family:var(--fm);font-size:10.5px;letter-spacing:.12em;color:var(--mut2)}
+.bar2{display:flex;align-items:center;gap:20px;padding:0 16px;border-bottom:1px solid var(--line)}
+.tb{font-size:13px;color:var(--mut2);padding:10px 0 9px;border-bottom:2px solid transparent} .tb.on{color:var(--ink);border-bottom-color:var(--crimson);font-weight:600}
+.sl{font-size:12px;color:var(--muted)}
+.strip{display:flex;align-items:center;gap:12px;padding:9px 16px;font-size:12.5px;color:var(--muted);background:#171516;border-bottom:1px solid var(--line)}
+.strip b{color:var(--ink);font-family:var(--fd);font-weight:500;font-size:14px} .strip b.g{color:var(--g)} .strip i{width:3px;height:3px;border-radius:50%;background:#5c5357}
+.before{margin-top:14px;border:1px dashed #3a3436;border-radius:12px;padding:10px 12px;opacity:.75}
+.bk{font-family:var(--fm);font-size:9px;letter-spacing:.14em;color:var(--mut2);margin-bottom:6px}
+.brow{font-family:var(--fm);font-size:10.5px;color:var(--mut2);padding:7px 0;border-top:1px solid #2a2527} .brow:first-of-type{border-top:0}
+.brow.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px} .brow.tiles span{border:1px solid #2f2a2c;border-radius:8px;padding:10px 8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:12px 14px}
+.card.hero{border-color:rgba(95,220,143,.3)}
+.ck{display:flex;align-items:center;gap:8px} .kick{font-family:var(--fm);font-size:9.5px;letter-spacing:.13em;color:var(--crimson)}
+.cr{margin-left:auto;font-family:var(--fm);font-size:10px;color:var(--mut2)} .ci{margin-left:auto;color:var(--mut2);font-size:13px}
+.ct{font-family:var(--fd);font-weight:500;font-size:22px;margin-top:6px} .ct.sm{font-size:18px}
+.cs{color:var(--muted);font-size:13px;line-height:1.5;margin-top:4px;max-width:75ch} .cs b{color:var(--ink);font-weight:600}
+.crow{display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.cn b{font-family:var(--fd);font-weight:500;font-size:15px;display:block} .cn span{font-size:11.5px;color:var(--mut2)}
+.cv{margin-left:auto;text-align:right} .cv b{font-family:var(--fd);font-weight:600;font-size:18px;color:var(--g);display:block} .cv span{font-size:10.5px;color:var(--mut2)}
+.cbtn{border:1px solid var(--line2);border-radius:9px;padding:7px 11px;font-size:12px;color:var(--muted);margin-left:8px}
+.dr{display:grid;grid-template-columns:14px 230px 1fr auto;gap:10px;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line)}
+.dr:first-of-type{margin-top:10px;border-top:1px solid var(--line)}
+.chev{color:var(--mut2);font-size:11px} .dr b{font-family:var(--fd);font-weight:500;font-size:14.5px} .ds{color:var(--muted);font-size:12px} .dt{font-family:var(--fm);font-size:10px;color:var(--mut2)}
+.av{position:relative;display:inline-block;flex:none;vertical-align:middle}
+.av .hs{width:100%;height:100%;border-radius:8px;object-fit:cover;object-position:top center;background:var(--panel2);border:1px solid var(--line2);display:block}
+.av .tm{position:absolute;width:13px;height:13px;right:-4px;bottom:-3px;object-fit:contain;background:var(--bg);border-radius:4px;padding:1px;border:1px solid var(--line)}
+.lh{display:flex;align-items:center;gap:14px;margin-bottom:10px} .lh>b{font-family:var(--fd);font-weight:500;font-size:18px}
+.pills{display:flex;gap:6px;flex-wrap:wrap} .pill{font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--line2);color:var(--muted)}
+.pill.on{border-color:var(--crimson);color:var(--ink);background:rgba(255,51,108,.1)}
+.tbl{width:100%;border-collapse:collapse} .tbl th{font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;color:var(--mut2);text-align:right;font-weight:500;padding:6px 8px;border-bottom:1px solid var(--line)}
+.tbl th:first-child{text-align:left} .tbl td{padding:7px 8px;border-bottom:1px solid #262224}
+.tbl td.pl{display:flex;align-items:center;gap:9px} .tbl td.pl b{font-weight:600;font-size:13px}
+.pos{font-family:var(--fm);font-size:9px;padding:2px 5px;border-radius:4px;background:var(--panel2);color:var(--muted)}
+.pos.rb{color:#7fe0b0} .pos.wr{color:#7fb6ff} .pos.te{color:#f0b357}
+.n{text-align:right;font-family:var(--fm);font-size:12px} .n.g{color:var(--g)} .n.m{color:var(--mut2)} .n.bid{color:var(--ink)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;position:relative}
+.li{display:flex;align-items:center;gap:9px;margin-top:9px} .li b{font-weight:500;font-size:13px} .li .r{margin-left:auto;font-family:var(--fd);font-weight:600;font-size:15px} .r.g{color:var(--g)} .r.m{color:var(--mut2)}
+.cf{font-size:11px;color:var(--mut2);margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+.mini{display:flex;gap:4px;align-items:flex-end;height:40px;margin-top:10px} .mini i{flex:1;border-radius:3px 3px 1px 1px;background:var(--line2)} .mini i.g{background:var(--g)}
+.pop{grid-column:2 / span 2;background:#262224;border:1px solid var(--line2);border-radius:11px;padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.5}
+.pop b{display:block;color:var(--ink);font-family:var(--fd);font-weight:500;font-size:13.5px;margin-bottom:3px}
+.lg,.tb,.wk,.sl,.strip span,.lh>b,.pill,.kick,.cr{white-space:nowrap}
+.bar2{gap:14px;overflow:hidden} .tb{font-size:12.5px} .bar{flex-wrap:nowrap;overflow:hidden}
+.strip{flex-wrap:wrap;row-gap:4px}
+.li b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.grid3 .card{min-width:0}
+@media(max-width:1000px){.ref{grid-template-columns:1fr}.grid3{grid-template-columns:1fr}.pop{grid-column:auto}.dr{grid-template-columns:14px 1fr auto}.dr .ds{grid-column:2}}
+</style></head><body>
+<h1>Four ways to make it compact and intentional</h1>
+<p class="sub">Measured on the Kreeper league this week before mocking: every tab's height, sections, tables, captions and card styles. The mocks use real data where it exists: your waiver run, your RB call, your playoff odds, this week's free agents, the Ballers' ranks and Sleeper's 24h adds. Projections, the +You figures and the bid ranges in the free-agent table are illustrative. Each is shown at desktop width since that's where the clutter lives; the phone shell already hides the header chrome.</p>
+<section class="ref"><div class="meta"><h2><em>1</em>One bar, one strip</h2><div class="why"><p>Before any content, every tab stacks <b>three rows of chrome and a row of four tiles</b>: the logo and league chips, the week and league facts, eight tab pills and five Sleeper links, then FAAB, weeks left, upgrades and roster size. Two of those tiles don't change a decision.</p><p>This collapses it to <b>one bar, one tab row and a single strip of the facts that tab needs</b>. The five Sleeper links become one, and it opens the page for the tab you're on.</p></div><div class="nums"><div class="nk">MEASURED TODAY</div><div class="nb"><div><b>3 + tiles</b><span>rows before content</span></div><div><b>~260</b><span>px before content</span></div><div><b>2 of 4</b><span>tiles that change no decision</span></div></div></div><div class="cost">theme.py + app.py header. The strip is a small dict per tab (label, value). Removes the _tiles() row from every tab. About half a day. Phone: the Android shell already hides this chrome, so it's a desktop and Mac win mostly.</div></div><div class="stage">
+<div class="app">
+ <div class="bar">
+  <span class="logo"><i></i>Bloody<b>Sunday</b></span>
+  <span class="lg on"><i class="me"></i>Kreeper</span><span class="lg"><i class="up"></i>B&amp;B</span><span class="lg"><i class="warn"></i>7½ Men</span><span class="lg"><i class="dn"></i>TD's</span>
+  <span class="sp"></span>
+  <span class="wk">WEEK 5 · FRI</span>
+ </div>
+ <div class="bar2"><span class="tb">Command</span><span class="tb">Live</span><span class="tb">Lineup</span><span class="tb">Rankings</span><span class="tb on">Waivers</span><span class="tb">Matchup</span><span class="tb">Trades</span><span class="tb more">More ▾</span><span class="sp"></span><span class="sl">Sleeper ↗</span></div>
+ <div class="strip"><span><b>$92</b> of $100 FAAB</span><i></i><span><b>9</b> weeks left</span><i></i><span>waivers run <b>Wed 3:00 AM</b></span><i></i><span><b class="g">0</b> free agents start for you</span></div>
+ <div class="ghost">…the tab's content starts here, 96px from the top instead of ~260</div>
+</div>
+<div class="cap">After: two thin rows and one strip of facts, the same on every tab. The strip changes per tab (Lineup shows lock time and moves, Playoffs shows odds and seed), but it's always one line, never a row of four tiles.</div>
+<div class="before">
+ <div class="bk">BEFORE · SAME SCREEN</div>
+ <div class="brow">logo · 4 league chips · WEEK 5 · FRIDAY · SET YOUR LINEUP · 8 TEAMS · PPR · BOARD 56D · ⋯</div>
+ <div class="brow">8 tab pills · ON SLEEPER · PLAYERS ↗ · MY TEAM ↗ · MATCHUP ↗ · TRADES ↗ · LEAGUE ↗</div>
+ <div class="brow tiles"><span>FAAB LEFT $92 of $100</span><span>WEEKS LEFT 9 ≈ $10/week</span><span>UPGRADES 0</span><span>ROSTER 14 players</span></div>
+</div></div></section><section class="ref"><div class="meta"><h2><em>2</em>Lead with the answer, fold the rest</h2><div class="why"><p>Waivers is <b>2,829px with five sections and four tables</b>. Lineup is 1,906px with four sections. Each tab answers one question, but it hands you the evidence before the answer.</p><p>Every tab instead <b>opens on its answer as a sentence</b> (Waivers: the claim to make, or that there isn't one; Lineup: the moves; Trades: the best deal) with the supporting sections folded into drawers that summarise themselves.</p></div><div class="nums"><div class="nk">MEASURED TODAY</div><div class="nb"><div><b>2,829px</b><span>Waivers height</span></div><div><b>5</b><span>Waivers sections</span></div><div><b>1,906px</b><span>Lineup height</span></div></div></div><div class="cost">A shared drawer helper (st.expander restyled, with a summary line and remembered state in userstate). Each tab gets a 'lead' function. Waivers, Lineup and Trades first, about a day; the rest as they come up.</div></div><div class="stage">
+<div class="app pad">
+ <div class="card hero">
+  <div class="ck"><span class="kick">WAIVERS · WEEK 5</span><span class="cr">claims run Wed 3:00 AM</span></div>
+  <div class="ct">No claim worth making this week</div>
+  <div class="cs">Nobody on the wire beats a starter. The closest is <b>Keaton Mitchell</b>, +0.6 at FLEX behind Jaylen Warren. That's a tiebreak, not a claim.</div>
+  <div class="crow"><span class="av" style="width:34px;height:34px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9511.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/lac.png"></span><div class="cn"><b>Keaton Mitchell</b><span>RB · LAC · 9.8 proj · 31% rostered</span></div><div class="cv"><b>+0.6</b><span>if Warren sits</span></div><div class="cbtn">Queue anyway · $1</div></div>
+ </div>
+ <div class="dr"><span class="chev">▸</span><b>Last waiver run</b><span class="ds">won 1 of 2 · $2 spent · Dak Prescott</span><span class="dt">Tue 12:01 PM</span></div><div class="dr"><span class="chev">▸</span><b>The Fantasy Footballers' list</b><span class="ds">15 players · none would start for you</span><span class="dt">week 5</span></div><div class="dr"><span class="chev">▸</span><b>Trending across fantasy</b><span class="ds">Roman Wilson +663k adds · Keaton Mitchell +263k</span><span class="dt">24h</span></div><div class="dr"><span class="chev">▸</span><b>Drop candidates</b><span class="ds">Denzel Boston first · keeper-aware</span><span class="dt">3 players</span></div>
+ <div class="ghost">end of tab · about 780px</div>
+</div>
+<div class="cap">After: the tab opens on the one decision it exists for, as a sentence, with the evidence underneath. Everything else is one line in a drawer that says what's inside before you open it. Your open/closed choice is remembered per tab.</div></div></section><section class="ref"><div class="meta"><h2><em>3</em>One player list per tab</h2><div class="why"><p>The same free agents show up in up to <b>four tables on one tab</b>: the Ballers' list, ours, Trending, and the drop list. Rankings and Lineup have the same problem with each source getting its own block.</p><p>So: <b>one table per tab, sources as columns, filters as pills</b>. You pick the lens you want on the same rows instead of scrolling past three lists.</p></div><div class="nums"><div class="nk">MEASURED TODAY</div><div class="nb"><div><b>4</b><span>player tables on Waivers</span></div><div><b>950</b><span>words on Waivers</span></div><div><b>1,528</b><span>Rankings words</span></div></div></div><div class="cost">Merge the four waiver frames on pid; the pills are a segmented control filtering one dataframe. Rankings and Lineup panels the same way. About a day.</div></div><div class="stage">
+<div class="app pad">
+ <div class="lh"><b>Free agents</b><span class="pills"><span class="pill on">All 40</span><span class="pill">Starts for you 0</span><span class="pill">Trending 12</span><span class="pill">Ballers' list 15</span><span class="pill">Keeper-worthy 4</span></span></div>
+ <table class="tbl"><thead><tr><th>Player</th><th>Proj</th><th>+You</th><th>Ballers</th><th>Adds 24h</th><th>Bid here</th></tr></thead><tbody><tr><td class="pl"><span class="av" style="width:26px;height:26px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11630.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/pit.png"></span><b>Roman Wilson</b><span class="pos wr">WR</span></td><td class="n">9.3</td><td class="n m">+0.0</td><td class="n">#8</td><td class="n">+663k</td><td class="n bid">$0–2</td></tr><tr><td class="pl"><span class="av" style="width:26px;height:26px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9511.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/lac.png"></span><b>Keaton Mitchell</b><span class="pos rb">RB</span></td><td class="n">9.8</td><td class="n g">+0.6</td><td class="n">#7</td><td class="n">+263k</td><td class="n bid">$1–3</td></tr><tr><td class="pl"><span class="av" style="width:26px;height:26px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11637.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/buf.png"></span><b>Keon Coleman</b><span class="pos wr">WR</span></td><td class="n">10.4</td><td class="n m">+0.0</td><td class="n">#3</td><td class="n">+237k</td><td class="n bid">$0–2</td></tr><tr><td class="pl"><span class="av" style="width:26px;height:26px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11610.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/mia.png"></span><b>Malik Washington</b><span class="pos wr">WR</span></td><td class="n">9.1</td><td class="n m">+0.0</td><td class="n">#16</td><td class="n">+197k</td><td class="n bid">$0–1</td></tr><tr><td class="pl"><span class="av" style="width:26px;height:26px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9480.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/jax.png"></span><b>Brenton Strange</b><span class="pos te">TE</span></td><td class="n">8.7</td><td class="n m">+0.0</td><td class="n">#9</td><td class="n">+86k</td><td class="n bid">$0–1</td></tr><tr><td class="pl"><span class="av" style="width:26px;height:26px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/5844.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/min.png"></span><b>T.J. Hockenson</b><span class="pos te">TE</span></td><td class="n">9.6</td><td class="n m">+0.0</td><td class="n">#5</td><td class="n">+20k</td><td class="n bid">$0–2</td></tr></tbody></table>
+ <div class="ghost">one table, sorted by adds here; any column sorts · every source a column, not its own section</div>
+</div>
+<div class="cap">After: one list of free agents with every source as a column. The filters replace three of the four sections: the Ballers' list, Trending and "Ranked by what they add to you" become pills over the same rows. Drop candidates move into the claim builder, where the drop is actually chosen.</div></div></section><section class="ref"><div class="meta"><h2><em>4</em>One card grammar, help behind ⓘ</h2><div class="why"><p>Each feature we built brought its own card: the recap, start/sit, playoffs, trade analyzer, inbox, keepers and claim builder each use a different header, number size and footer. And there are <b>16 explanatory captions</b> across the tabs, most of them read once.</p><p>This gives everything <b>one card grammar</b> (kicker, headline sentence, three lines max, footnote) and moves the explanations behind <b>ⓘ</b>.</p></div><div class="nums"><div class="nk">MEASURED TODAY</div><div class="nb"><div><b>7</b><span>card styles</span></div><div><b>16</b><span>captions across tabs</span></div><div><b>5</b><span>Trades captions</span></div></div></div><div class="cost">One C.card() in components.py + one CSS block; port the 7 card styles onto it and delete their CSS (~250 lines). ⓘ is a small popover component. About a day, mostly mechanical.</div></div><div class="stage">
+<div class="app pad grid3">
+ <div class="card"><div class="ck"><span class="kick">LAST WAIVER RUN</span><span class="ci">ⓘ</span></div>
+  <div class="ct sm">Won 1 of 2</div>
+  <div class="li"><span class="av" style="width:24px;height:24px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/3294.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/dal.png"></span><b>Dak Prescott</b><span class="r g">won $2</span></div>
+  <div class="li"><span class="av" style="width:24px;height:24px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11435.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/pit.png"></span><b>Emanuel Wilson</b><span class="r m">failed</span></div>
+  <div class="cf">season: 13 of 25 won · $4 paid · $3 over</div></div>
+ <div class="card"><div class="ck"><span class="kick">START OR SIT · RB</span><span class="ci">ⓘ</span></div>
+  <div class="ct sm">Start Stevenson</div>
+  <div class="li"><span class="av" style="width:24px;height:24px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/7611.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/ne.png"></span><b>Stevenson</b><span class="r g">58%</span></div>
+  <div class="li"><span class="av" style="width:24px;height:24px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/13287.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/ari.png"></span><b>Love</b><span class="r">57%</span></div>
+  <div class="cf">vs LV #23 against RBs · Love plays later</div></div>
+ <div class="card"><div class="ck"><span class="kick">PLAYOFFS</span><span class="ci">ⓘ</span></div>
+  <div class="ct sm">94% · likely 1st</div>
+  <div class="mini"><i style="height:28px" class="g"></i><i style="height:15px" class="g"></i><i style="height:10px" class="g"></i><i style="height:6px" class="g"></i><i style="height:3px" class=""></i><i style="height:1px" class=""></i><i style="height:1px" class=""></i><i style="height:1px" class=""></i></div>
+  <div class="cf">biggest game: week 13 vs Ned (95% / 85%)</div></div>
+ <div class="pop"><b>ⓘ Start or sit</b>Floor, median and ceiling are the 10th, 50th and 90th percentile of his projection. Win % puts each man in your lineup against your opponent's. Matchup rank is points allowed per game this season (1 = stingiest).</div>
+</div>
+<div class="cap">After: every card is built the same way: a small kicker, one sentence as the headline, at most three lines of evidence, a one-line footnote. Numbers sit on the right in the same font at the same size. The explanations that are now captions under almost every section move behind ⓘ, so they're there when you want them and gone when you don't.</div></div></section>
+</body></html>
