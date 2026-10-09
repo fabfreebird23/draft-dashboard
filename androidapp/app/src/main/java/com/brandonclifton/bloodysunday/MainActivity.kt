@@ -207,7 +207,9 @@ class MainActivity : AppCompatActivity() {
             setOnRefreshListener {
                 android.util.Log.d("bs-shell", "pull refresh (atTop=$atTop)")
                 performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
-                freezeThen { web.reload() }
+                // the URL, not reload(): after an in-session tab switch the
+                // address bar can lag the screen, and a refresh must keep it
+                freezeThen { load(Config.url(tab, league), tab, league) }
             }
         }
         root.addView(refresher, LinearLayout.LayoutParams(MATCH, 0, 1f))
@@ -365,6 +367,7 @@ class MainActivity : AppCompatActivity() {
     /** The new page is done: lift the photograph. Stale calls are ignored. */
     private fun unfreeze(seq: Int) {
         if (seq != navSeq) return
+        if (BuildConfig.DEBUG) android.util.Log.d("bs-shell", "ready seq=$seq")
         refresher.isRefreshing = false
         progress.visibility = View.INVISIBLE
         if (freeze.visibility != View.VISIBLE) return
@@ -374,11 +377,42 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
+    /** League + tab the WebView's Streamlit session is showing, when known. */
+    private var pageLeague: String? = null
+    private var pageTab: String? = null
+
     private fun go(t: Config.Tab, lg: Config.League) {
         tab = t
         val u = Config.url(t, lg)
+        // Same league, another tab: press the dashboard's own (hidden) tab
+        // button inside the session that's already open. A URL load is a new
+        // Streamlit session — websocket, the whole script, the stylesheet —
+        // which is most of what a tab tap used to wait for.
+        if (t.tab != null && pageTab != null && pageLeague == lg.slug) {
+            if (BuildConfig.DEBUG) android.util.Log.d("bs-shell", "go (in-session) -> ${t.tab}")
+            freezeThen {
+                val js = NAV_JS.replace("__TAB__", org.json.JSONObject.quote(t.tab))
+                    .replace("__URL__", org.json.JSONObject.quote(u))
+                    .replace("__SEQ__", navSeq.toString())
+                web.evaluateJavascript(js) { r ->
+                    if (r?.contains("ok") == true) {
+                        pageTab = t.tab
+                    } else {
+                        android.util.Log.d("bs-shell", "in-session miss ($r) -> url")
+                        load(u, t, lg)
+                    }
+                }
+            }
+            return
+        }
         if (BuildConfig.DEBUG) android.util.Log.d("bs-shell", "go -> $u")
-        freezeThen { web.loadUrl(u) }
+        freezeThen { load(u, t, lg) }
+    }
+
+    private fun load(u: String, t: Config.Tab, lg: Config.League) {
+        pageLeague = if (t.tab == null) null else lg.slug
+        pageTab = t.tab
+        web.loadUrl(u)
     }
 
     @Deprecated("Deprecated in Java")
@@ -479,6 +513,72 @@ class MainActivity : AppCompatActivity() {
          * real content, and that content has not changed for two polls. Any one
          * alone lies — a page can sit still half-drawn waiting on a slow read.
          */
+        /** Press a tab inside the running session. Main-bar tabs are one
+         *  click; a More tab opens More first, then picks it. Returns "ok" or
+         *  "miss" (no such button: the shell falls back to the URL). Signals
+         *  ready once the rerun has started and the page has settled. */
+        private const val NAV_JS = """
+            (function (name, url, seq) {
+              function doc() {
+                const f = document.querySelector('iframe');
+                try {
+                  if (f && f.contentDocument &&
+                      f.contentDocument.querySelector('[data-testid="stMain"]')) return f.contentDocument;
+                } catch (e) {}
+                return document;
+              }
+              const d = doc();
+              function btn(key, label) {
+                const c = d.querySelector('.st-key-' + key);
+                if (!c) return null;
+                return Array.from(c.querySelectorAll('button')).find(
+                  function (b) { return (b.innerText || '').trim() === label; }) || null;
+              }
+              // What the page says now. A tab switch always changes it, so
+              // "settled" means: different from this, then stable. The status
+              // widget alone can't be trusted — the shell hides the chrome it
+              // lives in, and a slow tab looked done before it had started.
+              function sig() {
+                const main = d.querySelector('[data-testid="stMainBlockContainer"]');
+                return main ? main.innerText.slice(0, 1500) : '';
+              }
+              const before = sig();
+              function settle() {
+                let changed = false, last = '', still = 0, n = 0;
+                const t = setInterval(function () {
+                  n++;
+                  const sw = d.querySelector('[data-testid="stStatusWidget"]');
+                  const running = !!(sw && /stop/i.test(sw.innerText || ''));
+                  const now = sig();
+                  if (now !== before) changed = true;
+                  still = (!running && now === last) ? still + 1 : 0;
+                  last = now;
+                  if ((changed && still >= 4) || n > 160) {
+                    clearInterval(t);
+                    try { BSHost.ready(seq); } catch (e) {}
+                  }
+                }, 120);
+              }
+              function done() {
+                try { history.replaceState(null, '', url); } catch (e) {}
+                settle();
+              }
+              let b = btn('navbar', name) || btn('navbar_more', name);
+              if (b) { b.click(); done(); return 'ok'; }
+              const more = btn('navbar', 'More');
+              if (!more) return 'miss';
+              more.click();
+              let n = 0;
+              const t = setInterval(function () {
+                n++;
+                const x = btn('navbar_more', name);
+                if (x) { clearInterval(t); x.click(); done(); }
+                else if (n > 60) { clearInterval(t); location.href = url; }
+              }, 100);
+              return 'ok';
+            })(__TAB__, __URL__, __SEQ__);
+        """
+
         private const val READY_WATCH = """
             (function (seq) {
               function doc() {
