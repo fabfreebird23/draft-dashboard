@@ -377,8 +377,8 @@ def playoff_block_html(slate, pos: str) -> str:
         rows.append(
             f'<div class="pcd-wk"><span class="pcd-wkn">Wk {wk}</span>'
             f'<span class="pcd-opp">{opp}</span>{_bar(hardness, tone)}'
-            f'<span class="pcd-rk" title="{opp} allowed the {_ord(rank)}-most fantasy '
-            f'points to {pos}s last season (1 = stingiest).">{_ord(rank)} vs {pos}</span></div>')
+            f'<span class="pcd-rk" title="{opp} ranks {_ord(rank)} against {pos}s by fantasy '
+            f'points allowed per game (1 = stingiest).">{_ord(rank)} vs {pos}</span></div>')
     return (f'<div class="pcd-sec"><div class="pcd-h">Playoff schedule '
             f'<span class="pcd-sub">weeks 15-17</span>'
             f'<span class="pcd-tag pcd-t-{slate["cls"]}">{slate["label"]}</span></div>'

@@ -1273,7 +1273,8 @@ def _start_sit(ctx, g, lc) -> None:
                 return mean, var ** 0.5
             pa, pb = W.win_prob(*total(a), om, osd), W.win_prob(*total(b), om, osd)
             wp = (round(100 * pa), round(100 * pb))
-    st.markdown(C.start_sit_html(A, B, wp, n_def=max([len(v) for v in dvp.values()] or [32])),
+    st.markdown(C.start_sit_html(A, B, wp, n_def=max([len(v) for v in dvp.values()] or [32]),
+                                 dvp_label=ctx.get("dvp_label") or "last season"),
                 unsafe_allow_html=True)
 
 

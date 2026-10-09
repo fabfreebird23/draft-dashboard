@@ -2588,7 +2588,7 @@ def _ordinal(n: int) -> str:
 
 
 # ------------------------------------------------------------- start / sit
-def start_sit_html(A: dict, B: dict, wp, n_def: int = 32) -> str:
+def start_sit_html(A: dict, B: dict, wp, n_def: int = 32, dvp_label: str = "this season") -> str:
     """Two players side by side, then the reasons and the call."""
     hi = max(A["ceil"], B["ceil"], 1.0) * 1.08
 
@@ -2609,7 +2609,7 @@ def start_sit_html(A: dict, B: dict, wp, n_def: int = 32) -> str:
         soft = r > n_def * 0.66
         hard = r < n_def * 0.34
         word = "a soft" if soft else ("a tough" if hard else "a middling")
-        return f'{at} {p["opp"]} — {word} {p["pos"]} matchup (#{int(r)} of {n_def}, last season)'
+        return f'{at} {p["opp"]} — {word} {p["pos"]} matchup (#{int(r)} of {n_def}, {dvp_label})'
 
     better = A if (wp and wp[0] >= wp[1]) or (not wp and A["mean"] >= B["mean"]) else B
     other = B if better is A else A

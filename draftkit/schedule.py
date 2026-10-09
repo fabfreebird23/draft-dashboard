@@ -96,6 +96,84 @@ def load_dvp(prev_season: int, registry, scoring: str = "ppr") -> Dict[str, Dict
     return dvp
 
 
+def _allowed(season: int, weeks, registry, key: str):
+    """(points, games): {pos: {def_team: fantasy points conceded}} and
+    {pos: {def_team: games}} over the given weeks. One Sleeper stats read per week,
+    each cached on disk — a finished week only changes with stat corrections."""
+    pts: Dict[str, Dict[str, float]] = {p: {} for p in _SKILL}
+    games: Dict[str, Dict[str, int]] = {p: {} for p in _SKILL}
+    for wk in weeks:
+        cache = config.DATA_DIR / f"stats_{season}_{wk}.json"
+        rows = None
+        if cache.exists() and (time.time() - cache.stat().st_mtime) < 3 * 86400:
+            try:
+                rows = json.loads(cache.read_text())
+            except Exception:  # noqa: BLE001
+                rows = None
+        if rows is None:
+            try:
+                url = f"https://api.sleeper.com/stats/nfl/{season}/{wk}?season_type=regular"
+                raw = requests.get(url, headers=_HEADERS, timeout=20).json() or []
+                rows = [{"o": r.get("opponent"), "p": r.get("player_id"),
+                         "s": {k: v for k, v in (r.get("stats") or {}).items() if k.startswith("pts_")}}
+                        for r in raw if r.get("opponent") and r.get("player_id") is not None]
+                if rows:
+                    cache.write_text(json.dumps(rows))
+            except Exception:  # noqa: BLE001
+                rows = json.loads(cache.read_text()) if cache.exists() else []
+        seen = set()
+        for rec in rows or []:
+            v = (rec.get("s") or {}).get(key)
+            if v is None:
+                continue
+            pos = registry.meta(rec["p"]).position
+            if pos in pts:
+                pts[pos][rec["o"]] = pts[pos].get(rec["o"], 0.0) + float(v)
+                if (pos, rec["o"]) not in seen:
+                    seen.add((pos, rec["o"]))
+                    games[pos][rec["o"]] = games[pos].get(rec["o"], 0) + 1
+    return pts, games
+
+
+def load_dvp_season(season: int, through_week: int, registry, scoring: str = "ppr"):
+    """THIS season's defense-vs-position, from the weeks already played.
+
+    ({position: {def_team: rank}}, label). Rank 1 = stingiest, 32 = most
+    generous, by fantasy points allowed PER GAME (a defense that has had its bye
+    has played one game fewer, so totals would flatter it).
+
+    The draft screens use last season (`load_dvp`) because no games exist yet;
+    in season that's the wrong question — a defense that lost its two best
+    linebackers isn't last year's run defense. For the first two weeks there's
+    too little to rank on, so last season counts as two games' worth of prior
+    and fades out; from week 3 on it's this season alone.
+    """
+    key = _PTS_KEY.get(scoring, "pts_ppr")
+    done = max(0, int(through_week))
+    if done <= 0:
+        return load_dvp(season - 1, registry, scoring), f"last season (no {season} games yet)"
+    pts, games = _allowed(season, range(1, done + 1), registry, key)
+    prior_w = 2.0 if done < 3 else 0.0
+    if prior_w:
+        ppts, pgames = _allowed(season - 1, range(1, 19), registry, key)
+    dvp: Dict[str, Dict[str, int]] = {}
+    for pos in _SKILL:
+        per = {}
+        teams = set(pts[pos]) | (set(ppts[pos]) if prior_w else set())
+        for t in teams:
+            g = games[pos].get(t, 0)
+            tot = pts[pos].get(t, 0.0)
+            if prior_w and pgames[pos].get(t):
+                prior_pg = ppts[pos][t] / pgames[pos][t]
+                per[t] = (tot + prior_pg * prior_w) / (g + prior_w)
+            elif g:
+                per[t] = tot / g
+        order = sorted(per.items(), key=lambda x: x[1])
+        dvp[pos] = {team: i + 1 for i, (team, _) in enumerate(order)}
+    label = (f"{season} through week {done}" + (", blended with last season" if prior_w else ""))
+    return dvp, label
+
+
 def playoff_weeks(meta=None, settings=None) -> tuple:
     """The weeks THIS league actually plays its fantasy playoffs.
 

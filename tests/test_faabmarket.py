@@ -71,3 +71,26 @@ def test_season_sim_real_schedule():
     wk = {w["week"]: w for w in out["weeks"]}
     assert wk[6]["opp"] == "a" and wk[6]["p_win"] < 30          # b vs the best team
     assert all(w["if_win"] >= w["if_lose"] for w in out["weeks"])
+
+
+def test_dvp_season_ranks_per_game(monkeypatch, tmp_path):
+    from draftkit import schedule as S, config
+
+    class Reg:
+        def meta(self, pid):
+            return type("M", (), {"position": "RB"})()
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    # AAA allowed 40 over 2 games (20/g); BBB allowed 30 in 1 game (bye wk2): BBB is softer
+    weeks = {1: [{"opponent": "AAA", "player_id": "1", "stats": {"pts_ppr": 20}},
+                 {"opponent": "BBB", "player_id": "2", "stats": {"pts_ppr": 30}}],
+             2: [{"opponent": "AAA", "player_id": "1", "stats": {"pts_ppr": 20}}],
+             3: [{"opponent": "AAA", "player_id": "1", "stats": {"pts_ppr": 20}}]}
+
+    class R:
+        def __init__(self, rows): self.rows = rows
+        def json(self): return self.rows
+    monkeypatch.setattr(S.requests, "get",
+                        lambda url, **k: R(weeks.get(int(url.split("/")[-1].split("?")[0]), [])))
+    dvp, label = S.load_dvp_season(2026, 3, Reg(), "ppr")
+    assert dvp["RB"]["BBB"] > dvp["RB"]["AAA"]          # 30/g beats 20/g on per-game, not totals
+    assert label == "2026 through week 3"

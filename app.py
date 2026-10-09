@@ -380,6 +380,12 @@ def get_schedule(season: int):
     return schedule.load_schedule(season)
 
 
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def get_dvp_season(season: int, through_week: int, _registry, scoring: str):
+    from draftkit import schedule
+    return schedule.load_dvp_season(season, through_week, _registry, scoring)
+
+
 @st.cache_data(ttl=86400 * 7, show_spinner="Computing strength of schedule…")
 def get_dvp(prev_season: int, _registry, scoring: str):
     from draftkit import schedule
@@ -791,7 +797,20 @@ def build_context(sel: dict) -> dict:
                                   rookie_premium=bool(sel.get("keeper", True)))
     # Playoff strength of schedule (weeks 15-17) from real defense-vs-position.
     schedule = get_schedule(config.current_season())
-    dvp = get_dvp(config.current_season() - 1, registry, meta.scoring)
+    # In season, matchups are judged on THIS season's defenses (weeks already
+    # played); before a snap is taken there's only last season to go on.
+    try:
+        from draftkit import phase as _PHm
+        _in = get_league_phase(sel["platform"], str(sel["league_id"]),
+                               config.current_season()).phase in (_PHm.IN, _PHm.DONE)
+    except Exception:  # noqa: BLE001
+        _in = False
+    if _in:
+        dvp, dvp_label = get_dvp_season(config.current_season(),
+                                        max(0, in_season_ui.current_week() - 1),
+                                        registry, meta.scoring)
+    else:
+        dvp, dvp_label = get_dvp(config.current_season() - 1, registry, meta.scoring), "last season"
 
     def get_ranks(source: str):
         """(rows, status) for an alternate ranking source (FantasyPros ECR / ESPN),
@@ -818,7 +837,7 @@ def build_context(sel: dict) -> dict:
         "buzz": get_buzz(),
         "keepers_raw": keepers_raw, "keepers": placements, "tendencies": tendencies,
         "profiles": profiles,
-        "value": value, "proj": proj, "schedule": schedule, "dvp": dvp,
+        "value": value, "proj": proj, "schedule": schedule, "dvp": dvp, "dvp_label": dvp_label,
         "juice": juice_map,
         # ...and the same sheet again, but only where its premise holds. Juice's
         # skew measures SLEEPER'S draft room against FantasyPros: "he'll fall
