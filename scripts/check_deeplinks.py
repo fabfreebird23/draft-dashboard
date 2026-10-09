@@ -11,8 +11,13 @@ way anyone found out was by tapping it on a phone.
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
+
+# app.py imports draftkit from the repo root, which isn't on the path when this
+# runs as scripts/check_deeplinks.py
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 CASES = [("kreeper", "Lineup"), ("babies", "Live"), ("seven-half", "Rankings"),
          ("tds", "Waivers")]
