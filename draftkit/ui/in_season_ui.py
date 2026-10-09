@@ -860,15 +860,26 @@ def _live_body(ctx, g, *, bound_auto: bool, bound_every: int) -> None:
     # ---- the two moving reads, both uncached -------------------------------
     # The whole point of this screen is that these are NOW. Everything else on
     # it (rosters, slots, projections) comes from the shared 15-minute gather.
-    try:
-        games = GT.load_week(season, week, max_age=(bound_every if bound_auto else 0)) or {}
-    except Exception:  # noqa: BLE001
-        games = g.get("games") or {}
-    try:
-        live = ctx["provider"].get_live_scores(week, fresh=True) or {}
-        err = ""
-    except Exception as e:  # noqa: BLE001
-        live, err = {}, type(e).__name__
+    # The scoreboard, the live scores and the stat lines are three hosts that
+    # don't depend on each other; read one after another they were ~4s of a
+    # cold open, together they're the slowest one. (Stats are only prefetched
+    # here — the box score below reads them from nflstats' own cache.)
+    from concurrent.futures import ThreadPoolExecutor
+    from .. import nflstats as _NS
+    _age = bound_every if bound_auto else 0
+    with ThreadPoolExecutor(3) as _ex:
+        f_games = _ex.submit(GT.load_week, season, week, max_age=_age)
+        f_live = _ex.submit(ctx["provider"].get_live_scores, week, fresh=True)
+        _ex.submit(_NS.weekly, season, week, max_age=_age)
+        try:
+            games = f_games.result() or {}
+        except Exception:  # noqa: BLE001
+            games = g.get("games") or {}
+        try:
+            live = f_live.result() or {}
+            err = ""
+        except Exception as e:  # noqa: BLE001
+            live, err = {}, type(e).__name__
     now = _t.time()
 
     oid, opp = _opponent(ctx, g)

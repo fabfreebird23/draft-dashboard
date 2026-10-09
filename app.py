@@ -882,17 +882,51 @@ _DOT_TONE = {"go": "var(--green)", "warn": "var(--amber)", "bad": "var(--red)",
              "live": "var(--crimson)", "": "var(--mut2)"}
 
 
+_PULSE_JOBS: dict = {}
+
+
+def _pulses_nowait(key: str, week: int, n: int, wait: float = 1.2) -> list:
+    """Every league's Home dot, without making the page wait for all of them.
+
+    The dots are four leagues' worth of rosters and projections — 19s of a
+    27s cold Live open was this one strip. On a cold start they're built in the
+    background and the chips draw grey; the next rerun (the clock, a click) finds
+    them cached and colours them in. A warm cache answers inside the wait."""
+    import threading as _th
+    from draftkit.ui import home_ui as _H
+    k = (key, week)
+    job = _PULSE_JOBS.get(k)
+    if job is None or (job["done"].is_set() and job.get("err")):
+        job = {"done": _th.Event()}
+
+        def run(job=job):
+            try:
+                job["out"] = _H._pulses(key, week)
+            except Exception as e:  # noqa: BLE001
+                job["err"] = e
+            finally:
+                job["done"].set()
+        _PULSE_JOBS[k] = job
+        _th.Thread(target=run, name="pulses", daemon=True).start()
+    elif job["done"].is_set():
+        # done once — but _pulses has its own TTL, so ask it (a cache hit when
+        # fresh, a recompute only when its window rolled over)
+        try:
+            return _H._pulses(key, week)
+        except Exception:  # noqa: BLE001
+            return [{} for _ in range(n)]
+    job["done"].wait(wait)
+    return job.get("out") or [{} for _ in range(n)]
+
+
 def _league_switcher(ctx) -> None:
     """The saved leagues as one control, with each one's Home dot."""
     import json as _json
     from draftkit.ui import home_ui as _H
     cur_lid = str(ctx["meta"].league_id)
     presets = [p for p in SAVED_LEAGUES]
-    try:
-        pulses = _H._pulses(_json.dumps(presets, sort_keys=True, default=str),
-                            in_season_ui.current_week())
-    except Exception:  # noqa: BLE001
-        pulses = [{} for _ in presets]
+    pulses = _pulses_nowait(_json.dumps(presets, sort_keys=True, default=str),
+                            in_season_ui.current_week(), len(presets))
     labels, tones, by_label = [], [], {}
     for p, pu in zip(presets, pulses):
         tone = (pu or {}).get("tone", "") if (pu or {}).get("ok") else ""

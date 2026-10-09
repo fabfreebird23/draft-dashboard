@@ -45,6 +45,7 @@ NAVY = "#16263f"
 
 CSS = """
 <style>
+/*bs-theme*/
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Oswald:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap');
 /* ===== Night Draft — light variant (teal accent) ===== */
 :root{
@@ -2466,6 +2467,7 @@ def logo_html(size: int = 30, tag: str | None = None) -> str:
 
 DARK = """
 <style>
+/*bs-theme*/
 /* ===== War room — the dark side of the SAME identity, not an inversion.
    The badge set already contains this near-black, so dark is first-class. ===== */
 :root{
@@ -2659,10 +2661,38 @@ DARK = """
 """
 
 
+# Copies the theme <style> blocks out of the Streamlit body into the page <head>,
+# where they outlive the rerun that sent them. Waits for the expected number of
+# blocks to land (the markdown can paint after the iframe), then replaces the
+# head copy wholesale, so a light/dark switch can't leave the other one behind.
+_HOIST = """<script>(function(){try{var d=window.parent.document,want=%d;
+function go(n){var s=[].filter.call(d.querySelectorAll('body style'),function(x){
+return x.textContent.indexOf('/*bs-theme*/')>=0});
+if(s.length<want){if(n<60)setTimeout(function(){go(n+1)},100);return;}
+var h=d.getElementById('bs-theme-head');if(!h){h=d.createElement('style');
+h.id='bs-theme-head';d.head.appendChild(h);}
+h.setAttribute('data-v','%s');h.textContent=s.map(function(x){return x.textContent}).join('\\n');}
+go(0);}catch(e){}})();</script>"""
+
+
 def inject(st, dark: bool = False) -> None:
+    """The stylesheet goes down once per browser session, not once per rerun.
+
+    It's 157KB, and as an st.markdown it was re-sent on every tab, every rerun
+    and every refresh — most of the bytes of every page (measured: 182–206KB
+    a tab, 157KB of it this). Now the first run sends it and a zero-height
+    component copies it into <head>, where it outlives the rerun; later runs in
+    the same session send nothing. A reload is a new session, so it's sent again.
+    Static file serving can't do this: Streamlit serves .css as text/plain."""
+    key = f"{fingerprint()}:{int(bool(dark))}"
+    if st.session_state.get("_bs_css") == key:
+        return
     st.markdown(CSS, unsafe_allow_html=True)
     if dark:
         st.markdown(DARK, unsafe_allow_html=True)
+    import streamlit.components.v1 as _cmp
+    _cmp.html(_HOIST % (2 if dark else 1, key), height=0)
+    st.session_state["_bs_css"] = key
 
 
 def fingerprint() -> str:

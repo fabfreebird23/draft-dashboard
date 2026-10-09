@@ -28,6 +28,13 @@ def headshot_ids(season: int) -> dict:
     keeps players with no ADP yet (incoming rookies) — exactly where Sleeper has
     no photo.
     """
+    from .. import sleeper_client as _sc
+    # The board barely moves day to day and it's ~1.4s a read; every context
+    # build (each league, each new process) was paying it again.
+    return _sc._disk(f"espn_headshots_{season}", 86400, lambda: _headshot_ids(season))
+
+
+def _headshot_ids(season: int) -> dict:
     from ..names import normalize_name
 
     flt = {"players": {"limit": 1000, "sortDraftRanks": {"sortPriority": 1, "value": "PPR"}}}

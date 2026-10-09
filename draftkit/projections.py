@@ -169,24 +169,53 @@ def espn_projections(league_id: str, season: int, week=None, registry=None,
     return out
 
 
+_WEEK_RAW: Dict[tuple, tuple] = {}
+_WEEK_LOCK = __import__("threading").Lock()
+_WEEK_TTL = 90
+
+
+def _sleeper_week_raw(season: int, week: int) -> Dict[str, dict]:
+    """Sleeper's raw stat lines for one week, shared by every league that asks.
+
+    Three Sleeper leagues each fetched the same four position lists one after
+    another — twelve calls, ~10s, on a cold Live open. The numbers are identical
+    across leagues (only the scoring applied to them differs), so they're read
+    once, the four positions at the same time, and held for 90s; the lock stops
+    the warmer and the page from both fetching on a cold start."""
+    from concurrent.futures import ThreadPoolExecutor
+    k = (int(season), int(week))
+    with _WEEK_LOCK:
+        hit = _WEEK_RAW.get(k)
+        if hit and time.time() - hit[0] < _WEEK_TTL:
+            return hit[1]
+
+        def one(pos):
+            url = (f"{_BASE}/{season}/{int(week)}?season_type=regular"
+                   f"&position[]={pos}&order_by=pts_ppr")
+            r = requests.get(url, headers=_HEADERS, timeout=20)
+            r.raise_for_status()
+            return r.json() or []
+
+        merged: Dict[str, dict] = {}
+        with ThreadPoolExecutor(len(_POSITIONS)) as ex:
+            for rows in ex.map(one, _POSITIONS):
+                for row in rows:
+                    pid = str(row.get("player_id") or "")
+                    st = row.get("stats") or {}
+                    if pid and st.get("pts_ppr") is not None:
+                        merged[pid] = st
+        _WEEK_RAW[k] = (time.time(), merged)
+        return merged
+
+
 def sleeper_week(season: int, week: int, scoring: str = "ppr", weights=None) -> Dict[str, float]:
     """`{sleeper_pid: projected_points}` for ONE week from Sleeper.
 
     Same component-scoring path as the season projections, so a Sleeper league with
     unusual rules is weighted correctly here too. Not disk-cached: a week's numbers
     move with news right up to kickoff, which is exactly when you'd be looking."""
-    merged: Dict[str, dict] = {}
     try:
-        for pos in _POSITIONS:
-            url = (f"{_BASE}/{season}/{int(week)}?season_type=regular"
-                   f"&position[]={pos}&order_by=pts_ppr")
-            r = requests.get(url, headers=_HEADERS, timeout=20)
-            r.raise_for_status()
-            for row in (r.json() or []):
-                pid = str(row.get("player_id") or "")
-                st = row.get("stats") or {}
-                if pid and st.get("pts_ppr") is not None:
-                    merged[pid] = st
+        merged = _sleeper_week_raw(season, week)
     except Exception:  # noqa: BLE001
         return {}
     if weights:

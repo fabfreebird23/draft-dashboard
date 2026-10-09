@@ -40,7 +40,9 @@ def weekly(season: int, week: int, max_age: float = _TTL) -> Dict[str, dict]:
     last good copy, because a missing stat line must not blank a live row."""
     key = f"{season}_{week}"
     hit = _MEM.get(key)
-    if hit and (time.time() - hit[0]) < max(1.0, max_age):
+    # 5s floor: Live prefetches this alongside the scoreboard and reads it again
+    # a moment later — that second read must be the same copy, not a refetch
+    if hit and (time.time() - hit[0]) < max(5.0, max_age):
         return hit[1]
     rows: Dict[str, dict] = {}
     try:
