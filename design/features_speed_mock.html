@@ -1,0 +1,229 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bloody Sunday · features + speed</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>:root{--bg:#141314;--panel:#1f1d1e;--panel2:#292627;--line:#332e30;--line2:#3d383a;--ink:#f2eef0;--muted:#a2989c;--mut2:#8c8286;
+ --crimson:#ff336c;--g:#5fdc8f;--a:#f0b357;--r:#ff6b6b;--fd:'Oswald',sans-serif;--fb:'Inter',system-ui,sans-serif;--fm:'Roboto Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:#0c0b0c;color:var(--ink);font-family:var(--fb);margin:0;padding:24px 24px 70px;font-size:13px}
+h1{font-family:var(--fd);font-weight:600;font-size:28px;margin:0 0 6px}
+.sub{color:var(--muted);max-width:110ch;line-height:1.55;margin:0 0 26px}
+.ref{display:grid;grid-template-columns:412px 1fr;gap:34px;align-items:start;margin:0 0 46px}
+.ref h2{font-family:var(--fd);font-weight:600;font-size:22px;margin:4px 0 4px}
+.ref h2 em{font-style:normal;color:var(--crimson);font-family:var(--fm);font-size:12px;letter-spacing:.14em;margin-right:10px;vertical-align:middle}
+.ref .why{color:var(--muted);line-height:1.6;max-width:62ch}
+.ref .why b{color:var(--ink);font-weight:600}
+.ref .why p{margin:0 0 12px}
+.ref .cost{font-family:var(--fm);font-size:11px;color:var(--mut2);border-top:1px solid var(--line);padding-top:10px;margin-top:6px;max-width:62ch;line-height:1.55}
+.screen{width:412px;height:915px;border-radius:26px;border:1px solid #2a2527;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.body{flex:1;overflow:hidden;padding:8px 12px 10px}
+.top{padding:10px 12px 9px;border-bottom:1px solid var(--line);background:#191718}
+.lrow{display:flex;gap:6px}
+.lchip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;border:1px solid var(--line2);font-size:12px;color:var(--muted)}
+.lchip.on{border-color:var(--crimson);color:var(--ink);background:rgba(255,51,108,.1)}
+.lchip i{width:6px;height:6px;border-radius:50%} .lchip i.me{background:var(--crimson)} .lchip i.up{background:var(--g)} .lchip i.warn{background:var(--a)} .lchip i.dn{background:var(--r)}
+.nav{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:#191718;padding:7px 4px 10px}
+.nb{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--mut2)} .nb svg{width:21px;height:21px} .nb span{font-size:10px}
+.nb.on{color:var(--crimson)} .nb.on span{color:var(--ink)}
+.av{position:relative;flex:none} .av .hs{width:100%;height:100%;border-radius:10px;object-fit:cover;object-position:top center;background:var(--panel2);border:1px solid var(--line2);display:block}
+.av .tm{position:absolute;width:15px;height:15px;right:-4px;bottom:-3px;object-fit:contain;background:var(--bg);border-radius:4px;padding:1px;border:1px solid var(--line)}
+.sh{font-family:var(--fm);font-size:9px;letter-spacing:.14em;color:var(--mut2);margin:12px 0 7px}
+.small{font-size:11px;color:var(--mut2);line-height:1.5;margin-top:10px}
+.g{color:var(--g)} .a{color:var(--a)} .d{color:var(--r)} .m{color:var(--mut2)}
+/* A inbox */
+.ibhead{padding:6px 2px 10px} .ibhead .k{font-family:var(--fm);font-size:9px;letter-spacing:.13em;color:var(--crimson)}
+.ibhead .t{font-family:var(--fd);font-weight:500;font-size:24px;margin-top:4px} .ibhead .s{font-size:12px;color:var(--mut2);margin-top:2px}
+.item{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line2);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.item.lock{border-left-color:var(--a);background:linear-gradient(90deg,rgba(240,179,87,.08),var(--panel) 60%)}
+.item.claim{border-left-color:var(--g)}
+.tag{display:flex;gap:8px;align-items:center;font-family:var(--fm);font-size:9px;letter-spacing:.1em}
+.tag .kind{color:var(--a)} .item.claim .tag .kind{color:var(--g)} .tag .lg{color:var(--ink)} .tag .when{margin-left:auto;color:var(--mut2)}
+.row{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;margin-top:8px}
+.row .av{width:38px;height:38px}
+.txt b{font-family:var(--fd);font-weight:500;font-size:15px;display:block} .txt span{font-size:11.5px;color:var(--muted)}
+.gain{font-family:var(--fd);font-weight:600;font-size:20px;color:var(--g)}
+.acts{display:flex;gap:8px;margin-top:10px} .bt{flex:1;text-align:center;padding:8px 0;border-radius:9px;border:1px solid var(--line2);font-size:12.5px;font-weight:600;color:var(--muted)}
+.bt.pri{background:var(--crimson);border-color:var(--crimson);color:#fff}
+.quiet{font-family:var(--fm);font-size:10px;color:var(--mut2);border:1px dashed var(--line2);border-radius:10px;padding:8px 11px;margin:4px 0 10px}
+.mini{display:grid;grid-template-columns:repeat(4,1fr);gap:6px} .mini .m{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 8px}
+.mini b{display:block;font-family:var(--fd);font-weight:500;font-size:12px;color:var(--ink)} .mini span{font-family:var(--fd);font-weight:600;font-size:16px}
+/* B keepers */
+.tray{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:10px 12px;margin:2px 0 10px}
+.tk{font-family:var(--fm);font-size:9px;letter-spacing:.12em;color:var(--mut2)}
+.slots{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:9px}
+.sl{display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 0 6px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2)}
+.sl.rk{border-color:rgba(181,156,240,.45)} .sl b{font-family:var(--fm);font-size:10px} .sl .av{width:34px;height:34px}
+.kc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.kc.keep{border-color:rgba(95,220,143,.35)} .kc.blocked{opacity:.6}
+.kh{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center} .kh .av{width:38px;height:38px}
+.kt b{font-family:var(--fd);font-weight:500;font-size:15px;display:block} .kt span{font-size:11px;color:var(--mut2)}
+.kv{text-align:right} .kv b{font-family:var(--fd);font-weight:600;font-size:15px;display:block} .kv span{font-family:var(--fm);font-size:9.5px;color:var(--mut2)}
+.ladder{display:flex;align-items:center;gap:6px;margin-top:10px}
+.st{flex:1;border:1px solid var(--line2);border-radius:9px;padding:6px 8px;background:var(--panel2)}
+.st span{display:block;font-family:var(--fm);font-size:8.5px;letter-spacing:.1em;color:var(--mut2)} .st b{font-family:var(--fd);font-weight:600;font-size:15px}
+.st.now{border-color:var(--crimson);background:rgba(255,51,108,.08)} .st.past{opacity:.45} .st.adp b{color:var(--a)}
+.ar{color:var(--mut2);font-size:12px} .kn{font-size:11.5px;color:var(--muted);margin-top:8px}
+/* C claims */
+.budget{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:11px 13px;margin:2px 0 4px}
+.bk{display:flex;justify-content:space-between;align-items:baseline} .bk span{font-family:var(--fm);font-size:9px;letter-spacing:.12em;color:var(--mut2)}
+.bk b{font-family:var(--fd);font-weight:600;font-size:24px} .bk small{font-family:var(--fb);font-size:12px;color:var(--mut2);font-weight:400}
+.bbar{height:8px;border-radius:99px;background:var(--panel2);margin:9px 0 7px;display:flex;overflow:hidden}
+.bbar .spent{background:var(--mut2)} .bbar .queued{background:var(--crimson)}
+.bl{display:flex;justify-content:space-between;font-family:var(--fm);font-size:10px;color:var(--mut2)} .bl b{color:var(--ink)}
+.bl i.q{display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--crimson);margin-right:5px}
+.cl{display:grid;grid-template-columns:14px 18px 38px 1fr 62px;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 10px;margin-bottom:7px}
+.cl.dim{opacity:.6} .cl .av{width:38px;height:38px} .grip{color:#544c4f;font-size:12px;letter-spacing:-2px} .pr{font-family:var(--fd);font-weight:600;font-size:15px;color:var(--mut2)}
+.ct b{font-family:var(--fd);font-weight:500;font-size:14px;display:block} .ct span{font-size:11px;color:var(--mut2)}
+.bids{display:flex;gap:5px;margin-top:6px} .bids span{font-family:var(--fm);font-size:10px;padding:3px 7px;border-radius:6px;border:1px solid var(--line2);color:var(--muted)}
+.bids span.on{border-color:var(--crimson);color:var(--ink);background:rgba(255,51,108,.1)} .bids .c{color:var(--mut2)}
+.cv{text-align:right} .cv b{font-family:var(--fd);font-weight:600;font-size:18px;display:block} .cv span{font-family:var(--fm);font-size:8.5px;color:var(--mut2)}
+.go{margin-top:12px;text-align:center;padding:11px 0;border-radius:11px;background:var(--crimson);color:#fff;font-weight:600;font-size:13.5px}
+/* D swing */
+.swh{padding:6px 2px 10px} .swh .k{font-family:var(--fm);font-size:9px;letter-spacing:.13em;color:var(--crimson)}
+.swh .k i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--crimson);margin-right:6px}
+.swh .t{font-family:var(--fd);font-weight:500;font-size:24px;margin-top:4px} .swh .t b{font-weight:600} .swh .s{font-size:12px;color:var(--mut2);margin-top:2px}
+.pl{display:grid;grid-template-columns:38px 1fr 64px;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:7px}
+.pl .av{width:38px;height:38px} .pt b{font-family:var(--fd);font-weight:500;font-size:14.5px} .pt span{font-family:var(--fm);font-size:10px;color:var(--muted);margin-left:6px}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px} .ch{font-family:var(--fm);font-size:9.5px;padding:2px 6px;border-radius:5px;border:1px solid}
+.ch.me{color:var(--crimson);border-color:rgba(255,51,108,.4)} .ch.op{color:var(--g);border-color:rgba(95,220,143,.35)}
+.nt{text-align:right} .nt b{font-family:var(--fd);font-weight:600;font-size:19px;display:block} .nt span{font-family:var(--fm);font-size:9px;color:var(--mut2)}
+.nt.up b{color:var(--g)} .nt.dn b{color:var(--r)} .nt.tie b{color:var(--mut2)}
+
+.screen{height:auto}
+.screen .body{padding-bottom:16px}
+.screen.sp{padding:14px 4px 8px}
+.seeds{display:flex;gap:6px;align-items:flex-end;height:96px;margin-top:10px}
+.sd{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px}
+.sd i{width:100%;border-radius:5px 5px 2px 2px;background:var(--line2)} .sd.in i{background:var(--g)}
+.sd span{font-family:var(--fm);font-size:9px;color:var(--mut2)} .sd b{font-family:var(--fm);font-size:9px;font-weight:500;color:var(--muted)}
+.strip{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-bottom:10px}
+.wk{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:6px 0 5px;display:flex;flex-direction:column;align-items:center;gap:3px;height:112px;justify-content:flex-end}
+.wk.must{border-color:var(--a);background:rgba(240,179,87,.08)}
+.wk span{font-family:var(--fm);font-size:8.5px;color:var(--mut2);order:-2;margin-bottom:auto} .wk b{font-family:var(--fd);font-weight:600;font-size:13px;order:-1}
+.wk i{width:60%;border-radius:3px} .gb{background:rgba(95,220,143,.55)} .ab{background:rgba(240,179,87,.55)} .db{background:rgba(255,107,107,.55)}
+.wk em{font-style:normal;font-size:8px;color:var(--mut2)}
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.tside{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 10px}
+.tp{display:flex;gap:8px;align-items:center;margin-top:8px} .tp b{font-family:var(--fd);font-weight:500;font-size:13px;display:block} .tp span{font-size:10.5px;color:var(--mut2)}
+.tadd{margin-top:9px;border:1px dashed var(--line2);border-radius:8px;text-align:center;padding:5px 0;font-size:11px;color:var(--mut2)}
+.tm3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}
+.tm3>div{background:var(--panel2);border:1px solid var(--line2);border-radius:9px;padding:7px 8px}
+.tm3 span{display:block;font-family:var(--fm);font-size:8.5px;letter-spacing:.08em;color:var(--mut2)}
+.tm3 b{display:block;font-family:var(--fd);font-weight:600;font-size:18px;margin-top:2px} .tm3 em{font-style:normal;font-size:10px;color:var(--mut2)}
+.tm3.big{margin:2px 0 4px} .tm3.big>div{background:var(--panel);border-color:var(--line)}
+.kp{display:flex;align-items:center;gap:12px;margin-top:9px} .kp b{font-family:var(--fd);font-weight:600;font-size:16px;display:block} .kp span{font-size:10.5px;color:var(--mut2)}
+.verdict{border:1px solid rgba(95,220,143,.4);background:rgba(95,220,143,.07);border-radius:12px;padding:10px 12px}
+.verdict b{font-family:var(--fd);font-weight:500;font-size:16px;color:var(--g);display:block} .verdict span{font-size:11.5px;color:var(--muted)}
+.rbar{position:relative;height:22px;margin:12px 4px 2px;border-top:2px solid var(--line2)}
+.rbar span{position:absolute;top:4px;font-family:var(--fm);font-size:9.5px;color:var(--mut2);transform:translateX(-50%)}
+.rbar span.me{color:var(--g);font-weight:600} .rbar span.ru{color:var(--a)}
+.rbar span::before{content:"";position:absolute;left:50%;top:-8px;width:2px;height:6px;background:currentColor}
+.ss{display:grid;grid-template-columns:1fr 26px 1fr;align-items:center;margin:2px 0 10px}
+.sc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 0 9px;display:flex;flex-direction:column;align-items:center;gap:5px}
+.sc.on{border-color:var(--g);background:rgba(95,220,143,.06)} .sc b{font-family:var(--fd);font-weight:500;font-size:15px} .sc span{font-size:10.5px;color:var(--mut2)}
+.vs{text-align:center;font-family:var(--fm);font-size:10px;color:var(--mut2)}
+.rr{display:grid;grid-template-columns:52px 1fr 34px;gap:8px;align-items:center;margin-top:10px} .rr span{font-size:12px;color:var(--muted)} .rr>b{font-family:var(--fd);font-weight:600;font-size:15px;text-align:right}
+.rg{position:relative;height:10px;background:var(--panel2);border-radius:99px}
+.rl{position:absolute;top:0;bottom:0;border-radius:99px} .rl.g{background:rgba(95,220,143,.45)} .rl.a{background:rgba(240,179,87,.45)}
+.rm{position:absolute;top:-3px;width:3px;height:16px;background:var(--ink);border-radius:2px}
+.axis{display:flex;justify-content:space-between;margin:6px 42px 0 60px;font-family:var(--fm);font-size:9px;color:var(--mut2)}
+.why2>div{display:grid;grid-template-columns:62px 1fr;gap:8px;margin-top:8px;font-size:11.5px} .why2 b{font-family:var(--fd);font-weight:500;font-size:13px} .why2 span{color:var(--muted)}
+.big2{display:flex;align-items:center;gap:12px;margin:2px 0 16px;flex-wrap:wrap}
+.big2 span{display:block;font-family:var(--fm);font-size:9px;letter-spacing:.12em;color:var(--mut2)} .big2 b{font-family:var(--fd);font-weight:600;font-size:28px}
+.wfr{display:grid;grid-template-columns:128px 1fr 40px;gap:8px;align-items:center;margin-bottom:6px}
+.wfr span{font-size:11px;color:var(--muted)} .wfr b{font-family:var(--fm);font-size:10.5px;font-weight:500;text-align:right}
+.wft{position:relative;height:12px;background:var(--panel);border-radius:4px}
+.wft i{position:absolute;top:0;bottom:0;border-radius:3px} .wft i.r{background:var(--r)} .wft i.a{background:var(--a)} .wft i.m{background:var(--mut2)} .wft i.g{background:var(--g)}
+.kb{display:grid;grid-template-columns:62px 1fr 46px;gap:8px;align-items:center;margin-bottom:6px}
+.kb span{font-size:11px;color:var(--muted)} .kb b{font-family:var(--fm);font-size:10.5px;font-weight:500;text-align:right}
+.kbt{height:12px;background:var(--panel);border-radius:4px;display:flex;overflow:hidden}
+.kbt i.css,.lgd.css{background:rgba(255,107,107,.7)} .kbt i.pg,.lgd.pg{background:var(--g)}
+.lgd{display:inline-block;width:8px;height:8px;border-radius:2px;margin:0 4px 0 10px;vertical-align:middle}
+.h2m{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px 8px}
+.hr{display:grid;grid-template-columns:22px 30px 1fr 38px 38px 1fr 30px;gap:6px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)} .hr:last-child{border:0}
+.hr .sl{font-family:var(--fm);font-size:9px;color:var(--mut2)} .hn b{font-family:var(--fd);font-weight:500;font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .hn span{font-size:9.5px;color:var(--mut2)} .hn.r{text-align:right}
+.pts{font-family:var(--fm);font-weight:600;font-size:14px;text-align:center;border-radius:6px;padding:2px 0} .pts.up{color:var(--g);background:rgba(95,220,143,.14);box-shadow:0 0 0 1px rgba(95,220,143,.4)}
+.grp{font-family:var(--fd);font-weight:600;font-size:15px;letter-spacing:.12em;color:var(--crimson);margin:10px 0 18px;border-top:1px solid var(--line);padding-top:22px}
+.ref .why{max-width:64ch}
+@media(max-width:900px){.ref{grid-template-columns:1fr}.screen{width:100%;max-width:412px}}
+</style></head><body>
+<h1>Four features, four speed fixes</h1>
+<p class="sub">The features use real Kreeper data: your roster, the 3-1 start, tprib as this week's opponent, and the FAAB history. The odds and points on the feature screens are illustrative. The speed numbers were <b>measured today</b> on this machine with the app's own timing harness: per-tab page size, and a cold Live open counted call by call. The one exception is S3: the phone tab-switch timeline is an estimate, because the phone can't be timed from here.</p>
+<div class="grp">UI FEATURES</div>
+<div class="ref"><div class="screen"><div class="top"><div class="lrow"><span class="lchip on"><i class="me"></i>Kreeper</span><span class="lchip"><i class="up"></i>B&amp;B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div></div><div class="body">
+<div class="ibhead"><div class="k">SEASON · AFTER WEEK 5</div><div class="t">Playoff odds <span class="g">61%</span></div>
+<div class="s">3-1 · 676 pts (1st) · <span class="g">+9 pts</span> since last week</div></div>
+<div class="tray"><div class="tk">WHERE YOU FINISH · 10,000 SEASONS</div><div class="seeds"><div class="sd in"><i style="height:45px"></i><span>1</span><b>14%</b></div><div class="sd in"><i style="height:54px"></i><span>2</span><b>17%</b></div><div class="sd in"><i style="height:51px"></i><span>3</span><b>16%</b></div><div class="sd in"><i style="height:45px"></i><span>4</span><b>14%</b></div><div class="sd"><i style="height:42px"></i><span>5</span><b>13%</b></div><div class="sd"><i style="height:35px"></i><span>6</span><b>11%</b></div><div class="sd"><i style="height:29px"></i><span>7</span><b>9%</b></div><div class="sd"><i style="height:19px"></i><span>8</span><b>6%</b></div></div>
+<div class="small" style="margin-top:6px">Top 4 make it. Most likely: <b style="color:var(--ink)">2nd seed</b> — a bye if that's the format.</div></div>
+<div class="sh">WEEK BY WEEK · YOUR WIN %</div><div class="strip"><div class="wk"><span>W6</span><b class="g">78</b><i style="height:33px" class="gb"></i><em>NedSc</em></div><div class="wk"><span>W7</span><b class="a">58</b><i style="height:24px" class="ab"></i><em>Genti</em></div><div class="wk"><span>W8</span><b class="g">64</b><i style="height:27px" class="gb"></i><em>charr</em></div><div class="wk must"><span>W9</span><b class="d">47</b><i style="height:20px" class="db"></i><em>JJaco</em></div><div class="wk"><span>W10</span><b class="g">71</b><i style="height:30px" class="gb"></i><em>Bnort</em></div><div class="wk"><span>W11</span><b class="a">52</b><i style="height:22px" class="ab"></i><em>MikeC</em></div><div class="wk"><span>W12</span><b class="d">45</b><i style="height:19px" class="db"></i><em>tprib</em></div><div class="wk"><span>W13</span><b class="g">80</b><i style="height:34px" class="gb"></i><em>NedSc</em></div><div class="wk"><span>W14</span><b class="a">57</b><i style="height:24px" class="ab"></i><em>Genti</em></div></div>
+<div class="item claim" style="border-left-color:var(--a)"><div class="tag"><span class="kind" style="color:var(--a)">MUST-WIN</span><span class="lg">WEEK 9 · vs JJacobs22</span><span class="when">47%</span></div>
+<div class="kn" style="margin-top:7px">Win it and your odds go to <b class="g">74%</b>; lose and they drop to <b class="d">49%</b>. No other week swings it as much. JJacobs22 is 3-1 too, so this is the tiebreak game.</div></div>
+<div class="small">Each week's % comes from the same projections Live uses, played against each opponent's best lineup.</div>
+</div><div class="nav"><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div><div><h2><em>01</em>Playoff odds and the must-win week</h2><div class="why"><p>You can see this week's win %, but not where the season is heading. This runs the <b>rest of the schedule 10,000 times</b> from the projections the app already has, and shows <b>your playoff odds, where you're likely to finish, and the week that matters most</b>.</p><p>The must-win card is the useful part. It names the one game that moves your odds most, so you know which week to spend FAAB for or to make a trade before.</p></div><div class="cost">Monte Carlo over the remaining matchups using Live's team_distribution (mean + SD per lineup); reads playoff_teams from Sleeper settings; ESPN TD's via its schedule API. Under a second for 10k seasons in numpy, cached per week. About a day.</div></div></div><div class="ref"><div class="screen"><div class="top"><div class="lrow"><span class="lchip on"><i class="me"></i>Kreeper</span><span class="lchip"><i class="up"></i>B&amp;B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div></div><div class="body">
+<div class="ibhead"><div class="k">TRADE DESK · vs tprib</div><div class="t">Walker for Watson</div><div class="s">Build it here, then send it in Sleeper</div></div>
+<div class="tgrid"><div class="tside"><div class="tk">YOU GIVE</div>
+<div class="tp"><div class="av" style="width:34px;height:34px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8151.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/kc.png"></div><div><b>Kenneth Walker</b><span>RB · bench · 9.6/wk</span></div></div>
+<div class="tadd">+ add</div></div>
+<div class="tside"><div class="tk">YOU GET</div>
+<div class="tp"><div class="av" style="width:34px;height:34px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8167.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/gb.png"></div><div><b>Christian Watson</b><span>WR · their flex · 11.2/wk</span></div></div>
+<div class="tadd">+ add</div></div></div>
+<div class="tray"><div class="tk">WHAT IT DOES</div>
+<div class="tm3"><div><span>YOUR LINEUP</span><b class="g">+1.9</b><em>pts / wk</em></div><div><span>THEIR LINEUP</span><b class="a">−0.4</b><em>pts / wk</em></div><div><span>YOUR PLAYOFFS</span><b class="g">61→65%</b><em>+4 pts</em></div></div>
+<div class="kn">Watson starts at your FLEX over Chase Brown. Walker is their RB2 the week McCaffrey is on bye (W8), so they gain something too.</div></div>
+<div class="tray"><div class="tk">2027 KEEPER PRICE</div>
+<div class="kp"><div><b>Walker</b><span>R6 · Ned's draft round</span></div><div class="ar">→</div><div><b class="g">Watson</b><span>R9 · tprib's round</span></div></div>
+<div class="kn">You give up an R6 keeper and take back an R9 one. Watson's ADP is around R5, so he'd be a <b class="g">+4 round</b> keeper.</div></div>
+<div class="verdict"><b>Good for you, close for them</b><span>tprib loses less than a point a week, so they might take it</span></div>
+</div><div class="nav"><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div><div><h2><em>02</em>Trade desk: this year and next</h2><div class="why"><p>All three keeper leagues trade, and a trade changes two things: <b>this year's lineup and next year's keeper price</b>. The app already works out both, but in separate places. This puts them on one screen.</p><p>Add players to each side and it re-runs both lineups (you and them), your playoff odds, and the keeper price each player carries into 2027. It also tells you whether <b>they'd likely accept</b>, based on what the trade does to their lineup.</p></div><div class="cost">Reuses LU.optimize for both rosters, the playoff sim from 01 (so do 01 first or alongside), and keeper_outlook's ladder for the incoming players. Acceptance = how much their lineup changes. A new More-sheet screen. 1–1.5 days.</div></div></div><div class="ref"><div class="screen"><div class="top"><div class="lrow"><span class="lchip on"><i class="me"></i>Kreeper</span><span class="lchip"><i class="up"></i>B&amp;B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div></div><div class="body">
+<div class="ibhead"><div class="k">WAIVERS RAN · WED 3:00 AM</div><div class="t">Won 1 of 2</div><div class="s">$3 spent · $89 left of $100</div></div>
+<div class="item claim"><div class="tag"><span class="kind">WON</span><span class="lg">KEATON MITCHELL</span><span class="when">$3</span></div>
+<div class="row"><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/9511.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/lac.png"></div><div class="txt"><b>Keaton Mitchell</b><span>Runner-up bid $2 · we suggested $1–4</span></div><div class="gain">+1.4</div></div>
+<div class="rbar"><span style="left:8%">$1</span><span class="me" style="left:56%">you $3</span><span class="ru" style="left:32%">$2</span><span style="left:82%">$4</span></div>
+<div class="kn">You beat the runner-up by $1. That's what the suggestion is aiming for.</div></div>
+<div class="item" style="border-left-color:var(--r)"><div class="tag"><span class="kind" style="color:var(--r)">LOST</span><span class="lg">MALIK WASHINGTON</span><span class="when">$2</span></div>
+<div class="row"><div class="av" style="width:38px;height:38px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11610.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/mia.png"></div><div class="txt"><b>Malik Washington</b><span>charris42 won it at $9 · 3 bids</span></div><div class="gain" style="color:var(--mut2)">+0.9</div></div>
+<div class="kn">$9 is more than any similar claim here since 2023 (the usual top was $5). Most weeks $2 would have been enough.</div></div>
+<div class="tray"><div class="tk">YOUR BIDS THIS SEASON</div>
+<div class="tm3"><div><span>WON</span><b>5 of 7</b><em>claims</em></div><div><span>PAID</span><b>$11</b><em>total</em></div><div><span>OVERPAID</span><b class="g">$4</b><em>over runner-up</em></div></div>
+<div class="kn">Each week's results go back into the model, so the bids stay current as Kreeper gets pricier or cheaper.</div></div>
+</div><div class="nav"><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div><div><h2><em>03</em>Waiver recap: did the bid work?</h2><div class="why"><p>The new FAAB bids are only good if they're checked. When waivers run, this shows <b>what you won and lost, what the runner-up bid, and what the app suggested</b>, so you can see whether to trust the next suggestion.</p><p>Over the season it adds up wins, total spend and how much you overpaid the runner-up. Each week's claims feed back into the model, so it keeps up when the league starts bidding more.</p></div><div class="cost">Sleeper transactions for the week just run (already fetched by faabmarket) + the suggestion saved when the claim was queued (userstate). Feeds faabmarket's current-season rows. Half a day.</div></div></div><div class="ref"><div class="screen"><div class="top"><div class="lrow"><span class="lchip on"><i class="me"></i>Kreeper</span><span class="lchip"><i class="up"></i>B&amp;B</span><span class="lchip"><i class="warn"></i>7½ Men</span><span class="lchip"><i class="dn"></i>TD's</span></div></div><div class="body">
+<div class="ibhead"><div class="k">START / SIT · FLEX · WEEK 5</div><div class="t">Walker or Warren?</div><div class="s">Tap any two players on Lineup to compare them</div></div>
+<div class="ss"><div class="sc on"><div class="av" style="width:46px;height:46px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8151.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/kc.png"></div><b>Walker</b><span>vs JAX · Sun 1:00</span></div><div class="vs">vs</div><div class="sc"><div class="av" style="width:46px;height:46px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8228.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/pit.png"></div><b>Warren</b><span>vs NYJ · SNF 8:20</span></div></div>
+<div class="tray"><div class="tk">FLOOR · MEDIAN · CEILING</div>
+<div class="rr"><span>Walker</span><div class="rg"><i class="rl g" style="left:24.4%;width:53.199999999999996%"></i><i class="rm" style="left:47.2%"></i></div><b>11.8</b></div>
+<div class="rr"><span>Warren</span><div class="rg"><i class="rl a" style="left:20.8%;width:47.2%"></i><i class="rm" style="left:43.6%"></i></div><b>10.9</b></div>
+<div class="axis"><span>0</span><span>10</span><span>20</span></div></div>
+<div class="tray"><div class="tk">WHAT DECIDES IT</div>
+<div class="why2"><div><b class="g">Matchup</b><span>JAX allows the 6th-most points to RBs; NYJ the 25th</span></div>
+<div><b class="g">Role</b><span>Walker got 71% of KC's carries last week</span></div>
+<div><b class="a">Timing</b><span>Warren plays Sunday night — starting him keeps the FLEX open for late news</span></div></div></div>
+<div class="tm3 big"><div><span>START WALKER</span><b class="g">56%</b><em>win prob</em></div><div><span>START WARREN</span><b>53%</b><em>win prob</em></div><div><span>EDGE</span><b class="g">+3</b><em>pts of win %</em></div></div>
+<div class="go">Start Walker</div>
+</div><div class="nav"><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7v10H3z"/></svg><span>Today</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 5 4-12 2 7h4"/></svg><span>Live</span></div><div class="nb on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Lineup</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 9l6-5 6 5"/></svg><span>Wire</span></div><div class="nb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span>More</span></div></div></div><div><h2><em>04</em>Start/sit, side by side</h2><div class="why"><p>Lineup says who to start but not why it's close. Tap two players and this lines them up: <b>floor, median and ceiling</b>, matchup, role, kickoff time, and what each choice does to <b>your win probability</b>.</p><p>The win-% edge is the number that matters. Two backs 0.9 projected points apart can be 3 points of win % apart once your opponent's lineup is counted, or zero.</p></div><div class="cost">player_sd + win_prob already exist (swing_players uses them); DvP from positional.py; snap/carry share from nflstats. Tap-two-to-compare on Lineup, rendered as a sheet. About a day.</div></div></div>
+<div class="grp">SPEED</div>
+<div class="ref"><div class="screen sp"><div class="body">
+<div class="big2"><div><span>EVERY TAB SENDS</span><b class="d">~190KB</b></div><div class="ar">→</div><div><span>AFTER</span><b class="g">~30KB</b></div></div>
+<div class="tk" style="margin:4px 0 8px">TODAY · <i class="lgd css"></i>THEME CSS <i class="lgd pg"></i>THE PAGE</div><div class="kb"><span>Live</span><div class="kbt"><i class="css" style="width:75%"></i><i class="pg" style="width:14%"></i></div><b>186KB</b></div><div class="kb"><span>Lineup</span><div class="kbt"><i class="css" style="width:75%"></i><i class="pg" style="width:12%"></i></div><b>182KB</b></div><div class="kb"><span>Waivers</span><div class="kbt"><i class="css" style="width:75%"></i><i class="pg" style="width:17%"></i></div><b>192KB</b></div><div class="kb"><span>Rankings</span><div class="kbt"><i class="css" style="width:75%"></i><i class="pg" style="width:23%"></i></div><b>206KB</b></div><div class="kb"><span>Keepers</span><div class="kbt"><i class="css" style="width:75%"></i><i class="pg" style="width:13%"></i></div><b>185KB</b></div>
+<div style="height:14px"></div><div class="tk" style="margin:4px 0 8px">AFTER · CSS DOWNLOADED ONCE, THEN CACHED</div><div class="kb"><span>Live</span><div class="kbt"><i class="pg" style="width:14%"></i></div><b class="g">29KB</b></div><div class="kb"><span>Lineup</span><div class="kbt"><i class="pg" style="width:12%"></i></div><b class="g">25KB</b></div><div class="kb"><span>Waivers</span><div class="kbt"><i class="pg" style="width:17%"></i></div><b class="g">35KB</b></div><div class="kb"><span>Rankings</span><div class="kbt"><i class="pg" style="width:23%"></i></div><b class="g">49KB</b></div><div class="kb"><span>Keepers</span><div class="kbt"><i class="pg" style="width:13%"></i></div><b class="g">28KB</b></div>
+<div class="kn">157KB of every page is the same stylesheet, sent again on every tab, refresh and rerun. On the phone over the hotspot, that's most of what you're waiting for.</div>
+</div></div><div><h2><em>S1</em>Send the stylesheet once, not on every page</h2><div class="why"><p>Each page carries the app's whole stylesheet, <b>157KB</b>, as text in the page. Streamlit sends it again on every tab, every rerun and every two-minute refresh. Measured: every tab is 182–206KB, and about 157KB of that is the same CSS.</p><p>Serving it once as a file means the browser and the phone's WebView <b>download it once and cache it</b>. Every page after that is about 30KB.</p></div><div class="cost">theme.CSS → static/theme.<hash>.css, served with Streamlit's static file serving and linked once; the hash changes on a deploy so nobody gets stale styles. Small. Risk: Cloud's /~/+/ iframe path, so check it on Cloud first.</div></div></div><div class="ref"><div class="screen sp"><div class="body">
+<div class="big2"><div><span>LIVE · FIRST OPEN</span><b class="d">27.5s</b></div><div class="ar">→</div><div><span>IN PARALLEL</span><b class="g">~3s</b></div><div class="ar">→</div><div><span>PRE-WARMED</span><b class="g">0.3s</b></div></div>
+<div class="tk" style="margin:4px 0 8px">TODAY · ONE CALL AT A TIME · 50 CALLS</div><div class="wfr"><span>ESPN fantasy ×7</span><div class="wft"><i class="r" style="left:0.0%;width:54.6%"></i></div><b>19.1s</b></div><div class="wfr"><span>Sleeper proj ×16</span><div class="wft"><i class="a" style="left:54.6%;width:33.4%"></i></div><b>11.7s</b></div><div class="wfr"><span>GitHub data ×7</span><div class="wft"><i class="m" style="left:88.0%;width:5.1%"></i></div><b>1.8s</b></div><div class="wfr"><span>Sheets / Sleeper</span><div class="wft"><i class="m" style="left:93.1%;width:5.7%"></i></div><b>2.0s</b></div>
+<div style="height:14px"></div>
+<div class="tk" style="margin:4px 0 8px">AFTER · ALL AT ONCE</div><div class="wfr"><span>ESPN fantasy ×7</span><div class="wft"><i class="r" style="left:0.0%;width:8.0%"></i></div><b>2.8s</b></div><div class="wfr"><span>Sleeper proj ×16</span><div class="wft"><i class="a" style="left:0.0%;width:3.4%"></i></div><b>1.2s</b></div><div class="wfr"><span>GitHub data ×7</span><div class="wft"><i class="m" style="left:0.0%;width:1.7%"></i></div><b>0.6s</b></div><div class="wfr"><span>Sheets / Sleeper</span><div class="wft"><i class="m" style="left:0.0%;width:3.1%"></i></div><b>1.1s</b></div>
+<div class="kn">Measured on a cold start (Kreeper, Live). Once cached, the same page renders in 0.3s, so all of this is waiting on calls in line.</div>
+</div></div><div><h2><em>S2</em>Make Live's first open fetch in parallel</h2><div class="why"><p>The first time Live opens after the server starts, it waits <b>27.5s</b> on 50 web calls made <b>one at a time</b>: 7 ESPN calls (19s, the TD's league), 16 Sleeper projection reads (12s), and some small ones.</p><p>Run them together and the wait drops to the slowest single call, about <b>3s</b>. Add them to the warmer on game days and even the first open is a cache hit (0.3s, as measured).</p></div><div class="cost">A ThreadPoolExecutor around the per-week/per-team loops in the ESPN rosters and Sleeper projection fetchers; warm.py adds Live's inputs on game days. Small to medium. Measured before/after with the same harness.</div></div></div><div class="ref"><div class="screen sp"><div class="body">
+<div class="big2"><div><span>TAB SWITCH · PHONE</span><b class="d">~3s</b></div><div class="ar">→</div><div><span>IN-SESSION</span><b class="g">&lt;1s</b></div></div>
+<div class="tk" style="margin:4px 0 8px">TODAY · EVERY TAB TAP LOADS A NEW URL</div><div class="wfr"><span>Tap Lineup</span><div class="wft"><i class="m" style="left:0.0%;width:3.1%"></i></div><b>0.1s</b></div><div class="wfr"><span>New page + websocket</span><div class="wft"><i class="r" style="left:3.1%;width:31.2%"></i></div><b>1.0s</b></div><div class="wfr"><span>Script reruns from top</span><div class="wft"><i class="a" style="left:34.4%;width:28.1%"></i></div><b>0.9s</b></div><div class="wfr"><span>CSS + page down</span><div class="wft"><i class="r" style="left:62.5%;width:25.0%"></i></div><b>0.8s</b></div><div class="wfr"><span>Freeze-frame lifts</span><div class="wft"><i class="m" style="left:87.5%;width:6.2%"></i></div><b>0.2s</b></div>
+<div style="height:14px"></div>
+<div class="tk" style="margin:4px 0 8px">AFTER · SAME SESSION, THE SHELL JUST PRESSES THE TAB</div><div class="wfr"><span>Tap Lineup</span><div class="wft"><i class="m" style="left:0.0%;width:3.1%"></i></div><b>0.1s</b></div><div class="wfr"><span>Bridge clicks the tab</span><div class="wft"><i class="g" style="left:3.1%;width:1.6%"></i></div><b>0.1s</b></div><div class="wfr"><span>Only the tab reruns</span><div class="wft"><i class="a" style="left:4.7%;width:12.5%"></i></div><b>0.4s</b></div><div class="wfr"><span>Page diff down</span><div class="wft"><i class="g" style="left:17.2%;width:4.7%"></i></div><b>0.1s</b></div>
+<div class="kn">The tab itself is already fast once warm: Lineup 1.2s, Keepers 0.6s, Rankings 0.1s on the server. What's left is the new session each tap opens. The freeze-frame hides it but you still wait.</div>
+</div></div><div><h2><em>S3</em>Switch phone tabs without reloading</h2><div class="why"><p>On the phone, every tab tap loads a <b>new URL</b>, which means a new Streamlit session, a new websocket, the whole script, and the whole stylesheet again. The freeze-frame hides it, but it still takes about 3 seconds.</p><p>Instead, the Android shell (and the Mac app) keep <b>one session open and press the hidden tab button</b> through a JS bridge, so only that tab redraws. Deep links still work for alerts and cold starts.</p></div><div class="cost">MainActivity: a tab tap runs JS that clicks the hidden .st-key-navbar button for that tab; falls back to the URL if the bridge isn't ready. app.py keeps deep links for alerts. Medium. Biggest change to how the phone feels.</div></div></div><div class="ref"><div class="screen sp"><div class="body">
+<div class="big2"><div><span>SUNDAY · LIVE REFRESH</span><b class="d">every 2 min</b></div><div class="ar">→</div><div><span>AFTER</span><b class="g">every 20s</b></div></div>
+<div class="h2m"><div class="hr"><span class="sl">WR</span><div class="av" style="width:30px;height:30px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/nyg.png"></div><div class="hn"><b>Malik Nabers</b><span>Q3 · 6 rec 81 yds</span></div><b class="pts up">14.1</b><b class="pts">9.7</b><div class="hn r"><b>Amon-Ra St. Brown</b><span>Q3 · 4 rec 52</span></div><div class="av" style="width:30px;height:30px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/7547.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/det.png"></div></div>
+<div class="hr"><span class="sl">TE</span><div class="av" style="width:30px;height:30px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/8130.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/ari.png"></div><div class="hn"><b>Trey McBride</b><span>Q2 · 3 rec 29</span></div><b class="pts">5.9</b><b class="pts up">8.2</b><div class="hn r"><b>Brock Bowers</b><span>Q2 · 5 rec 42</span></div><div class="av" style="width:30px;height:30px"><img class="hs" src="https://sleepercdn.com/content/nfl/players/thumb/11604.jpg"><img class="tm" src="https://sleepercdn.com/images/team_logos/nfl/lv.png"></div></div></div>
+<div class="tk" style="margin:12px 0 8px">WHAT EACH REFRESH SENDS</div>
+<div class="kb"><span>Today</span><div class="kbt"><i class="css" style="width:75%"></i><i class="pg" style="width:14%"></i></div><b>186KB</b></div>
+<div class="kb"><span>After</span><div class="kbt"><i class="pg" style="width:1.5%"></i></div><b class="g">~3KB</b></div>
+<div class="kn">Live redraws the whole board to change about a dozen numbers. Only the score strip and the slot points should redraw, every 20s, with the changed number flashing <b class="g">green</b> once. Same for the Mac menu-bar score.</div>
+</div></div><div><h2><em>S4</em>Live scores without redrawing the page</h2><div class="why"><p>On Sundays Live refreshes the <b>whole page every 2 minutes</b> to change about a dozen numbers, and the scores can be 2 minutes old.</p><p>A small fragment holding just the score strip and the slot points refreshes <b>every 20 seconds</b> and sends about 3KB, not 186KB. Changed numbers flash once. The rest of the board stays put, so nothing jumps while you're reading it.</p></div><div class="cost">@st.fragment(run_every=20) around the h2h score strip only, fed by the ESPN scoreboard + Sleeper live stats already cached for 20s; the rest of Live drops to the slow clock. Small to medium. Watch Sleeper's rate limit on 4 leagues.</div></div></div>
+</body></html>
