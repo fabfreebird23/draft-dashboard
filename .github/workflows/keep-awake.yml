@@ -1,34 +1,57 @@
 # Keep the Streamlit Cloud app from going to sleep.
 #
-# Community Cloud parks an app that has had no traffic for a while, and waking
-# it takes 30-60 seconds — which is the difference between the phone app being
-# usable on a Sunday and not. A request every ten minutes is enough to keep it
-# resident; GitHub's scheduler is best-effort and sometimes late, which is fine
-# for this (a few minutes of drift costs nothing).
-#
-# Streamlit answers a cookie-less request with a 303 to its own /-/login
-# handshake — that is the ANONYMOUS session bootstrap, not a sign-in wall, so
-# the ping has to carry a cookie jar and follow it or it looks like a failure
-# and never reaches the app.
+# Community Cloud parks an app after hours without a VISITOR, and waking it
+# takes 30-60 seconds — the difference between the phone app working on a
+# Sunday and a "Zzzz" page. Two lessons from the curl version this replaces:
+#   - a plain HTTP fetch is not a visit. It gets the shell HTML and never opens
+#     the websocket session Cloud counts, so the app slept anyway (2026-10-08);
+#   - GitHub's scheduler runs a */10 job every few HOURS in practice, which is
+#     fine only if each run is a real visit.
+# So each run opens the app in headless Chromium, clicks the wake button if
+# it's asleep, and waits until the dashboard has actually rendered.
 name: keep-awake
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 jobs:
-  ping:
+  visit:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Ping the app
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium >/dev/null
+      - name: Visit the app
         env:
           APP_URL: ${{ vars.APP_URL || 'https://draft-dashboar-kbqgjjbr3vu9gu4bivzev4.streamlit.app' }}
+          APP_PIN: ${{ secrets.APP_PIN }}
         run: |
-          jar=$(mktemp)
-          code=$(curl -sSL -c "$jar" -b "$jar" -o /dev/null -w '%{http_code}' \
-                  --max-time 90 -A 'bloody-sunday-keepalive' "$APP_URL/" || echo 000)
-          echo "app -> $code"
-          if [ "$code" != "200" ]; then
-            echo "::warning::App answered $code — it may be asleep, private, or broken."
-          fi
+          python - <<'PY'
+          import os, time
+          from playwright.sync_api import sync_playwright
+          url = os.environ["APP_URL"].rstrip("/") + "/?view=today" + (f"&key={os.environ['APP_PIN']}" if os.environ.get("APP_PIN") else "")
+          with sync_playwright() as p:
+              b = p.chromium.launch()
+              pg = b.new_page()
+              pg.goto(url, timeout=90_000)
+              woke = False
+              for _ in range(60):
+                  btn = pg.get_by_role("button", name="Yes, get this app back up!")
+                  if btn.count():
+                      btn.first.click(); woke = True
+                      print("asleep -> clicked wake")
+                  # the app renders inside an iframe on Cloud; any frame with the main block counts
+                  if any(f.query_selector('[data-testid="stMain"]') for f in pg.frames):
+                      break
+                  time.sleep(3)
+              ok = any(f.query_selector('[data-testid="stMain"]') for f in pg.frames)
+              time.sleep(15)          # stay a moment: a session, not a blip
+              print("rendered" if ok else "NOT rendered", "(was asleep)" if woke else "")
+              b.close()
+              if not ok:
+                  print("::warning::The app did not render — asleep, broken, or private.")
+          PY
