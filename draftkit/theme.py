@@ -1026,6 +1026,12 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .dr-lastpick small{ color:var(--mut2); }
 .dr-onclock{ background:#fff8ec; border:1px solid #f6d3a8; color:#9a6500; border-radius:8px;
   padding:7px 12px; margin-bottom:8px; font-weight:700; font-size:13px; animation:ocpulse 1.3s ease-in-out infinite; }
+/* a score that moved on this poll flashes once, then settles */
+@keyframes h2hfresh{ 0%{background:rgba(95,220,143,.32);box-shadow:0 0 0 1px rgba(95,220,143,.6);}
+  100%{background:transparent;box-shadow:0 0 0 1px transparent;} }
+@keyframes h2hfreshdn{ 0%{background:rgba(255,107,107,.3);} 100%{background:transparent;} }
+.h2h-val .pts.fresh{ border-radius:6px; animation:h2hfresh 2.4s ease-out 1; }
+.h2h-val .pts.fresh.dn{ animation-name:h2hfreshdn; }
 @keyframes ocpulse{ 0%,100%{opacity:1;} 50%{opacity:.6;} }
 
 /* ---- recent-picks ticker ---- */

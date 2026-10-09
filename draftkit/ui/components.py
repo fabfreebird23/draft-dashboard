@@ -2346,7 +2346,8 @@ def h2h_side_html(p: dict, side: str) -> str:
             f'<div class="dot" style="left:{dot}%"></div></div>'
             f'<div class="h2h-meta">{rz}{_esc(p.get("game") or "")}</div>'
             f'<div class="h2h-stat">{_esc(p.get("stat") or "")}</div></div>')
-    val = f'<div class="h2h-val"><div class="pts">{pts_html}</div>{sub}</div>'
+    fresh = f' fresh {p["fresh"]}' if p.get("fresh") else ""
+    val = f'<div class="h2h-val"><div class="pts{fresh}">{pts_html}</div>{sub}</div>'
     face = h2h_face_html(p.get("face"), p.get("team") or "", side)
     cls = f'h2h-side {side}{" on" if live else ""}{" done" if done else ""}' \
           f'{"" if (live or done) else " pre"}'

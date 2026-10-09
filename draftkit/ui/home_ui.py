@@ -500,13 +500,18 @@ def render_live_all(presets) -> None:
         presets, bound_auto=auto, bound_every=every)
 
 
-def _card(row, stats, games, reg):
-    """A liveall row -> the shared live card. Empty seat stays empty."""
+def _card(row, stats, games, reg, fresh=None):
+    """A liveall row -> the shared live card. Empty seat stays empty.
+    `fresh` is {pid: delta} for scores that moved on this poll — they flash once."""
     from .. import livecard as LC
     if not row or not row.get("pid"):
         return {}
-    return LC.build(row["pid"], registry=reg, games=games, pts=row.get("pts") or 0,
-                    proj=row.get("proj") or 0, stats=stats)
+    c = LC.build(row["pid"], registry=reg, games=games, pts=row.get("pts") or 0,
+                 proj=row.get("proj") or 0, stats=stats)
+    d = (fresh or {}).get(str(row["pid"]))
+    if c and d:
+        c["fresh"] = "up" if d > 0 else "dn"
+    return c
 
 
 def _expose(d, boxes, reg):
@@ -575,6 +580,7 @@ def _live_all_body(presets, *, bound_auto: bool, bound_every: int) -> None:
     events = events[:14]
     st.session_state[fkey] = {"pts": pts_now, "events": events, "ts": now}
     recent = {e["pid"]: e for e in events if now - e["ts"] <= 150}
+    _fresh = {e["pid"]: e["d"] for e in events if e["ts"] == now}
     for pid, d in exp.items():
         if pid in recent and recent[pid]["d"] > 0:
             d["delta"] = recent[pid]["d"]
@@ -664,8 +670,8 @@ def _live_all_body(presets, *, bound_auto: bool, bound_every: int) -> None:
                 pairs = []
                 for i, r in enumerate(lg["mine"]):
                     o = lg["opp"][i] if i < len(lg["opp"]) else {}
-                    mine = _card(r, boxes, games, reg)
-                    theirs = _card(o, boxes, games, reg)
+                    mine = _card(r, boxes, games, reg, _fresh)
+                    theirs = _card(o, boxes, games, reg, _fresh)
                     swing = LC.face_off(mine, theirs)
                     pairs.append(C.h2h_pair_html(mine, theirs, slot=r.get("slot", ""),
                                                  swing=swing))

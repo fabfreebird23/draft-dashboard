@@ -1018,9 +1018,14 @@ def _live_body(ctx, g, *, bound_auto: bool, bound_every: int) -> None:
 
     def _card(pid, side_live):
         pp = (side_live or {}).get("players") or {}
-        return LC.build(pid, registry=reg, games=games,
-                        pts=float(pp.get(str(pid), 0) or 0),
-                        proj=float(g["proj"].get(str(pid)) or 0), stats=stats)
+        c = LC.build(pid, registry=reg, games=games,
+                     pts=float(pp.get(str(pid), 0) or 0),
+                     proj=float(g["proj"].get(str(pid)) or 0), stats=stats)
+        # moved on THIS tick only, so the flash plays once and not on every repaint
+        ev = recent.get(str(pid))
+        if c and ev and ev["ts"] == now:
+            c["fresh"] = "up" if ev["d"] > 0 else "dn"
+        return c
 
     st.markdown('<div class="ws-h">Slot by slot</div>', unsafe_allow_html=True)
     pairs = []
