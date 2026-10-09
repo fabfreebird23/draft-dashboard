@@ -2558,6 +2558,7 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
   color:var(--ink); letter-spacing:.01em; margin-right:6px; }
 [data-testid="stExpanderDetails"]{ padding:2px 2px 14px !important; }
 .st-key-drawers{ border-bottom:1px solid var(--line); margin-top:10px; }
+@media (max-width:760px){ .ws-sf + .ws-sf::before{ display:none; } .ws-strip{ gap:4px 16px; } }
 
 /* a tab's lead: the one decision it exists for, as a sentence */
 .ld{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin:0 0 6px; }

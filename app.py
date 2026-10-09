@@ -1232,6 +1232,9 @@ def main():
         # Home may have parked a tab that lives under More ("Keepers"): open the
         # menu on it rather than silently landing on the Command Center.
         _want = st.session_state.get(ikey)
+        if _want not in nav and _want not in more:
+            # a link to a tab this league doesn't have (Keepers in a redraft)
+            st.session_state[ikey] = _want = nav[0]
         mkey = f"nav_more_{ctx['league_key']}"
         if _want in more:
             st.session_state[ikey] = "More"

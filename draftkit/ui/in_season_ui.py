@@ -679,11 +679,11 @@ def _command(ctx, g) -> None:
         _in, _out = reg.meta(m["in"]), reg.meta(m["out"])
         _v = ECR.verdict((g.get("ecr") or {}).get(str(m["out"])),
                          (g.get("ecr") or {}).get(str(m["in"])))
-        _note = {"against": " The expert panel sees it the other way.",
+        _panel_note = {"against": " The expert panel sees it the other way.",
                  "split": " The panel is split — call it a coin flip."}.get(_v, "")
         acts.append({"kind": "lineup", "weight": float(m["gain"]), "tone": "warn", "icon": "↑",
                      "title": f'Start {_in.name}, bench {_out.name}',
-                     "detail": f'Worth <b>+{m["gain"]}</b> to your total this week.{_note}',
+                     "detail": f'Worth <b>+{m["gain"]}</b> to your total this week.{_panel_note}',
                      "num": f'+{m["gain"]}', "lab": "points"})
     # Where each starter SITS. Same nine men, but the early kickoff goes in the
     # rigid slot so the flex is still open when Sunday's inactives land.
@@ -1254,20 +1254,18 @@ def _start_sit(ctx, g, lc) -> None:
     if len(cands) < 2:
         return
     lab = lambda p: f"{reg.meta(p).name} · {pos(p)} · {pj(p):.1f}"
-    st.markdown('<div class="ws-h" style="margin-top:14px">Start or sit — compare two</div>',
-                unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     ka, kb = f"ss_a_{lk}", f"ss_b_{lk}"
     a_def = best[1] if best else cands[0]
     a = c1.selectbox("Player", cands, format_func=lab, key=ka,
-                     index=cands.index(a_def) if a_def in cands else 0)
+                     index=cands.index(a_def) if a_def in cands else 0, on_change=_keep_open(f"ss_{lk}"))
     same = [p for p in cands if p != a and pos(p) == pos(a)]
     if not same:
         _note(f"Nobody else on your roster plays {pos(a)}.")
         return
     b_def = best[2] if (best and best[1] == a and best[2] in same) else max(same, key=pj)
     b = c2.selectbox(f"vs another {pos(a)}", same, format_func=lab, key=f"{kb}_{pos(a)}",
-                     index=same.index(b_def))
+                     index=same.index(b_def), on_change=_keep_open(f"ss_{lk}"))
 
     dvp = ctx.get("dvp") or {}
 
@@ -1438,60 +1436,40 @@ def _lineup(ctx, g) -> None:
 
     n_moves, n_seat = len(lc["moves"]), sum(1 for m in marks if m[0] == "⇄")
     _plat = "ESPN" if ctx["meta"].platform == "espn" else "Sleeper"
-    st.markdown(_day_line(g, cur, reg).replace("</div>",
-                f' · <b>{n_moves}</b> move{"s" if n_moves != 1 else ""}, <b>{n_seat}</b> re-seat{"s" if n_seat != 1 else ""}</div>'),
-                unsafe_allow_html=True)
-    st.markdown(C.lineup_compare_html(
+    # the lead: what to do, as a sentence; the calendar rides in the kicker
+    _day = re.sub(r"<[^>]+>", "", _day_line(g, cur, reg)).strip()
+    _gain = float(lc["optimal_total"]) - float(lc["current_total"])
+    if n_moves or n_seat:
+        _t = " · ".join(x for x in (f'{n_moves} move{"s" if n_moves != 1 else ""}' if n_moves else "",
+                                     f'{n_seat} re-seat{"s" if n_seat != 1 else ""}' if n_seat else "") if x)
+        _s = ((f'Worth <b>{_gain:+.1f}</b> this week. ' if n_moves else "Same starters, better seats. ")
+              + f'The taps are below, in the order {_plat} takes them.')
+        st.markdown(_lead_html(f"LINEUP · WEEK {g['week']}", _day.split(" · ", 1)[-1], _t, _s, tone="warn"),
+                    unsafe_allow_html=True)
+    else:
+        st.markdown(_lead_html(f"LINEUP · WEEK {g['week']}", _day.split(" · ", 1)[-1], "Your lineup is set",
+                               "Nobody on the bench beats a starter, and every flex holds the latest game.",
+                               tone="go"), unsafe_allow_html=True)
+    _cmp_html = C.lineup_compare_html(
         now_rows=now_rows, set_rows=set_rows,
         now_total=(f"On {_plat} now", "as set", f'{lc["current_total"]:.1f}'),
         set_total=("Set this", ("seated by kickoff" if src == "Projections" else f"per {src} · by kickoff"),
                    f'{lc["optimal_total"]:.1f}'),
-        marks=marks), unsafe_allow_html=True)
-
-    _start_sit(ctx, g, lc)
-
-    # ---- the moves, and what each panel thinks -----------------------------
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown('<div class="ws-h" style="margin-top:14px">Start / bench</div>', unsafe_allow_html=True)
-        if not lc["moves"]:
-            st.markdown(C.action_html("go", "✓", "Nobody on the bench beats a starter",
-                                      "The nine you have set are the nine to play.", "0", "moves"),
-                        unsafe_allow_html=True)
-        for m in lc["moves"]:
-            _in, _out = reg.meta(m["in"]), reg.meta(m["out"])
-            vs = _panel_verdicts(pn, m["out"], m["in"])
-            st.markdown(C.action_html("go" if float(m["gain"]) >= 0 else "warn", "↑",
-                                      f'Start {_in.name}, bench {_out.name}',
-                                      f'Worth <b>{float(m["gain"]):+.1f}</b> this week by our projections. '
-                                      + (_verdict_chips(vs) if vs else "No panel ranks both."),
-                                      f'{float(m["gain"]):+.1f}', "points"), unsafe_allow_html=True)
-    with c2:
-        st.markdown('<div class="ws-h" style="margin-top:14px">Seat by kickoff</div>', unsafe_allow_html=True)
-        pairs = []
-        for i, (slot, pid) in enumerate(cur):
-            new = seated.get(i)
-            if (new and pid and new != pid and new not in ins and pid not in outs
-                    and _pos_of.get(new) != slot):
-                pairs.append((pid, slot, new))
-        if not pairs:
-            st.markdown(C.action_html("go", "✓", "Every flex holds the latest game",
-                                      "Earliest kickoffs are already in the rigid slots.", "0", "re-seats"),
-                        unsafe_allow_html=True)
-        seen = set()
-        for pid, slot, new in pairs:
-            if new in seen or pid in seen:
-                continue
-            seen.update({pid, new})
-            g1, g2 = WV.game_of(reg, games, new), WV.game_of(reg, games, pid)
-            st.markdown(C.action_html(
-                "info", "⇄", f'{reg.meta(new).name} to {slot}, {reg.meta(pid).name} to {end_slot.get(pid, "FLEX")}',
-                f'{reg.meta(new).name.split()[-1]} plays <b>{GT.day_label(g1)}</b>; '
-                f'{reg.meta(pid).name.split()[-1]} not until <b>{GT.day_label(g2)}</b>. Same starters — '
-                f'the {end_slot.get(pid, "FLEX")} stays open for the later game.',
-                GT.day_label(g1).split()[0], "first kickoff"), unsafe_allow_html=True)
+        marks=marks)
+    if n_moves or n_seat:
+        st.markdown(_cmp_html, unsafe_allow_html=True)
+    else:
+        # nothing to change: both columns would be the same nine, so it folds
+        with st.container(key="drawers_top"), _drawer("Your nine", f'{lc["current_total"]:.1f} projected · as set'):
+            st.markdown(_cmp_html, unsafe_allow_html=True)
 
     # ---- the taps, in order -------------------------------------------------
+    pairs = []
+    for i, (slot, pid) in enumerate(cur):
+        new = seated.get(i)
+        if (new and pid and new != pid and new not in ins and pid not in outs
+                and _pos_of.get(new) != slot):
+            pairs.append((pid, slot, new))
     steps = []
     for m in lc["moves"]:
         steps.append(f'Bench <b>{reg.meta(m["out"]).name}</b>, start <b>{reg.meta(m["in"]).name}</b> '
@@ -1509,24 +1487,70 @@ def _lineup(ctx, g) -> None:
                    "as a pair. Ties in kickoff are not moves. Seating never changes the points, "
                    "only how much of the week stays open.")
 
-    # ---- every starter against the three panels -----------------------------
-    st.markdown('<div class="ws-h" style="margin-top:14px">The panels on your starters</div>',
-                unsafe_allow_html=True)
-    rows = []
-    for i, (slot, pid) in enumerate(cur):
-        new = seated.get(i)
-        if not new:
-            continue
-        pm = reg.meta(new)
-        rows.append([f'<b class="ws-sl">{slot}</b>', f'<b>{pm.name}</b> {_pos_pill(pm.position)}',
-                     f'{float(g["proj"].get(str(new), 0) or 0):.1f}', _panel_cell(pn, new)])
-    st.markdown(_tbl(["", "Set this", "~Proj", "FantasyPros · Flock · The Ballers"], rows,
-                     widths=["44px", "30%", "60px", "auto"], wide=True), unsafe_allow_html=True)
-    _n = {k: len(v) for k, v in pn.items()}
-    _note(f"Positional rank on each panel. FantasyPros {_n.get('fp', 0)} players · "
-               f"Flock {_n.get('flock', 0)} ({', '.join(sorted({a for r in (pn.get('flock') or {}).values() for a in (r.get('ranks') or {})}))}) · "
-               f"The Ballers {_n.get('ffb', 0)} (Andy, Mike, Jason — their projections scored under this "
-               f"league's settings). Neither Flock nor the Ballers rank K or D/ST.")
+    # ---- the rest, folded ------------------------------------------------------
+    with st.container(key="drawers"):
+        with _drawer("Start or sit", "compare any two at a position", key=f"ss_{ctx['league_key']}"):
+            _start_sit(ctx, g, lc)
+        with _drawer("Why each move", (f'{n_moves} start/bench · {n_seat} re-seat' if (n_moves or n_seat) else 'nothing to change')):
+            # ---- the moves, and what each panel thinks -----------------------------
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown('<div class="ws-h">Start / bench</div>', unsafe_allow_html=True)
+                if not lc["moves"]:
+                    st.markdown(C.action_html("go", "✓", "Nobody on the bench beats a starter",
+                                              "The nine you have set are the nine to play.", "0", "moves"),
+                                unsafe_allow_html=True)
+                for m in lc["moves"]:
+                    _in, _out = reg.meta(m["in"]), reg.meta(m["out"])
+                    vs = _panel_verdicts(pn, m["out"], m["in"])
+                    st.markdown(C.action_html("go" if float(m["gain"]) >= 0 else "warn", "↑",
+                                              f'Start {_in.name}, bench {_out.name}',
+                                              f'Worth <b>{float(m["gain"]):+.1f}</b> this week by our projections. '
+                                              + (_verdict_chips(vs) if vs else "No panel ranks both."),
+                                              f'{float(m["gain"]):+.1f}', "points"), unsafe_allow_html=True)
+            with c2:
+                st.markdown('<div class="ws-h">Seat by kickoff</div>', unsafe_allow_html=True)
+                pairs = []
+                for i, (slot, pid) in enumerate(cur):
+                    new = seated.get(i)
+                    if (new and pid and new != pid and new not in ins and pid not in outs
+                            and _pos_of.get(new) != slot):
+                        pairs.append((pid, slot, new))
+                if not pairs:
+                    st.markdown(C.action_html("go", "✓", "Every flex holds the latest game",
+                                              "Earliest kickoffs are already in the rigid slots.", "0", "re-seats"),
+                                unsafe_allow_html=True)
+                seen = set()
+                for pid, slot, new in pairs:
+                    if new in seen or pid in seen:
+                        continue
+                    seen.update({pid, new})
+                    g1, g2 = WV.game_of(reg, games, new), WV.game_of(reg, games, pid)
+                    st.markdown(C.action_html(
+                        "info", "⇄", f'{reg.meta(new).name} to {slot}, {reg.meta(pid).name} to {end_slot.get(pid, "FLEX")}',
+                        f'{reg.meta(new).name.split()[-1]} plays <b>{GT.day_label(g1)}</b>; '
+                        f'{reg.meta(pid).name.split()[-1]} not until <b>{GT.day_label(g2)}</b>. Same starters — '
+                        f'the {end_slot.get(pid, "FLEX")} stays open for the later game.',
+                        GT.day_label(g1).split()[0], "first kickoff"), unsafe_allow_html=True)
+
+
+        with _drawer("What the panels say", "FantasyPros · Flock · The Ballers on your starters"):
+            # ---- every starter against the three panels -----------------------------
+            rows = []
+            for i, (slot, pid) in enumerate(cur):
+                new = seated.get(i)
+                if not new:
+                    continue
+                pm = reg.meta(new)
+                rows.append([f'<b class="ws-sl">{slot}</b>', f'<b>{pm.name}</b> {_pos_pill(pm.position)}',
+                             f'{float(g["proj"].get(str(new), 0) or 0):.1f}', _panel_cell(pn, new)])
+            st.markdown(_tbl(["", "Set this", "~Proj", "FantasyPros · Flock · The Ballers"], rows,
+                             widths=["44px", "30%", "60px", "auto"], wide=True), unsafe_allow_html=True)
+            _n = {k: len(v) for k, v in pn.items()}
+            _note(f"Positional rank on each panel. FantasyPros {_n.get('fp', 0)} players · "
+                       f"Flock {_n.get('flock', 0)} ({', '.join(sorted({a for r in (pn.get('flock') or {}).values() for a in (r.get('ranks') or {})}))}) · "
+                       f"The Ballers {_n.get('ffb', 0)} (Andy, Mike, Jason — their projections scored under this "
+                       f"league's settings). Neither Flock nor the Ballers rank K or D/ST.")
 
 
 
@@ -2804,7 +2828,6 @@ def _trades(ctx, g) -> None:
     pick = st.selectbox("Trade partner — sorted by deals that help both sides", labels,
                         key=f"ws_tp_{ctx['league_key']}")
     oid, opp = order[labels.index(pick)]
-    _analyzer(ctx, g, oid, opp)
     if not any(counts.values()):
         _note("No team in the league has a deal that improves both lineups right now. "
                    "That is common with freshly drafted rosters — it changes as byes and "
@@ -2827,6 +2850,7 @@ def _trades(ctx, g) -> None:
          "where you can afford to sell", "var(--green)"),
         ("Your lineup", f"{base_mine:.1f}", "projected this week", "var(--muted)"),
     ])
+    _analyzer(ctx, g, oid, opp)
 
     with st.spinner("Searching one-for-ones and packages…"):
         ones = W.trade_ideas(g["mine"], opp, g["slots"], g["proj"], reg,
@@ -2843,14 +2867,17 @@ def _trades(ctx, g) -> None:
     ideas.sort(key=lambda i: (not i["mutual"], -(i["you"] + max(0.0, i["them"]))))
 
     mutual = [i for i in ideas if i["mutual"]]
-    deal_col, keep_col = st.columns([1.35, 1], gap="medium")
+    # The two halves of every suggestion, folded: the deals, and what they cost
+    # in keepers. Each drawer's line says what's in it.
+    with st.container(key="drawers"):
+        deal_col = _drawer("Proposals", (f"{len(mutual)} clear for both sides" if mutual
+                                         else f"{len(ideas)} considered · none help both sides"))
+        keep_col = _drawer("Keeper cost", "what the players in these deals cost to keep next year")
     _tables = deal_col
     with keep_col:
         # C — the keeper lens sits BESIDE the deals, not 400px below them. These are
         # the two facts you have to weigh against each other, and having to scroll
         # between them was the real reason this screen felt wrong.
-        st.markdown('<div class="ws-h">Keeper cost — the other half of every trade</div>',
-                    unsafe_allow_html=True)
         krows = {r["pid"]: r for r in _keeper_rows(ctx, g)}
         seen, rws = set(), []
         for i in ideas[:4]:
@@ -2880,9 +2907,6 @@ def _trades(ctx, g) -> None:
         else:
             _note("No keeper rules configured for this league.")
 
-    with _tables:
-        st.markdown('<div class="ws-h">Proposals, scored for both sides</div>',
-                    unsafe_allow_html=True)
     if not ideas:
         _note(where=_tables, text="Nothing with this team improves your lineup this week — one-for-one or packaged.")
     else:
@@ -3272,9 +3296,13 @@ def _playoffs(ctx, g) -> None:
             playoff_teams=min(pt, len(means)), weeks=wk_rows, n_sims=10000),
             unsafe_allow_html=True)
 
-    c1, c2 = st.columns(2)
+    with st.container(key="drawers"):
+        _lead = max(odds.items(), key=lambda kv: kv[1]["playoff_pct"])[0] if odds else None
+        c1 = _drawer("Where everyone lands",
+                     f"{len(odds)} teams" + (f" · {_owner_name(ctx, _lead)} most likely in" if _lead else ""))
+        c2 = _drawer("Your players in the playoff weeks",
+                     f"weeks {wks[0]}–{wks[-1]} strength of schedule" if wks else "strength of schedule")
     with c1:
-        st.markdown('<div class="ws-h">Where everyone lands</div>', unsafe_allow_html=True)
         rws = []
         for oid, o in sorted(odds.items(), key=lambda kv: -kv[1]["playoff_pct"]):
             nm = _owner_name(ctx, oid)
@@ -3285,8 +3313,6 @@ def _playoffs(ctx, g) -> None:
         st.markdown(_tbl(["Team", "Record", "~Proj/wk", "~Playoffs", "~Seed"], rws,
                          widths=["auto", "76px", "84px", "84px", "68px"]), unsafe_allow_html=True)
     with c2:
-        st.markdown('<div class="ws-h">Your players in the playoff weeks</div>',
-                    unsafe_allow_html=True)
         dvp, sched = ctx.get("dvp"), ctx.get("schedule")
         rws = []
         for pid in [p for _s, p in W.lineup_check(g["mine"], g["slots"], g["proj"], reg,
@@ -3509,45 +3535,48 @@ def _keepers(ctx, g) -> None:
     # number per player, which is why the keeper bugs of September were
     # invisible: a price with no rule beside it cannot be checked.
     st.markdown(C.keeper_tray_html(keeps, reg_max, rook_max), unsafe_allow_html=True)
-    st.markdown('<div class="ws-h">Your roster, priced year by year</div>', unsafe_allow_html=True)
-    st.markdown('<div class="kl-grid">' + "".join(C.keeper_card_html(r) for r in rows) + '</div>',
-                unsafe_allow_html=True)
-    _note("**Value** is what keeping him is worth: his talent (a draft-value curve, the #1 "
-               "player ≈ 100) minus what his cost round's pick would actually land in this "
-               "league's draft once everyone's keepers are off the board. So an elite player "
-               "kept early still scores — an early pick only lands whoever's left — and a star "
-               "at a last-round price scores best of all. Cost comes from where he actually came "
-               "from — an existing keeper's round plus this league's "
-               f"−{rules.get('year2_bump_rounds', 0)}-round-per-year escalation, the round you "
-               "drafted him, the fixed rookie round, or the last round for a waiver add.")
+    # The tray above is the answer; the rest folds, each drawer saying what's in it.
+    _best = keeps[0] if keeps else None
+    with st.container(key="drawers"):
+        with _drawer("Your roster, priced year by year",
+                     f"{len(rows)} players" + (f" · best value {_best['name']} +{_best['surplus']}" if _best else "")):
+            st.markdown('<div class="kl-grid">' + "".join(C.keeper_card_html(r) for r in rows) + '</div>',
+                        unsafe_allow_html=True)
+            _note("**Value** is what keeping him is worth: his talent (a draft-value curve, the #1 "
+                       "player ≈ 100) minus what his cost round's pick would actually land in this "
+                       "league's draft once everyone's keepers are off the board. So an elite player "
+                       "kept early still scores — an early pick only lands whoever's left — and a star "
+                       "at a last-round price scores best of all. Cost comes from where he actually came "
+                       "from — an existing keeper's round plus this league's "
+                       f"−{rules.get('year2_bump_rounds', 0)}-round-per-year escalation, the round you "
+                       "drafted him, the fixed rookie round, or the last round for a waiver add.")
 
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown('<div class="ws-h">What this changes now</div>', unsafe_allow_html=True)
-        if blocked:
-            b = blocked[0]
-            _alert("red", "⊘", f'<b>{b["name"]} has aged out</b> — {b["blocked"]}. He is a rental '
-                               f'from here, so his trade value only falls. If you are selling, sell early.')
-        cheap = [r for r in keeps if (r["surplus"] or 0) >= 25]
-        if cheap:
-            _alert("ok", "◎", "<b>" + ", ".join(r["name"] for r in cheap[:3]) + "</b> "
-                              "cost a late pick and are worth an early one. Those are the players "
-                              "an in-season trade should be built around, not the ones you sell.")
-        edge = [r for r in rows if r["verdict"] == "cut" and (r["surplus"] or -99) > -5]
-        if edge:
-            _alert("amb", "!", f'<b>{edge[0]["name"]}</b> is the first man out — '
-                               f'{edge[0]["surplus"]:+d} value. If anyone above him gets hurt or '
-                               f'traded, he is your replacement keeper.')
-        _alert("ok", "$", f'A waiver add costs <b>round {meta.draft_rounds}</b> to keep, so a '
-                          f'mid-season breakout is the cheapest keeper available. Every claim '
-                          f'from here competes with the list above, not with your bench.')
-    with c2:
-        st.markdown('<div class="ws-h">Slots, filled</div>', unsafe_allow_html=True)
-        used_r = sum(1 for r in keeps if r.get("slot_used") == "regular")
-        used_k = sum(1 for r in keeps if r.get("slot_used") == "rookie")
-        st.markdown(_tbl(["Slot type", "~Used", "~Max"],
-                         [["Regular", str(used_r), str(reg_max)],
-                          ["Rookie", str(used_k), str(rook_max)]]), unsafe_allow_html=True)
-        _note("A rookie who misses the rookie allowance falls back to a regular slot rather "
-                   "than being cut — otherwise a +64 rookie loses his place to a −19 veteran. "
-                   "**If this league forbids that**, the rookie rows are the ones to check.")
+        _ch = (f"{blocked[0]['name']} has aged out" if blocked else
+               "build trades around your cheap keepers")
+        with _drawer("What this changes now", _ch):
+            if blocked:
+                b = blocked[0]
+                _alert("red", "⊘", f'<b>{b["name"]} has aged out</b> — {b["blocked"]}. He is a rental '
+                                   f'from here, so his trade value only falls. If you are selling, sell early.')
+            cheap = [r for r in keeps if (r["surplus"] or 0) >= 25]
+            if cheap:
+                _alert("ok", "◎", "<b>" + ", ".join(r["name"] for r in cheap[:3]) + "</b> "
+                                  "cost a late pick and are worth an early one. Those are the players "
+                                  "an in-season trade should be built around, not the ones you sell.")
+            edge = [r for r in rows if r["verdict"] == "cut" and (r["surplus"] or -99) > -5]
+            if edge:
+                _alert("amb", "!", f'<b>{edge[0]["name"]}</b> is the first man out — '
+                                   f'{edge[0]["surplus"]:+d} value. If anyone above him gets hurt or '
+                                   f'traded, he is your replacement keeper.')
+            _alert("ok", "$", f'A waiver add costs <b>round {meta.draft_rounds}</b> to keep, so a '
+                              f'mid-season breakout is the cheapest keeper available. Every claim '
+                              f'from here competes with the list above, not with your bench.')
+
+            used_r = sum(1 for r in keeps if r.get("slot_used") == "regular")
+            used_k = sum(1 for r in keeps if r.get("slot_used") == "rookie")
+            st.markdown(_tbl(["Slot type", "~Used", "~Max"],
+                             [["Regular", str(used_r), str(reg_max)],
+                              ["Rookie", str(used_k), str(rook_max)]]), unsafe_allow_html=True)
+            _note("A rookie who misses the rookie allowance falls back to a regular slot rather "
+                       "than being cut — otherwise a +64 rookie loses his place to a −19 veteran. "
+                       "**If this league forbids that**, the rookie rows are the ones to check.")
