@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "week": 6,
-  "published": "2026-10-15T05:34",
+  "published": "2026-10-15T08:34",
   "players": {
     "Bo Nix|DEN": {
       "name": "Bo Nix",
@@ -14,8 +14,8 @@
         },
         "pass_att": {
           "line": 34.5,
-          "over": "-110",
-          "under": "-120"
+          "over": "-115",
+          "under": "-115"
         },
         "pass_int": {
           "line": 0.5,
@@ -23,14 +23,14 @@
           "under": "+110"
         },
         "pass_yd": {
-          "line": 200.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 227.5,
+          "over": "+175",
+          "under": "-240"
         },
         "rush_yd": {
-          "line": 15.5,
-          "over": "-110",
-          "under": "-120"
+          "line": 14.5,
+          "over": "-120",
+          "under": "-110"
         },
         "td": {
           "price": "+400",
@@ -39,11 +39,11 @@
       },
       "exp": {
         "pass_td": 1.35,
-        "pass_att": 34.47,
+        "pass_att": 34.5,
         "pass_int": 0.55,
-        "pass_yd": 200.5,
-        "rush_yd": 15.48,
-        "td": 0.201
+        "pass_yd": 223.86,
+        "rush_yd": 14.51,
+        "td": 0.199
       }
     },
     "Sam Darnold|SEA": {
@@ -52,8 +52,8 @@
       "lines": {
         "pass_td": {
           "line": 1.5,
-          "over": "+125",
-          "under": "-165"
+          "over": "+120",
+          "under": "-160"
         },
         "pass_att": {
           "line": 30.5,
@@ -66,9 +66,9 @@
           "under": "+110"
         },
         "pass_yd": {
-          "line": 220.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 251.5,
+          "over": "+175",
+          "under": "-240"
         },
         "rush_yd": {
           "line": 4.5,
@@ -76,17 +76,17 @@
           "under": "-110"
         },
         "td": {
-          "price": "+825",
-          "prob": 0.10810810810810811
+          "price": "+900",
+          "prob": 0.1
         }
       },
       "exp": {
         "pass_td": 1.42,
         "pass_att": 30.53,
         "pass_int": 0.55,
-        "pass_yd": 220.5,
+        "pass_yd": 247.48,
         "rush_yd": 4.51,
-        "td": 0.103
+        "td": 0.094
       }
     },
     "Emanuel Wilson|SEA": {
@@ -94,9 +94,9 @@
       "team": "SEA",
       "lines": {
         "rush_yd": {
-          "line": 66.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 86.5,
+          "over": "+235",
+          "under": "-330"
         },
         "rec": {
           "line": 1.5,
@@ -105,8 +105,8 @@
         },
         "rec_yd": {
           "line": 9.5,
-          "over": "-120",
-          "under": "-110"
+          "over": "-115",
+          "under": "-115"
         },
         "td": {
           "price": "+120",
@@ -114,10 +114,10 @@
         }
       },
       "exp": {
-        "rush_yd": 66.5,
+        "rush_yd": 84.6,
         "rec": 1.51,
-        "rec_yd": 9.51,
-        "td": 0.545
+        "rec_yd": 9.5,
+        "td": 0.541
       }
     },
     "George Holani|SEA": {
@@ -131,19 +131,19 @@
         },
         "rec": {
           "line": 1.5,
-          "over": "-115",
-          "under": "-115"
+          "over": "-120",
+          "under": "-110"
         },
         "rec_yd": {
           "line": 9.5,
-          "over": "-110",
-          "under": "-120"
+          "over": "-115",
+          "under": "-115"
         }
       },
       "exp": {
         "rush_yd": 14.5,
-        "rec": 1.5,
-        "rec_yd": 9.49
+        "rec": 1.51,
+        "rec_yd": 9.5
       }
     },
     "J.K. Dobbins|DEN": {
@@ -151,19 +151,19 @@
       "team": "DEN",
       "lines": {
         "rush_yd": {
-          "line": 47.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 57.5,
+          "over": "+160",
+          "under": "-215"
         },
         "rec": {
           "line": 1.5,
-          "over": "+150",
-          "under": "-200"
+          "over": "+155",
+          "under": "-210"
         },
         "rec_yd": {
           "line": 4.5,
-          "over": "-120",
-          "under": "-110"
+          "over": "-115",
+          "under": "-115"
         },
         "td": {
           "price": "+185",
@@ -171,76 +171,25 @@
         }
       },
       "exp": {
-        "rush_yd": 47.5,
-        "rec": 1.38,
-        "rec_yd": 4.51,
-        "td": 0.388
+        "rush_yd": 56.7,
+        "rec": 1.37,
+        "rec_yd": 4.5,
+        "td": 0.386
       }
     },
-    "RJ Harvey|DEN": {
-      "name": "RJ Harvey",
-      "team": "DEN",
+    "Rashid Shaheed|SEA": {
+      "name": "Rashid Shaheed",
+      "team": "SEA",
       "lines": {
         "rush_yd": {
-          "line": 14.5,
+          "line": 1.5,
           "over": "-115",
           "under": "-115"
         },
         "rec": {
-          "line": 3.5,
-          "over": "-110",
-          "under": "-120"
-        },
-        "rec_yd": {
-          "line": 20.5,
-          "over": "-115",
-          "under": "-115"
-        },
-        "td": {
-          "price": "+295",
-          "prob": 0.25316455696202533
-        }
-      },
-      "exp": {
-        "rush_yd": 14.5,
-        "rec": 3.49,
-        "rec_yd": 20.5,
-        "td": 0.262
-      }
-    },
-    "AJ Barner|SEA": {
-      "name": "AJ Barner",
-      "team": "SEA",
-      "lines": {
-        "rec": {
-          "line": 2.5,
-          "over": "-130",
-          "under": "EVEN"
-        },
-        "rec_yd": {
-          "line": 23.5,
-          "over": "-115",
-          "under": "-115"
-        },
-        "td": {
-          "price": "+350",
-          "prob": 0.2222222222222222
-        }
-      },
-      "exp": {
-        "rec": 2.53,
-        "rec_yd": 23.5,
-        "td": 0.226
-      }
-    },
-    "Cooper Kupp|SEA": {
-      "name": "Cooper Kupp",
-      "team": "SEA",
-      "lines": {
-        "rec": {
-          "line": 2.5,
-          "over": "+110",
-          "under": "-145"
+          "line": 1.5,
+          "over": "-200",
+          "under": "+150"
         },
         "rec_yd": {
           "line": 21.5,
@@ -253,9 +202,91 @@
         }
       },
       "exp": {
-        "rec": 2.45,
+        "rush_yd": 1.5,
+        "rec": 1.62,
         "rec_yd": 21.48,
-        "td": 0.192
+        "td": 0.191
+      }
+    },
+    "RJ Harvey|DEN": {
+      "name": "RJ Harvey",
+      "team": "DEN",
+      "lines": {
+        "rush_yd": {
+          "line": 14.5,
+          "over": "-120",
+          "under": "-110"
+        },
+        "rec": {
+          "line": 3.5,
+          "over": "-105",
+          "under": "-125"
+        },
+        "rec_yd": {
+          "line": 19.5,
+          "over": "-115",
+          "under": "-115"
+        },
+        "td": {
+          "price": "+300",
+          "prob": 0.25
+        }
+      },
+      "exp": {
+        "rush_yd": 14.51,
+        "rec": 3.48,
+        "rec_yd": 19.5,
+        "td": 0.257
+      }
+    },
+    "AJ Barner|SEA": {
+      "name": "AJ Barner",
+      "team": "SEA",
+      "lines": {
+        "rec": {
+          "line": 2.5,
+          "over": "-135",
+          "under": "+105"
+        },
+        "rec_yd": {
+          "line": 24.5,
+          "over": "-110",
+          "under": "-120"
+        },
+        "td": {
+          "price": "+350",
+          "prob": 0.2222222222222222
+        }
+      },
+      "exp": {
+        "rec": 2.54,
+        "rec_yd": 24.48,
+        "td": 0.224
+      }
+    },
+    "Cooper Kupp|SEA": {
+      "name": "Cooper Kupp",
+      "team": "SEA",
+      "lines": {
+        "rec": {
+          "line": 2.5,
+          "over": "+110",
+          "under": "-145"
+        },
+        "rec_yd": {
+          "line": 20.5,
+          "over": "-120",
+          "under": "-110"
+        },
+        "td": {
+          "price": "+440",
+          "prob": 0.18518518518518517
+        }
+      },
+      "exp": {
+        "rec": 2.45,
+        "rec_yd": 20.52,
+        "td": 0.183
       }
     },
     "Courtland Sutton|DEN": {
@@ -264,13 +295,13 @@
       "lines": {
         "rec": {
           "line": 3.5,
-          "over": "+125",
-          "under": "-165"
+          "over": "+130",
+          "under": "-170"
         },
         "rec_yd": {
-          "line": 30.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 40.5,
+          "over": "+155",
+          "under": "-210"
         },
         "td": {
           "price": "+255",
@@ -278,9 +309,9 @@
         }
       },
       "exp": {
-        "rec": 3.42,
-        "rec_yd": 30.5,
-        "td": 0.297
+        "rec": 3.41,
+        "rec_yd": 39.96,
+        "td": 0.295
       }
     },
     "Evan Engram|DEN": {
@@ -289,8 +320,8 @@
       "lines": {
         "rec": {
           "line": 2.5,
-          "over": "-165",
-          "under": "+125"
+          "over": "-150",
+          "under": "+115"
         },
         "rec_yd": {
           "line": 21.5,
@@ -303,9 +334,9 @@
         }
       },
       "exp": {
-        "rec": 2.58,
+        "rec": 2.56,
         "rec_yd": 21.5,
-        "td": 0.164
+        "td": 0.163
       }
     },
     "Jaxon Smith-Njigba|SEA": {
@@ -318,19 +349,19 @@
           "under": "+105"
         },
         "rec_yd": {
-          "line": 92.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 113.5,
+          "over": "+170",
+          "under": "-230"
         },
         "td": {
-          "price": "EVEN",
-          "prob": 0.5
+          "price": "-110",
+          "prob": 0.5238095238095238
         }
       },
       "exp": {
         "rec": 6.54,
-        "rec_yd": 92.5,
-        "td": 0.623
+        "rec_yd": 111.76,
+        "td": 0.663
       }
     },
     "Jaylen Waddle|DEN": {
@@ -339,13 +370,13 @@
       "lines": {
         "rec": {
           "line": 4.5,
-          "over": "+115",
-          "under": "-150"
+          "over": "+120",
+          "under": "-160"
         },
         "rec_yd": {
-          "line": 47.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 57.5,
+          "over": "+140",
+          "under": "-185"
         },
         "td": {
           "price": "+255",
@@ -353,9 +384,34 @@
         }
       },
       "exp": {
-        "rec": 4.44,
-        "rec_yd": 47.5,
-        "td": 0.297
+        "rec": 4.42,
+        "rec_yd": 56.87,
+        "td": 0.295
+      }
+    },
+    "Lil'Jordan Humphrey|DEN": {
+      "name": "Lil'Jordan Humphrey",
+      "team": "DEN",
+      "lines": {
+        "rec": {
+          "line": 1.5,
+          "over": "+185",
+          "under": "-250"
+        },
+        "rec_yd": {
+          "line": 6.5,
+          "over": "-120",
+          "under": "-110"
+        },
+        "td": {
+          "price": "+1200",
+          "prob": 0.07692307692307693
+        }
+      },
+      "exp": {
+        "rec": 1.33,
+        "rec_yd": 6.51,
+        "td": 0.071
       }
     },
     "Marvin Mims Jr.|DEN": {
@@ -364,48 +420,23 @@
       "lines": {
         "rec": {
           "line": 1.5,
-          "over": "+140",
-          "under": "-185"
+          "over": "+145",
+          "under": "-190"
         },
         "rec_yd": {
           "line": 10.5,
-          "over": "-120",
-          "under": "-110"
-        },
-        "td": {
-          "price": "+1000",
-          "prob": 0.09090909090909091
-        }
-      },
-      "exp": {
-        "rec": 1.39,
-        "rec_yd": 10.51,
-        "td": 0.086
-      }
-    },
-    "Rashid Shaheed|SEA": {
-      "name": "Rashid Shaheed",
-      "team": "SEA",
-      "lines": {
-        "rec": {
-          "line": 1.5,
-          "over": "-200",
-          "under": "+150"
-        },
-        "rec_yd": {
-          "line": 21.5,
           "over": "-110",
           "under": "-120"
         },
         "td": {
-          "price": "+440",
-          "prob": 0.18518518518518517
+          "price": "+1100",
+          "prob": 0.08333333333333333
         }
       },
       "exp": {
-        "rec": 1.62,
-        "rec_yd": 21.48,
-        "td": 0.184
+        "rec": 1.38,
+        "rec_yd": 10.49,
+        "td": 0.078
       }
     },
     "Tory Horton|SEA": {
@@ -419,8 +450,8 @@
         },
         "rec_yd": {
           "line": 3.5,
-          "over": "-120",
-          "under": "-110"
+          "over": "-115",
+          "under": "-115"
         },
         "td": {
           "price": "+900",
@@ -429,8 +460,8 @@
       },
       "exp": {
         "rec": 0.55,
-        "rec_yd": 3.51,
-        "td": 0.095
+        "rec_yd": 3.5,
+        "td": 0.094
       }
     },
     "Troy Franklin|DEN": {
@@ -438,9 +469,9 @@
       "team": "DEN",
       "lines": {
         "rec": {
-          "line": 1.5,
-          "over": "-145",
-          "under": "+110"
+          "line": 2.5,
+          "over": "+220",
+          "under": "-300"
         },
         "rec_yd": {
           "line": 17.5,
@@ -453,9 +484,9 @@
         }
       },
       "exp": {
-        "rec": 1.55,
+        "rec": 2.29,
         "rec_yd": 17.52,
-        "td": 0.12
+        "td": 0.119
       }
     },
     "Jason Myers|SEA": {
@@ -509,7 +540,7 @@
         }
       },
       "exp": {
-        "td": 0.032
+        "td": 0.031
       }
     },
     "Dallen Bentley|DEN": {
@@ -517,12 +548,12 @@
       "team": "DEN",
       "lines": {
         "td": {
-          "price": "+1700",
-          "prob": 0.05555555555555555
+          "price": "+1800",
+          "prob": 0.05263157894736842
         }
       },
       "exp": {
-        "td": 0.051
+        "td": 0.048
       }
     },
     "Tyler Badie|DEN": {
@@ -535,7 +566,7 @@
         }
       },
       "exp": {
-        "td": 0.072
+        "td": 0.071
       }
     },
     "Adam Trautman|DEN": {
@@ -548,7 +579,7 @@
         }
       },
       "exp": {
-        "td": 0.086
+        "td": 0.085
       }
     },
     "Nick Kallerup|SEA": {
@@ -574,7 +605,7 @@
         }
       },
       "exp": {
-        "td": 0.095
+        "td": 0.094
       }
     },
     "Nate Adkins|DEN": {
@@ -582,12 +613,12 @@
       "team": "DEN",
       "lines": {
         "td": {
-          "price": "+1500",
-          "prob": 0.0625
+          "price": "+1700",
+          "prob": 0.05555555555555555
         }
       },
       "exp": {
-        "td": 0.058
+        "td": 0.051
       }
     },
     "Eric Saubert|SEA": {
@@ -600,20 +631,7 @@
         }
       },
       "exp": {
-        "td": 0.049
-      }
-    },
-    "Lil'Jordan Humphrey|DEN": {
-      "name": "Lil'Jordan Humphrey",
-      "team": "DEN",
-      "lines": {
-        "td": {
-          "price": "+1500",
-          "prob": 0.0625
-        }
-      },
-      "exp": {
-        "td": 0.058
+        "td": 0.048
       }
     },
     "Velus Jones Jr.|SEA": {
@@ -639,7 +657,7 @@
         }
       },
       "exp": {
-        "td": 0.032
+        "td": 0.031
       }
     },
     "C.J. Stroud|HOU": {
@@ -682,7 +700,7 @@
         "pass_int": 0.46,
         "pass_yd": 257.5,
         "rush_yd": 9.5,
-        "td": 0.104
+        "td": 0.103
       }
     },
     "Trevor Lawrence|JAX": {
@@ -725,7 +743,7 @@
         "pass_int": 0.53,
         "pass_yd": 227.5,
         "rush_yd": 13.5,
-        "td": 0.202
+        "td": 0.201
       }
     },
     "Bhayshul Tuten|JAX": {
@@ -756,7 +774,7 @@
         "rush_yd": 63.56,
         "rec": 1.51,
         "rec_yd": 8.51,
-        "td": 0.502
+        "td": 0.499
       }
     },
     "Chris Rodriguez|JAX": {
@@ -775,7 +793,7 @@
       },
       "exp": {
         "rush_yd": 16.52,
-        "td": 0.185
+        "td": 0.184
       }
     },
     "Woody Marks|HOU": {
@@ -783,7 +801,7 @@
       "team": "HOU",
       "lines": {
         "rush_yd": {
-          "line": 47.5,
+          "line": 46.5,
           "over": "-115",
           "under": "-115"
         },
@@ -803,10 +821,10 @@
         }
       },
       "exp": {
-        "rush_yd": 47.5,
+        "rush_yd": 46.5,
         "rec": 2.53,
         "rec_yd": 15.52,
-        "td": 0.567
+        "td": 0.563
       }
     },
     "Brenton Strange|JAX": {
@@ -831,7 +849,7 @@
       "exp": {
         "rec": 3.58,
         "rec_yd": 37.54,
-        "td": 0.24
+        "td": 0.238
       }
     },
     "Brian Thomas|JAX": {
@@ -856,7 +874,7 @@
       "exp": {
         "rec": 1.49,
         "rec_yd": 15.52,
-        "td": 0.165
+        "td": 0.164
       }
     },
     "Dalton Schultz|HOU": {
@@ -881,7 +899,7 @@
       "exp": {
         "rec": 3.46,
         "rec_yd": 32.5,
-        "td": 0.24
+        "td": 0.238
       }
     },
     "Jakobi Meyers|JAX": {
@@ -906,7 +924,7 @@
       "exp": {
         "rec": 2.58,
         "rec_yd": 32.53,
-        "td": 0.24
+        "td": 0.238
       }
     },
     "Josh Cameron|JAX": {
@@ -931,7 +949,7 @@
       "exp": {
         "rec": 1.52,
         "rec_yd": 16.5,
-        "td": 0.117
+        "td": 0.116
       }
     },
     "Kayshon Boutte|HOU": {
@@ -944,9 +962,9 @@
           "under": "-160"
         },
         "rec_yd": {
-          "line": 25.5,
-          "over": "-120",
-          "under": "-110"
+          "line": 26.5,
+          "over": "-110",
+          "under": "-120"
         },
         "td": {
           "price": "+460",
@@ -955,8 +973,8 @@
       },
       "exp": {
         "rec": 2.42,
-        "rec_yd": 25.53,
-        "td": 0.178
+        "rec_yd": 26.47,
+        "td": 0.177
       }
     },
     "Nate Boerkircher|JAX": {
@@ -1006,7 +1024,7 @@
       "exp": {
         "rec": 5.54,
         "rec_yd": 76.5,
-        "td": 0.429
+        "td": 0.426
       }
     },
     "Parker Washington|JAX": {
@@ -1031,7 +1049,7 @@
       "exp": {
         "rec": 4.53,
         "rec_yd": 61.5,
-        "td": 0.409
+        "td": 0.407
       }
     },
     "Cam Little|JAX": {
@@ -1111,7 +1129,7 @@
         }
       },
       "exp": {
-        "td": 0.036
+        "td": 0.035
       }
     },
     "Quintin Morris|JAX": {
@@ -1150,7 +1168,7 @@
         }
       },
       "exp": {
-        "td": 0.117
+        "td": 0.116
       }
     },
     "Xavier Hutchinson|HOU": {
@@ -1163,7 +1181,7 @@
         }
       },
       "exp": {
-        "td": 0.107
+        "td": 0.106
       }
     },
     "Brevin Jordan|HOU": {
@@ -1184,12 +1202,12 @@
       "team": "HOU",
       "lines": {
         "td": {
-          "price": "+2800",
-          "prob": 0.034482758620689655
+          "price": "+2200",
+          "prob": 0.043478260869565216
         }
       },
       "exp": {
-        "td": 0.032
+        "td": 0.04
       }
     },
     "Foster Moreau|HOU": {
@@ -1197,12 +1215,12 @@
       "team": "HOU",
       "lines": {
         "td": {
-          "price": "+1300",
-          "prob": 0.07142857142857142
+          "price": "+1000",
+          "prob": 0.09090909090909091
         }
       },
       "exp": {
-        "td": 0.067
+        "td": 0.086
       }
     },
     "Cade Stover|HOU": {
@@ -1316,6 +1334,34 @@
         "rec": 3.54,
         "rec_yd": 54.5,
         "td": 0.393
+      }
+    },
+    "Andre Szmyt|CLE": {
+      "name": "Andre Szmyt",
+      "team": "CLE",
+      "lines": {
+        "kick_pts": {
+          "line": 5.5,
+          "over": "-145",
+          "under": "+110"
+        }
+      },
+      "exp": {
+        "kick_pts": 5.55
+      }
+    },
+    "Tyler Loop|BAL": {
+      "name": "Tyler Loop",
+      "team": "BAL",
+      "lines": {
+        "kick_pts": {
+          "line": 7.5,
+          "over": "-125",
+          "under": "-105"
+        }
+      },
+      "exp": {
+        "kick_pts": 7.52
       }
     },
     "Zay Flowers|BAL": {
@@ -1599,9 +1645,9 @@
           "under": "+200"
         },
         "pass_att": {
-          "line": 33.5,
-          "over": "-110",
-          "under": "-120"
+          "line": 32.5,
+          "over": "-120",
+          "under": "-110"
         },
         "pass_int": {
           "line": 0.5,
@@ -1620,7 +1666,7 @@
       },
       "exp": {
         "pass_td": 0.69,
-        "pass_att": 33.47,
+        "pass_att": 32.53,
         "pass_int": 0.49,
         "pass_yd": 207.5,
         "td": 0.483
@@ -1977,7 +2023,7 @@
         "rush_yd": 91.5,
         "rec": 3.49,
         "rec_yd": 28.5,
-        "td": 0.973
+        "td": 0.974
       }
     },
     "Cole Kmet|CHI": {
@@ -2027,7 +2073,7 @@
       "exp": {
         "rec": 3.45,
         "rec_yd": 36.5,
-        "td": 0.325
+        "td": 0.326
       }
     },
     "Drake London|ATL": {
@@ -2040,7 +2086,7 @@
           "under": "-135"
         },
         "rec_yd": {
-          "line": 94.5,
+          "line": 95.5,
           "over": "-115",
           "under": "-115"
         },
@@ -2051,8 +2097,8 @@
       },
       "exp": {
         "rec": 6.46,
-        "rec_yd": 94.5,
-        "td": 0.508
+        "rec_yd": 95.5,
+        "td": 0.509
       }
     },
     "Jahan Dotson|ATL": {
@@ -2061,23 +2107,23 @@
       "lines": {
         "rec": {
           "line": 1.5,
-          "over": "-190",
-          "under": "+145"
+          "over": "-170",
+          "under": "+130"
         },
         "rec_yd": {
-          "line": 24.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 22.5,
+          "over": "-120",
+          "under": "-110"
         },
         "td": {
-          "price": "+380",
-          "prob": 0.20833333333333334
+          "price": "+400",
+          "prob": 0.2
         }
       },
       "exp": {
-        "rec": 1.62,
-        "rec_yd": 24.5,
-        "td": 0.184
+        "rec": 1.59,
+        "rec_yd": 22.52,
+        "td": 0.176
       }
     },
     "Kalif Raymond|CHI": {
@@ -2111,8 +2157,8 @@
       "lines": {
         "rec": {
           "line": 3.5,
-          "over": "+135",
-          "under": "-180"
+          "over": "+130",
+          "under": "-170"
         },
         "rec_yd": {
           "line": 29.5,
@@ -2125,9 +2171,9 @@
         }
       },
       "exp": {
-        "rec": 3.4,
+        "rec": 3.41,
         "rec_yd": 29.5,
-        "td": 0.229
+        "td": 0.23
       }
     },
     "Luther Burden III|CHI": {
@@ -2152,7 +2198,7 @@
       "exp": {
         "rec": 4.44,
         "rec_yd": 51.5,
-        "td": 0.339
+        "td": 0.34
       }
     },
     "Rome Odunze|CHI": {
@@ -2177,7 +2223,7 @@
       "exp": {
         "rec": 3.4,
         "rec_yd": 41.5,
-        "td": 0.355
+        "td": 0.356
       }
     },
     "Zachariah Branch|ATL": {
@@ -2205,6 +2251,34 @@
         "td": 0.075
       }
     },
+    "Cairo Santos|CHI": {
+      "name": "Cairo Santos",
+      "team": "CHI",
+      "lines": {
+        "kick_pts": {
+          "line": 7.5,
+          "over": "-120",
+          "under": "-110"
+        }
+      },
+      "exp": {
+        "kick_pts": 7.51
+      }
+    },
+    "Nick Folk|ATL": {
+      "name": "Nick Folk",
+      "team": "ATL",
+      "lines": {
+        "kick_pts": {
+          "line": 7.5,
+          "over": "+110",
+          "under": "-145"
+        }
+      },
+      "exp": {
+        "kick_pts": 7.45
+      }
+    },
     "D'Andre Swift|CHI": {
       "name": "D'Andre Swift",
       "team": "CHI",
@@ -2215,7 +2289,7 @@
         }
       },
       "exp": {
-        "td": 0.814
+        "td": 0.816
       }
     },
     "Chris Blair|ATL": {
@@ -2241,7 +2315,7 @@
         }
       },
       "exp": {
-        "td": 0.278
+        "td": 0.279
       }
     },
     "Charlie Woerner|ATL": {
@@ -2280,7 +2354,7 @@
         }
       },
       "exp": {
-        "td": 0.042
+        "td": 0.043
       }
     },
     "Austin Hooper|ATL": {
@@ -2906,7 +2980,7 @@
           "under": "-190"
         },
         "pass_yd": {
-          "line": 236.5,
+          "line": 237.5,
           "over": "-115",
           "under": "-115"
         },
@@ -2916,17 +2990,17 @@
           "under": "-115"
         },
         "td": {
-          "price": "+340",
-          "prob": 0.22727272727272727
+          "price": "+330",
+          "prob": 0.23255813953488372
         }
       },
       "exp": {
         "pass_td": 1.58,
         "pass_att": 30.47,
         "pass_int": 0.38,
-        "pass_yd": 236.5,
+        "pass_yd": 237.5,
         "rush_yd": 27.5,
-        "td": 0.207
+        "td": 0.213
       }
     },
     "Geno Smith|NYJ": {
@@ -2949,15 +3023,15 @@
           "under": "-115"
         },
         "td": {
-          "price": "+900",
-          "prob": 0.1
+          "price": "+1000",
+          "prob": 0.09090909090909091
         }
       },
       "exp": {
         "pass_td": 1.33,
         "pass_att": 30.53,
         "pass_yd": 221.5,
-        "td": 0.084
+        "td": 0.077
       }
     },
     "Rhamondre Stevenson|NE": {
@@ -2988,7 +3062,7 @@
         "rush_yd": 71.5,
         "rec": 2.59,
         "rec_yd": 19.5,
-        "td": 0.814
+        "td": 0.817
       }
     },
     "Garrett Wilson|NYJ": {
@@ -3013,7 +3087,7 @@
       "exp": {
         "rec": 6.5,
         "rec_yd": 73.5,
-        "td": 0.354
+        "td": 0.355
       }
     },
     "Isaiah Davis|NYJ": {
@@ -3034,12 +3108,12 @@
       "team": "NYJ",
       "lines": {
         "td": {
-          "price": "+525",
-          "prob": 0.16
+          "price": "+500",
+          "prob": 0.16666666666666666
         }
       },
       "exp": {
-        "td": 0.14
+        "td": 0.147
       }
     },
     "Braelon Allen|NYJ": {
@@ -3047,12 +3121,12 @@
       "team": "NYJ",
       "lines": {
         "td": {
-          "price": "+120",
-          "prob": 0.45454545454545453
+          "price": "+125",
+          "prob": 0.4444444444444444
         }
       },
       "exp": {
-        "td": 0.486
+        "td": 0.473
       }
     },
     "Isaiah Williams|NYJ": {
@@ -3060,12 +3134,12 @@
       "team": "NYJ",
       "lines": {
         "td": {
-          "price": "+600",
-          "prob": 0.14285714285714285
+          "price": "+625",
+          "prob": 0.13793103448275862
         }
       },
       "exp": {
-        "td": 0.124
+        "td": 0.119
       }
     },
     "Malik McClain|NYJ": {
@@ -3086,12 +3160,12 @@
       "team": "NYJ",
       "lines": {
         "td": {
-          "price": "+2500",
-          "prob": 0.038461538461538464
+          "price": "+2800",
+          "prob": 0.034482758620689655
         }
       },
       "exp": {
-        "td": 0.031
+        "td": 0.028
       }
     },
     "Jelani Woods|NYJ": {
@@ -3099,12 +3173,12 @@
       "team": "NYJ",
       "lines": {
         "td": {
-          "price": "+2200",
-          "prob": 0.043478260869565216
+          "price": "+2000",
+          "prob": 0.047619047619047616
         }
       },
       "exp": {
-        "td": 0.036
+        "td": 0.039
       }
     },
     "Omar Cooper Jr.|NYJ": {
@@ -3112,12 +3186,12 @@
       "team": "NYJ",
       "lines": {
         "td": {
-          "price": "+525",
-          "prob": 0.16
+          "price": "+500",
+          "prob": 0.16666666666666666
         }
       },
       "exp": {
-        "td": 0.14
+        "td": 0.147
       }
     },
     "Mason Taylor|NYJ": {
@@ -3125,12 +3199,12 @@
       "team": "NYJ",
       "lines": {
         "td": {
-          "price": "+400",
-          "prob": 0.2
+          "price": "+390",
+          "prob": 0.20408163265306123
         }
       },
       "exp": {
-        "td": 0.179
+        "td": 0.184
       }
     },
     "Jeremy Ruckert|NYJ": {
@@ -3169,7 +3243,7 @@
         }
       },
       "exp": {
-        "td": 0.171
+        "td": 0.172
       }
     },
     "Demario Douglas|NE": {
@@ -3177,12 +3251,12 @@
       "team": "NE",
       "lines": {
         "td": {
-          "price": "+265",
-          "prob": 0.273972602739726
+          "price": "+255",
+          "prob": 0.28169014084507044
         }
       },
       "exp": {
-        "td": 0.257
+        "td": 0.266
       }
     },
     "Kyle Williams|NE": {
@@ -3195,7 +3269,7 @@
         }
       },
       "exp": {
-        "td": 0.146
+        "td": 0.147
       }
     },
     "Corey Kiner|NE": {
@@ -3203,12 +3277,12 @@
       "team": "NE",
       "lines": {
         "td": {
-          "price": "+525",
-          "prob": 0.16
+          "price": "+600",
+          "prob": 0.14285714285714285
         }
       },
       "exp": {
-        "td": 0.14
+        "td": 0.124
       }
     },
     "Tanner Arkin|NE": {
@@ -3234,7 +3308,7 @@
         }
       },
       "exp": {
-        "td": 0.224
+        "td": 0.225
       }
     },
     "Cameron Latu|NE": {
@@ -3255,12 +3329,12 @@
       "team": "NE",
       "lines": {
         "td": {
-          "price": "+170",
-          "prob": 0.37037037037037035
+          "price": "+165",
+          "prob": 0.37735849056603776
         }
       },
       "exp": {
-        "td": 0.371
+        "td": 0.381
       }
     },
     "Hunter Henry|NE": {
@@ -3273,7 +3347,7 @@
         }
       },
       "exp": {
-        "td": 0.354
+        "td": 0.355
       }
     },
     "Aaron Rodgers|PIT": {
@@ -3292,8 +3366,8 @@
         },
         "pass_int": {
           "line": 0.5,
-          "over": "+110",
-          "under": "-145"
+          "over": "+115",
+          "under": "-150"
         },
         "pass_yd": {
           "line": 233.5,
@@ -3301,16 +3375,16 @@
           "under": "-115"
         },
         "td": {
-          "price": "+1500",
-          "prob": 0.0625
+          "price": "+1400",
+          "prob": 0.06666666666666667
         }
       },
       "exp": {
         "pass_td": 1.42,
         "pass_att": 33.47,
-        "pass_int": 0.45,
+        "pass_int": 0.44,
         "pass_yd": 233.5,
-        "td": 0.06
+        "td": 0.061
       }
     },
     "Jalon Daniels|TB": {
@@ -3319,8 +3393,8 @@
       "lines": {
         "pass_td": {
           "line": 0.5,
-          "over": "-275",
-          "under": "+200"
+          "over": "-260",
+          "under": "+190"
         },
         "pass_att": {
           "line": 28.5,
@@ -3333,27 +3407,27 @@
           "under": "-120"
         },
         "pass_yd": {
-          "line": 177.5,
+          "line": 176.5,
           "over": "-115",
           "under": "-115"
         },
         "rush_yd": {
-          "line": 36.5,
+          "line": 37.5,
           "over": "-115",
           "under": "-115"
         },
         "td": {
-          "price": "+390",
-          "prob": 0.20408163265306123
+          "price": "+380",
+          "prob": 0.20833333333333334
         }
       },
       "exp": {
-        "pass_td": 0.69,
+        "pass_td": 0.68,
         "pass_att": 28.47,
         "pass_int": 0.49,
-        "pass_yd": 177.5,
-        "rush_yd": 36.5,
-        "td": 0.211
+        "pass_yd": 176.5,
+        "rush_yd": 37.5,
+        "td": 0.206
       }
     },
     "Bucky Irving|TB": {
@@ -3361,7 +3435,7 @@
       "team": "TB",
       "lines": {
         "rush_yd": {
-          "line": 63.5,
+          "line": 64.5,
           "over": "-115",
           "under": "-115"
         },
@@ -3376,15 +3450,15 @@
           "under": "-115"
         },
         "td": {
-          "price": "+180",
-          "prob": 0.35714285714285715
+          "price": "+165",
+          "prob": 0.37735849056603776
         }
       },
       "exp": {
-        "rush_yd": 63.5,
+        "rush_yd": 64.5,
         "rec": 1.62,
         "rec_yd": 11.5,
-        "td": 0.409
+        "td": 0.418
       }
     },
     "Kenneth Gainwell|TB": {
@@ -3392,30 +3466,30 @@
       "team": "TB",
       "lines": {
         "rush_yd": {
-          "line": 10.5,
-          "over": "-105",
-          "under": "-125"
+          "line": 11.5,
+          "over": "-110",
+          "under": "-120"
         },
         "rec": {
           "line": 2.5,
-          "over": "+105",
-          "under": "-135"
+          "over": "-110",
+          "under": "-120"
         },
         "rec_yd": {
-          "line": 12.5,
-          "over": "-120",
-          "under": "-110"
+          "line": 14.5,
+          "over": "-110",
+          "under": "-120"
         },
         "td": {
-          "price": "+400",
-          "prob": 0.2
+          "price": "+380",
+          "prob": 0.20833333333333334
         }
       },
       "exp": {
-        "rush_yd": 10.48,
-        "rec": 2.46,
-        "rec_yd": 12.51,
-        "td": 0.207
+        "rush_yd": 11.49,
+        "rec": 2.49,
+        "rec_yd": 14.49,
+        "td": 0.206
       }
     },
     "Cade Otton|TB": {
@@ -3424,38 +3498,13 @@
       "lines": {
         "rec": {
           "line": 3.5,
-          "over": "+120",
-          "under": "-160"
-        },
-        "rec_yd": {
-          "line": 30.5,
-          "over": "-115",
-          "under": "-115"
-        },
-        "td": {
-          "price": "+460",
-          "prob": 0.17857142857142858
-        }
-      },
-      "exp": {
-        "rec": 3.42,
-        "rec_yd": 30.5,
-        "td": 0.182
-      }
-    },
-    "Chris Godwin|TB": {
-      "name": "Chris Godwin",
-      "team": "TB",
-      "lines": {
-        "rec": {
-          "line": 3.5,
           "over": "+115",
           "under": "-150"
         },
         "rec_yd": {
-          "line": 29.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 31.5,
+          "over": "-110",
+          "under": "-120"
         },
         "td": {
           "price": "+440",
@@ -3464,8 +3513,33 @@
       },
       "exp": {
         "rec": 3.44,
-        "rec_yd": 29.5,
-        "td": 0.19
+        "rec_yd": 31.47,
+        "td": 0.181
+      }
+    },
+    "Chris Godwin|TB": {
+      "name": "Chris Godwin",
+      "team": "TB",
+      "lines": {
+        "rec": {
+          "line": 3.5,
+          "over": "+120",
+          "under": "-160"
+        },
+        "rec_yd": {
+          "line": 29.5,
+          "over": "-110",
+          "under": "-120"
+        },
+        "td": {
+          "price": "+440",
+          "prob": 0.18518518518518517
+        }
+      },
+      "exp": {
+        "rec": 3.42,
+        "rec_yd": 29.47,
+        "td": 0.181
       }
     },
     "Darnell Washington|PIT": {
@@ -3483,14 +3557,14 @@
           "under": "-115"
         },
         "td": {
-          "price": "+370",
-          "prob": 0.2127659574468085
+          "price": "+360",
+          "prob": 0.21739130434782608
         }
       },
       "exp": {
         "rec": 2.47,
         "rec_yd": 20.5,
-        "td": 0.222
+        "td": 0.216
       }
     },
     "DK Metcalf|PIT": {
@@ -3498,12 +3572,12 @@
       "team": "PIT",
       "lines": {
         "rec": {
-          "line": 3.5,
-          "over": "-170",
-          "under": "+130"
+          "line": 4.5,
+          "over": "+130",
+          "under": "-170"
         },
         "rec_yd": {
-          "line": 50.5,
+          "line": 51.5,
           "over": "-115",
           "under": "-115"
         },
@@ -3513,9 +3587,9 @@
         }
       },
       "exp": {
-        "rec": 3.59,
-        "rec_yd": 50.5,
-        "td": 0.4
+        "rec": 4.41,
+        "rec_yd": 51.5,
+        "td": 0.381
       }
     },
     "Emeka Egbuka|TB": {
@@ -3528,9 +3602,9 @@
           "under": "+110"
         },
         "rec_yd": {
-          "line": 35.5,
-          "over": "-120",
-          "under": "-110"
+          "line": 36.5,
+          "over": "-110",
+          "under": "-120"
         },
         "td": {
           "price": "+270",
@@ -3539,8 +3613,8 @@
       },
       "exp": {
         "rec": 3.55,
-        "rec_yd": 35.54,
-        "td": 0.292
+        "rec_yd": 36.46,
+        "td": 0.278
       }
     },
     "Germie Bernard|PIT": {
@@ -3558,14 +3632,14 @@
           "under": "-110"
         },
         "td": {
-          "price": "+320",
-          "prob": 0.23809523809523808
+          "price": "+330",
+          "prob": 0.23255813953488372
         }
       },
       "exp": {
         "rec": 3.58,
         "rec_yd": 41.54,
-        "td": 0.252
+        "td": 0.233
       }
     },
     "Pat Freiermuth|PIT": {
@@ -3590,7 +3664,7 @@
       "exp": {
         "rec": 3.44,
         "rec_yd": 35.5,
-        "td": 0.252
+        "td": 0.24
       }
     },
     "Ko Kieft|TB": {
@@ -3603,7 +3677,7 @@
         }
       },
       "exp": {
-        "td": 0.033
+        "td": 0.031
       }
     },
     "Tez Johnson|TB": {
@@ -3616,7 +3690,7 @@
         }
       },
       "exp": {
-        "td": 0.124
+        "td": 0.118
       }
     },
     "Payne Durham|TB": {
@@ -3624,12 +3698,12 @@
       "team": "TB",
       "lines": {
         "td": {
-          "price": "+2800",
-          "prob": 0.034482758620689655
+          "price": "+2500",
+          "prob": 0.038461538461538464
         }
       },
       "exp": {
-        "td": 0.033
+        "td": 0.035
       }
     },
     "Riley Nowakowski|PIT": {
@@ -3642,7 +3716,7 @@
         }
       },
       "exp": {
-        "td": 0.023
+        "td": 0.022
       }
     },
     "Ben Skowronek|PIT": {
@@ -3650,12 +3724,25 @@
       "team": "PIT",
       "lines": {
         "td": {
-          "price": "+1800",
-          "prob": 0.05263157894736842
+          "price": "+1900",
+          "prob": 0.05
         }
       },
       "exp": {
-        "td": 0.05
+        "td": 0.045
+      }
+    },
+    "Sean Tucker|TB": {
+      "name": "Sean Tucker",
+      "team": "TB",
+      "lines": {
+        "td": {
+          "price": "+525",
+          "prob": 0.16
+        }
+      },
+      "exp": {
+        "td": 0.154
       }
     },
     "Rico Dowdle|PIT": {
@@ -3663,12 +3750,12 @@
       "team": "PIT",
       "lines": {
         "td": {
-          "price": "+180",
-          "prob": 0.35714285714285715
+          "price": "+185",
+          "prob": 0.3508771929824561
         }
       },
       "exp": {
-        "td": 0.409
+        "td": 0.381
       }
     },
     "Robert Tonyan|PIT": {
@@ -3681,7 +3768,7 @@
         }
       },
       "exp": {
-        "td": 0.028
+        "td": 0.026
       }
     },
     "Ted Hurst|TB": {
@@ -3694,7 +3781,7 @@
         }
       },
       "exp": {
-        "td": 0.161
+        "td": 0.154
       }
     },
     "Kaden Wetjen|PIT": {
@@ -3707,7 +3794,7 @@
         }
       },
       "exp": {
-        "td": 0.041
+        "td": 0.039
       }
     },
     "Eli Heidenreich|PIT": {
@@ -3720,7 +3807,7 @@
         }
       },
       "exp": {
-        "td": 0.06
+        "td": 0.057
       }
     },
     "Kameron Johnson|TB": {
@@ -3733,7 +3820,7 @@
         }
       },
       "exp": {
-        "td": 0.041
+        "td": 0.039
       }
     },
     "Bauer Sharp|TB": {
@@ -3741,12 +3828,12 @@
       "team": "TB",
       "lines": {
         "td": {
-          "price": "+2800",
-          "prob": 0.034482758620689655
+          "price": "+3300",
+          "prob": 0.029411764705882353
         }
       },
       "exp": {
-        "td": 0.033
+        "td": 0.026
       }
     },
     "Jaylen Warren|PIT": {
@@ -3754,12 +3841,12 @@
       "team": "PIT",
       "lines": {
         "td": {
-          "price": "-110",
-          "prob": 0.5238095238095238
+          "price": "-114",
+          "prob": 0.5327102803738317
         }
       },
       "exp": {
-        "td": 0.687
+        "td": 0.671
       }
     },
     "Cam Ward|TEN": {
@@ -3853,7 +3940,7 @@
       "team": "IND",
       "lines": {
         "rush_yd": {
-          "line": 90.5,
+          "line": 88.5,
           "over": "-115",
           "under": "-115"
         },
@@ -3864,8 +3951,8 @@
         },
         "rec_yd": {
           "line": 17.5,
-          "over": "-110",
-          "under": "-120"
+          "over": "-115",
+          "under": "-115"
         },
         "td": {
           "price": "-290",
@@ -3873,10 +3960,10 @@
         }
       },
       "exp": {
-        "rush_yd": 90.5,
+        "rush_yd": 88.5,
         "rec": 2.54,
-        "rec_yd": 17.48,
-        "td": 1.061
+        "rec_yd": 17.5,
+        "td": 1.059
       }
     },
     "Seth McGowan|IND": {
@@ -3884,7 +3971,7 @@
       "team": "IND",
       "lines": {
         "rush_yd": {
-          "line": 14.5,
+          "line": 15.5,
           "over": "-110",
           "under": "-120"
         },
@@ -3894,7 +3981,7 @@
         }
       },
       "exp": {
-        "rush_yd": 14.49,
+        "rush_yd": 15.48,
         "td": 0.12
       }
     },
@@ -3918,15 +4005,15 @@
           "under": "-110"
         },
         "td": {
-          "price": "+155",
-          "prob": 0.39215686274509803
+          "price": "+160",
+          "prob": 0.38461538461538464
         }
       },
       "exp": {
         "rush_yd": 51.55,
         "rec": 1.54,
         "rec_yd": 9.51,
-        "td": 0.388
+        "td": 0.378
       }
     },
     "Tyjae Spears|TEN": {
@@ -3957,7 +4044,7 @@
         "rush_yd": 12.51,
         "rec": 2.46,
         "rec_yd": 16.48,
-        "td": 0.16
+        "td": 0.159
       }
     },
     "Calvin Ridley|TEN": {
@@ -3995,7 +4082,7 @@
           "under": "EVEN"
         },
         "rec_yd": {
-          "line": 54.5,
+          "line": 53.5,
           "over": "-115",
           "under": "-115"
         },
@@ -4006,7 +4093,7 @@
       },
       "exp": {
         "rec": 4.53,
-        "rec_yd": 54.5,
+        "rec_yd": 53.5,
         "td": 0.234
       }
     },
@@ -4045,9 +4132,9 @@
           "under": "-150"
         },
         "rec_yd": {
-          "line": 17.5,
-          "over": "-120",
-          "under": "-110"
+          "line": 18.5,
+          "over": "-110",
+          "under": "-120"
         },
         "td": {
           "price": "+460",
@@ -4056,7 +4143,7 @@
       },
       "exp": {
         "rec": 2.44,
-        "rec_yd": 17.52,
+        "rec_yd": 18.48,
         "td": 0.153
       }
     },
@@ -4075,14 +4162,14 @@
           "under": "-115"
         },
         "td": {
-          "price": "+180",
-          "prob": 0.35714285714285715
+          "price": "+175",
+          "prob": 0.36363636363636365
         }
       },
       "exp": {
         "rec": 4.44,
         "rec_yd": 49.5,
-        "td": 0.344
+        "td": 0.352
       }
     },
     "Keenan Allen|IND": {
@@ -4120,7 +4207,7 @@
           "under": "-135"
         },
         "rec_yd": {
-          "line": 50.5,
+          "line": 51.5,
           "over": "-115",
           "under": "-115"
         },
@@ -4131,7 +4218,7 @@
       },
       "exp": {
         "rec": 5.46,
-        "rec_yd": 50.5,
+        "rec_yd": 51.5,
         "td": 0.388
       }
     },
@@ -4145,9 +4232,9 @@
           "under": "-160"
         },
         "rec_yd": {
-          "line": 40.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 39.5,
+          "over": "-120",
+          "under": "-110"
         },
         "td": {
           "price": "+380",
@@ -4156,7 +4243,7 @@
       },
       "exp": {
         "rec": 4.42,
-        "rec_yd": 40.5,
+        "rec_yd": 39.54,
         "td": 0.182
       }
     },
@@ -4178,12 +4265,12 @@
       "team": "IND",
       "lines": {
         "td": {
-          "price": "+2000",
-          "prob": 0.047619047619047616
+          "price": "+2200",
+          "prob": 0.043478260869565216
         }
       },
       "exp": {
-        "td": 0.038
+        "td": 0.035
       }
     },
     "Laquon Treadwell|IND": {
@@ -4230,12 +4317,12 @@
       "team": "TEN",
       "lines": {
         "td": {
-          "price": "+3300",
-          "prob": 0.029411764705882353
+          "price": "+4000",
+          "prob": 0.024390243902439025
         }
       },
       "exp": {
-        "td": 0.023
+        "td": 0.019
       }
     },
     "Chimere Dike|TEN": {
@@ -4243,12 +4330,12 @@
       "team": "TEN",
       "lines": {
         "td": {
-          "price": "+1000",
-          "prob": 0.09090909090909091
+          "price": "+900",
+          "prob": 0.1
         }
       },
       "exp": {
-        "td": 0.074
+        "td": 0.082
       }
     },
     "Kylen Granson|TEN": {
@@ -4295,12 +4382,12 @@
       "team": "TEN",
       "lines": {
         "td": {
-          "price": "+1500",
-          "prob": 0.0625
+          "price": "+1400",
+          "prob": 0.06666666666666667
         }
       },
       "exp": {
-        "td": 0.05
+        "td": 0.054
       }
     },
     "Nicholas Singleton|TEN": {
@@ -4321,12 +4408,12 @@
       "team": "IND",
       "lines": {
         "td": {
-          "price": "+1700",
-          "prob": 0.05555555555555555
+          "price": "+1600",
+          "prob": 0.058823529411764705
         }
       },
       "exp": {
-        "td": 0.045
+        "td": 0.047
       }
     },
     "Pharaoh Brown|IND": {
@@ -5446,30 +5533,30 @@
         },
         "pass_att": {
           "line": 30.5,
-          "over": "-120",
-          "under": "-110"
+          "over": "-110",
+          "under": "-120"
         },
         "pass_int": {
           "line": 0.5,
-          "over": "-190",
-          "under": "+145"
+          "over": "-215",
+          "under": "+160"
         },
         "pass_yd": {
-          "line": 192.5,
+          "line": 191.5,
           "over": "-115",
           "under": "-115"
         },
         "td": {
-          "price": "+525",
-          "prob": 0.16
+          "price": "+625",
+          "prob": 0.13793103448275862
         }
       },
       "exp": {
         "pass_td": 0.62,
-        "pass_att": 30.53,
-        "pass_int": 0.62,
-        "pass_yd": 192.5,
-        "td": 0.156
+        "pass_att": 30.47,
+        "pass_int": 0.64,
+        "pass_yd": 191.5,
+        "td": 0.126
       }
     },
     "Patrick Mahomes|KC": {
@@ -5483,16 +5570,16 @@
         },
         "pass_att": {
           "line": 30.5,
-          "over": "-115",
-          "under": "-115"
+          "over": "-110",
+          "under": "-120"
         },
         "pass_int": {
           "line": 0.5,
-          "over": "+105",
-          "under": "-135"
+          "over": "+110",
+          "under": "-145"
         },
         "pass_yd": {
-          "line": 226.5,
+          "line": 225.5,
           "over": "-115",
           "under": "-115"
         },
@@ -5503,10 +5590,10 @@
       },
       "exp": {
         "pass_td": 1.52,
-        "pass_att": 30.5,
-        "pass_int": 0.46,
-        "pass_yd": 226.5,
-        "td": 0.191
+        "pass_att": 30.47,
+        "pass_int": 0.45,
+        "pass_yd": 225.5,
+        "td": 0.181
       }
     },
     "Kenneth Walker|KC": {
@@ -5514,18 +5601,18 @@
       "team": "KC",
       "lines": {
         "rush_yd": {
-          "line": 88.5,
+          "line": 90.5,
           "over": "-115",
           "under": "-115"
         },
         "td": {
-          "price": "-168",
-          "prob": 0.6268656716417911
+          "price": "-182",
+          "prob": 0.6453900709219859
         }
       },
       "exp": {
-        "rush_yd": 88.5,
-        "td": 0.883
+        "rush_yd": 90.5,
+        "td": 0.878
       }
     },
     "Noah Gray|KC": {
@@ -5538,7 +5625,7 @@
         }
       },
       "exp": {
-        "td": 0.156
+        "td": 0.148
       }
     },
     "Ladd McConkey|LAC": {
@@ -5546,12 +5633,12 @@
       "team": "LAC",
       "lines": {
         "td": {
-          "price": "+235",
-          "prob": 0.29850746268656714
+          "price": "+300",
+          "prob": 0.25
         }
       },
       "exp": {
-        "td": 0.318
+        "td": 0.244
       }
     },
     "Oronde Gadsden II|LAC": {
@@ -5559,12 +5646,12 @@
       "team": "LAC",
       "lines": {
         "td": {
-          "price": "+460",
-          "prob": 0.17857142857142858
+          "price": "+500",
+          "prob": 0.16666666666666666
         }
       },
       "exp": {
-        "td": 0.176
+        "td": 0.154
       }
     },
     "Cyrus Allen|KC": {
@@ -5577,7 +5664,7 @@
         }
       },
       "exp": {
-        "td": 0.133
+        "td": 0.126
       }
     },
     "Charlie Kolar|LAC": {
@@ -5590,7 +5677,7 @@
         }
       },
       "exp": {
-        "td": 0.138
+        "td": 0.131
       }
     },
     "Quentin Johnston|LAC": {
@@ -5598,25 +5685,12 @@
       "team": "LAC",
       "lines": {
         "td": {
-          "price": "+330",
-          "prob": 0.23255813953488372
+          "price": "+360",
+          "prob": 0.21739130434782608
         }
       },
       "exp": {
-        "td": 0.237
-      }
-    },
-    "Derius Davis|LAC": {
-      "name": "Derius Davis",
-      "team": "LAC",
-      "lines": {
-        "td": {
-          "price": "+1000",
-          "prob": 0.09090909090909091
-        }
-      },
-      "exp": {
-        "td": 0.085
+        "td": 0.208
       }
     },
     "Nikko Remigio|KC": {
@@ -5629,7 +5703,7 @@
         }
       },
       "exp": {
-        "td": 0.044
+        "td": 0.041
       }
     },
     "Jake Briningstool|KC": {
@@ -5637,12 +5711,25 @@
       "team": "KC",
       "lines": {
         "td": {
-          "price": "+1800",
-          "prob": 0.05263157894736842
+          "price": "+1900",
+          "prob": 0.05
         }
       },
       "exp": {
-        "td": 0.048
+        "td": 0.043
+      }
+    },
+    "Jared Wiley|KC": {
+      "name": "Jared Wiley",
+      "team": "KC",
+      "lines": {
+        "td": {
+          "price": "+1600",
+          "prob": 0.058823529411764705
+        }
+      },
+      "exp": {
+        "td": 0.051
       }
     },
     "Jalen Royals|KC": {
@@ -5650,12 +5737,12 @@
       "team": "KC",
       "lines": {
         "td": {
-          "price": "+460",
-          "prob": 0.17857142857142858
+          "price": "+440",
+          "prob": 0.18518518518518517
         }
       },
       "exp": {
-        "td": 0.176
+        "td": 0.173
       }
     },
     "Brashard Smith|KC": {
@@ -5668,7 +5755,7 @@
         }
       },
       "exp": {
-        "td": 0.106
+        "td": 0.1
       }
     },
     "Travis Kelce|KC": {
@@ -5676,12 +5763,12 @@
       "team": "KC",
       "lines": {
         "td": {
-          "price": "+165",
-          "prob": 0.37735849056603776
+          "price": "+180",
+          "prob": 0.35714285714285715
         }
       },
       "exp": {
-        "td": 0.425
+        "td": 0.374
       }
     },
     "Xavier Worthy|KC": {
@@ -5689,12 +5776,51 @@
       "team": "KC",
       "lines": {
         "td": {
-          "price": "+190",
-          "prob": 0.3448275862068966
+          "price": "+140",
+          "prob": 0.4166666666666667
         }
       },
       "exp": {
-        "td": 0.379
+        "td": 0.456
+      }
+    },
+    "Brenen Thompson|LAC": {
+      "name": "Brenen Thompson",
+      "team": "LAC",
+      "lines": {
+        "td": {
+          "price": "+900",
+          "prob": 0.1
+        }
+      },
+      "exp": {
+        "td": 0.089
+      }
+    },
+    "Alec Ingold|LAC": {
+      "name": "Alec Ingold",
+      "team": "LAC",
+      "lines": {
+        "td": {
+          "price": "+2500",
+          "prob": 0.038461538461538464
+        }
+      },
+      "exp": {
+        "td": 0.033
+      }
+    },
+    "Marquez Valdes-Scantling|LAC": {
+      "name": "Marquez Valdes-Scantling",
+      "team": "LAC",
+      "lines": {
+        "td": {
+          "price": "+800",
+          "prob": 0.1111111111111111
+        }
+      },
+      "exp": {
+        "td": 0.1
       }
     },
     "Emmett Johnson|KC": {
@@ -5702,12 +5828,12 @@
       "team": "KC",
       "lines": {
         "td": {
-          "price": "+440",
-          "prob": 0.18518518518518517
+          "price": "+420",
+          "prob": 0.19230769230769232
         }
       },
       "exp": {
-        "td": 0.184
+        "td": 0.181
       }
     },
     "Omarion Hampton|LAC": {
@@ -5715,12 +5841,12 @@
       "team": "LAC",
       "lines": {
         "td": {
-          "price": "+255",
-          "prob": 0.28169014084507044
+          "price": "+250",
+          "prob": 0.2857142857142857
         }
       },
       "exp": {
-        "td": 0.296
+        "td": 0.285
       }
     },
     "Keaton Mitchell|LAC": {
@@ -5728,12 +5854,12 @@
       "team": "LAC",
       "lines": {
         "td": {
-          "price": "+460",
-          "prob": 0.17857142857142858
+          "price": "+400",
+          "prob": 0.2
         }
       },
       "exp": {
-        "td": 0.176
+        "td": 0.189
       }
     },
     "Kimani Vidal|LAC": {
@@ -5741,12 +5867,12 @@
       "team": "LAC",
       "lines": {
         "td": {
-          "price": "+420",
-          "prob": 0.19230769230769232
+          "price": "+400",
+          "prob": 0.2
         }
       },
       "exp": {
-        "td": 0.191
+        "td": 0.189
       }
     },
     "Dak Prescott|DAL": {
@@ -6238,9 +6364,9 @@
           "under": "-190"
         },
         "pass_att": {
-          "line": 31.5,
-          "over": "-115",
-          "under": "-115"
+          "line": 30.5,
+          "over": "-125",
+          "under": "-105"
         },
         "pass_int": {
           "line": 0.5,
@@ -6264,7 +6390,7 @@
       },
       "exp": {
         "pass_td": 2.38,
-        "pass_att": 31.5,
+        "pass_att": 30.56,
         "pass_int": 0.48,
         "pass_yd": 247.5,
         "rush_yd": 17.5,
