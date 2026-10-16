@@ -94,3 +94,15 @@ def test_dvp_season_ranks_per_game(monkeypatch, tmp_path):
     dvp, label = S.load_dvp_season(2026, 3, Reg(), "ppr")
     assert dvp["RB"]["BBB"] > dvp["RB"]["AAA"]          # 30/g beats 20/g on per-game, not totals
     assert label == "2026 through week 3"
+
+
+def test_season_sim_median_game_adds_a_win_per_week():
+    from draftkit import weekly as W
+    means = {"a": 150, "b": 140, "c": 60, "d": 50}
+    sds = {t: 5 for t in means}
+    recs = {t: (0, 0) for t in means}
+    sched = {1: [("a", "c"), ("b", "d")]}
+    plain = W.season_sim(means, sds, recs, {t: 0 for t in means}, sched, 2, "b", n_sims=500)
+    med = W.season_sim(means, sds, recs, {t: 0 for t in means}, sched, 2, "b", n_sims=500, median=True)
+    # a and b win both games with the median on; both make it either way
+    assert med["teams"]["b"]["playoff_pct"] == 100 and plain["teams"]["b"]["playoff_pct"] == 100

@@ -3052,12 +3052,14 @@ def _analyzer(ctx, g, oid, opp) -> None:
             th_new = [p for p in opp if str(p) not in got] + [mine_names[n] for n in send]
             fx = {int(k): v for k, v in si["fx"].items()}
             base = W.season_sim(si["means"], si["sds"], si["recs"], si["pf"], fx, si["pt"], me,
+                                median=si["median"],
                                 n_sims=4000)
             means, sds = dict(si["means"]), dict(si["sds"])
             for who, pids in ((me, my_new), (str(oid), th_new)):
                 means[who], sds[who] = W.team_distribution(pids, g["slots"], g["proj"], reg,
                                                            g["byes"], g["week"])
-            after = W.season_sim(means, sds, si["recs"], si["pf"], fx, si["pt"], me, n_sims=4000)
+            after = W.season_sim(means, sds, si["recs"], si["pf"], fx, si["pt"], me, n_sims=4000,
+                                 median=si["median"])
             odds = (base["teams"][me]["playoff_pct"], after["teams"][me]["playoff_pct"])
     except Exception:  # noqa: BLE001
         odds = None
@@ -3215,8 +3217,21 @@ def _fixtures(platform: str, league_id: str, first: int, last: int, _provider=No
 
 @st.cache_data(ttl=3600, show_spinner=False, max_entries=8)
 def _season_sim_cached(lk: str, week: int, bucket: int, means: dict, sds: dict, recs: dict,
-                       pf: dict, fixtures: dict, pt: int, me: str) -> dict:
-    return W.season_sim(means, sds, recs, pf, {int(k): v for k, v in fixtures.items()}, pt, me)
+                       pf: dict, fixtures: dict, pt: int, me: str, median: bool = False) -> dict:
+    return W.season_sim(means, sds, recs, pf, {int(k): v for k, v in fixtures.items()}, pt, me,
+                        median=median)
+
+
+def _median_game(meta) -> bool:
+    """Does this league also play the weekly median? (B&B and 7½ Men do: a
+    second result every week, a win for each team in the top half.)"""
+    if getattr(meta, "platform", "") != "sleeper":
+        return False
+    try:
+        return bool(int(((api.get_league(str(meta.league_id)) or {}).get("settings") or {})
+                        .get("league_average_match") or 0))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _sim_inputs(ctx, g) -> dict:
@@ -3240,7 +3255,8 @@ def _sim_inputs(ctx, g) -> dict:
     last_reg = (wks[0] - 1) if wks else 14
     fx = _fixtures(meta.platform, str(meta.league_id), g["week"], last_reg,
                    _provider=ctx.get("provider")) if last_reg >= g["week"] else {}
-    return {"means": means, "sds": sds, "recs": recs, "pf": pf, "pt": pt, "fx": fx}
+    return {"means": means, "sds": sds, "recs": recs, "pf": pf, "pt": pt, "fx": fx,
+            "median": _median_game(meta)}
 
 
 def _playoffs(ctx, g) -> None:
@@ -3272,7 +3288,7 @@ def _playoffs(ctx, g) -> None:
     if fx:
         sim = _season_sim_cached(ctx["league_key"], g["week"], _slow_bucket(g["season"], g["week"]),
                                  means, sds, recs, pf, {str(k): v for k, v in fx.items()},
-                                 min(pt, len(means)), me)
+                                 min(pt, len(means)), me, _median_game(meta))
     if sim:
         odds = sim["teams"]
     else:

@@ -367,7 +367,7 @@ def season_odds(team_means: Dict[int, float], team_sds: Dict[int, float],
 def season_sim(team_means: Dict[str, float], team_sds: Dict[str, float],
                records: Dict[str, tuple], points_for: Dict[str, float],
                schedule: Dict[int, List[tuple]], playoff_teams: int, me: str,
-               *, n_sims: int = 10000, seed: int = 7) -> dict:
+               *, n_sims: int = 10000, seed: int = 7, median: bool = False) -> dict:
     """The rest of the season played 10,000 times on the REAL fixture list.
 
     season_odds pairs teams at random each week; this plays the actual remaining
@@ -405,6 +405,14 @@ def season_sim(team_means: Dict[str, float], team_sds: Dict[str, float],
             wins[:, ib] += ~aw
             if m in (ia, ib):
                 my_week[wk] = ((aw if m == ia else ~aw), b if m == ia else a)
+        if median:
+            # B&B and 7½ Men also play the league median each week: every team
+            # in the top half of that week's scores takes a second win.
+            playing = sorted({idx[t] for pr in schedule[wk] for t in pr if t in idx})
+            if playing:
+                sub = score[:, playing]
+                top = np.argsort(np.argsort(-sub, axis=1), axis=1) < len(playing) // 2
+                wins[:, playing] += top
     # rank by wins, then points for: one key, wins weighted far above any points total
     order = np.argsort(-(wins * 1e5 + pts), axis=1)
     rank = np.empty_like(order)
