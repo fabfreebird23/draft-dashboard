@@ -102,6 +102,7 @@ class EspnProvider(Provider):
                 # ESPN gives the regular-season length, so playoffs start after it.
                 "start": int((s.get("scheduleSettings") or {}).get("matchupPeriodCount") or 0) + 1,
                 "teams": (s.get("scheduleSettings") or {}).get("playoffTeamCount"),
+                "weeks_per_round": (s.get("scheduleSettings") or {}).get("playoffMatchupPeriodLength"),
             },
             draft_id=self.league_id,   # ESPN has no separate draft id
             offline_draft=(str((s.get("draftSettings") or {}).get("type") or "").upper()

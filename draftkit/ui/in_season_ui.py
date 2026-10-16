@@ -3284,7 +3284,7 @@ def _playoffs(ctx, g) -> None:
         ("Playoff odds", f'{mine.get("playoff_pct", 0)}%', f"top {pt} make it",
          "var(--green)" if mine.get("playoff_pct", 0) >= 50 else "var(--amber)"),
         ("Projected seed", f'{mine.get("avg_seed", 0):.1f}', f"of {len(means)} teams", "var(--ink)"),
-        ("Playoff weeks", "–".join(str(w) for w in wks) if wks else "—",
+        ("Playoff weeks", (f"{wks[0]}–{wks[-1]}" if len(wks) > 1 else str(wks[0])) if wks else "—",
          "derived from this league's settings", "var(--muted)"),
         ("Weeks to play", f"{weeks_left}", "before the bracket", "var(--muted)"),
     ])

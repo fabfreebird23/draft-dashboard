@@ -188,9 +188,11 @@ def playoff_weeks(meta=None, settings=None) -> tuple:
         ESPN      reg season 14 wks, 6 teams -> 15, 16, 17
 
     Rounds are ceil(log2(playoff_teams)) — 4 teams is semis + final, 6 teams adds a
-    wildcard round. ASSUMPTION: one week per round. Sleeper exposes
-    `playoff_round_type` but its enum isn't documented reliably, and a window that
-    is one week short beats one that is three weeks wrong.
+    wildcard round. Round LENGTH comes from Sleeper's `playoff_round_type`
+    (0 one week a round, 1 two-week final, 2 two weeks a round) or ESPN's
+    `playoffMatchupPeriodLength`. Verified against 2025: Kreeper (start 13,
+    type 2) scored weeks 13–16 and B&B (start 14, type 2) weeks 14–17 — this used
+    to assume one week a round and said 14–15.
     """
     import math
     st = settings or {}
@@ -201,7 +203,13 @@ def playoff_weeks(meta=None, settings=None) -> tuple:
     if not start:
         return PLAYOFF_WEEKS
     rounds = max(1, math.ceil(math.log2(teams))) if teams > 1 else 1
-    end = min(18, int(start) + rounds - 1)
+    rtype = int(st.get("round_type") or 0)
+    wpr = int(st.get("weeks_per_round") or 0)
+    if wpr > 1:
+        weeks = rounds * wpr
+    else:
+        weeks = rounds + (1 if rtype == 1 else rounds if rtype == 2 else 0)
+    end = min(18, int(start) + weeks - 1)
     return tuple(range(int(start), end + 1))
 
 

@@ -1062,8 +1062,10 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .sa-k{ font-family:'Roboto Mono',monospace; font-size:9.5px; letter-spacing:.13em; color:var(--mut2); }
 .sa-seeds{ display:flex; gap:6px; align-items:flex-end; height:100px; margin-top:8px; }
 .sa-sd{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:3px; }
-.sa-sd i{ width:100%; border-radius:5px 5px 2px 2px; background:var(--line2); display:block; }
-.sa-sd.in i{ background:#5fdc8f; }
+.sa-sd i{ width:100%; border-radius:5px 5px 2px 2px; background:var(--muted); opacity:.45; display:block; }
+.sa-sd.in i{ background:#5fdc8f; opacity:.9; }
+.sa-sd.zero i{ background:var(--line2); opacity:1; }
+.sa-sd.top b{ color:var(--ink); }
 .sa-sd b{ font-family:'Roboto Mono',monospace; font-size:9.5px; font-weight:500; color:var(--muted); }
 .sa-sd span{ font-family:'Roboto Mono',monospace; font-size:9.5px; color:var(--mut2); }
 .sa-cap{ font-size:12px; color:var(--mut2); margin-top:7px; } .sa-cap b{ color:var(--ink); }

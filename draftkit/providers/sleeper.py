@@ -66,6 +66,8 @@ class SleeperProvider(Provider):
             playoff_settings={
                 "start": (lg.get("settings") or {}).get("playoff_week_start"),
                 "teams": (lg.get("settings") or {}).get("playoff_teams"),
+                # 0 one week a round · 1 two-week final · 2 two weeks a round
+                "round_type": (lg.get("settings") or {}).get("playoff_round_type"),
             },
         )
 

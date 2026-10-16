@@ -2555,24 +2555,31 @@ def season_arc_html(*, pct: int, record: str, seeds: list, playoff_teams: int,
         return "g" if p >= 60 else ("a" if p >= 50 else "d")
     top = max(seeds) or 1
     likely = seeds.index(max(seeds)) + 1
+    # A 0% seed is a hairline in the neutral colour, not a green stub — the
+    # old chart drew seeds 1-4 at 0% in green and a 97% 10th in near-invisible
+    # grey, so the eye read the opposite of the numbers.
     bars = "".join(
-        f'<div class="sa-sd{" in" if i < playoff_teams else ""}"><b>{p}%</b>'
-        f'<i style="height:{max(3, 64 * p / top):.0f}px"></i><span>{i + 1}</span></div>'
+        f'<div class="sa-sd{" in" if i < playoff_teams else ""}{" zero" if p == 0 else ""}'
+        f'{" top" if i + 1 == likely else ""}"><b>{p}%</b>'
+        f'<i style="height:{3 if p == 0 else max(6, 64 * p / top):.0f}px"></i><span>{i + 1}</span></div>'
         for i, p in enumerate(seeds))
-    must = max(weeks, key=lambda w: w["swing"]) if weeks else None
+    # The biggest game is the one whose RESULT is in doubt AND moves the odds:
+    # a 91% favourite you'd be crushed to lose is not where the season turns.
+    lev = lambda w: w["swing"] * 4 * (w["p_win"] / 100) * (1 - w["p_win"] / 100)  # noqa: E731
+    must = max(weeks, key=lev) if weeks else None
     strip = "".join(
-        f'<div class="sa-wk{" must" if must and w["week"] == must["week"] else ""}">'
+        f'<div class="sa-wk{" must" if must and w["week"] == must["week"] and lev(must) >= 3 else ""}">'
         f'<span>W{w["week"]}</span><b class="{tone(w["p_win"])}">{w["p_win"]}</b>'
         f'<i class="{tone(w["p_win"])}" style="height:{max(4, w["p_win"] * 0.42):.0f}px"></i>'
         f'<em>{_esc((w.get("opp_name") or "")[:7])}</em></div>' for w in weeks)
     card = ""
-    if must and must["swing"] >= 5:
+    if must and lev(must) >= 3:
         card = (f'<div class="sa-must"><div class="sa-mk"><span>BIGGEST GAME</span>'
                 f'<b>WEEK {must["week"]} · vs {_esc(must.get("opp_name") or "")}</b>'
                 f'<em>{must["p_win"]}%</em></div>'
                 f'<div class="sa-mn">Win it and your odds go to <b class="g">{must["if_win"]}%</b>; '
                 f'lose and they drop to <b class="d">{must["if_lose"]}%</b>. '
-                f'No other week moves them as much ({must["swing"]} points).</div></div>')
+                f'No other game is both this close and this decisive.</div></div>')
     return (f'<div class="sa">'
             f'<div class="sa-box"><div class="sa-k">WHERE YOU FINISH · {record} NOW · {n_sims:,} SEASONS</div>'
             f'<div class="sa-seeds">{bars}</div>'
