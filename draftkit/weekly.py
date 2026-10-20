@@ -862,9 +862,29 @@ def _CAPITAL_HEAVY(n_teams: int) -> float:
     return 2.0 * max(1, int(n_teams or 1))
 
 
+def _trade_out(L: dict, verdict: str, why: str) -> dict:
+    """analyze_trade's result, from its locals — shared by every verdict branch."""
+    reg, byes, week, slots, proj = L["registry"], L["byes"], L["week"], L["slots"], L["proj"]
+    return {
+        "week": L["week_delta"], "rest": L["rest_delta"], "them": L["their_delta"],
+        "keeper": L["keeper_delta"], "roster": L["roster_delta"],
+        "capital": L["cap_delta"] if L["has_picks"] else None,
+        "picks_out": list(L["send_picks"] or []), "picks_in": list(L["get_picks"] or []),
+        "mine_before": round(L["m0"], 1), "mine_after": round(L["m1"], 1),
+        "theirs_before": round(L["t0"], 1), "theirs_after": round(L["t1"], 1),
+        "out_keepers": [(_name(reg, p), r) for p, r in L["out_k"]],
+        "in_keepers": [(_name(reg, p), r) for p, r in L["in_k"]],
+        "verdict": verdict, "why": why, "mode": L.get("mode", "balanced"),
+        # lineup effect, slot by slot — where the change actually lands
+        "before": lineup_check(L["my_pids"], slots, proj, reg, byes, week)["spots"],
+        "after": lineup_check(L["mine_after"], slots, proj, reg, byes, week)["spots"],
+    }
+
+
 def analyze_trade(my_pids, their_pids, send, get, slots, proj, registry, *,
                   byes=None, week=None, keeper_rows=None, weeks_left: int = 11,
-                  send_picks=None, get_picks=None, n_teams: int = 12) -> dict:
+                  send_picks=None, get_picks=None, n_teams: int = 12,
+                  mode: str = "balanced") -> dict:
     """Judge a SPECIFIC proposal — the one sitting in your inbox.
 
     The finder answers "what deals exist"; this answers "should I accept this one",
@@ -927,6 +947,43 @@ def analyze_trade(my_pids, their_pids, send, get, slots, proj, registry, *,
     # its effect on a lineup it cannot touch, which is how a pick-for-pick loss
     # first came back as "it does not improve your lineup this week" — true, and
     # completely beside the point.
+    # TANK: this season is already spent, so a lineup loss isn't a cost — the
+    # trade is judged on what it brings back for next year (keepers + picks).
+    # CONTEND: the rest of this season is the prize, and future picks are the
+    # currency a contender pays in; only a real keeper loss gives pause.
+    # The capital figure is on a pick-position scale with a ceiling, so it is
+    # never added to keeper value; the tank verdict names the picks instead.
+    pick_gain = has_picks and cap_delta > 0
+    picks_txt = ", ".join(PK.label(p) for p in sorted(get_picks or [], key=lambda p: (p["season"], p["round"])))
+    if mode == "tank" and (send or get or has_picks):
+        kd = keeper_delta or 0
+        if (pick_gain or kd > 0) and kd > -25:
+            bits = [picks_txt if pick_gain else "", f"+{kd} keeper value" if kd > 0 else ""]
+            return _trade_out(locals(), "accept",
+                              "it builds next year — " + " and ".join(b for b in bits if b)
+                              + (f"; the {week_delta:+.1f}/wk this season doesn't matter while you tank"
+                                 if week_delta < 0 else ""))
+        if pick_gain or kd > 0:
+            return _trade_out(locals(), "marginal",
+                              f"it brings back {picks_txt or 'keeper value'} but costs "
+                              f"{abs(kd)} of keeper value — only if that keeper isn't in your five")
+        if week_delta <= 0.05:
+            return _trade_out(locals(), "reject",
+                              "a tank trade has to bring back next year — this costs you points "
+                              "now and returns no keeper value or picks")
+        return _trade_out(locals(), "reject",
+                          "you're tanking — a lineup gain is the wrong currency; ask for picks "
+                          "or a cheap keeper instead")
+    if mode == "contend" and (send or get) and week_delta >= 1.0:
+        if keeper_delta is not None and keeper_delta <= -40:
+            return _trade_out(locals(), "marginal",
+                              f"{week_delta:+.1f}/wk for the run, but it costs {abs(keeper_delta)} of "
+                              "keeper value — only if this is the piece that wins it")
+        return _trade_out(locals(), "accept",
+                          f"{week_delta:+.1f}/wk ({rest_delta:+.0f} over the rest of the season) — "
+                          "you're contending, and " + ("picks are what contenders pay with"
+                                                      if has_picks and cap_delta < 0 else
+                                                      "it costs you nothing you need next year"))
     if not send and not get:
         if cap_delta > 0:
             verdict, why = ("accept",
@@ -976,20 +1033,7 @@ def analyze_trade(my_pids, their_pids, send, get, slots, proj, registry, *,
         verdict, why = ("marginal",
                         f"{week_delta:+.1f}/wk is inside the projections' own error bars")
 
-    return {
-        "week": week_delta, "rest": rest_delta, "them": their_delta,
-        "keeper": keeper_delta, "roster": roster_delta,
-        "capital": cap_delta if has_picks else None,
-        "picks_out": list(send_picks or []), "picks_in": list(get_picks or []),
-        "mine_before": round(m0, 1), "mine_after": round(m1, 1),
-        "theirs_before": round(t0, 1), "theirs_after": round(t1, 1),
-        "out_keepers": [(_name(registry, p), r) for p, r in out_k],
-        "in_keepers": [(_name(registry, p), r) for p, r in in_k],
-        "verdict": verdict, "why": why,
-        # lineup effect, slot by slot — where the change actually lands
-        "before": lineup_check(my_pids, slots, proj, registry, byes, week)["spots"],
-        "after": lineup_check(mine_after, slots, proj, registry, byes, week)["spots"],
-    }
+    return _trade_out(locals(), verdict, why)
 
 
 def counter_offers(my_pids, their_pids, send, get, slots, proj, registry, *,

@@ -96,3 +96,34 @@ def note_suggestions(league_key: str, rows: List[dict]) -> None:
     cur = {k: v for k, v in cur.items() if now - float(v.get("ts") or 0) < 30 * 86400}
     if changed:
         _put("faab_sugg", league_key, cur)
+
+
+# --------------------------------------------------------------- tank / contend
+# Per league: is he playing for this season or the next? Decides which trades
+# the Trades tab goes looking for, and how the checker judges an offer.
+#   auto     follow the playoff odds (≥40% contend, ≤12% tank, between: balanced)
+#   contend  this season: buy from the teams that are out of it
+#   tank     next season: sell production for picks and cheap keepers
+MODES = ("auto", "contend", "tank")
+
+
+def league_mode(league_key: str) -> str:
+    m = (_get("mode", league_key, {}) or {}).get("mode")
+    return m if m in MODES else "auto"
+
+
+def set_league_mode(league_key: str, mode: str) -> None:
+    d = dict(_get("mode", league_key, {}) or {})
+    d["mode"] = mode if mode in MODES else "auto"
+    _put("mode", league_key, d)
+
+
+def tankers(league_key: str) -> List[str]:
+    """Owner ids he has marked as tanking in this league — sellers to target."""
+    return list((_get("mode", league_key, {}) or {}).get("tankers") or [])
+
+
+def set_tankers(league_key: str, owners: List[str]) -> None:
+    d = dict(_get("mode", league_key, {}) or {})
+    d["tankers"] = [str(o) for o in owners]
+    _put("mode", league_key, d)

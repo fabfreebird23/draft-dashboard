@@ -49,3 +49,29 @@ def test_sleeper_scoring_reads_the_league_book_and_prices_bonuses():
     # per game: a 12-game, 1,200-yard season is ~12 coin flips at 100, not one sure thing
     season = S.points({"rush_yd": 1200, "gp": 12}, w) - 120
     assert 10 < season < 14
+
+
+def _t(mode, send_picks=None, get_picks=None, keeper_rows=None, send=("a",), get=()):
+    from draftkit import weekly as W
+
+    class Reg:
+        def meta(self, pid):
+            return type("M", (), {"position": "RB", "name": pid, "team": "X", "injury_status": None})()
+    proj = {"a": 20, "b": 5, "c": 4, "x": 6, "y": 5}
+    return W.analyze_trade(["a", "b", "c"], ["x", "y"], list(send), list(get), ["RB", "RB"], proj, Reg(),
+                           weeks_left=8, send_picks=send_picks, get_picks=get_picks, n_teams=10,
+                           keeper_rows=keeper_rows, mode=mode)
+
+
+def test_tank_mode_accepts_selling_production_for_a_pick():
+    r = _t("tank", get_picks=[{"season": "2027", "round": 2}])
+    assert r["week"] < 0 and r["verdict"] == "accept" and "2027 R2" in r["why"]
+
+
+def test_tank_mode_rejects_giving_production_away_for_nothing():
+    assert _t("tank")["verdict"] == "reject"
+
+
+def test_contend_mode_pays_picks_for_a_real_upgrade():
+    r = _t("contend", send=(), get=("x",), send_picks=[{"season": "2027", "round": 2}])
+    assert r["week"] >= 1 and r["verdict"] == "accept"

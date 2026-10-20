@@ -2885,7 +2885,7 @@ def _matchup(ctx, g) -> None:
 
 
 # -------------------------------------------------------------------- 4 trades
-def _keeper_rows(ctx, g, pids=None, from_owner=None) -> list:
+def _keeper_rows(ctx, g, pids=None, from_owner=None, as_owner=None) -> list:
     """The keeper table, priced properly — the ONE place that answers "what does
     this player cost to keep".
 
@@ -2905,13 +2905,16 @@ def _keeper_rows(ctx, g, pids=None, from_owner=None) -> list:
         rules["_last_round"] = rules.get("draft_rounds") or meta.draft_rounds
         rules["_adp_policy"] = K.adp_policy(str(meta.league_id))
         raw = K.load_keepers(str(meta.league_id), g["season"]) or {}
-        existing = {str(k.get("player_id")): k for k in (raw.get(str(g["me"])) or [])}
+        who = str(as_owner or g["me"])
+        existing = {str(k.get("player_id")): k for k in (raw.get(who) or [])}
+        if pids is None and as_owner is not None:
+            pids = list((g["rosters"].get(who) or {}).get("players") or [])
         if from_owner is not None:
             # a player coming over in a trade brings his keeper years with him
             for k in raw.get(str(from_owner)) or []:
                 existing.setdefault(str(k.get("player_id")), k)
         return W.keeper_outlook(
-            list(pids) if pids is not None else g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=str(g["me"]),
+            list(pids) if pids is not None else g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=who,
             existing=existing, rules=rules, n_teams=meta.num_teams,
             adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"],
             next_season=int(g["season"]) + 1, league_kept=raw)
@@ -2931,13 +2934,274 @@ def _keep_list(ctx, g) -> dict:
             if r["verdict"] == "keep" and r["surplus"] is not None}
 
 
+# ------------------------------------------------------- tank / contend mode
+@st.cache_data(ttl=1800, show_spinner=False, max_entries=8)
+def _league_status_cached(lk: str, week: int, bucket: int, _ctx, _g) -> dict:
+    """{owner: {odds, seed}} — every team's playoff odds on the real schedule."""
+    si = _sim_inputs(_ctx, _g)
+    if not si["fx"]:
+        return {}
+    sim = W.season_sim(si["means"], si["sds"], si["recs"], si["pf"],
+                       {int(k): v for k, v in si["fx"].items()}, si["pt"], str(_g["me"]),
+                       n_sims=3000, median=si["median"])
+    return {o: {"odds": v["playoff_pct"], "seed": v["avg_seed"]} for o, v in (sim.get("teams") or {}).items()}
+
+
+@st.cache_data(ttl=1800, show_spinner=False, max_entries=8)
+def _ros_ppg_cached(season: int, week: int, scoring: str, wkey: str, _weights) -> dict:
+    from .. import ros as R
+    return R.sleeper(season, week, scoring, _weights)
+
+
+def _mode(ctx, g, status) -> tuple:
+    """(setting, resolved): what he picked, and what it means right now."""
+    from .. import userstate as US
+    setting = US.league_mode(ctx["league_key"])
+    if setting != "auto":
+        return setting, setting
+    odds = (status.get(str(g["me"])) or {}).get("odds")
+    if odds is None:
+        return setting, "balanced"
+    return setting, ("contend" if odds >= 40 else "tank" if odds <= 12 else "balanced")
+
+
+def _win_now(ctx, g) -> dict:
+    """{pid: {ppg, games, par}} — rest-of-season points a game, games left, and
+    the season's worth ABOVE a replacement starter at his position (what a
+    contender actually gains by having him)."""
+    meta, reg = ctx["meta"], ctx["registry"]
+    w = getattr(meta, "scoring_weights", None)
+    ros = _ros_ppg_cached(int(g["season"]), int(g["week"]), meta.scoring,
+                          str(sorted((w or {}).items())), w) or {}
+    rostered = [str(p) for r in g["rosters"].values() for p in (r.get("players") or [])]
+    by_pos: dict = {}
+    vals = {}
+    for p in rostered:
+        r = ros.get(p) or {}
+        games = int(r.get("games") or 0)
+        ppg = (float(r.get("pts") or 0) / games) if games else 0.0
+        pos = (reg.meta(p).position or "").upper()
+        vals[p] = {"ppg": ppg, "games": games, "pos": pos}
+        by_pos.setdefault(pos, []).append(ppg)
+    n = max(2, int(getattr(meta, "num_teams", 10) or 10))
+    depth = {"QB": 1.0, "RB": 2.5, "WR": 3.0, "TE": 1.0}
+    repl = {}
+    for pos, xs in by_pos.items():
+        xs = sorted(xs, reverse=True)
+        k = int(round(n * depth.get(pos, 1.0)))
+        repl[pos] = xs[min(len(xs) - 1, k)] if xs else 0.0
+    for p, v in vals.items():
+        v["par"] = max(0.0, v["ppg"] - repl.get(v["pos"], 0.0)) * v["games"]
+    return vals
+
+
+def _prefill_button(ctx, label: str, key: str, oid: str, send=(), get=(), sendp=(), getp=()) -> None:
+    """Load a suggestion into the trade checker below (partner + both sides)."""
+    if st.button(label, key=key, use_container_width=True):
+        st.session_state[f"td_prefill_{ctx['league_key']}"] = {
+            "oid": str(oid), "send": list(send), "get": list(get),
+            "sendp": list(sendp), "getp": list(getp)}
+        rerun_here()
+
+
+def _mode_panel(ctx, g, status, resolved) -> None:
+    """Tank: who to sell, to whom, for what. Contend: who to buy from sellers."""
+    from .. import userstate as US
+    reg, lk = ctx["registry"], ctx["league_key"]
+    me = str(g["me"])
+    vals = _win_now(ctx, g)
+    weeks_left = max(1, 14 - int(g["week"]))
+    base = {o: W.team_distribution(r["players"], g["slots"], g["proj"], reg, g["byes"], g["week"])[0]
+            for o, r in g["rosters"].items() if r.get("players")}
+    my_k = {r["pid"]: r for r in _keeper_rows(ctx, g)}
+    started = {str(p) for _s, p in W.lineup_check(g["mine"], g["slots"], g["proj"], reg,
+                                                  g["byes"], g["week"])["spots"] if p}
+
+    def pick_labels(owner, max_round=4, min_round=1):
+        menu = _pick_menu(ctx, g, owner)
+        return [lab for lab, pk in sorted(menu.items(), key=lambda kv: (kv[1]["season"], kv[1]["round"]))
+                if min_round <= int(pk["round"]) <= max_round]
+
+    def fair_round(season_pts: float) -> int:
+        """Roughly what a rest-of-season of +N points over replacement fetches:
+        a difference-maker a 1st/2nd, a useful starter a 3rd, a depth piece a 4th.
+        A starting point for the ask — the checker below judges the real offer."""
+        return 1 if season_pts >= 90 else 2 if season_pts >= 50 else 3 if season_pts >= 25 else 4
+
+    if resolved == "tank":
+        buyers = sorted([o for o, v in status.items() if o != me and v["odds"] >= 35],
+                        key=lambda o: -status[o]["odds"])
+        if not buyers:
+            _note("No team is a clear contender yet (35%+ to make it), so there's nobody to sell to.")
+            return
+        sell = []
+        for p in g["mine"]:
+            v = vals.get(str(p)) or {}
+            k = my_k.get(str(p))
+            if (v.get("par") or 0) <= 5:
+                continue
+            if k and k.get("verdict") == "keep" and (k.get("surplus") or 0) >= 20:
+                continue                           # a cheap keeper is what you're tanking FOR
+            sell.append((str(p), v, k))
+        sell.sort(key=lambda t: -t[1]["par"])
+        if not sell:
+            _note("Nothing on your roster is worth much to a contender that you aren't keeping.")
+            return
+        st.markdown('<div class="ws-h">Sell to contenders</div>', unsafe_allow_html=True)
+        their_k: dict = {}
+        for pid, v, k in sell[:6]:
+            pm = reg.meta(pid)
+            fits = []
+            for o in buyers:
+                gain = W.team_distribution(list(g["rosters"][o]["players"]) + [pid], g["slots"], g["proj"],
+                                           reg, g["byes"], g["week"])[0] - base.get(o, 0)
+                fits.append((gain, o))
+            fits.sort(reverse=True)
+            gain, o = fits[0]
+            if o not in their_k:
+                their_k[o] = [r for r in _keeper_rows(ctx, g, pids=g["rosters"][o]["players"], from_owner=o)
+                              if (r.get("surplus") or 0) >= 10 and not r.get("blocked")]
+            theirs_start = {str(q) for _s, q in W.lineup_check(g["rosters"][o]["players"], g["slots"],
+                                                               g["proj"], reg, g["byes"], g["week"])["spots"] if q}
+            kt = [r for r in their_k[o] if str(r["pid"]) not in theirs_start][:2]
+            rnd = fair_round(v["par"])
+            picks = pick_labels(o, max_round=rnd + 1, min_round=rnd)[:3] or pick_labels(o, min_round=rnd)[:3]
+            ktxt = (f'keeps R{k["cost_round"]} for you, {k["surplus"]:+d}' if k and k.get("cost_round")
+                    else "not one of your keepers")
+            ask = " · ".join([f"<b>{_esc_(x)}</b>" for x in picks[:2]] +
+                             [f'<b>{_esc_(reg.meta(r["pid"]).name)}</b> (R{r["cost_round"]} keeper, +{r["surplus"]})'
+                              for r in kt])
+            st.markdown(_lead_html(
+                f"SELL · {pm.position} · {v['ppg']:.1f}/G ROS", f"{ktxt}",
+                f"{pm.name} to {_owner_name(ctx, o)}",
+                f'{_owner_name(ctx, o)} is <b>{status[o]["odds"]}%</b> to make the playoffs and he adds '
+                f'<b>{gain:+.1f}</b> a week to their lineup. Ask for: {ask or "their best future pick"}.'
+                + (f' Also fits: {", ".join(_owner_name(ctx, x) for _g2, x in fits[1:3])}.' if len(fits) > 1 else "")),
+                unsafe_allow_html=True)
+            c = st.columns(3)
+            if picks:
+                with c[0]:
+                    _prefill_button(ctx, f"Check: for {picks[0]}", f"tk_{lk}_{pid}_p", o,
+                                    send=[pm.name], getp=[picks[0]])
+            for i, r in enumerate(kt[:2], 1):
+                with c[i]:
+                    _prefill_button(ctx, f'Check: for {reg.meta(r["pid"]).name.split()[-1]}',
+                                    f'tk_{lk}_{pid}_{r["pid"]}', o, send=[pm.name],
+                                    get=[reg.meta(r["pid"]).name])
+        return
+
+    if resolved == "contend":
+        tanking = set(US.tankers(lk))
+        sellers = sorted([o for o, v in status.items() if o != me and (v["odds"] <= 15 or o in tanking)],
+                         key=lambda o: status[o]["odds"])
+        if not sellers:
+            _note("No team is out of it yet (under 15%) and none is marked as tanking — "
+                  "mark the ones you know are below.")
+            return
+        st.markdown('<div class="ws-h">Buy from teams that are out of it</div>', unsafe_allow_html=True)
+        targets = []
+        for o in sellers:
+            tk = {str(r["pid"]): r for r in _keeper_rows(ctx, g, as_owner=o)}
+            for p in g["rosters"][o]["players"]:
+                v = vals.get(str(p)) or {}
+                if (v.get("par") or 0) <= 5:
+                    continue
+                gain = W.team_distribution(list(g["mine"]) + [str(p)], g["slots"], g["proj"], reg,
+                                           g["byes"], g["week"])[0] - base.get(me, 0)
+                if gain < 0.5:
+                    continue
+                k = tk.get(str(p))
+                rental = not (k and k.get("verdict") == "keep")
+                targets.append((gain, str(p), o, v, k, rental))
+        targets.sort(key=lambda t: (-(t[0] * (1.3 if t[5] else 1.0))))
+        if not targets:
+            _note("Nobody on those rosters would start for you.")
+            return
+        my_picks_all = pick_labels(me, max_round=6)
+        # what a rebuilding team wants that a contender can spare: keeper value
+        # OUTSIDE your best five (those are next year's team) and off this
+        # week's lineup
+        spare = sorted([r for r in my_k.values() if (r.get("surplus") or 0) > 0
+                        and r.get("verdict") != "keep" and str(r["pid"]) not in started
+                        and not r.get("blocked")], key=lambda r: -(r.get("surplus") or 0))[:2]
+        for gain, pid, o, v, k, rental in targets[:6]:
+            pm = reg.meta(pid)
+            rnd = fair_round(gain * weeks_left) + (0 if rental else -1)
+            rnd = max(1, rnd)
+            offer_picks = ([x for x in my_picks_all if f" R{rnd}" in x][:1]
+                           + [x for x in my_picks_all if f" R{rnd + 1}" in x][:1]) or my_picks_all[-2:]
+            why = ("he isn't one of their keepers — a rental they should sell" if rental else
+                   f'he\'s a keeper for them (R{k["cost_round"]}, +{k["surplus"]}) — it will cost more')
+            offer = " · ".join([f"<b>{_esc_(x)}</b>" for x in offer_picks[:2]] +
+                               [f'<b>{_esc_(reg.meta(r["pid"]).name)}</b> (keeps R{r["cost_round"]})' for r in spare])
+            st.markdown(_lead_html(
+                f"BUY · {pm.position} · {v['ppg']:.1f}/G ROS", f'{_owner_name(ctx, o)} · {status[o]["odds"]}% playoffs',
+                f"{pm.name} from {_owner_name(ctx, o)}",
+                f'Adds <b>{gain:+.1f}</b> a week to your lineup (<b>{gain * weeks_left:+.0f}</b> over the rest '
+                f'of the season). {why[:1].upper() + why[1:]}. Offer: {offer or "a future pick"} — what a rebuilding team wants.',
+                tone="go"), unsafe_allow_html=True)
+            c = st.columns(3)
+            for i, lab in enumerate(offer_picks[:2]):
+                with c[i]:
+                    _prefill_button(ctx, f"Check: {lab}", f"ct_{lk}_{pid}_{i}", o, get=[pm.name], sendp=[lab])
+            if spare:
+                with c[2]:
+                    _prefill_button(ctx, f'Check: {reg.meta(spare[0]["pid"]).name.split()[-1]}',
+                                    f"ct_{lk}_{pid}_s", o, get=[pm.name],
+                                    send=[reg.meta(spare[0]["pid"]).name])
+        return
+    _note("You're on the bubble, so the Trades tab looks both ways — proposals below are scored on "
+          "this week; switch to Contend or Tank to aim it.")
+
+
+
 def _trades(ctx, g) -> None:
-    reg = ctx["registry"]
+    from .. import userstate as US
+    reg, lk = ctx["registry"], ctx["league_key"]
     partners = [(o, r["players"]) for o, r in g["rosters"].items()
                 if o != g["me"] and r["players"]]
     if not partners:
         st.info("No other rosters found.")
         return
+
+    # ---- mode: playing for this season or the next --------------------------
+    try:
+        status = _league_status_cached(lk, g["week"], _slow_bucket(g["season"], g["week"]), ctx, g)
+    except Exception:  # noqa: BLE001
+        status = {}
+    _labels = {"auto": "Auto", "contend": "Contend", "tank": "Tank"}
+    mkey = f"td_mode_{lk}"
+    if mkey not in st.session_state:
+        st.session_state[mkey] = _labels[US.league_mode(lk)]
+
+    def _save_mode():
+        inv = {v: k for k, v in _labels.items()}
+        US.set_league_mode(lk, inv.get(st.session_state.get(mkey) or "Auto", "auto"))
+    mc = st.columns([1.4, 3])
+    mc[0].segmented_control("Mode", list(_labels.values()), key=mkey, selection_mode="single",
+                            label_visibility="collapsed", on_change=_save_mode)
+    setting, resolved = _mode(ctx, g, status)
+    my_odds = (status.get(str(g["me"])) or {}).get("odds")
+    contenders = sum(1 for o, v in status.items() if o != str(g["me"]) and v["odds"] >= 35)
+    out_of_it = sum(1 for o, v in status.items() if o != str(g["me"]) and v["odds"] <= 15)
+    mc[1].markdown(
+        f'<div class="ws-note" style="margin-top:9px"><b>{resolved.capitalize()}</b>'
+        + (f" (auto: you're {my_odds}% to make it)" if setting == "auto" and my_odds is not None else "")
+        + f' · {contenders} contender{"s" if contenders != 1 else ""} · {out_of_it} out of it · '
+        + {"tank": "selling this season for picks and cheap keepers",
+           "contend": "buying from the teams that are out of it",
+           "balanced": "on the bubble"}[resolved] + '</div>', unsafe_allow_html=True)
+    if resolved == "contend":
+        with _drawer("Teams tanking", "mark the ones you know are selling", key=f"tk_{lk}"):
+            names = {o: _owner_name(ctx, o) for o, _p in partners}
+            cur = [o for o in US.tankers(lk) if o in names]
+            pick_t = st.multiselect("Tanking", list(names), default=cur, format_func=lambda o: names[o],
+                                    key=f"td_tankers_{lk}", label_visibility="collapsed",
+                                    on_change=_keep_open(f"tk_{lk}"))
+            if sorted(pick_t) != sorted(cur):
+                US.set_tankers(lk, pick_t)
+    _mode_panel(ctx, g, status, resolved)
+    st.session_state[f"td_resolved_{lk}"] = resolved
     # Which partners are actually worth talking to. Clicking through seven teams to
     # discover that three of them have a deal is a search the app should do.
     @st.cache_data(ttl=600, show_spinner=False)
@@ -2954,12 +3218,38 @@ def _trades(ctx, g) -> None:
     with st.spinner("Scanning the league for deals that clear…"):
         counts = _scan(tuple((o, tuple(pl)) for o, pl in partners),
                        g["mine"], g["slots"], g["proj"])
-    labels, order = [], sorted(partners, key=lambda kv: -counts.get(kv[0], 0))
+    # partners in the order this mode wants them: a tank sells to contenders
+    # (best odds first), a contender buys from the teams that are out of it
+    _odds = lambda o: (status.get(str(o)) or {}).get("odds", 50)  # noqa: E731
+    if resolved == "tank":
+        order = sorted(partners, key=lambda kv: (-_odds(kv[0]), -counts.get(kv[0], 0)))
+        _how = "contenders first"
+    elif resolved == "contend":
+        order = sorted(partners, key=lambda kv: (_odds(kv[0]), -counts.get(kv[0], 0)))
+        _how = "teams out of it first"
+    else:
+        order = sorted(partners, key=lambda kv: -counts.get(kv[0], 0))
+        _how = "by deals that help both sides"
+    labels = []
     for o, _pl in order:
         n = counts.get(o, 0)
-        labels.append(f"{_owner_name(ctx, o)}" + (f"  ·  {n} deal{'s' if n != 1 else ''}" if n else ""))
-    pick = st.selectbox("Trade partner — sorted by deals that help both sides", labels,
-                        key=f"ws_tp_{ctx['league_key']}")
+        labels.append(f"{_owner_name(ctx, o)}"
+                      + (f"  ·  {_odds(o)}% playoffs" if status else "")
+                      + (f"  ·  {n} deal{'s' if n != 1 else ''}" if n else ""))
+    # a "Check this deal" button parked a proposal: point the partner at it and
+    # pre-fill the checker's boxes before they're drawn this run
+    _pf = st.session_state.pop(f"td_prefill_{lk}", None)
+    if _pf:
+        for lab, (o, _pl) in zip(labels, order):
+            if str(o) == _pf["oid"]:
+                st.session_state[f"ws_tp_{lk}"] = lab
+        st.session_state[f"ws_an_send_{lk}"] = _pf["send"]
+        st.session_state[f"ws_an_get_{lk}"] = _pf["get"]
+        st.session_state[f"ws_an_sendp_{lk}"] = _pf["sendp"]
+        st.session_state[f"ws_an_getp_{lk}"] = _pf["getp"]
+    if st.session_state.get(f"ws_tp_{lk}") not in labels:
+        st.session_state.pop(f"ws_tp_{lk}", None)
+    pick = st.selectbox(f"Trade partner — {_how}", labels, key=f"ws_tp_{lk}")
     oid, opp = order[labels.index(pick)]
     if not any(counts.values()):
         _note("No team in the league has a deal that improves both lineups right now. "
@@ -3169,7 +3459,8 @@ def _analyzer(ctx, g, oid, opp) -> None:
                         g["slots"], g["proj"], reg, byes=g["byes"], week=g["week"],
                         keeper_rows=_keeper_rows(ctx, g) + in_rows, weeks_left=weeks_left,
                         send_picks=[my_picks[k] for k in sendp],
-                        get_picks=[their_picks[k] for k in getp], n_teams=n_teams)
+                        get_picks=[their_picks[k] for k in getp], n_teams=n_teams,
+                        mode=st.session_state.get(f"td_resolved_{ctx['league_key']}", "balanced"))
 
 
     # What the deal does to the season, not just the week: the real remaining
