@@ -21,11 +21,12 @@ _TTL = 60 * 60 * 24            # refresh projections at most daily
 _POSITIONS = ("QB", "RB", "WR", "TE")
 _PTS_KEY = {"ppr": "pts_ppr", "half": "pts_half_ppr", "std": "pts_std"}
 # Sleeper's precomputed totals PLUS the components any scoring can be rebuilt from.
-_COMPONENTS = ("pass_yd", "pass_td", "pass_int", "pass_2pt",
-               "rush_yd", "rush_td", "rush_2pt",
-               "rec", "rec_yd", "rec_td", "rec_2pt", "fum_lost", "gp")
+_COMPONENTS = ("pass_yd", "pass_td", "pass_int", "pass_2pt", "pass_cmp", "pass_inc", "pass_att",
+               "pass_fd", "pass_sack", "rush_yd", "rush_td", "rush_2pt", "rush_att", "rush_fd",
+               "rec", "rec_yd", "rec_td", "rec_2pt", "rec_fd", "bonus_rec_te", "bonus_rec_rb",
+               "bonus_rec_wr", "fum_lost", "fum", "gp")
 _KEEP = tuple(_PTS_KEY.values()) + _COMPONENTS
-_CACHE_VERSION = 2       # bump when _KEEP changes so old thin caches are rebuilt
+_CACHE_VERSION = 3       # bump when _KEEP changes so old thin caches are rebuilt
 
 
 def _fetch_pos(season: int, pos: str) -> list:
@@ -44,7 +45,7 @@ def load_projections(season: int, scoring: str = "ppr", weights=None) -> Dict[st
     reception, 6-point passing TDs — is valued on its own terms rather than
     rounded to the nearest of ppr/half/std."""
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
-    cache = config.DATA_DIR / f"proj_{season}.json"
+    cache = config.DATA_DIR / f"proj_{season}_v{_CACHE_VERSION}.json"
     raw = None
     if cache.exists() and (time.time() - cache.stat().st_mtime) < _TTL:
         try:

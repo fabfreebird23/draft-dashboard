@@ -1658,7 +1658,7 @@ def _rankings_ros(ctx, g) -> None:
     remaining week under this league's scoring — side by side, with their
     consensus. The board for trades and keepers; the weekly one is for lineups."""
     import copy
-    from .. import ros as R
+    from .. import ros as R, scoring as _SC
     reg, lk, meta = ctx["registry"], ctx["league_key"], ctx["meta"]
     week = int(g["week"])
     weights = getattr(meta, "scoring_weights", None)
@@ -1698,6 +1698,8 @@ def _rankings_ros(ctx, g) -> None:
     _tiles([
         ("weeks", f"{week}–{R.LAST_WEEK}", "remaining", "var(--ink)"),
         ("sources", f"{len(srcs)}", " · ".join(R.LABEL[k] for k in srcs), "var(--ink)"),
+        ("scored", "league" if weights else meta.scoring.upper(),
+         _SC.describe(weights) if weights else "", "var(--ink)"),
         ("shown", f"{min(limit, total)}", f"of {total} · {pos} · {who}", "var(--mut2)"),
     ])
     if not rows:
@@ -1758,8 +1760,10 @@ def _rankings_ros(ctx, g) -> None:
     _note(f"**Rest of season**, weeks {week}–{R.LAST_WEEK}. **FP** is FantasyPros' ROS expert consensus; "
           "**Flock** is its eight analysts' in-season redraft board; **Ballers** is Andy, Jason and Mike's "
           "ROS ranks (A·J·M underneath at a single position); **Sleeper** ranks Sleeper's projections for "
-          "every remaining week, scored with this league's settings — the only one that counts byes and "
-          "games left. **Consensus** averages them; for FLEX each source is re-ranked among RB/WR/TE first so "
+          "every remaining week. **Scoring:** Sleeper's points and the Ballers' points are scored with this "
+          "league's own book (completions, carries, yardage bonuses as an expectation, turnovers); "
+          "FantasyPros and Flock only publish PPR/half/standard boards, so their ranks are those. "
+          "Sleeper is the only source that counts byes and games left. **Consensus** averages them; for FLEX each source is re-ranked among RB/WR/TE first so "
           "the numbers share a scale. A wide **Spread** is where the sources disagree — the trade targets. "
           "Vegas is weekly only, so it's not here.")
 

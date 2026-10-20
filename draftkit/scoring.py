@@ -64,6 +64,50 @@ def from_espn(settings: dict) -> Optional[Dict[str, float]]:
     return w if seen else None
 
 
+# Sleeper scoring keys that move an offensive player's projection. A league's
+# scoring_settings has ~150 keys (defense, kicking, IDP); only these matter here.
+_SLEEPER_KEYS = (
+    "pass_yd", "pass_td", "pass_int", "pass_2pt", "pass_cmp", "pass_inc", "pass_att",
+    "pass_fd", "pass_sack", "pass_int_td",
+    "rush_yd", "rush_td", "rush_2pt", "rush_att", "rush_fd",
+    "rec", "rec_yd", "rec_td", "rec_2pt", "rec_fd", "bonus_rec_te", "bonus_rec_rb", "bonus_rec_wr",
+    "fum_lost", "fum",
+    "bonus_pass_yd_300", "bonus_pass_yd_400", "bonus_rush_yd_100", "bonus_rush_yd_200",
+    "bonus_rec_yd_100", "bonus_rec_yd_200", "bonus_rush_rec_yd_100", "bonus_rush_rec_yd_200",
+)
+# yardage bonuses: (bonus key, the stat it's on, threshold). Projections don't
+# carry them — they're a probability, not a stat line — so they're scored as an
+# expectation: P(the stat reaches the line) × the bonus.
+_BONUS = (("bonus_pass_yd_300", "pass_yd", 300), ("bonus_pass_yd_400", "pass_yd", 400),
+          ("bonus_rush_yd_100", "rush_yd", 100), ("bonus_rush_yd_200", "rush_yd", 200),
+          ("bonus_rec_yd_100", "rec_yd", 100), ("bonus_rec_yd_200", "rec_yd", 200),
+          ("bonus_rush_rec_yd_100", "rush_rec_yd", 100), ("bonus_rush_rec_yd_200", "rush_rec_yd", 200))
+
+
+def from_sleeper(scoring_settings: dict) -> Optional[Dict[str, float]]:
+    """Weights from a Sleeper league's scoring_settings, or None if unreadable.
+
+    The Draft Room used to read every Sleeper league as plain PPR. Kreeper pays
+    0.25 a completion (5-6 points a week for a starting QB) and 2 for a 100-yard
+    game; B&B the same bonuses; 7½ Men −3 for a turnover. Those are real
+    differences in who to start and who to trade for."""
+    ss = scoring_settings or {}
+    if not ss:
+        return None
+    w = {}
+    for k in _SLEEPER_KEYS:
+        try:
+            v = float(ss.get(k) or 0)
+        except (TypeError, ValueError):
+            continue
+        if v:
+            w[k] = v
+    for k, v in PRESETS["ppr"].items():          # never let a core stat silently score 0
+        if k in ("pass_yd", "rush_yd", "rec_yd", "pass_td", "rush_td", "rec_td") and k not in w:
+            w[k] = v
+    return w or None
+
+
 def label_for(weights: Optional[Dict[str, float]]) -> str:
     """The closest ppr/half/std label. Still needed because ADP boards, DvP and
     the Juice sheet are only published in those three flavours — only the
@@ -80,7 +124,10 @@ def is_custom(weights: Optional[Dict[str, float]]) -> bool:
     if not weights:
         return False
     preset = PRESETS[label_for(weights)]
-    return any(abs(float(weights.get(k, v)) - v) > 1e-9 for k, v in preset.items())
+    if any(abs(float(weights.get(k, v)) - v) > 1e-9 for k, v in preset.items()):
+        return True
+    # anything the preset doesn't have at all: completions, bonuses, first downs
+    return any(float(v) for k, v in weights.items() if k not in preset)
 
 
 def describe(weights: Optional[Dict[str, float]]) -> str:
@@ -93,7 +140,20 @@ def describe(weights: Optional[Dict[str, float]]) -> str:
         got = float(weights.get(k, v))
         if abs(got - v) > 1e-9:
             bits.append(f"{k.replace('_', ' ')} {got:g}")
-    return " · ".join(bits[:4]) or "custom"
+    for k, v in weights.items():
+        if k not in preset and float(v):
+            bits.append(f"{k.replace('bonus_', '').replace('_', ' ')} {float(v):g}")
+    return " · ".join(bits[:5]) or "custom"
+
+
+def _p_reach(mean: float, line: float) -> float:
+    """P(a yardage total reaches `line`) for a projected `mean` — normal, with
+    the wide spread single-game yardage has (sd ≈ 45% of the mean, min 15)."""
+    import math
+    if not mean or mean <= 0:
+        return 0.0
+    sd = max(15.0, 0.45 * mean)
+    return 0.5 * math.erfc((line - mean) / (sd * math.sqrt(2)))
 
 
 def points(stats: dict, weights: Optional[Dict[str, float]]) -> float:
@@ -110,4 +170,20 @@ def points(stats: dict, weights: Optional[Dict[str, float]]) -> float:
             total += float(v) * float(mult)
         except (TypeError, ValueError):
             continue
+    # yardage bonuses the projection doesn't carry, scored as an expectation —
+    # per GAME: a season line of 1,200 rushing yards is twelve chances at 100,
+    # not one sure thing
+    try:
+        games = max(1.0, float(stats.get("gp") or 1))
+    except (TypeError, ValueError):
+        games = 1.0
+    for key, stat, line in _BONUS:
+        mult = w.get(key)
+        if not mult or stats.get(key) is not None:
+            continue
+        if stat == "rush_rec_yd":
+            mean = float(stats.get("rush_yd") or 0) + float(stats.get("rec_yd") or 0)
+        else:
+            mean = float(stats.get(stat) or 0)
+        total += float(mult) * games * _p_reach(mean / games, line)
     return total

@@ -1,6 +1,8 @@
 """Sleeper provider — wraps the thin Sleeper client as a uniform Provider."""
 from __future__ import annotations
 
+from .. import scoring as _sc
+
 from typing import List
 
 from .. import sleeper_client as api
@@ -62,6 +64,9 @@ class SleeperProvider(Provider):
             num_teams=n_teams or 12,
             draft_rounds=rounds,
             scoring=_scoring_label(lg),
+            # the league's real book (completions, yardage bonuses, −3 turnovers);
+            # without it every Sleeper league was scored as plain PPR
+            scoring_weights=_sc.from_sleeper(lg.get("scoring_settings") or {}),
             draft_id=draft_id,
             playoff_settings={
                 "start": (lg.get("settings") or {}).get("playoff_week_start"),

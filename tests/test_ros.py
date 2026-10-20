@@ -33,3 +33,19 @@ def test_position_view_ranks_sleeper_by_points_within_position():
          "y": _row("y", "WR", sleeper={"pts": 150, "games": 10})}
     rows = R.rank(b, "WR")
     assert {r["pid"]: r["r"]["sleeper"] for r in rows} == {"y": 1.0, "x": 2.0}
+
+
+def test_sleeper_scoring_reads_the_league_book_and_prices_bonuses():
+    from draftkit import scoring as S
+    w = S.from_sleeper({"rec": 1, "pass_yd": 0.04, "pass_td": 4, "pass_cmp": 0.25, "rush_yd": 0.1,
+                        "rush_td": 6, "rec_yd": 0.1, "rec_td": 6, "bonus_rush_yd_100": 2,
+                        "def_td": 6, "fgm_50p": 5})
+    assert "def_td" not in w and w["pass_cmp"] == 0.25 and S.is_custom(w)
+    qb = {"pass_yd": 250, "pass_td": 2, "pass_cmp": 22}
+    assert abs(S.points(qb, w) - (10 + 8 + 5.5)) < 1e-6
+    # a 100-yard back gets about half the bonus; a 40-yard back almost none
+    assert 0.9 < S.points({"rush_yd": 100}, w) - 10 < 1.1
+    assert S.points({"rush_yd": 40}, w) - 4 < 0.05
+    # per game: a 12-game, 1,200-yard season is ~12 coin flips at 100, not one sure thing
+    season = S.points({"rush_yd": 1200, "gp": 12}, w) - 120
+    assert 10 < season < 14

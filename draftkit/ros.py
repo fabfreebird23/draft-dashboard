@@ -20,13 +20,14 @@ RB/WR/TE only first, so every source's numbers mean the same thing.
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import time
 from typing import Dict, Optional
 
 import requests
 
-from . import config, ecr, panels as P, projections as PJ
+from . import config, ecr, panels as P, projections as PJ, scoring as _sc
 from .udk import _extract_json_array
 
 _UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -106,7 +107,7 @@ def flock(season: int, registry) -> Dict[str, dict]:
     return out
 
 
-def ballers(season: int, registry) -> Dict[str, dict]:
+def ballers(season: int, registry, weights=None) -> Dict[str, dict]:
     def fetch():
         r = requests.get(_FFB_ROS, headers=_UA, timeout=30)
         r.raise_for_status()
@@ -131,7 +132,27 @@ def ballers(season: int, registry) -> Dict[str, dict]:
             a["by"][names.get(str(x.get("analyst_id")), str(x.get("analyst_id")))] = float(x.get("rank"))
         except (TypeError, ValueError):
             continue
-        if x.get("ros_fantasy_points") is not None:
+        # their ROS points are PPR; with the league's book, rescore their own
+        # stat line for the remaining games (bonuses priced per game)
+        lp = None
+        if weights:
+            line = {P._STAT_KEYS[k]: float(x[k]) for k in P._STAT_KEYS if x.get(k) not in (None, "")}
+            # their ROS rows leave completions and carries at 0; a league that
+            # pays for them (Kreeper: 0.25 a completion, 0.1 a carry) would see
+            # every QB and back short. League-average yards per completion
+            # (~11) and per carry (~4.3) stand in.
+            if line.get("pass_yd") and not line.get("pass_cmp"):
+                line["pass_cmp"] = line["pass_yd"] / 11.0
+            if line.get("rush_yd") and not line.get("rush_att"):
+                line["rush_att"] = line["rush_yd"] / 4.3
+            if line:
+                games = float(x.get("remaining_games") or 0) or None
+                if games:
+                    line["gp"] = games
+                lp = _sc.points(line, weights)
+        if lp is not None:
+            a["pts"].append(lp)
+        elif x.get("ros_fantasy_points") is not None:
             a["pts"].append(float(x["ros_fantasy_points"]))
         a["games"] = x.get("remaining_games") or a["games"]
     out = {}
@@ -156,7 +177,8 @@ def sleeper(season: int, first_week: int, scoring: str, weights=None) -> Dict[st
                 t[0] += float(v or 0)
                 t[1] += 1 if (v or 0) > 0.5 else 0
         return {p: {"pts": round(t[0], 1), "games": t[1]} for p, t in tot.items()}
-    return _cached(f"sleeper_{season}_{first_week}_{abs(hash(wkey)) % 10 ** 8}", _TTL, fetch) or {}
+    return _cached(f"sleeper_{season}_{first_week}_{hashlib.sha1(wkey.encode()).hexdigest()[:10]}",
+                   _TTL, fetch) or {}
 
 
 # ---------------------------------------------------------------- board
@@ -167,7 +189,7 @@ LABEL = {"fp": "FantasyPros", "flock": "Flock", "ffb": "The Ballers", "sleeper":
 def board(season: int, week: int, scoring: str, registry, weights=None) -> Dict[str, dict]:
     """{pid: {pos, src: {source: {...}}}} — every player any source ranks."""
     data = {"fp": fantasypros(season, scoring, registry), "flock": flock(season, registry),
-            "ffb": ballers(season, registry), "sleeper": sleeper(season, week, scoring, weights)}
+            "ffb": ballers(season, registry, weights), "sleeper": sleeper(season, week, scoring, weights)}
     out: Dict[str, dict] = {}
     for s, rows in data.items():
         for pid, r in rows.items():

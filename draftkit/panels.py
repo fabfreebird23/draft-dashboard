@@ -164,7 +164,9 @@ _DEFAULT_W = {"pass_yd": 0.04, "pass_td": 4, "pass_int": -2, "rush_yd": 0.1, "ru
 
 
 def _score(stats: dict, weights: dict) -> float:
-    return sum(float(stats.get(k, 0) or 0) * float(weights.get(k, 0) or 0) for k in stats)
+    """The league's own points, yardage bonuses included (as an expectation)."""
+    from . import scoring as _sc
+    return _sc.points(stats, weights)
 
 
 def ffb_raw(season: int, week: int) -> list:
