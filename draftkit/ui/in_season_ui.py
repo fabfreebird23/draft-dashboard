@@ -1641,9 +1641,138 @@ def _rk_rows_cached(league_key: str, week: int, bucket: int, pos: str, _reg, _g,
     return rows
 
 
+@st.cache_data(ttl=1800, show_spinner="Pulling the rest-of-season boards…")
+def _ros_board_cached(season: int, week: int, scoring: str, weights_key: str, _reg, _weights):
+    from .. import ros as R
+    return R.board(season, week, scoring, _reg, _weights)
+
+
+_ROS_POS = ["FLEX", "QB", "RB", "WR", "TE", "ALL"]
+_ROS_SORT = {"Consensus": "cons", "FantasyPros": "fp", "Flock": "flock", "The Ballers": "ffb",
+             "Sleeper proj": "sleeper"}
+
+
+def _rankings_ros(ctx, g) -> None:
+    """Rest-of-season rankings: FantasyPros' ROS consensus, Flock's in-season
+    redraft board, the Ballers' ROS ranks and Sleeper's projections for every
+    remaining week under this league's scoring — side by side, with their
+    consensus. The board for trades and keepers; the weekly one is for lineups."""
+    import copy
+    from .. import ros as R
+    reg, lk, meta = ctx["registry"], ctx["league_key"], ctx["meta"]
+    week = int(g["week"])
+    weights = getattr(meta, "scoring_weights", None)
+    try:
+        b = _ros_board_cached(int(g["season"]), week, meta.scoring,
+                              str(sorted((weights or {}).items())), reg, weights)
+    except Exception as e:  # noqa: BLE001
+        _note(f"Couldn't load the rest-of-season boards: {type(e).__name__}.")
+        return
+    with st.container(key="rk_ctl"):
+        c = st.columns([1.6, 2.2, 2.2, 0.9])
+        who = c[0].segmented_control("Who", _RK_WHO, key=f"ros_who_{lk}", selection_mode="single",
+                                     default=_RK_WHO[1], label_visibility="collapsed") or _RK_WHO[1]
+        pos = c[1].segmented_control("Pos", _ROS_POS, key=f"ros_pos_{lk}", selection_mode="single",
+                                     default="FLEX", label_visibility="collapsed") or "FLEX"
+        sort_lab = c[2].segmented_control("Sort", list(_ROS_SORT), key=f"ros_sort_{lk}",
+                                          selection_mode="single", default="Consensus",
+                                          label_visibility="collapsed") or "Consensus"
+        limit = c[3].selectbox("Rows", [40, 80, 150, 400], key=f"ros_n_{lk}",
+                               label_visibility="collapsed", format_func=lambda n: f"top {n}")
+    rows = R.rank(copy.deepcopy(b), pos)
+    sk = _ROS_SORT[sort_lab]
+    if sk != "cons" and pos != "ALL":
+        rows = [r for r in rows if r["r"].get(sk) is not None]
+        rows.sort(key=lambda r: r["r"][sk])
+    owner_of = {str(p): str(oid) for oid, r in g["rosters"].items() for p in (r.get("players") or [])}
+    me = str(g["me"])
+    if who == "Mine":
+        rows = [r for r in rows if owner_of.get(r["pid"]) == me]
+    elif who == "Free agents":
+        rows = [r for r in rows if r["pid"] not in owner_of]
+    elif who == "Mine + FA":
+        rows = [r for r in rows if owner_of.get(r["pid"]) in (me, None)]
+    total = len(rows)
+    rows = rows[:limit]
+    srcs = [k for k in R.SOURCES if any(k in r["src"] for r in b.values())]
+    _tiles([
+        ("weeks", f"{week}–{R.LAST_WEEK}", "remaining", "var(--ink)"),
+        ("sources", f"{len(srcs)}", " · ".join(R.LABEL[k] for k in srcs), "var(--ink)"),
+        ("shown", f"{min(limit, total)}", f"of {total} · {pos} · {who}", "var(--mut2)"),
+    ])
+    if not rows:
+        _note("Nobody fits that filter.")
+        return
+    pool = {k: sorted(r["r"][k] for r in rows if r["r"].get(k) is not None) for k in (*R.SOURCES, )}
+    pool["cons"] = sorted(r["cons"] for r in rows if r["cons"] is not None)
+    cols = "330fr 70fr 70fr 78fr 78fr 84fr 78fr 92fr 230fr"
+    out = [f'<div class="rk" style="--cols:{cols}"><div class="rk-hd">'
+           + "".join(f'<span class="{"on" if (lab == sort_lab or (lab == "Sleeper" and sort_lab == "Sleeper proj") or (lab == "Ballers" and sort_lab == "The Ballers") or (lab == "FP" and sort_lab == "FantasyPros")) else ""}{" lbl" if lab == "Owner" else ""}">{lab}</span>'
+                     for lab in ("", "FP", "Flock", "Ballers", "Sleeper", "Consensus", "Spread", "ROS pts", "Owner"))
+           + '</div>']
+    tiers = _TIERS_ALL if pos in ("FLEX", "ALL") else _TIERS_DEEP if pos in ("RB", "WR") else _TIERS_POS
+    band = -1
+    for idx, r in enumerate(rows, 1):
+        tr = float(idx) if (pos == "ALL" or sk != "cons") else (r["cons"] or 10 ** 6)
+        ti = next(i for i, (cut, _l, _w) in enumerate(tiers) if tr <= cut)
+        if ti != band:
+            band = ti
+            _cut, lab, why = tiers[ti]
+            out.append(f'<div class="rk-tier"><div class="band t{lab}"><em>{lab}</em>Tier {ti + 1}'
+                       f'<small>{_esc_(why)}</small></div><i></i></div>')
+        pm = reg.meta(r["pid"])
+
+        def cell(k, label, sub=""):
+            v = r["r"].get(k)
+            if v is None:
+                return f'<div data-k="{label}" class="c dim">—</div>'
+            return (f'<div data-k="{label}" class="c {_third(v, pool.get(k, []))}{" sort" if k == sk else ""}">'
+                    f'{v:.0f}{sub}</div>')
+        fb = r["src"].get("ffb") or {}
+        fb_sub = ("<small>" + " · ".join(f"{a[:1]}{int(v)}" for a, v in (fb.get("by") or {}).items()) + "</small>"
+                  if fb.get("by") and pos not in ("FLEX",) else "")
+        cons = (f'<div data-k="Consensus" class="c {_third(r["cons"], pool["cons"])}{" sort" if sk == "cons" else ""}">'
+                f'{r["cons"]:.1f}</div>' if r["cons"] is not None else '<div data-k="Consensus" class="c dim">—</div>')
+        if r["spread"] is not None:
+            vals = list(r["r"].values())
+            wide = r["spread"] > max(4.0, 0.35 * (r["cons"] or 0))
+            sp = f'<div data-k="Spread" class="c {"r" if wide else "g"}">{min(vals):.0f}–{max(vals):.0f}</div>'
+        else:
+            sp = '<div data-k="Spread" class="c dim">—</div>'
+        pts = (f'<div data-k="ROS pts" class="c">{r["pts"]:.0f}<small>{r["pts"] / max(1, r["games"] or 1):.1f}/g · {r["games"]}g</small></div>'
+               if r.get("pts") else '<div data-k="ROS pts" class="c dim">—</div>')
+        o = owner_of.get(r["pid"])
+        if o == me:
+            own, cls, tag = '<b class="me">You</b>', "me", '<span class="tag me">yours</span>'
+        elif o:
+            own, cls, tag = f'<b>{_esc_(_owner_name(ctx, o))}</b>', "", ""
+        else:
+            own, cls, tag = '<b class="fa">Free agent</b>', "fa", '<span class="tag fa">free agent</span>'
+        out.append(
+            f'<div class="rk-row {cls}"><div class="pl">{_T.img_tag(r["pid"], "")}'
+            f'<b>{idx}. {_esc_(pm.name)}<small>{_esc_(pm.team or "")} · {r["pos"]}</small></b>{tag}</div>'
+            + cell("fp", "FP") + cell("flock", "Flock") + cell("ffb", "Ballers", fb_sub)
+            + cell("sleeper", "Sleeper") + cons + sp + pts + f'<div class="own">{own}</div></div>')
+    out.append("</div>")
+    st.markdown("".join(out), unsafe_allow_html=True)
+    _note(f"**Rest of season**, weeks {week}–{R.LAST_WEEK}. **FP** is FantasyPros' ROS expert consensus; "
+          "**Flock** is its eight analysts' in-season redraft board; **Ballers** is Andy, Jason and Mike's "
+          "ROS ranks (A·J·M underneath at a single position); **Sleeper** ranks Sleeper's projections for "
+          "every remaining week, scored with this league's settings — the only one that counts byes and "
+          "games left. **Consensus** averages them; for FLEX each source is re-ranked among RB/WR/TE first so "
+          "the numbers share a scale. A wide **Spread** is where the sources disagree — the trade targets. "
+          "Vegas is weekly only, so it's not here.")
+
+
 def _rankings(ctx, g) -> None:
     """Every ranked player, in tiers, on any of three panels or their consensus,
     cut to the men you can actually start or claim."""
+    _hz = st.segmented_control("Horizon", ["This week", "Rest of season"],
+                               key=f"rk_hz_{ctx['league_key']}", selection_mode="single",
+                               default="This week", label_visibility="collapsed") or "This week"
+    if _hz == "Rest of season":
+        _rankings_ros(ctx, g)
+        return
     reg = ctx["registry"]
     games = g.get("games") or {}
     pn = _panels(ctx, g)
