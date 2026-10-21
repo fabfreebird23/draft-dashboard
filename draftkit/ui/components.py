@@ -2774,7 +2774,7 @@ def swing_cards_html(players, them: str) -> str:
         # for HIS player, the floor is your good outcome
         good_lo, good_hi = (p.get("p_lo"), p.get("p_hi"))
         out.append(
-            f'<div class="xw"><div class="xw-h">{_img(p.get("photo") or p.get("pid"), "xw-p")}'
+            f'<div class="xw{" mine" if mine else ""}"><div class="xw-h">{_img(p.get("photo") or p.get("pid"), "xw-p")}'
             f'<div><b>{_esc(p.get("name"))}</b><span>{"yours" if mine else _esc(them)}'
             f'{" · " + _esc(p.get("pos")) if p.get("pos") else ""}</span></div>'
             f'<em>{_esc(p.get("swing"))}%</em></div>'
