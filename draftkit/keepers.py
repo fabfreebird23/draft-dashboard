@@ -278,10 +278,11 @@ def _parse_draft_order(text: str) -> List[str]:
     return out
 
 
-def load_keepers(league_id: str, season: int) -> Dict[str, List[dict]]:
+def load_keepers(league_id: str, season: int, rostered: bool = True) -> Dict[str, List[dict]]:
     """{owner_id: [keeper dicts]} for the league/season, or {} if none/unknown.
     Filtered to players each manager still rosters, so a player traded after a
-    keeper was submitted can't be kept by two teams."""
+    keeper was submitted can't be kept by two teams. `rostered=False` returns
+    the file as filed — keeper_history() needs the players since DROPPED."""
     cfg = KEEPER_REPOS.get(str(league_id))
     if not cfg:
         return {}
@@ -305,11 +306,39 @@ def load_keepers(league_id: str, season: int) -> Dict[str, List[dict]]:
             except Exception:  # noqa: BLE001 — malformed/truncated JSON
                 return {}
             if cfg.get("format") == "halfmen":
-                return _filter_to_rosters(_from_halfmen(data, league_id), league_id)
+                data = _from_halfmen(data, league_id)
+                return _filter_to_rosters(data, league_id) if rostered else data
             if any(data.values()):
-                return _filter_to_rosters(data, league_id)
+                return _filter_to_rosters(data, league_id) if rostered else data
         return {}                          # any other status: don't guess
     return {}
+
+
+_HIST: Dict[tuple, tuple] = {}
+
+
+def keeper_history(league_id: str, season: int) -> Dict[str, dict]:
+    """{player_id: keeper record} for EVERY keeper filed this season, rostered
+    or not, each carrying `kept_by` (the owner who filed him).
+
+    Dropping a player doesn't reset his keeper clock: B&B kept De'Von Achane in
+    2025 and again in 2026 (year 3), dropped him in week 4, and the waiver
+    screen priced him as a fresh last-round add. load_keepers() files records
+    under whoever rosters the player now, so a free agent had no record at all;
+    this is where his history lives. Cached 15 minutes."""
+    import time as _t
+    key = (str(league_id), int(season))
+    hit = _HIST.get(key)
+    if hit and _t.time() - hit[0] < 900:
+        return hit[1]
+    out: Dict[str, dict] = {}
+    for oid, recs in (load_keepers(league_id, season, rostered=False) or {}).items():
+        for r in recs or []:
+            pid = str(r.get("player_id") or "")
+            if pid:
+                out.setdefault(pid, dict(r, kept_by=str(oid)))
+    _HIST[key] = (_t.time(), out)
+    return out
 
 
 def _from_halfmen(data: dict, league_id: str) -> Dict[str, List[dict]]:

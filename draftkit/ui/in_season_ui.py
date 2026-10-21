@@ -2511,8 +2511,13 @@ def _waivers_run_label() -> str:
 
 def _best_stash(ctx, g, taken) -> Optional[dict]:
     """In a keeper league: the free agent with the best projected NEXT-season
-    ADP — a waiver add keeps at the last round, so he's next year's cheapest
-    keeper. None in a redraft league or when nobody projects inside 10 rounds."""
+    ADP who can actually be kept, at the price the keeper rules give him.
+
+    A waiver add usually keeps at the last round — but not a dropped keeper,
+    whose clock keeps running (Achane: kept 2025 and 2026, so 2027 is past
+    the three-year limit). So each candidate is priced through _keeper_rows,
+    and anyone blocked is skipped. None in a redraft league or when nobody
+    keepable projects inside 10 rounds."""
     from .. import nextyear as NY
     meta, reg = ctx["meta"], ctx["registry"]
     if meta.platform != "sleeper" or not K.league_has_keepers(str(meta.league_id)):
@@ -2523,10 +2528,18 @@ def _best_stash(ctx, g, taken) -> Optional[dict]:
     except Exception:  # noqa: BLE001
         return None
     last = int((K.load_keeper_rules(str(meta.league_id)) or {}).get("draft_rounds") or meta.draft_rounds or 14)
-    best = min(((r["rank"], pid) for pid, r in proj.items() if pid not in {str(t) for t in taken}), default=None)
-    if not best or best[0] > n * 10:
+    _taken = {str(t) for t in taken}
+    cands = sorted((r["rank"], pid) for pid, r in proj.items() if pid not in _taken and r["rank"] <= n * 10)[:12]
+    if not cands:
         return None
-    return {"pid": best[1], "name": reg.meta(best[1]).name, "rank": best[0], "cost": last}
+    priced = {str(r["pid"]): r for r in _keeper_rows(ctx, g, pids=[p for _r, p in cands], as_owner=None)}
+    for rank, pid in cands:
+        r = priced.get(str(pid))
+        if r is not None and (r.get("blocked") or r.get("verdict") == "blocked"):
+            continue
+        cost = (r or {}).get("cost_round") or last
+        return {"pid": pid, "name": reg.meta(pid).name, "rank": rank, "cost": cost}
+    return None
 
 
 def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> None:
@@ -3022,6 +3035,13 @@ def _keeper_rows(ctx, g, pids=None, from_owner=None, as_owner=None) -> list:
             # a player coming over in a trade brings his keeper years with him
             for k in raw.get(str(from_owner)) or []:
                 existing.setdefault(str(k.get("player_id")), k)
+        # a dropped keeper is a free agent with his clock still running — his
+        # record is in the season's file under whoever filed him, not on a roster
+        if pids is not None:
+            hist = K.keeper_history(str(meta.league_id), g["season"])
+            for q in pids:
+                if str(q) in hist:
+                    existing.setdefault(str(q), hist[str(q)])
         return W.keeper_outlook(
             list(pids) if pids is not None else g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=who,
             existing=existing, rules=rules, n_teams=meta.num_teams,
