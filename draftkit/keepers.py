@@ -52,6 +52,9 @@ KEEPER_REPOS: Dict[str, dict] = {
                                       # veteran draft ran 14, and that is the
                                       # board a keeper price lives on.
                                       "draft_rounds": 14,
+                                      # PASSED 2026-08-30: from 2027 one draft,
+                                      # rookies and veterans together, 16 rounds
+                                      "consolidated_from": 2027, "consolidated_rounds": 16,
                                       "enforce_owned_picks": True},
                             "drafts": {"veteran": ["1393111328339562496", "1399627678364999680"],
                                        "rookie": ["1391297052188626944"]}},
@@ -135,6 +138,16 @@ _DEFAULT_KEEPER_RULES = {
 _INT_RULES = ("max_regular_keepers", "max_rookie_keepers", "max_keep_years",
               "year2_bump_rounds", "rookie_fixed_round")
 _BOOL_RULES = ("enforce_owned_picks", "allow_adp_discount")
+
+
+def price_rounds(rules: dict, season: int, fallback: int = 14) -> int:
+    """Rounds in the draft a keeper is priced INTO — next season's. 7½ Men
+    goes from a 14-round veteran draft to one 16-round board in 2027, so a
+    last-round keeper costs R16 there, not R14."""
+    cf = int((rules or {}).get("consolidated_from") or 0)
+    if cf and int(season) + 1 >= cf:
+        return int(rules.get("consolidated_rounds") or 16)
+    return int((rules or {}).get("draft_rounds") or fallback or 14)
 
 
 def load_keeper_rules(league_id: str) -> dict:

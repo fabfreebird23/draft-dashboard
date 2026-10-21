@@ -287,11 +287,17 @@ def _gather(ctx, week):
     """Everything the tabs share, fetched once per refresh bucket (see
     `_refresh_bucket`) — the same dict for every tab until then."""
     season = config.current_season()
-    return _gather_cached(ctx["league_key"], week, _refresh_bucket(season, week), ctx)
+    return _gather_cached(ctx["league_key"], week, _refresh_bucket(season, week), ctx, _GATHER_V)
+
+
+# Bump when _gather_raw changes shape: st.cache_data hashes only the cached
+# function's own code, so a fix inside _gather_raw (the 7½ pick book) sat
+# behind a stale cache on Cloud until the bucket rolled over.
+_GATHER_V = 2
 
 
 @st.cache_data(show_spinner=False, max_entries=8)
-def _gather_cached(league_key: str, week: int, bucket: int, _ctx):
+def _gather_cached(league_key: str, week: int, bucket: int, _ctx, version: int = 0):
     return _gather_raw(_ctx, week)
 
 
@@ -320,7 +326,7 @@ def _gather_raw(ctx, week):
     # draft was the 4-round rookie draft, which made every team look like it
     # owned only rounds 1-4 of next year and shoved every keeper into them
     try:
-        _kr = int((K.load_keeper_rules(str(meta.league_id)) or {}).get("draft_rounds") or 0)
+        _kr = K.price_rounds(K.load_keeper_rules(str(meta.league_id)) or {}, season, 0)
     except Exception:  # noqa: BLE001
         _kr = 0
     book = _pick_book(meta.platform, str(meta.league_id), season,
@@ -2534,7 +2540,7 @@ def _best_stash(ctx, g, taken) -> Optional[dict]:
         proj = NY.projected(n, 1.0)
     except Exception:  # noqa: BLE001
         return None
-    last = int((K.load_keeper_rules(str(meta.league_id)) or {}).get("draft_rounds") or meta.draft_rounds or 14)
+    last = K.price_rounds(K.load_keeper_rules(str(meta.league_id)) or {}, int(g["season"]), meta.draft_rounds or 14)
     _taken = {str(t) for t in taken}
     cands = sorted((r["rank"], pid) for pid, r in proj.items() if pid not in _taken and r["rank"] <= n * 10)[:12]
     if not cands:
@@ -3058,7 +3064,7 @@ def _keeper_rows(ctx, g, pids=None, from_owner=None, as_owner=None) -> list:
         rules = dict(K.load_keeper_rules(str(meta.league_id)) or {})
         if not ((rules.get("max_regular_keepers") or 0) + (rules.get("max_rookie_keepers") or 0)):
             return []
-        rules["_last_round"] = rules.get("draft_rounds") or meta.draft_rounds
+        rules["_last_round"] = K.price_rounds(rules, int(g["season"]), meta.draft_rounds)
         rules["_adp_policy"] = K.adp_policy(str(meta.league_id))
         raw = K.load_keepers(str(meta.league_id), g["season"]) or {}
         who = str(as_owner or g["me"])
@@ -3572,7 +3578,7 @@ def _league_keepers(ctx, g) -> dict:
     """{owner_id: [keeper rows that would be kept]} — every team's projected
     keepers, priced through the league's rules. Memoised for the run: the
     preview and the board both need it and it prices every roster."""
-    key = f"_lk_{ctx['league_key']}_{g['week']}_{_slow_bucket(g['season'], g['week'])}"
+    key = f"_lk{_GATHER_V}_{ctx['league_key']}_{g['week']}_{_slow_bucket(g['season'], g['week'])}"
     memo = st.session_state.get(key)
     if memo is not None:
         return memo
@@ -3679,7 +3685,7 @@ def _next_board(ctx, g) -> None:
     n = int(getattr(meta, "num_teams", 10) or 10)
     nxt = int(g["season"]) + 1
     rules = K.load_keeper_rules(str(meta.league_id)) or {}
-    rounds = int(rules.get("draft_rounds") or getattr(meta, "draft_rounds", 14) or 14)
+    rounds = K.price_rounds(rules, int(g["season"]), getattr(meta, "draft_rounds", 14) or 14)
     rid_of = {o: r.get("roster_id") for o, r in g["rosters"].items() if r.get("roster_id") is not None}
     owner_of = {v: k for k, v in rid_of.items()}
     if len(rid_of) < 2:
@@ -4705,7 +4711,7 @@ def _keepers(ctx, g) -> None:
         st.info(f"**{meta.name}** isn't configured as a keeper league in its hub, so there is "
                 "nothing to price. Set the keeper rules there and this fills in.")
         return
-    rules["_last_round"] = rules.get("draft_rounds") or meta.draft_rounds
+    rules["_last_round"] = K.price_rounds(rules, int(g["season"]), meta.draft_rounds)
     rules["_adp_policy"] = K.adp_policy(str(meta.league_id))
 
     raw = K.load_keepers(str(meta.league_id), g["season"]) or {}
