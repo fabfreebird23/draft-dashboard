@@ -2929,12 +2929,12 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .kt-slot{ background:#110f10 !important; border:0 !important; border-radius:4px !important; padding:0 0 10px !important;
   overflow:hidden; gap:0 !important; }
 .kt-slot.rk{ box-shadow:inset 0 -3px 0 rgba(181,156,240,.55); }
-.kt-ph{ width:100%; height:118px; object-fit:cover; object-position:top; filter:grayscale(1) contrast(1.05);
+.kt-ph{ width:100%; height:auto; aspect-ratio:350 / 254; max-height:190px; object-fit:cover !important; object-position:center top !important; filter:grayscale(1) contrast(1.05);
   background:#2a2627; display:block; }
 .kt-slot b{ font-family:'Anton',sans-serif !important; font-weight:400 !important; font-size:32px !important;
   color:#f0c0c8 !important; line-height:1.15; margin-top:6px; }
 .kt-slot span{ font-family:'Playfair Display',serif !important; font-weight:700; font-size:14.5px !important; color:#f3ead8 !important; }
-.kt-slot.empty .kt-empty{ width:100%; height:118px; border-radius:0; border:0; background:#1b1819; }
+.kt-slot.empty .kt-empty{ width:100%; height:auto; aspect-ratio:350 / 254; max-height:190px; border-radius:0; border:0; background:#1b1819; }
 @media (max-width:760px){ .kt-ph,.kt-slot.empty .kt-empty{ height:80px; } .kt-slot b{ font-size:24px !important; }
   .kt-slot span{ font-size:12px !important; } }
 @media (max-width:760px){

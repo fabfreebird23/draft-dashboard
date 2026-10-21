@@ -3073,9 +3073,24 @@ def _keeper_rows(ctx, g, pids=None, from_owner=None, as_owner=None) -> list:
             list(pids) if pids is not None else g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=who,
             existing=existing, rules=rules, n_teams=meta.num_teams,
             adp_rank=_next_adp(ctx), registry=reg, proj=g["proj"],
-            next_season=int(g["season"]) + 1, league_kept=raw)
+            next_season=int(g["season"]) + 1, league_kept=raw,
+            owned_rounds=_owned_rounds(ctx, g, who))
     except Exception:  # noqa: BLE001 — a missing keeper config must not break a tab
         return []
+
+
+def _owned_rounds(ctx, g, owner) -> Optional[dict]:
+    """{round: count} of NEXT season's picks this manager holds, or None when
+    the league's picks aren't known (then no keeper is blocked for it)."""
+    nxt = int(g["season"]) + 1
+    out: dict = {}
+    for pk in _pick_menu(ctx, g, owner).values():
+        try:
+            if int(pk.get("season")) == nxt:
+                out[int(pk["round"])] = out.get(int(pk["round"]), 0) + 1
+        except Exception:  # noqa: BLE001
+            continue
+    return out or None
 
 
 def _keep_list(ctx, g) -> dict:
@@ -4426,7 +4441,8 @@ def _keepers(ctx, g) -> None:
         g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=str(g["me"]),
         existing=existing, rules=rules, n_teams=meta.num_teams,
         adp_rank=_next_adp(ctx), registry=reg, proj=g["proj"],
-            next_season=int(g["season"]) + 1, league_kept=raw)
+            next_season=int(g["season"]) + 1, league_kept=raw,
+            owned_rounds=_owned_rounds(ctx, g, g["me"]))
 
     keeps = [r for r in rows if r["verdict"] == "keep"]
     blocked = [r for r in rows if r["verdict"] == "blocked"]
