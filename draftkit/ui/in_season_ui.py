@@ -2885,6 +2885,34 @@ def _matchup(ctx, g) -> None:
 
 
 # -------------------------------------------------------------------- 4 trades
+_NEXT_ADP: dict = {}
+
+
+def _next_adp(ctx):
+    """adp_rank(name, pos) for keeper prices: the PROJECTED next-season ADP
+    (draftkit.nextyear), falling back to this season's ADP for anyone the
+    projection doesn't price. A keeper's ADP option is next summer's price."""
+    import time as _t
+    from .. import nextyear as NY
+    meta = ctx["meta"]
+    w = getattr(meta, "scoring_weights", None) or {}
+    rec = float(w.get("rec", 1.0 if meta.scoring == "ppr" else 0.5 if meta.scoring == "half" else 0.0))
+    ppr = 1.0 if rec >= 0.75 else 0.5 if rec >= 0.25 else 0.0
+    key = (int(getattr(meta, "num_teams", 10) or 10), ppr, int(_t.time() // 3600))
+    if key not in _NEXT_ADP:
+        try:
+            _NEXT_ADP.clear()
+            _NEXT_ADP[key] = NY.rank_lookup(ctx["registry"], key[0], ppr)
+        except Exception:  # noqa: BLE001
+            _NEXT_ADP[key] = lambda name, position="": None
+    nxt, cur = _NEXT_ADP[key], ctx["adp_rank"]
+
+    def lookup(name, position=""):
+        v = nxt(name, position)
+        return v if v is not None else cur(name, position)
+    return lookup
+
+
 def _keeper_rows(ctx, g, pids=None, from_owner=None, as_owner=None) -> list:
     """The keeper table, priced properly — the ONE place that answers "what does
     this player cost to keep".
@@ -2916,7 +2944,7 @@ def _keeper_rows(ctx, g, pids=None, from_owner=None, as_owner=None) -> list:
         return W.keeper_outlook(
             list(pids) if pids is not None else g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=who,
             existing=existing, rules=rules, n_teams=meta.num_teams,
-            adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"],
+            adp_rank=_next_adp(ctx), registry=reg, proj=g["proj"],
             next_season=int(g["season"]) + 1, league_kept=raw)
     except Exception:  # noqa: BLE001 — a missing keeper config must not break a tab
         return []
@@ -3952,7 +3980,7 @@ def _keepers(ctx, g) -> None:
     rows = W.keeper_outlook(
         g["mine"], drafted_round=_draft_rounds(str(meta.league_id)), me=str(g["me"]),
         existing=existing, rules=rules, n_teams=meta.num_teams,
-        adp_rank=ctx["adp_rank"], registry=reg, proj=g["proj"],
+        adp_rank=_next_adp(ctx), registry=reg, proj=g["proj"],
             next_season=int(g["season"]) + 1, league_kept=raw)
 
     keeps = [r for r in rows if r["verdict"] == "keep"]
@@ -3989,7 +4017,10 @@ def _keepers(ctx, g) -> None:
                        "at a last-round price scores best of all. Cost comes from where he actually came "
                        "from — an existing keeper's round plus this league's "
                        f"−{rules.get('year2_bump_rounds', 0)}-round-per-year escalation, the round you "
-                       "drafted him, the fixed rookie round, or the last round for a waiver add.")
+                       "drafted him, the fixed rookie round, or the last round for a waiver add. **ADP** is "
+               "next summer's ADP, projected from FantasyCalc's trade market: dynasty and redraft "
+               "value averaged, and dynasty alone for a player on IR or out for the year, who "
+               "keeps his value when every rest-of-season list drops him.")
 
         _ch = (f"{blocked[0]['name']} has aged out" if blocked else
                "build trades around your cheap keepers")

@@ -75,3 +75,19 @@ def test_tank_mode_rejects_giving_production_away_for_nothing():
 def test_contend_mode_pays_picks_for_a_real_upgrade():
     r = _t("contend", send=(), get=("x",), send_picks=[{"season": "2027", "round": 2}])
     assert r["week"] >= 1 and r["verdict"] == "accept"
+
+
+def test_next_year_projection_keeps_injured_players_at_dynasty_value(monkeypatch):
+    from draftkit import nextyear as N
+    rows = [
+        {"player": {"sleeperId": "1", "position": "RB"}, "value": 5000, "redraftValue": 0, "overallRank": 5},
+        {"player": {"sleeperId": "2", "position": "WR"}, "value": 4000, "redraftValue": 4200, "overallRank": 8},
+        {"player": {"sleeperId": "3", "position": "WR"}, "value": 4500, "redraftValue": 1500, "overallRank": 6},
+    ]
+    monkeypatch.setattr(N, "_fetch", lambda n, ppr: rows)
+    monkeypatch.setattr(N.api, "get_players", lambda: {"1": {"injury_status": "IR"}, "3": {"injury_status": None}})
+    out = N.projected()
+    assert out["1"]["injured"] and out["1"]["value"] == 5000 and out["1"]["rank"] == 1
+    # healthy young player with a low redraft price is blended, not treated as hurt
+    assert not out["3"]["injured"] and out["3"]["value"] == 3000
+    assert out["2"]["rank"] == 2 and out["3"]["rank"] == 3
