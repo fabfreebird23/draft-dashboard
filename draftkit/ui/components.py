@@ -2649,3 +2649,28 @@ def start_sit_html(A: dict, B: dict, wp, n_def: int = 32, dvp_label: str = "this
             f'{rng(A, "g" if better is A else "a")}{rng(B, "g" if better is B else "a")}</div>'
             f'<div class="ss-box"><div class="ss-k">WHAT DECIDES IT</div><div class="ss-why">{rs}</div></div>'
             f'{tiles}<div class="ss-call">{call}</div></div>')
+
+
+# ------------------------------------------------------------- draft lottery
+def lottery_html(rows: list, *, weights: list, chase: tuple, season: int) -> str:
+    """Selection-order odds for next year's draft, one row per scenario."""
+    out = []
+    for label, r in rows:
+        if not r:
+            continue
+        sel = r["select"]
+        top = max(sel) or 1
+        bars = "".join(
+            f'<div class="lt-c"><b>{p}%</b><i style="height:{3 if p == 0 else max(5, 54 * p / top):.0f}px"'
+            f' class="{"g" if i == 0 else ""}"></i><span>#{i + 1}</span></div>' for i, p in enumerate(sel[:6]))
+        pa = r["paths"]
+        out.append(f'<div class="lt-row"><div class="lt-l"><b>{_esc(label)}</b>'
+                   f'<span>#1 selection <b>{sel[0]}%</b> · expected #{r["expected"]}</span>'
+                   f'<span>last {pa["worst"]}% · in the Chase {pa["in_chase"]}% · win it {pa["chase_win"]}%</span></div>'
+                   f'<div class="lt-bars">{bars}</div></div>')
+    lo, hi = chase
+    return (f'<div class="sa-box lt"><div class="sa-k">{season} DRAFT LOTTERY · YOUR SELECTION ODDS</div>'
+            + "".join(out)
+            + f'<div class="sa-cap">The Chase for the Pick is seeds <b>{lo}–{hi}</b> ({lo} v {hi}, {lo + 1} v {hi - 1}) '
+              f'and its winner gets <b>{weights[0]}</b> balls; the worst record gets {weights[1]}, and it halves from '
+              f'there. Selection order is a weighted draw; #1 picks his draft slot first.</div></div>')

@@ -27,7 +27,12 @@ KEEPER_REPOS: Dict[str, dict] = {
     "1310907162930733056": {"repo": "fabfreebird23/kreeper-league", "branch": "keeper-data",
                             "adp_policy": "raise_only"},
     "1312885282554535936": {"repo": "fabfreebird23/babies-and-boomer", "branch": "keeper-data",
-                            "adp_policy": "discount"},
+                            "adp_policy": "discount",
+                            # next season's draft-order lottery (the hub's config.yaml
+                            # `lottery.weights`): Chase winner, then worst -> best
+                            # record, then the champion. The Chase is seeds 5-8.
+                            "lottery": {"weights": [640, 320, 160, 80, 40, 20, 8, 4, 2, 1],
+                                        "chase_teams": 4}},
     # 7½ Men's hub is a different program with a different file layout, so its
     # rules are written out here rather than regex-read from its config.yaml
     # (whose keys are named and nested differently), and its 2026 drafts are
@@ -56,6 +61,11 @@ KEEPER_REPOS: Dict[str, dict] = {
 def configured_drafts(league_id: str) -> dict:
     """{"veteran": [ids...], "rookie": [ids...]} when a league names its drafts."""
     return (KEEPER_REPOS.get(str(league_id)) or {}).get("drafts") or {}
+
+
+def lottery_spec(league_id: str):
+    """{weights, chase_teams} for a league with a Chase-style lottery, else None."""
+    return (KEEPER_REPOS.get(str(league_id)) or {}).get("lottery")
 
 
 def adp_policy(league_id: str) -> str:

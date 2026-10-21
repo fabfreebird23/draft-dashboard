@@ -2525,6 +2525,20 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   .dr-cheat{ grid-template-columns:repeat(2,1fr); }
   .st-wrap{ grid-template-columns:1fr; }
 }
+/* ---- Playoffs: next season's draft lottery ---- */
+.lt{ margin-top:12px; }
+.lt-row{ display:grid; grid-template-columns:minmax(220px,1fr) 1.4fr; gap:14px; align-items:end; padding:10px 0; border-top:1px solid var(--line); }
+.lt-row:first-of-type{ border-top:0; }
+.lt-l b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:15px; color:var(--ink); display:block; }
+.lt-l span{ display:block; font-size:12px; color:var(--muted); margin-top:2px; } .lt-l span b{ display:inline; font-size:13px; color:#5fdc8f; }
+.lt-bars{ display:flex; gap:6px; align-items:flex-end; height:84px; }
+.lt-c{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:3px; }
+.lt-c i{ width:100%; border-radius:4px 4px 1px 1px; background:var(--muted); opacity:.5; display:block; }
+.lt-c i.g{ background:#5fdc8f; opacity:.9; }
+.lt-c b{ font-family:'Roboto Mono',monospace; font-size:10px; color:var(--muted); font-weight:500; }
+.lt-c span{ font-family:'Roboto Mono',monospace; font-size:9.5px; color:var(--mut2); }
+@media (max-width:760px){ .lt-row{ grid-template-columns:1fr; } }
+
 /* ==== One card grammar =====================================================
    Every card built this season brought its own header, padding and number
    size. These rules put them on one shape: a 12px-radius panel, a mono

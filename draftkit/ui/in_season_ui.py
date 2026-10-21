@@ -3023,6 +3023,57 @@ def _win_now(ctx, g) -> dict:
     return vals
 
 
+def _sellables(ctx, g, vals=None, my_k=None) -> list:
+    """[(pid, win-now, keeper row)] — your players with real rest-of-season value
+    to a contender who aren't one of your cheap keepers. Tank mode's sell list."""
+    vals = vals if vals is not None else _win_now(ctx, g)
+    my_k = my_k if my_k is not None else {r["pid"]: r for r in _keeper_rows(ctx, g)}
+    out = []
+    for p in g["mine"]:
+        v = vals.get(str(p)) or {}
+        k = my_k.get(str(p))
+        if (v.get("par") or 0) <= 5:
+            continue
+        # anyone in your keeper five with real value is next year's team — the
+        # thing a tank is FOR; selling him for a pick is a different trade
+        if k and k.get("verdict") == "keep" and (k.get("surplus") or 0) >= 8:
+            continue
+        out.append((str(p), v, k))
+    out.sort(key=lambda t: -t[1]["par"])
+    return out
+
+
+def _lottery_block(ctx, g) -> None:
+    """Next season's draft lottery for a league that has one (B&B): where you
+    land as you are, and after selling the sell list."""
+    from .. import lottery as LT
+    spec = K.lottery_spec(str(ctx["meta"].league_id))
+    if not spec:
+        return
+    si = _sim_inputs(ctx, g)
+    if not si["fx"]:
+        return
+    me, reg = str(g["me"]), ctx["registry"]
+    fx = {int(k): v for k, v in si["fx"].items()}
+    base = LT.simulate(si["means"], si["sds"], si["recs"], si["pf"], fx, si["pt"], spec["weights"], me,
+                       chase_teams=spec.get("chase_teams", 4), median=si["median"])
+    sell = [p for p, _v, _k in _sellables(ctx, g)]
+    sold = None
+    if sell:
+        means, sds = dict(si["means"]), dict(si["sds"])
+        left = [p for p in g["mine"] if str(p) not in set(sell)]
+        means[me], sds[me] = W.team_distribution(left, g["slots"], g["proj"], reg, g["byes"], g["week"])
+        sold = LT.simulate(means, sds, si["recs"], si["pf"], fx, si["pt"], spec["weights"], me,
+                           chase_teams=spec.get("chase_teams", 4), median=si["median"])
+    if not base:
+        return
+    lo, hi = base["chase_seeds"]
+    names = ", ".join(reg.meta(p).name for p in sell[:3]) + (" …" if len(sell) > 3 else "")
+    rows = [("As you are", base)] + ([(f"After selling {len(sell)} ({names})", sold)] if sold else [])
+    st.markdown(C.lottery_html(rows, weights=spec["weights"], chase=(lo, hi), season=int(g["season"]) + 1),
+                unsafe_allow_html=True)
+
+
 def _prefill_button(ctx, label: str, key: str, oid: str, send=(), get=(), sendp=(), getp=()) -> None:
     """Load a suggestion into the trade checker below (partner + both sides)."""
     if st.button(label, key=key, use_container_width=True):
@@ -3062,16 +3113,7 @@ def _mode_panel(ctx, g, status, resolved) -> None:
         if not buyers:
             _note("No team is a clear contender yet (35%+ to make it), so there's nobody to sell to.")
             return
-        sell = []
-        for p in g["mine"]:
-            v = vals.get(str(p)) or {}
-            k = my_k.get(str(p))
-            if (v.get("par") or 0) <= 5:
-                continue
-            if k and k.get("verdict") == "keep" and (k.get("surplus") or 0) >= 20:
-                continue                           # a cheap keeper is what you're tanking FOR
-            sell.append((str(p), v, k))
-        sell.sort(key=lambda t: -t[1]["par"])
+        sell = _sellables(ctx, g, vals, my_k)
         if not sell:
             _note("Nothing on your roster is worth much to a contender that you aren't keeping.")
             return
@@ -3763,6 +3805,10 @@ def _playoffs(ctx, g) -> None:
             pct=mine.get("playoff_pct", 0), record=f"{rec[0]}-{rec[1]}", seeds=sim["seeds"],
             playoff_teams=min(pt, len(means)), weeks=wk_rows, n_sims=10000),
             unsafe_allow_html=True)
+    try:
+        _lottery_block(ctx, g)
+    except Exception:  # noqa: BLE001 — a lottery hiccup must not take the tab down
+        pass
 
     with st.container(key="drawers"):
         _lead = max(odds.items(), key=lambda kv: kv[1]["playoff_pct"])[0] if odds else None

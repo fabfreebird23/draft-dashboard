@@ -91,3 +91,15 @@ def test_next_year_projection_keeps_injured_players_at_dynasty_value(monkeypatch
     # healthy young player with a low redraft price is blended, not treated as hurt
     assert not out["3"]["injured"] and out["3"]["value"] == 3000
     assert out["2"]["rank"] == 2 and out["3"]["rank"] == 3
+
+
+def test_lottery_sim_worst_team_mostly_last_and_out_of_the_chase():
+    from draftkit import lottery as L
+    means = {str(i): 100 + 6 * i for i in range(10)}
+    sds = {k: 12 for k in means}
+    recs = {str(i): (i, 10 - i) for i in range(10)}
+    sched = {w: [("0", "1"), ("2", "3"), ("4", "5"), ("6", "7"), ("8", "9")] for w in range(7, 14)}
+    r = L.simulate(means, sds, recs, {k: 0 for k in means}, sched, 4,
+                   [640, 320, 160, 80, 40, 20, 8, 4, 2, 1], "0", n_sims=2000)
+    assert r["paths"]["worst"] > 60 and r["paths"]["chase_win"] < 5
+    assert r["chase_seeds"] == (5, 8) and abs(sum(r["select"]) - 100) <= 3
