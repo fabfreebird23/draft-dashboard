@@ -648,10 +648,18 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
                 blocked = f"max {max_years} keeper years reached"
                 note = f"kept {next_year - 1}x · was R{was}"
             elif next_year >= 3:
-                # Year 3 is ADP in every league, no choice.
-                cost = adp_round or was
-                note = (f"year {next_year} · ADP R{adp_round}" if adp_round
-                        else f"year {next_year} · ADP (not out yet)")
+                # Year 3 is ADP in every league, no choice — except that where
+                # ADP may only RAISE a price (Kreeper), a falling ADP can't make
+                # him cheaper than the ladder would: last year's round, up `bump`.
+                laddered = max(1, was - bump)
+                if policy == "raise_only" and adp_round and adp_round > laddered:
+                    cost = laddered
+                    note = (f"year {next_year} · ADP R{adp_round} is cheaper — "
+                            f"can't help · R{was} − {bump}")
+                else:
+                    cost = adp_round or was
+                    note = (f"year {next_year} · ADP R{adp_round}" if adp_round
+                            else f"year {next_year} · ADP (not out yet)")
             else:
                 # Year 2: off the year-1 price, which is the round he was drafted in.
                 # Floored at round 1, as the hubs' engines do — a round-1 keeper
