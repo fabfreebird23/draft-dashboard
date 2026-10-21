@@ -2680,7 +2680,8 @@ def lottery_html(rows: list, *, weights: list, chase: tuple, season: int) -> str
 
 
 # ------------------------------------------------------------- tab hero
-def hero_html(kick: str, num, line: str, *, photo=None, grid=None, red: bool = False) -> str:
+def hero_html(kick: str, num, line: str, *, photo=None, grid=None, red: bool = False,
+              tone: str = "red") -> str:
     """The page's answer as a magazine cover: one big cream number, the
     sentence it stands for in italics, an optional duotone player and an
     optional grid of the other numbers that matter. Every tab opens with one."""
@@ -2695,6 +2696,132 @@ def hero_html(kick: str, num, line: str, *, photo=None, grid=None, red: bool = F
     # bh- prefixed: a bare "lg" is the league chip's class and gave the number
     # a grey pill behind it
     size = "bh-xl" if len(num) <= 3 else "bh-lg" if len(num) <= 5 else "bh-md"
-    return (f'<div class="bh{" has-grid" if grid else ""}"><div class="bh-l">'
+    # Two tones by meaning: red when the page wants you to DO something (a
+    # claim, a sale, things to do), ink when it is telling you where you stand.
+    tone = "ink" if tone == "ink" else "red"
+    return (f'<div class="bh {tone}{" has-grid" if grid else ""}"><div class="bh-l">'
             f'<span class="bh-k">{_esc(kick)}</span><b class="bh-n {size}">{_esc(num)}</b>'
             f'<em>{line}</em></div>{g}{ph}</div>')
+
+
+# ---------------------------------------------------------------------------
+# The scoreboard, the slot rows, the swing cards and the League pieces: the
+# hero language (Anton numerals, Playfair lines, your side red, theirs ink)
+# carried into the screens that are a game rather than a list.
+_THUMB = "https://sleepercdn.com/content/nfl/players/thumb/{}.jpg"
+
+
+def _img(pid, cls):
+    return (f'<img class="{cls}" src="{_THUMB.format(_esc(pid))}" alt="" loading="lazy">'
+            if pid else f'<span class="{cls} none"></span>')
+
+
+def scoreboard_html(*, me_name, me_rec, me_pts, me_sub, me_photo, opp_name, opp_rec, opp_pts,
+                    opp_sub, opp_photo, label, win_pct=None, tiles=()) -> str:
+    """Live and Matchup open with this: your side red with your best player,
+    theirs ink, the win probability as the cover number in the middle."""
+    wp = "" if win_pct is None else f"{max(0.0, min(100.0, float(win_pct))):.0f}"
+    mid = (f'<b>{wp}<sup>%</sup></b><em>win probability</em>'
+           f'<div class="xb-bar"><i style="width:{wp}%"></i></div>') if wp else '<b>—</b>'
+    th = "".join(f'<div><span>{_esc(k)}</span><b>{_esc(v)}</b><i>{_esc(s)}</i></div>'
+                 for k, v, s in tiles)
+    return (f'<div class="xb"><div class="xb-side me">{_img(me_photo, "xb-ph")}'
+            f'<div class="xb-t"><span>{_esc(me_name)}{" · " + _esc(me_rec) if me_rec else ""}</span>'
+            f'<b>{_esc(me_pts)}</b><i>{_esc(me_sub)}</i></div></div>'
+            f'<div class="xb-mid"><span class="xb-k">{_esc(label)}</span>{mid}</div>'
+            f'<div class="xb-side op"><div class="xb-t"><span>{_esc(opp_name)}'
+            f'{" · " + _esc(opp_rec) if opp_rec else ""}</span><b>{_esc(opp_pts)}</b>'
+            f'<i>{_esc(opp_sub)}</i></div>{_img(opp_photo, "xb-ph")}</div></div>'
+            + (f'<div class="xb-tiles">{th}</div>' if th else '<div class="xb-gap"></div>'))
+
+
+def slot_rows_html(rows, scale: float = 22.0) -> str:
+    """[(slot, my_name, my_pts, their_name, their_pts)] as head-to-head rows; the
+    edge bar fills red toward you when you win the slot, grey toward them."""
+    out = []
+    for s, a, pa, b, pb in rows:
+        d = pa - pb
+        w = min(100.0, abs(d) / scale * 100)
+        fill = f'<i style="width:{w:.0f}%"></i>'
+        lc = "g" if d > 0.05 else "d" if d < -0.05 else ""
+        empty = b and pb == 0
+        out.append(
+            f'<div class="xs-r"><span class="xs-s">{_esc(s)}</span>'
+            f'<div class="xs-n"><b>{_esc(a or "—")}</b>{"<i>empty slot</i>" if a and pa == 0 else ""}</div>'
+            f'<b class="xs-p{" win" if d > 0 else ""}{" zero" if a and pa == 0 else ""}">{pa:.1f}</b>'
+            f'<div class="xs-e"><div class="xs-h l">{fill if d > 0 else ""}</div>'
+            f'<span class="{lc}">{d:+.1f}</span><div class="xs-h r">{fill if d < 0 else ""}</div></div>'
+            f'<b class="xs-p{" win" if d < 0 else ""}{" zero" if empty else ""}">{pb:.1f}</b>'
+            f'<div class="xs-n r"><b>{_esc(b or "—")}</b>{"<i>empty slot?</i>" if empty else ""}</div></div>')
+    return '<div class="xs">' + "".join(out) + '</div>'
+
+
+def swing_cards_html(players, them: str) -> str:
+    """Swing players as cards: the floor-to-ceiling range and what each end does
+    to your win probability."""
+    if not players:
+        return ""
+    top = max(50.0, max(float(p.get("ceiling") or 0) for p in players))
+    out = []
+    for p in players:
+        lo, hi = float(p.get("floor") or 0), float(p.get("ceiling") or 0)
+        mine = p.get("side") == "you"
+        # for HIS player, the floor is your good outcome
+        good_lo, good_hi = (p.get("p_lo"), p.get("p_hi"))
+        out.append(
+            f'<div class="xw"><div class="xw-h">{_img(p.get("photo") or p.get("pid"), "xw-p")}'
+            f'<div><b>{_esc(p.get("name"))}</b><span>{"yours" if mine else _esc(them)}'
+            f'{" · " + _esc(p.get("pos")) if p.get("pos") else ""}</span></div>'
+            f'<em>{_esc(p.get("swing"))}%</em></div>'
+            f'<div class="xw-r"><span>floor {lo:.0f}</span><div class="xw-b"><i style="left:{lo / top * 100:.0f}%;'
+            f'width:{max(2.0, (hi - lo) / top * 100):.0f}%"></i></div><span>ceiling {hi:.0f}</span></div>'
+            f'<div class="xw-w"><span>if he floors <b class="{"g" if (good_lo or 0) >= 50 else "d"}">{_esc(good_lo)}%</b></span>'
+            f'<span>if he booms <b class="{"g" if (good_hi or 0) >= 50 else "d"}">{_esc(good_hi)}%</b></span></div></div>')
+    return "".join(out)
+
+
+def callout_html(html: str, red: bool = False) -> str:
+    return f'<div class="xc{" red" if red else ""}">{html}</div>'
+
+
+def power_list_html(rows) -> str:
+    """[{rank, name, rec, pf, proj, luck, me}] — ranked by projected points a week."""
+    if not rows:
+        return ""
+    lo = min(r["proj"] for r in rows)
+    hi = max(r["proj"] for r in rows)
+    span = max(1.0, hi - lo)
+    out = []
+    for r in rows:
+        w = 18 + 82 * (r["proj"] - lo) / span
+        lk = r.get("luck") or ""
+        out.append(
+            f'<div class="xp{" me" if r.get("me") else ""}"><span class="xp-n">{r["rank"]}</span>'
+            f'<div class="xp-t"><b>{_esc(r["name"])}</b><span>{_esc(r["rec"])} · {r["pf"]:.0f} pts for</span></div>'
+            f'<div class="xp-b"><i style="width:{w:.0f}%"></i><em>{r["proj"]:.0f}/wk</em></div>'
+            f'<span class="xp-l {_esc(lk)}">{_esc(lk or "—")}</span></div>')
+    return "".join(out)
+
+
+def pos_heat_html(rows, positions=("QB", "RB", "WR", "TE")) -> str:
+    """[(team, {pos: rank}, is_me)] — every team's rank at every position; the
+    stronger the rank, the brighter the crimson."""
+    n = max(1, len(rows))
+    head = ('<div class="xh-r hd"><span class="xh-t"></span>'
+            + "".join(f"<span>{p}</span>" for p in positions) + '</div>')
+    body = ""
+    for team, ranks, me in rows:
+        cells = ""
+        for p in positions:
+            v = ranks.get(p)
+            h = (n + 1 - v) / n if v else 0
+            cells += f'<span class="xh-c" style="--h:{h:.2f}">{v or "—"}</span>'
+        body += f'<div class="xh-r{" me" if me else ""}"><span class="xh-t">{_esc(team)}</span>{cells}</div>'
+    return f'<div class="xh">{head}{body}</div>'
+
+
+def feed_html(rows) -> str:
+    """[(week, team, verb, players, cost)] — the wire as a feed."""
+    return "".join(
+        f'<div class="xf"><span class="xf-w">{_esc(w)}</span><b>{_esc(t)}</b>'
+        f'<span>{_esc(v)} <b>{_esc(p)}</b></span><em>{_esc(c)}</em></div>' for w, t, v, p, c in rows)

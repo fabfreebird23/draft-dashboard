@@ -348,10 +348,16 @@ def _from_halfmen(data: dict, league_id: str) -> Dict[str, List[dict]]:
 
 
 def _filter_to_rosters(data: Dict[str, List[dict]], league_id: str) -> Dict[str, List[dict]]:
-    """Drop keepers a manager no longer rosters (e.g. traded away after submitting),
-    using the live Sleeper rosters as the source of truth — otherwise a traded
-    player shows up kept by both his old and new team. Keepers without a player_id,
-    or if rosters can't be fetched, pass through unchanged."""
+    """Each keeper filed under the manager who rosters him NOW, using the live
+    Sleeper rosters as the source of truth — otherwise a traded player shows up
+    kept by both his old and new team.
+
+    A keeper traded away is MOVED, not dropped: his keeper years travel with him.
+    Ned kept Kenneth Walker in 2026 (year 1) and traded him; dropping the record
+    made Walker look never-kept to his new team, which priced 2027 as a first
+    keep instead of year two. A moved record carries `via_trade` (the owner who
+    filed it). A player on nobody's roster is dropped. Keepers without a
+    player_id, or if rosters can't be fetched, pass through unchanged."""
     from . import sleeper_client as sleeper
     try:
         rosters = sleeper.get_rosters(str(league_id)) or []
@@ -361,13 +367,26 @@ def _filter_to_rosters(data: Dict[str, List[dict]], league_id: str) -> Dict[str,
              for r in rosters if r.get("owner_id")}
     if not owned:
         return data
+    holder = {p: oid for oid, ps in owned.items() for p in ps}
     out: Dict[str, List[dict]] = {}
     for oid, picks in data.items():
         roster = owned.get(str(oid), set())
-        kept = [s for s in picks
-                if not s.get("player_id") or str(s["player_id"]) in roster]
-        if kept:
-            out[oid] = kept
+        for s in picks:
+            pid = str(s.get("player_id") or "")
+            if not pid or pid in roster:
+                out.setdefault(oid, []).append(s)
+            elif pid in holder:
+                out.setdefault(holder[pid], []).append(dict(s, via_trade=str(oid)))
+    # one record per player per owner (if both teams filed him, the holder's own wins)
+    for oid, picks in out.items():
+        seen, keep = set(), []
+        for s in sorted(picks, key=lambda k: bool(k.get("via_trade"))):
+            pid = str(s.get("player_id") or "")
+            if pid and pid in seen:
+                continue
+            seen.add(pid)
+            keep.append(s)
+        out[oid] = keep
     return out
 
 

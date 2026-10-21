@@ -349,6 +349,27 @@ def _owner_name(ctx, owner_id) -> str:
         return "Team"
 
 
+def _record(g, owner_id) -> str:
+    """'4-2' (or '4-2-1') from the roster's settings; '' before week 1."""
+    se = ((g.get("rosters") or {}).get(str(owner_id)) or {}).get("settings") or {}
+    w, l, t = int(se.get("wins") or 0), int(se.get("losses") or 0), int(se.get("ties") or 0)
+    if not (w or l or t):
+        return ""
+    return f"{w}-{l}" + (f"-{t}" if t else "")
+
+
+def _top_photo(reg, g, pids):
+    """The Sleeper photo id of the best projected player in `pids` — the face
+    a scoreboard side wears."""
+    best = max((p for p in pids if p), key=lambda p: float(g["proj"].get(str(p), 0) or 0), default=None)
+    if not best:
+        return None
+    try:
+        return getattr(reg.meta(best), "sleeper_pid", None) or best
+    except Exception:  # noqa: BLE001
+        return best
+
+
 def _opponent(ctx, g):
     """(owner_id, pids) of this week's opponent, or the closest-strength team as a
     stand-in before the schedule exists.
@@ -640,7 +661,7 @@ def _command(ctx, g) -> None:
     st.markdown(C.hero_html(f"WEEK {g['week']}" + (" · LIVE" if started and phase != "done" else "")
                             + (f" · VS {_opp_nm.upper()}" if opp else ""),
                             _num, _line,
-                            grid=[(lbl, val, sub) for lbl, val, sub, _tone in tiles[:4]]),
+                            grid=[(lbl, val, sub) for lbl, val, sub, _tone in tiles[:4]], tone="ink"),
                 unsafe_allow_html=True)
 
     # ---- WHAT TO DO, ranked by what it is worth — and by what day it is ----
@@ -998,25 +1019,24 @@ def _live_body(ctx, g, *, bound_auto: bool, bound_every: int) -> None:
     wp = W.win_prob(me_end, ms_ * 0.7, opp_end, os_ * 0.7) if opp else None
     left_me = len(ps["pre"]) + len(ps["live"])
     left_op = (len(ops["pre"]) + len(ops["live"])) if ops else 0
-    st.markdown(C.week_hero_html(
-        me_name=_owner_name(ctx, g["me"]) or "You",
-        me_sub=f'{left_me} still to play', me_pts=f"{me_pts:.1f}",
+    _wk_lab = ("LIVE" if _n_live else "FINAL" if left_me == 0 else "WEEK") + f" · WEEK {week}"
+    st.markdown(C.scoreboard_html(
+        me_name="You", me_rec=_record(g, g["me"]), me_pts=f"{me_pts:.1f}",
+        me_sub=f"{left_me} still to play · {me_end:.0f} projected",
+        me_photo=_top_photo(reg, g, [p for _s, p in mcur]),
         opp_name=(_owner_name(ctx, oid) if opp else "No opponent"),
-        opp_sub=(f'{left_op} still to play' if opp else "none scheduled"),
+        opp_rec=(_record(g, oid) if opp else ""),
         opp_pts=(f"{opp_pts:.1f}" if opp else "—"),
-        week=week, margin=(me_end - opp_end) if opp else None,
-        win_pct=(100 * wp) if wp is not None else None,
+        opp_sub=(f"{left_op} still to play · {opp_end:.0f} projected" if opp else "none scheduled"),
+        opp_photo=(_top_photo(reg, g, [p for _s, p in ocur]) if opp else None),
+        label=_wk_lab, win_pct=(100 * wp) if wp is not None else None,
         tiles=[
             ("Projected final", f"{me_end:.0f} – {opp_end:.0f}" if opp else f"{me_end:.0f}",
-             "actual so far plus the rest", "up" if me_end >= opp_end else "dn"),
-            ("Still to play", f"{left_me}", f"theirs {left_op}" if opp else "",
-             "up" if left_me else ""),
-            ("Live now", f'{sum(1 for p in ps["live"])}',
-             "of yours on the field", "up" if ps["live"] else ""),
-            ("Win prob", f"{100*wp:.0f}%" if wp is not None else "—",
-             "from where it stands", "up" if (wp or 0) >= .5 else "dn"),
-        ],
-        live=bool(_n_live), final=(not _n_live and left_me == 0)), unsafe_allow_html=True)
+             "actual so far plus the rest"),
+            ("Margin", f"{me_end - opp_end:+.1f}" if opp else "—", "where it projects to end"),
+            ("Still to play", f"{left_me}", f"theirs {left_op}" if opp else ""),
+            ("Live now", f'{len(ps["live"])}', "of yours on the field"),
+        ]), unsafe_allow_html=True)
 
     # ---- the games themselves ---------------------------------------------
     mine_teams = []
@@ -1703,7 +1723,7 @@ def _rankings_ros(ctx, g) -> None:
     st.markdown(C.hero_html(f"REST OF SEASON · {pos}", str(len(_mine10)),
                             "of the top ten are yours" + (f' — <b>{_esc_(reg.meta(_mine10[0]["pid"]).name)}</b> leads them'
                                                           if _mine10 else ""),
-                            photo=(_mine10[0]["pid"] if _mine10 else (_top10[0]["pid"] if _top10 else None))),
+                            photo=(_mine10[0]["pid"] if _mine10 else (_top10[0]["pid"] if _top10 else None)), tone="ink"),
                 unsafe_allow_html=True)
     if who == "Mine":
         rows = [r for r in rows if owner_of.get(r["pid"]) == me]
@@ -1972,7 +1992,7 @@ def _rankings(ctx, g) -> None:
     st.markdown(C.hero_html(f"THIS WEEK · {pos if pos not in ('WAIVERS',) else 'WAIVERS'}", str(len(_mine10)),
                             "of the top ten are yours" + (f' — <b>{_esc_(_mine10[0]["name"])}</b> leads them'
                                                           if _mine10 else ""),
-                            photo=(_mine10[0]["pid"] if _mine10 else (_top10[0]["pid"] if _top10 else None))),
+                            photo=(_mine10[0]["pid"] if _mine10 else (_top10[0]["pid"] if _top10 else None)), tone="ink"),
                 unsafe_allow_html=True)
     # the who-cut
     if who == "Mine":
@@ -2701,7 +2721,7 @@ def _waivers(ctx, g) -> None:
             line += (f'. Best stash for next year: <b>{_esc_(stash["name"])}</b>, projected #{stash["rank"]} '
                      f'and keepable at R{stash["cost"]}')
         st.markdown(C.hero_html(f"WAIVER PRIORITY · WEEK {g['week']}", f"#{_wpos}", line,
-                                photo=_ph((top or stash or {}).get("pid")) if (top or stash) else None),
+                                photo=_ph((top or stash or {}).get("pid")) if (top or stash) else None, tone="ink"),
                     unsafe_allow_html=True)
     elif top:
         b = FM.bid(meta, g["week"], top, budget, left, weeks_left) if budget else None
@@ -2864,19 +2884,8 @@ def _matchup(ctx, g) -> None:
                             byes=g["byes"], week=g["week"], top=1)
     weak = W.weakest_slot(g["mine"], g["slots"], g["proj"], reg,
                           byes=g["byes"], week=g["week"])
-    _reasons = []
-    if swing:
-        _sw = swing[0]
-        _reasons.append((f'{_sw["name"]} is the game',
-                         f'floor {_sw["floor"]:.0f} → ceiling {_sw["ceiling"]:.0f} · '
-                         f'{_sw["swing"]} points of win probability rest on him',
-                         "watch", "g" if _sw["side"] == "you" else "w"))
-    if weak:
-        _reasons.append((f'Your {weak[0]} slot projects {weak[1]:.1f}',
-                         'weakest starting slot — the first place a waiver add pays',
-                         "fix", "w"))
     _gap = mm - om
-    # Once a game has kicked off, the card shows the SCORE: actual points, how
+    # Once a game has kicked off, the board shows the SCORE: actual points, how
     # much of each side has played, and where it projects to end.
     games, phase, live = g.get("games") or {}, g.get("phase") or "setup", g.get("live") or {}
     started = phase in ("live", "late", "done") and bool(games)
@@ -2884,45 +2893,34 @@ def _matchup(ctx, g) -> None:
     mcur = list(zip(g["slots"], g["starters"]))
     ocur = list(zip(g["slots"], ost))
     ps, ops = (WV.played_state(mcur, reg, games, me_live), WV.played_state(ocur, reg, games, opp_live))
+    ws = W.weakest_slot(opp, g["slots"], g["proj"], reg, byes=g["byes"], week=g["week"])
+    _sw = swing[0] if swing else None
+    _tiles_m = [
+        ("Margin", f"{_gap:+.1f}", "projected, lineups as set"),
+        ("The game", (_sw["name"].split()[-1] if _sw else "—"),
+         (f'{_sw["swing"]} pts of win % on him' if _sw else "")),
+        ("If both play best", f"{100*wp_best:.0f}%", f"{bm:.1f} – {obm:.1f}"),
+        ("Their soft spot", (ws[0] if ws else "—"),
+         (f"{reg.meta(ws[2]).name} {ws[1]:.1f}" if ws else "")),
+    ]
     if started:
         me_now, opp_now = float(me_live.get("points") or 0), float(opp_live.get("points") or 0)
         me_end = WV.live_projection(mcur, g["proj"], reg, games, me_live)
         opp_end = WV.live_projection(ocur, g["proj"], reg, games, opp_live)
         wp_now = W.win_prob(me_end, ms * 0.7, opp_end, os_ * 0.7)
-        _left = {"crest": "YOU", "name": "You",
-                 "sub": f'{ps["n"] - len(ps["pre"]) - len(ps["live"])} of {ps["n"]} played',
-                 "big": f"{me_now:.1f}"}
-        _right = {"crest": "".join(w[0] for w in str(them).split()[:2]).upper() or "OPP",
-                  "name": them,
-                  "sub": f'{ops["n"] - len(ops["pre"]) - len(ops["live"])} of {ops["n"]} played',
-                  "big": f"{opp_now:.1f}", "trail": me_now > opp_now}
-        _mid = {"pill": ("final" if phase == "done" else "live"), "live": phase != "done",
-                "sit": f'proj final <b>{me_end:.0f}</b> – {opp_end:.0f}'}
-        _bar = {"pct": 100 * wp_now, "l": f"{100*wp_now:.0f}% you · was {100*wp:.0f}% at kickoff",
-                "m": "win probability, live", "r": f"{100*(1-wp_now):.0f}%",
-                "color": "var(--green)" if wp_now >= 0.5 else "var(--amber)"}
+        _tiles_m[0] = ("Projected final", f"{me_end:.0f} – {opp_end:.0f}", f"was {100*wp:.0f}% at kickoff")
+        _sb = dict(me_pts=f"{me_now:.1f}", opp_pts=f"{opp_now:.1f}", win_pct=100 * wp_now,
+                   label=("FINAL" if phase == "done" else "LIVE") + f' · WEEK {g["week"]}',
+                   me_sub=f'{ps["n"] - len(ps["pre"]) - len(ps["live"])} of {ps["n"]} played',
+                   opp_sub=f'{ops["n"] - len(ops["pre"]) - len(ops["live"])} of {ops["n"]} played')
     else:
-        _left = {"crest": "YOU", "name": "You", "sub": f'set lineup · {ms:.0f} pt spread',
-                 "big": f"{mm:.1f}"}
-        _right = {"crest": "".join(w[0] for w in str(them).split()[:2]).upper() or "OPP",
-                  "name": them, "sub": f'set lineup · {os_:.0f} pt spread',
-                  "big": f"{om:.1f}", "trail": _gap > 0}
-        _mid = {"pill": f'week {g["week"]}', "live": True,
-                "sit": f'<b>{"+" if _gap >= 0 else ""}{_gap:.1f}</b> projected margin'}
-        _bar = {"pct": 100 * wp, "l": f"{100*wp:.0f}% you", "m": "win probability",
-                "r": f"{100*(1-wp):.0f}%",
-                "color": "var(--green)" if wp >= 0.5 else "var(--amber)"}
-    st.markdown(C.card_html(
-        wash="var(--accent-fill)", wash2="var(--panel2)",
-        left=_left, right=_right, mid=_mid, bar=_bar,
-        cells=[("You", f"{mm:.1f}", "on" if _gap >= 0 else ""),
-               ("Them", f"{om:.1f}", "" if _gap >= 0 else "bad"),
-               ("Best case", f"{bm:.1f}", "on" if bm > mm + 0.5 else ""),
-               ("If both play best", f"{100*wp_best:.0f}%",
-                "on" if wp_best >= 0.5 else "warn")],
-        reasons=_reasons,
-        tone="good" if wp >= 0.55 else "bad" if wp < 0.45 else "warn"),
-        unsafe_allow_html=True)
+        _sb = dict(me_pts=f"{mm:.1f}", opp_pts=f"{om:.1f}", win_pct=100 * wp,
+                   label=f'PROJECTED · WEEK {g["week"]}',
+                   me_sub=f"set lineup · {ms:.0f}-pt spread", opp_sub=f"set lineup · {os_:.0f}-pt spread")
+    st.markdown(C.scoreboard_html(
+        me_name="You", me_rec=_record(g, g["me"]), me_photo=_top_photo(reg, g, g["starters"]),
+        opp_name=them, opp_rec=_record(g, oid), opp_photo=_top_photo(reg, g, ost),
+        tiles=_tiles_m, **_sb), unsafe_allow_html=True)
     if started:
         st.markdown(C.still_to_play_html([
             (f'Yours still to play · {len(ps["pre"]) + len(ps["live"])}',
@@ -2937,7 +2935,7 @@ def _matchup(ctx, g) -> None:
                f"weekly variance, so a boom/bust roster reads differently from a steady one with "
                f"the same projection.")
 
-    c1, c2 = st.columns(2)
+    c1, c2 = st.columns([1.25, 1])
     with c1:
         st.markdown('<div class="ws-h">Slot by slot</div>', unsafe_allow_html=True)
         # ["current"], not ["spots"] — "spots" is the OPTIMAL lineup, and this
@@ -2946,33 +2944,37 @@ def _matchup(ctx, g) -> None:
                             current=g["starters"])["current"]
         ol = W.lineup_check(opp, g["slots"], g["proj"], reg, g["byes"], g["week"],
                             current=ost)["current"]
-        rows = []
-        for (s, a), (_s2, b) in zip(ml, ol):
+        rows, empty = [], []
+        for (s_, a), (_s2, b) in zip(ml, ol):
             pa = float(g["proj"].get(str(a), 0) or 0) if a else 0.0
             pb = float(g["proj"].get(str(b), 0) or 0) if b else 0.0
-            d = pa - pb
-            rows.append([f'<b class="ws-sl">{s}</b>',
-                         f'{reg.meta(a).name if a else "—"} <span class="ws-fnt">{pa:.1f}</span>',
-                         (f'<b class="ws-up">+{d:.1f}</b>' if d > 0 else f'<b class="ws-dn">{d:.1f}</b>'),
-                         f'<span class="ws-dim">{reg.meta(b).name if b else "—"} {pb:.1f}</span>'])
-        st.markdown(_tbl(["", "You", "~Edge", "Them"], rows,
-                         widths=["46px", "38%", "70px", "38%"], wide=True), unsafe_allow_html=True)
+            rows.append((s_, reg.meta(a).name if a else "", pa, reg.meta(b).name if b else "", pb))
+            if b and pb == 0:
+                empty.append(reg.meta(b).name)
+        st.markdown(C.slot_rows_html(rows), unsafe_allow_html=True)
+        if empty:
+            st.markdown(C.callout_html(
+                f"{len(empty)} of {_esc_(them)}'s starters project <b>0.0</b> — {_esc_(', '.join(empty))}. "
+                f"If {'they stay' if len(empty) > 1 else 'that slot stays'} empty, that's points you don't have to earn."),
+                unsafe_allow_html=True)
+        if weak:
+            st.markdown(C.callout_html(
+                f"<b>Your {weak[0]} slot projects {weak[1]:.1f}</b> — your weakest starter, and the first "
+                f"place a waiver add pays."), unsafe_allow_html=True)
     with c2:
-        st.markdown('<div class="ws-h">Swing players — whose week decides it</div>',
-                    unsafe_allow_html=True)
+        st.markdown('<div class="ws-h">Whose week decides it</div>', unsafe_allow_html=True)
         sw = W.swing_players(g["mine"], opp, g["slots"], g["proj"], reg,
-                             byes=g["byes"], week=g["week"], top=5)
-        st.markdown(_tbl(["Player", "Ceiling", "Floor", "~Swings"],
-                         [[f'<b>{s["name"]}</b> {_pos_pill(s["pos"])} '
-                           f'<span class="ws-fnt">{"you" if s["side"]=="you" else them}</span>',
-                           f'<span class="ws-up">{s["ceiling"]} → {s["p_hi"]}%</span>',
-                           f'<span class="ws-dn">{s["floor"]} → {s["p_lo"]}%</span>',
-                           f'<b>{s["swing"]}%</b>'] for s in sw]), unsafe_allow_html=True)
-        ws = W.weakest_slot(opp, g["slots"], g["proj"], reg, byes=g["byes"], week=g["week"])
+                             byes=g["byes"], week=g["week"], top=4)
+        for s_ in sw:
+            try:
+                s_["photo"] = getattr(reg.meta(s_["pid"]), "sleeper_pid", None) or s_["pid"]
+            except Exception:  # noqa: BLE001
+                pass
+        st.markdown(C.swing_cards_html(sw, them), unsafe_allow_html=True)
         if ws:
-            _alert("ok", "◎", f'<b>{them}\'s soft spot is {ws[0]}</b> — '
-                              f'{reg.meta(ws[2]).name} projects {ws[1]:.1f}. '
-                              f'If you can beat that slot, you probably win the week.')
+            st.markdown(C.callout_html(
+                f"<b>Their soft spot is {ws[0]}.</b> {_esc_(reg.meta(ws[2]).name)} projects {ws[1]:.1f} — "
+                f"beat that slot and you probably win the week.", red=True), unsafe_allow_html=True)
 
 
 # -------------------------------------------------------------------- 4 trades
@@ -4140,7 +4142,7 @@ def _playoffs(ctx, g) -> None:
         _line = f"to make it — top {pt} of {len(means)}"
     _rec = recs.get(me, (0, 0))
     _grid.append(("Record", f"{_rec[0]}-{_rec[1]}", f"{weeks_left} weeks to play"))
-    st.markdown(C.hero_html(f"PLAYOFF ODDS · {g['season']}", f"{_odds}%", _line, grid=_grid),
+    st.markdown(C.hero_html(f"PLAYOFF ODDS · {g['season']}", f"{_odds}%", _line, grid=_grid, tone="ink"),
                 unsafe_allow_html=True)
     if sim and sim.get("weeks"):
         wk_rows = [dict(w, opp_name=_owner_name(ctx, w["opp"])) for w in sim["weeks"]]
@@ -4210,8 +4212,28 @@ def _league(ctx, g) -> None:
                      "w": int(se.get("wins") or 0), "l": int(se.get("losses") or 0), "pf": pf})
         all_pts.append(pf)
     rows.sort(key=lambda r: -r["proj"])
+    for r in rows:
+        games = r["w"] + r["l"]
+        r["luck"] = W.luck(r["pf"], r["w"], games, all_pts) if games else None
 
-    # ---- points left on the bench — is the app earning its keep -------------
+    # every team's rank at every position, by projected points
+    pos_tot = {}
+    for oid, r in g["rosters"].items():
+        for p in r["players"]:
+            try:
+                pm = reg.meta(p)
+            except Exception:  # noqa: BLE001
+                continue
+            if pm.position in ("QB", "RB", "WR", "TE"):
+                pos_tot.setdefault(pm.position, {}).setdefault(oid, 0.0)
+                pos_tot[pm.position][oid] += float(g["proj"].get(str(p), 0) or 0)
+    pos_rank = {pos: {o: i for i, o in enumerate(sorted(tot, key=lambda o: -tot[o]), 1)}
+                for pos, tot in pos_tot.items()}
+
+    # ---- the cover: your power rank, what the bench cost, luck, best spot -----
+    me_row = next((r for r in rows if r["oid"] == g["me"]), None)
+    my_rank = (rows.index(me_row) + 1) if me_row else None
+    _grid = []
     # What the set lineup scored each finished week against the best it could
     # have, from ACTUAL points. Sleeper keeps players_points per week; ESPN's
     # history read is a per-week roster fetch and is left for later.
@@ -4219,78 +4241,63 @@ def _league(ctx, g) -> None:
         _hist = _bench_history(str(meta.league_id), g["me"], g["week"])
         br = WV.bench_regret(_hist, g["slots"], reg)
         if br["n"]:
-            _last = br["weeks"][-1]
-            _tiles([
-                ("Left on bench", f'{br["total_left"]:.1f}',
-                 f'over {br["n"]} week{"s" if br["n"] != 1 else ""} · best-vs-set, actual points',
-                 "var(--amber)" if br["total_left"] > 5 else "var(--green)"),
-                (f'Week {_last["week"]}', f'{_last["actual"]:.1f}',
-                 f'best was {_last["best"]:.1f} · {_last["left"]:.1f} left', "var(--ink)"),
-                ("Per week", f'{br["total_left"] / br["n"]:.1f}',
-                 "points a week your bench out-scored a starter", "var(--muted)"),
-                ("Perfect weeks", f'{sum(1 for r in br["weeks"] if r["left"] < 0.05)}',
-                 f'of {br["n"]} with nothing left', "var(--green)"),
-            ])
+            _grid += [("Bench regret", f'{br["total_left"]:.1f}',
+                       f'points left on your bench · {br["n"]} wk{"s" if br["n"] != 1 else ""}'),
+                      ("Perfect weeks", f'{sum(1 for r in br["weeks"] if r["left"] < 0.05)}',
+                       f'of {br["n"]}')]
+    _lk = (me_row or {}).get("luck")
+    if _lk and _lk["label"] != "—":
+        _grid.append(("Your luck", f'{_lk["delta"]:+.1f}',
+                      "wins vs your all-play record"))
+    _mine_ranks = {pos: rk[g["me"]] for pos, rk in pos_rank.items() if g["me"] in rk}
+    if _mine_ranks:
+        _bp = min(_mine_ranks, key=lambda p: _mine_ranks[p])
+        _grid.append(("Best position", _bp, f"{C._ordinal(_mine_ranks[_bp])} of {len(pos_rank[_bp])}"))
+    if my_rank:
+        _rec = f'{me_row["w"]}-{me_row["l"]}'
+        _how = ("and the record undersells you" if _lk and _lk["label"] == "unlucky" else
+                "and the record flatters you" if _lk and _lk["label"] == "lucky" else
+                "and the record is about right")
+        st.markdown(C.hero_html(f"{meta.name.upper() if getattr(meta, 'name', '') else 'THE LEAGUE'} · POWER RANKINGS",
+                                C._ordinal(my_rank), f"by roster strength — you're {_rec}, {_how}",
+                                grid=_grid[:4] or None, tone="ink"), unsafe_allow_html=True)
 
-    st.markdown('<div class="ws-h">Power rankings — by roster strength, not by record</div>',
-                unsafe_allow_html=True)
-    rws = []
-    for i, r in enumerate(rows, 1):
-        games = r["w"] + r["l"]
-        lk = W.luck(r["pf"], r["w"], games, all_pts) if games else None
-        chip = (_chip(lk["label"], {"lucky": "bad", "unlucky": "warn", "earned": "ok"}[lk["label"]])
-                if lk and lk["label"] != "—" else _chip("no games yet", "nil"))
-        rws.append([str(i), f'<b>{r["name"]}</b>' if r["oid"] == g["me"] else r["name"],
-                    f'{r["w"]}–{r["l"]}', f'{r["proj"]:.0f}', f'{r["pf"]:.0f}', chip])
-    st.markdown(_tbl(["#", "Team", "Record", "~Proj/wk", "~Points for", "Luck"], rws,
-                     widths=["34px", "auto", "76px", "84px", "94px", "120px"]),
-                unsafe_allow_html=True)
-    _note("Luck compares wins to an all-play record — how often this team's scoring would have "
-               "beaten the rest of the league. A 2–0 team scoring bottom-third regresses, and that is "
-               "the week to trade with them.")
-
-    c1, c2 = st.columns(2)
+    c1, c2 = st.columns([1.25, 1])
     with c1:
-        st.markdown('<div class="ws-h">Recent league activity</div>', unsafe_allow_html=True)
+        st.markdown('<div class="ws-h">Power rankings — projected points a week</div>',
+                    unsafe_allow_html=True)
+        st.markdown(C.power_list_html([
+            {"rank": i, "name": r["name"], "rec": f'{r["w"]}–{r["l"]}', "pf": r["pf"], "proj": r["proj"],
+             "luck": ((r["luck"] or {}).get("label") if (r["luck"] or {}).get("label") != "—" else ""),
+             "me": r["oid"] == g["me"]} for i, r in enumerate(rows, 1)]), unsafe_allow_html=True)
+        _note("Luck compares wins to an all-play record — how often this team's scoring would have "
+              "beaten the rest of the league. A lucky team scoring bottom-third regresses, and that is "
+              "the week to trade with them.")
+    with c2:
+        st.markdown('<div class="ws-h">Positional strength — rank of '
+                    f'{len(rows)}, redder is stronger</div>', unsafe_allow_html=True)
+        st.markdown(C.pos_heat_html([
+            ("You" if r["oid"] == g["me"] else r["name"].split()[0],
+             {pos: rk.get(r["oid"]) for pos, rk in pos_rank.items()}, r["oid"] == g["me"])
+            for r in rows]), unsafe_allow_html=True)
+        st.markdown('<div class="ws-h" style="margin-top:14px">On the wire</div>', unsafe_allow_html=True)
         tx = W.transactions(str(meta.league_id), g["week"]) if meta.platform == "sleeper" else []
         if not tx:
             _note("No completed transactions yet.")
         else:
-            rid_to_name = {}
-            for oid, r in g["rosters"].items():
-                rid_to_name[r.get("roster_id")] = _owner_name(ctx, oid)
-            rws = []
+            rid_to_name = {r.get("roster_id"): _owner_name(ctx, oid) for oid, r in g["rosters"].items()}
+            _verb = {"waiver": "claimed", "free_agent": "added", "trade": "traded for"}
+            feed = []
             for t in tx[:8]:
-                who = ", ".join(rid_to_name.get(x, "?") for x in (t["roster_ids"] or [])[:2])
-                adds = ", ".join(reg.meta(p).name for p in list(t["adds"] or {})[:2]) or "—"
-                bid = f'${t["bid"]}' if t.get("bid") else ""
-                rws.append([f'W{t["week"]}', who, f'{t["type"]}: {adds} {bid}'])
-            st.markdown(_tbl(["Wk", "Team", "Move"], rws), unsafe_allow_html=True)
-    with c2:
-        st.markdown('<div class="ws-h">Positional strength across the league</div>',
-                    unsafe_allow_html=True)
-        pos_tot = {}
-        for oid, r in g["rosters"].items():
-            for p in r["players"]:
-                try:
-                    pm = reg.meta(p)
-                except Exception:  # noqa: BLE001
+                who = " & ".join(rid_to_name.get(x, "?") for x in (t["roster_ids"] or [])[:2])
+                adds = ", ".join(reg.meta(p).name for p in list(t["adds"] or {})[:2])
+                if not adds:
+                    drops = ", ".join(reg.meta(p).name for p in list(t.get("drops") or {})[:2])
+                    feed.append((f'W{t["week"]}', who, "dropped", drops or "—", ""))
                     continue
-                if pm.position in ("QB", "RB", "WR", "TE"):
-                    pos_tot.setdefault(pm.position, {}).setdefault(oid, 0.0)
-                    pos_tot[pm.position][oid] += float(g["proj"].get(str(p), 0) or 0)
-        rws = []
-        for pos in ("QB", "RB", "WR", "TE"):
-            tot = pos_tot.get(pos, {})
-            if not tot:
-                continue
-            rank = sorted(tot, key=lambda o: -tot[o]).index(g["me"]) + 1 if g["me"] in tot else 0
-            pct = 100 * (1 - (rank - 1) / max(1, len(tot))) if rank else 0
-            colour = "var(--green)" if pct >= 66 else "var(--amber)" if pct >= 33 else "var(--red)"
-            rws.append([_pos_pill(pos),
-                        f'<div class="ws-bar"><i style="width:{pct:.0f}%;background:{colour}"></i></div>',
-                        f'{rank} of {len(tot)}'])
-        st.markdown(_tbl(["", "", "~You"], rws), unsafe_allow_html=True)
+                feed.append((f'W{t["week"]}', who, _verb.get(t["type"], t["type"]), adds,
+                             f'${t["bid"]}' if t.get("bid") else ""))
+            st.markdown(C.feed_html(feed), unsafe_allow_html=True)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -4408,7 +4415,7 @@ def _keepers(ctx, g) -> None:
         _num, _line = f"+{_best.get('surplus') or 0}", f"keeper value — <b>{_esc_(_best['name'])}</b> is your best keep"
     else:
         _num, _line = "0", "keepers worth their price yet"
-    st.markdown(C.hero_html(f"{int(g['season']) + 1} KEEPERS · IF THE SEASON ENDED TODAY", _num, _line),
+    st.markdown(C.hero_html(f"{int(g['season']) + 1} KEEPERS · IF THE SEASON ENDED TODAY", _num, _line, tone="ink"),
                 unsafe_allow_html=True)
     st.markdown(C.keeper_tray_html(keeps, reg_max, rook_max), unsafe_allow_html=True)
     # The tray above is the answer; the rest folds, each drawer saying what's in it.
