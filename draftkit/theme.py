@@ -2608,8 +2608,15 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .bh.ink .bh-k,.bh.ink .bh-grid span,.bh.ink .bh-grid i{ color:#f0c0c8; }
 .bh.ink .bh-grid{ background:rgba(165,39,51,.08); border-left-color:#332e30; }
 .bh.ink .bh-grid div{ border-color:#2c2729; }
-.bh.ink .bh-duo{ mix-blend-mode:normal; opacity:.55; -webkit-mask-image:linear-gradient(90deg,transparent,#000 45%);
-  mask-image:linear-gradient(90deg,transparent,#000 45%); }
+/* the thumbs carry a light backdrop: on black it is faded out from the edges,
+   anchored to the bottom, with a red glow behind so the face isn't a grey box */
+.bh.ink::before{ content:""; position:absolute; right:0; top:0; bottom:0; width:42%; z-index:0;
+  background:radial-gradient(ellipse 60% 75% at 72% 100%,rgba(165,39,51,.55),transparent 70%); }
+.bh.ink.has-grid::before{ display:none; }
+.bh.ink .bh-duo{ mix-blend-mode:normal; opacity:.85; bottom:0; height:112%; right:4%;
+  filter:grayscale(1) contrast(1.2) brightness(.92);
+  -webkit-mask-image:radial-gradient(ellipse 56% 92% at 50% 100%,#000 62%,transparent 100%);
+  mask-image:radial-gradient(ellipse 56% 92% at 50% 100%,#000 62%,transparent 100%); }
 
 /* ==== the scoreboard (Live, Matchup) ===================================== */
 .xb{ display:grid; grid-template-columns:1fr 300px 1fr; border-radius:12px 12px 0 0; overflow:hidden; min-height:176px; }
@@ -2734,6 +2741,9 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   .xh-r{ grid-template-columns:70px repeat(4,1fr); }
 }
 
+/* a global img rule scales photos DOWN inside their box, which left heroes
+   with a face floating mid-banner — sit them on the floor instead */
+.bh-duo,.xb-ph{ object-fit:cover !important; object-position:center bottom !important; }
 /* black-and-white photo rows to match: the keeper tray and the boards */
 .kt-slot img, .kl-card img, .rk-row .pl img{ filter:grayscale(1); }
 /* tier labels run on one line, past the first column if they need to */
