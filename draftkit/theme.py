@@ -2918,7 +2918,8 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 }
 
 /* ==== next season's simulated board ===================================== */
-.nb{ display:grid; gap:4px; overflow-x:auto; padding-bottom:4px; }
+.nb{ display:grid; gap:4px; padding-bottom:4px; }
+@media (max-width:1100px){ .nb{ overflow-x:auto; } }
 .nb-r{ display:grid; grid-template-columns:30px repeat(var(--n), minmax(92px,1fr)); gap:4px; }
 .nb-r.hd span{ font-family:'Roboto Mono',monospace; font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--mut2);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:2px 4px; }
@@ -2955,6 +2956,21 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .nbl-mark span{ font-family:'Roboto Mono',monospace; font-size:10.5px; letter-spacing:.12em; font-weight:700; color:#f3ead8; }
 .nbl-mark i{ font-family:'Playfair Display',serif; font-style:italic; color:#f6d7dc; }
 @media (max-width:760px){ .nbl{ grid-template-columns:24px 28px minmax(0,1fr) 70px; } .nbl-g{ grid-column:3 / -1; text-align:left; } }
+
+/* click a player on the 2027 board for his keeper history */
+details.nbh{ position:static; }
+details.nbh > summary{ list-style:none; cursor:pointer; }
+details.nbh > summary::-webkit-details-marker{ display:none; }
+details.nbh > summary:hover b{ text-decoration:underline; text-decoration-color:#ff336c; text-underline-offset:3px; }
+.nb-c{ overflow:visible; }
+details.nbh[open]{ z-index:30; }
+.nbh-pop{ position:absolute; z-index:40; top:100%; left:0; margin-top:4px; width:260px; background:#110f10; border:1px solid #a52733;
+  border-radius:10px; padding:10px 12px; box-shadow:0 10px 30px rgba(0,0,0,.55); text-align:left; }
+.nbh-pop strong{ display:block; font-family:'Oswald',sans-serif; font-weight:500; font-size:15px; margin-bottom:4px; color:#f3ead8; }
+.nbh-pop li b{ font-family:'Roboto Mono',monospace; font-size:10.5px; color:var(--mut2); margin-right:4px; } .nbh-pop li b.k{ color:#ff8fa8; }
+.nbh-pop ul{ margin:0; padding:0 0 0 14px; } .nbh-pop li{ font-size:11.5px; color:var(--ink); line-height:1.5; white-space:normal; }
+.nbh-f{ margin-top:6px; padding-top:6px; border-top:1px solid #332e30; font-family:'Roboto Mono',monospace; font-size:10.5px; color:#ff8fa8; white-space:normal; }
+.nbl{ position:relative; } .nbl-t{ position:relative; }
 
 /* black-and-white photo rows to match: the keeper tray and the boards */
 .kt-slot img, .kl-card img{ filter:grayscale(1); }

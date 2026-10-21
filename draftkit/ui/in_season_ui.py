@@ -316,8 +316,15 @@ def _gather_raw(ctx, week):
     ecr = _ecr(season, week, getattr(meta, "scoring", "ppr") or "ppr", reg)
     import json as _json
     rids = [r.get("roster_id") for r in rosters.values() if r.get("roster_id") is not None]
+    # the keeper rules' round count, not the latest draft's: 7½ Men's latest
+    # draft was the 4-round rookie draft, which made every team look like it
+    # owned only rounds 1-4 of next year and shoved every keeper into them
+    try:
+        _kr = int((K.load_keeper_rules(str(meta.league_id)) or {}).get("draft_rounds") or 0)
+    except Exception:  # noqa: BLE001
+        _kr = 0
     book = _pick_book(meta.platform, str(meta.league_id), season,
-                      getattr(meta, "draft_rounds", 14) or 14,
+                      max(int(getattr(meta, "draft_rounds", 14) or 14), _kr),
                       _json.dumps(sorted(int(x) for x in rids)))
     # The NFL week itself — kickoffs, game state, the line — and this league's
     # actual points. Both degrade to empty; every screen below checks before use.
@@ -3576,6 +3583,95 @@ def _league_keepers(ctx, g) -> dict:
     return out
 
 
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _player_history(league_id: str, season: int) -> dict:
+    """{pid: {season: {...}}} — every season this league has a record of him:
+    the round he went in that year's draft and who took him, and, from the
+    league's keeper files, whether he was kept, at what round and which year of
+    the clock. One entry per season; the screen turns it into lines.
+
+    Walks the Sleeper previous_league_id chain for the drafts, and the hub's
+    keeper files for the keeper years."""
+    out: dict = {}
+    lid, hops = str(league_id), 0
+    while lid and lid != "0" and hops < 5:
+        hops += 1
+        try:
+            lg = api.get_league(lid) or {}
+        except Exception:  # noqa: BLE001
+            break
+        yr = int(lg.get("season") or 0)
+        try:
+            names = {str(u.get("user_id")): (u.get("display_name") or "") for u in (api.get_users(lid) or [])}
+        except Exception:  # noqa: BLE001
+            names = {}
+        named = K.configured_drafts(str(league_id)) if lid == str(league_id) else {}
+        dids = ([d for k in ("veteran", "rookie") for d in (named.get(k) or [])] if named
+                else [lg.get("draft_id")])
+        for did in [d for d in dids if d]:
+            try:
+                picks = api.get_draft_picks(did) or []
+            except Exception:  # noqa: BLE001
+                continue
+            for q in picks:
+                pid = str(q.get("player_id") or "")
+                if not pid or not q.get("round"):
+                    continue
+                e = out.setdefault(pid, {}).setdefault(yr, {})
+                e.setdefault("round", int(q["round"]))
+                e.setdefault("by", str(q.get("picked_by") or ""))
+                e.setdefault("by_name", names.get(str(q.get("picked_by") or ""), ""))
+                if q.get("is_keeper"):
+                    e["kept"] = True
+        lid = str(lg.get("previous_league_id") or "")
+    for yr in range(int(season) - 3, int(season) + 1):
+        try:
+            filed = K.load_keepers(str(league_id), yr, rostered=False) or {}
+        except Exception:  # noqa: BLE001
+            continue
+        for oid, recs in filed.items():
+            for r in recs or []:
+                pid = str(r.get("player_id") or "")
+                if not pid:
+                    continue
+                e = out.setdefault(pid, {}).setdefault(yr, {})
+                e["kept"] = True
+                e["by"] = str(oid)
+                if r.get("cost_round"):
+                    e["round"] = int(r["cost_round"])
+                if r.get("is_rookie_keeper"):
+                    e["rookie"] = True
+                elif r.get("keep_year"):
+                    e["year"] = int(r["keep_year"])
+    return out
+
+
+def _hist_pop(ctx, g, pid, label_html: str, future: str = "") -> str:
+    """`label_html` that opens a small keeper-history card in place — one line
+    per season, oldest first, then next year's price."""
+    hist = _player_history(str(ctx["meta"].league_id), int(g["season"])).get(str(pid)) or {}
+    lines = []
+    for yr in sorted(hist):
+        e = hist[yr]
+        who = _owner_name(ctx, e.get("by")) if e.get("by") else ""
+        if not who or who == "Team":
+            who = e.get("by_name") or "?"
+        rd = f' R{e["round"]}' if e.get("round") else ""
+        if e.get("kept"):
+            kind = (" · rookie keeper" if e.get("rookie") else f' · year {e["year"]}' if e.get("year") else "")
+            lines.append(f'<li><b class="k">{yr}</b> kept{rd} by {_esc_(who)}{kind}</li>')
+        else:
+            lines.append(f'<li><b>{yr}</b> drafted{rd} by {_esc_(who)}</li>')
+    body = "".join(lines) or "<li>no draft or keeper record in this league</li>"
+    try:
+        nm_ = ctx["registry"].meta(pid).name
+    except Exception:  # noqa: BLE001
+        nm_ = str(pid)
+    fut = f'<div class="nbh-f">{future}</div>' if future else ""
+    return (f'<details class="nbh"><summary>{label_html}</summary><div class="nbh-pop">'
+            f'<strong>{_esc_(nm_)}</strong><ul>{body}</ul>{fut}</div></details>')
+
+
 def _next_board(ctx, g) -> None:
     """Next season's draft, every pick simulated (draftkit/nextboard.py)."""
     from .. import nextboard as NB, nextyear as NY
@@ -3632,6 +3728,8 @@ def _next_board(ctx, g) -> None:
         except Exception:  # noqa: BLE001
             pos_of[pid] = ""
     cells = NB.build(order, rounds, held, keepers, pool, pos_of)
+    _kfut = {str(r["pid"]): f'{nxt}: keeps at R{r.get("cost_round")} &middot; {_esc_(r.get("note") or "")}'
+             for rows_ in _league_keepers(ctx, g).values() for r in rows_}
 
     def nm(pid):
         try:
@@ -3676,6 +3774,9 @@ def _next_board(ctx, g) -> None:
                    f'<small>{_esc_(pos_of.get(c["pid"], "") if c["pid"] else "")}'
                    f'{" · KEEP" if c["keeper"] else ""}</small>')
             holder = (f'<em>{_esc_(first(owner_of.get(c["holder"], "")))}</em>' if c["traded"] else "")
+            if c["pid"]:
+                _rk = (proj.get(c["pid"]) or {}).get("rank")
+                who = _hist_pop(ctx, g, c["pid"], who, _kfut.get(c["pid"]) or (f"{nxt}: projected rank #{_rk}" if _rk else ""))
             row.append(f'<div class="{" ".join(x for x in cls if x)}"><span class="nb-p">#{c["pick"]}</span>{who}{holder}{via}</div>')
         body.append('<div class="nb-r">' + "".join(row) + "</div>")
     grid = f'<div class="nb" style="--n:{len(order)}">{head}{"".join(body)}</div>'
@@ -3715,7 +3816,8 @@ def _next_board(ctx, g) -> None:
             rows_l.append(
                 f'<div class="nbl{" mine" if mine_ else ""}"><span class="nbl-n">{i + 1}</span>'
                 f'<img class="nbl-f" src="https://sleepercdn.com/content/nfl/players/thumb/{_esc_(_phid)}.jpg" alt="" loading="lazy">'
-                f'<div class="nbl-t"><b>{_esc_(nm(pid))}</b><span>{_esc_(pp)} &middot; {_esc_(tm)}</span></div>'
+                f'<div class="nbl-t">' + _hist_pop(ctx, g, pid, f'<b>{_esc_(nm(pid))}</b>', f"{nxt}: projected rank #{rk}")
+                + f'<span>{_esc_(pp)} &middot; {_esc_(tm)}</span></div>'
                 f'<span class="nbl-r">#{rk}<small>{nxt} rank &middot; R{-(-int(rk or 0) // max(1, len(order)))}</small></span>'
                 f'<span class="nbl-g">{dest}</span></div>')
             shown += 1
