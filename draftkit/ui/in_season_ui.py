@@ -3561,6 +3561,120 @@ def _gm_board(ctx, g, status) -> None:
 
 
 # ------------------------------------------------------ next year's draft
+def _league_keepers(ctx, g) -> dict:
+    """{owner_id: [keeper rows that would be kept]} — every team's projected
+    keepers, priced through the league's rules. Memoised for the run: the
+    preview and the board both need it and it prices every roster."""
+    key = f"_lk_{ctx['league_key']}_{g['week']}_{_slow_bucket(g['season'], g['week'])}"
+    memo = st.session_state.get(key)
+    if memo is not None:
+        return memo
+    out = {}
+    for o in g["rosters"]:
+        out[o] = [r for r in _keeper_rows(ctx, g, as_owner=o) if r.get("verdict") == "keep"]
+    st.session_state[key] = out
+    return out
+
+
+def _next_board(ctx, g) -> None:
+    """Next season's draft, every pick simulated (draftkit/nextboard.py)."""
+    from .. import nextboard as NB, nextyear as NY
+    reg, meta = ctx["registry"], ctx["meta"]
+    n = int(getattr(meta, "num_teams", 10) or 10)
+    nxt = int(g["season"]) + 1
+    rules = K.load_keeper_rules(str(meta.league_id)) or {}
+    rounds = int(rules.get("draft_rounds") or getattr(meta, "draft_rounds", 14) or 14)
+    rid_of = {o: r.get("roster_id") for o, r in g["rosters"].items() if r.get("roster_id") is not None}
+    owner_of = {v: k for k, v in rid_of.items()}
+    if len(rid_of) < 2:
+        _note("No rosters to build a board from yet.")
+        return
+    # the order: projected finish, worst first (the lotteries reshuffle it)
+    try:
+        status = _league_status_cached(ctx["league_key"], g["week"], _slow_bucket(g["season"], g["week"]), ctx, g)
+    except Exception:  # noqa: BLE001
+        status = {}
+
+    def _finish(o):
+        if o in status:
+            return status[o]["seed"]
+        se = g["rosters"][o].get("settings") or {}
+        return -(int(se.get("wins") or 0) * 1000 + float(se.get("fpts") or 0))
+    owners = sorted(rid_of, key=_finish, reverse=True)
+    me = str(g["me"])
+    opts = ["Projected"] + [str(i) for i in range(1, len(owners) + 1)]
+    pick_slot = st.segmented_control("Your slot", opts, key=f"nb_slot_{ctx['league_key']}",
+                                     selection_mode="single", default="Projected") or "Projected"
+    if pick_slot != "Projected" and me in owners:
+        owners.remove(me)
+        owners.insert(int(pick_slot) - 1, me)
+    order = [rid_of[o] for o in owners]
+    held = {}
+    for rid, picks in (g.get("picks") or {}).items():
+        for pk in picks:
+            if str(pk.get("season")) == str(nxt):
+                held[(int(pk["round"]), int(pk["origin"]))] = int(rid)
+    keepers = {rid_of[o]: [(str(r["pid"]), r.get("cost_round")) for r in rows]
+               for o, rows in _league_keepers(ctx, g).items() if o in rid_of}
+    w8 = getattr(meta, "scoring_weights", None) or {}
+    ppr = 1.0 if float(w8.get("rec", 1.0)) >= 0.75 else 0.5 if float(w8.get("rec", 1.0)) >= 0.25 else 0.0
+    proj = NY.projected(n, ppr)
+    pool = [pid for pid, _r in sorted(proj.items(), key=lambda kv: kv[1]["rank"])]
+    pos_of = {}
+    for pid in pool + [p for ks in keepers.values() for p, _c in ks]:
+        try:
+            pos_of[pid] = (reg.meta(pid).position or "").upper()
+        except Exception:  # noqa: BLE001
+            pos_of[pid] = ""
+    cells = NB.build(order, rounds, held, keepers, pool, pos_of)
+
+    def nm(pid):
+        try:
+            return reg.meta(pid).name
+        except Exception:  # noqa: BLE001
+            return str(pid)
+    my_rid = rid_of.get(me)
+    mine = sorted((c for c in cells.values() if c["holder"] == my_rid), key=lambda c: c["pick"])
+    live = [c for c in mine if not c["keeper"] and c["pid"]]
+    if live:
+        c0 = live[0]
+        _ph = getattr(reg.meta(c0["pid"]), "sleeper_pid", None) or c0["pid"]
+        st.markdown(C.hero_html(
+            f"{nxt} DRAFT · SIMULATED · {len(order)} TEAMS · {rounds} ROUNDS",
+            f'{c0["round"]}.{c0["slot"]:02d}',
+            f'your first live pick (#{c0["pick"]}) — projected to land <b>{_esc_(nm(c0["pid"]))}</b>'
+            + (f', after {sum(1 for c in mine if c["keeper"])} of yours go to keepers'
+               if any(c["keeper"] for c in mine) else ""),
+            photo=_ph, tone="ink"), unsafe_allow_html=True)
+    first = lambda o: _owner_name(ctx, o).split()[0]  # noqa: E731
+    head = '<div class="nb-r hd"><span></span>' + "".join(
+        f'<span class="{"me" if owners[i] == me else ""}">{i + 1}. {_esc_(first(owners[i]))}</span>'
+        for i in range(len(order))) + "</div>"
+    body = []
+    for r in range(1, rounds + 1):
+        row = [f'<span class="nb-rd">{r}</span>']
+        for sl in range(1, len(order) + 1):
+            c = cells[(r, sl)]
+            cls = ["nb-c", (c["pid"] and pos_of.get(c["pid"], "")) or ""]
+            if c["keeper"]:
+                cls.append("keep")
+            if c["holder"] == my_rid:
+                cls.append("me")
+            via = (f'<i>&#9668; {_esc_(first(owner_of.get(c["origin"], "")))}</i>' if c["traded"] else "")
+            who = (f'<b>{_esc_(nm(c["pid"]).split()[-1] if c["pid"] else "—")}</b>'
+                   f'<small>{_esc_(pos_of.get(c["pid"], "") if c["pid"] else "")}'
+                   f'{" · KEEP" if c["keeper"] else ""}</small>')
+            holder = (f'<em>{_esc_(first(owner_of.get(c["holder"], "")))}</em>' if c["traded"] else "")
+            row.append(f'<div class="{" ".join(x for x in cls if x)}"><span class="nb-p">#{c["pick"]}</span>{who}{holder}{via}</div>')
+        body.append('<div class="nb-r">' + "".join(row) + "</div>")
+    st.markdown(f'<div class="nb" style="--n:{len(order)}">{head}{"".join(body)}</div>', unsafe_allow_html=True)
+    _note(f"Order is the projected finish, worst first — the league's lottery will reshuffle it, so "
+          f"set **Your slot** to see a different spot. Keepers sit on the picks their teams will "
+          f"spend (the latest in their cost round, or the nearest earlier round they hold); everyone "
+          f"else goes best-available off the projected {nxt} ADP, with no team taking a third QB or TE. "
+          f"Next year's NFL rookies aren't priced until they're drafted, so the board leans veteran.")
+
+
 def _draft_preview(ctx, g) -> None:
     """Next season's draft as it would look today: every team's projected
     keepers off the board, then who's likely there at each pick you own."""
@@ -3568,12 +3682,11 @@ def _draft_preview(ctx, g) -> None:
     reg, meta = ctx["registry"], ctx["meta"]
     n = int(getattr(meta, "num_teams", 10) or 10)
     kept, kept_rounds = set(), []
-    for o in g["rosters"]:
-        for r in _keeper_rows(ctx, g, as_owner=o):
-            if r.get("verdict") == "keep":
-                kept.add(str(r["pid"]))
-                if r.get("cost_round"):
-                    kept_rounds.append(int(r["cost_round"]))
+    for _o, rows in _league_keepers(ctx, g).items():
+        for r in rows:
+            kept.add(str(r["pid"]))
+            if r.get("cost_round"):
+                kept_rounds.append(int(r["cost_round"]))
     w8 = getattr(meta, "scoring_weights", None) or {}
     ppr = 1.0 if float(w8.get("rec", 1.0)) >= 0.75 else 0.5
     proj = NY.projected(n, ppr)
@@ -4493,6 +4606,12 @@ def _keepers(ctx, g) -> None:
                "value averaged, and dynasty alone for a player on IR or out for the year, who "
                "keeps his value when every rest-of-season list drops him.")
 
+        with _drawer(f"{int(g['season']) + 1} board", "every pick simulated — keepers in their slots, the rest by projected ADP",
+                     key=f"nb_{ctx['league_key']}"):
+            try:
+                _next_board(ctx, g)
+            except Exception:  # noqa: BLE001
+                _note("Couldn't build next year's board right now.")
         with _drawer(f"{int(g['season']) + 1} draft preview", "every team's keepers off the board, then your picks"):
             try:
                 _draft_preview(ctx, g)

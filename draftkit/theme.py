@@ -2917,6 +2917,26 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   .xd-t{ position:relative; z-index:1; } .xd-s.me .xd-t{ text-align:right; } .xd-t em{ font-size:40px; } .xd-m b{ font-size:48px; }
 }
 
+/* ==== next season's simulated board ===================================== */
+.nb{ display:grid; gap:4px; overflow-x:auto; padding-bottom:4px; }
+.nb-r{ display:grid; grid-template-columns:30px repeat(var(--n), minmax(92px,1fr)); gap:4px; }
+.nb-r.hd span{ font-family:'Roboto Mono',monospace; font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--mut2);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:2px 4px; }
+.nb-r.hd span.me{ color:#ff336c; }
+.nb-rd{ font-family:'Anton',sans-serif; font-size:16px; color:var(--mut2); align-self:center; }
+.nb-c{ position:relative; background:var(--panel); border:1px solid var(--line); border-radius:7px; padding:5px 7px; min-height:52px; min-width:0; }
+.nb-c b{ display:block; font-family:'Oswald',sans-serif; font-weight:500; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.nb-c small{ font-family:'Roboto Mono',monospace; font-size:9px; color:var(--mut2); }
+.nb-c .nb-p{ position:absolute; top:4px; right:6px; font-family:'Roboto Mono',monospace; font-size:8.5px; color:var(--mut2); }
+.nb-c em, .nb-c i{ display:block; font-style:normal; font-size:9.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.nb-c i{ color:var(--mut2); }
+.nb-c.QB{ box-shadow:inset 3px 0 0 #b59cf0; } .nb-c.RB{ box-shadow:inset 3px 0 0 #5fdc8f; }
+.nb-c.WR{ box-shadow:inset 3px 0 0 #6aa6f0; } .nb-c.TE{ box-shadow:inset 3px 0 0 #f0b357; }
+.nb-c.keep{ background:#1d1718; border-color:#5a4a2a; } .nb-c.keep small{ color:#f3ead8; }
+.nb-c.me{ background:rgba(165,39,51,.32); border-color:#a52733; }
+.nb-c.me.keep{ background:rgba(165,39,51,.5); }
+@media (max-width:760px){ .nb-r{ grid-template-columns:24px repeat(var(--n), 84px); } }
+
 /* black-and-white photo rows to match: the keeper tray and the boards */
 .kt-slot img, .kl-card img{ filter:grayscale(1); }
 /* tier labels run on one line, past the first column if they need to */
