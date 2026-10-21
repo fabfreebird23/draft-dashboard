@@ -2560,6 +2560,24 @@ def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> Non
     skill_wv = {pid: r for pid, r in (wv or {}).items() if not r.get("is_dst")}
     pids = set(by_pid) | {p for p in skill_wv if p not in taken}
     pids |= {str(p) for p in list(tr)[:60] if str(p) not in taken}
+    # next season's cheap keepers: the free agents projected inside ten rounds
+    # join the pool whether or not anything else would list them — in B&B,
+    # first in line every week, the starters crowded the stash tier off the board
+    from .. import nextyear as NY
+    keeper_lg = meta.platform == "sleeper" and K.league_has_keepers(str(meta.league_id))
+    n_t = int(getattr(meta, "num_teams", 10) or 10)
+    nxt, keep_px = {}, {}
+    if keeper_lg:
+        try:
+            nxt = NY.projected(n_t, 1.0)
+        except Exception:  # noqa: BLE001
+            nxt = {}
+        _taken = {str(t) for t in taken}
+        _st = [pid for _r, pid in sorted((r["rank"], pid) for pid, r in nxt.items()
+                                         if pid not in _taken and r["rank"] <= n_t * 10)[:12]]
+        pids |= set(_st)
+        # priced through the keeper rules: a dropped keeper's clock keeps running
+        keep_px = {str(r["pid"]): r for r in _keeper_rows(ctx, g, pids=_st)} if _st else {}
     rows = []
     for pid in pids:
         try:
@@ -2595,16 +2613,11 @@ def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> Non
              "Ballers' list": lambda r: (r["ballers"] or 999, -r["gain"])}
     show.sort(key=order.get(lens, lambda r: (-r["gain"], r["ballers"] or 999, -r["adds"], -r["proj"])))
     # ---- the board: the Rankings look — photo pills, tiers, coloured columns
-    from .. import nextyear as NY
-    keeper_lg = meta.platform == "sleeper" and K.league_has_keepers(str(meta.league_id))
-    nxt = {}
-    if keeper_lg:
-        try:
-            nxt = NY.projected(int(getattr(meta, "num_teams", 10) or 10), 1.0)
-        except Exception:  # noqa: BLE001
-            nxt = {}
-    n_t = int(getattr(meta, "num_teams", 10) or 10)
     ecr = g.get("ecr") or {}
+
+    def _blocked(pid):
+        k = keep_px.get(str(pid))
+        return bool(k and (k.get("blocked") or k.get("verdict") == "blocked"))
 
     def tier(r):
         nr = (nxt.get(r["pid"]) or {}).get("rank")
@@ -2612,8 +2625,8 @@ def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> Non
             return ("S", "Starts for you", "a real claim")
         if r["gain"] > 0.05:
             return ("A", "Closest to starting", "a tiebreak, not a claim")
-        if nr and nr <= n_t * 10:
-            return ("B", "Stash for next year", "keeps at the last round")
+        if nr and nr <= n_t * 10 and not _blocked(r["pid"]):
+            return ("B", "Stash for next year", "next year's cheap keepers")
         if r["adds"] >= 50000:
             return ("C", "Rising", "the league is adding him")
         return ("D", "Depth", "")
@@ -2625,6 +2638,14 @@ def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> Non
     out = [f'<div class="rk" style="--cols:{cols}"><div class="rk-hd">'
            + "".join(f'<span class="{"lbl" if h == "Bid here" else "on" if h == "+You" else ""}">{h}</span>' for h in heads)
            + '</div>']
+    if lens == "All":
+        _by = {}
+        for r in show:
+            _by.setdefault(tier(r)[0], []).append(r)
+        _sb = _by.get("B", [])[:8]
+        _top = (_by.get("S", []) + _by.get("A", []))[:30 - len(_sb)]
+        _rest = (_by.get("C", []) + _by.get("D", []))[:max(0, 30 - len(_top) - len(_sb))]
+        show = _top + _sb + _rest
     band = None
     for r in show[:30]:
         t = tier(r) if lens == "All" else None
@@ -2657,7 +2678,12 @@ def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> Non
             c(f'{r["owned"]:.0f}%' if r["owned"] is not None else "—", "", "Rostered"),
         ]
         if keeper_lg:
-            cells.append(c(f"#{nr}" if nr else "—", ("g" if nr and nr <= n_t * 6 else "y" if nr and nr <= n_t * 10 else "dim"), "2027"))
+            _k = keep_px.get(str(r["pid"]))
+            _px = ("<small>aged out</small>" if _blocked(r["pid"]) else
+                   f'<small>keeps R{_k["cost_round"]}</small>' if (_k and _k.get("cost_round")) else "")
+            cells.append(c((f"#{nr}" if nr else "—") + _px,
+                           ("dim" if _blocked(r["pid"]) else "g" if nr and nr <= n_t * 6 else "y" if nr and nr <= n_t * 10 else "dim"),
+                           "2027"))
         out.append(f'<div class="rk-row fa"><div class="pl">{_T.img_tag(r["pid"], "")}'
                    f'<b>{_esc_(r["name"])}<small>{_esc_(r["team"])} · {r["pos"]}{inj}</small></b>'
                    f'<span class="tag fa">free agent</span></div>' + "".join(cells)
@@ -2671,8 +2697,9 @@ def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> Non
     _note("**+You** is what he'd add to your starting lineup this week — a player who doesn't crack "
           "your nine is worth $0 to you however highly he's ranked elsewhere. **Ballers** is the "
           "Fantasy Footballers' rank and their FAAB range in this league's dollars. **Adds 24h** is "
-          "Sleeper-wide. **2027** (keeper leagues) is his projected next-season ADP — a waiver add keeps at "
-          "the last round, so a good number there is a cheap keeper. **Bid here** is priced from this league's own history"
+          "Sleeper-wide. **2027** (keeper leagues) is his projected next-season ADP and, for the stash tier, the round "
+          "he'd keep at under this league's rules — a dropped keeper's clock keeps running, so he isn't "
+          "always a last-round add. **Bid here** is priced from this league's own history"
           + (f" — {_mk.summary()}." if (_mk and _mk.summary()) else "."))
 
 
