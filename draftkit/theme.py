@@ -2937,6 +2937,25 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .nb-c.me.keep{ background:rgba(165,39,51,.5); }
 @media (max-width:760px){ .nb-r{ grid-template-columns:24px repeat(var(--n), 84px); } }
 
+/* 2027 board: keepers only, and the available list */
+.nb-c.open{ background:transparent; border-style:dashed; border-color:#2e292b; }
+.nb-c.open small{ color:#5d5457; }
+.nb-c.open.me{ background:rgba(165,39,51,.12); border-style:solid; border-color:#a52733; } .nb-c.open.me small{ color:#ff8fa8; }
+.nbl-list{ max-height:1100px; overflow-y:auto; padding-right:4px; }
+.nbl{ display:grid; grid-template-columns:30px 32px minmax(0,1fr) 92px 112px; gap:9px; align-items:center; padding:6px 8px; border-bottom:1px solid var(--line); }
+.nbl.mine{ background:linear-gradient(90deg,rgba(165,39,51,.35),transparent 75%); border-radius:8px; }
+.nbl-n{ font-family:'Anton',sans-serif; font-size:17px; color:var(--mut2); }
+.nbl-f{ width:32px; height:32px; border-radius:50%; object-fit:cover !important; object-position:top !important; filter:grayscale(1); background:var(--panel2); }
+.nbl-t{ min-width:0; } .nbl-t b{ display:block; font-family:'Oswald',sans-serif; font-weight:500; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.nbl-t span{ font-size:11px; color:var(--mut2); }
+.nbl-r{ font-family:'Anton',sans-serif; font-size:17px; color:#f3ead8; } .nbl-r small{ display:block; font-family:'Roboto Mono',monospace; font-size:8.5px; color:var(--mut2); }
+.nbl-g{ font-family:'Roboto Mono',monospace; font-size:10.5px; color:var(--muted); text-align:right; }
+.nbl.mine .nbl-g{ color:#ff8fa8; font-weight:700; }
+.nbl-mark{ margin:8px 0; padding:8px 12px; border-radius:10px; background:#a52733; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; }
+.nbl-mark span{ font-family:'Roboto Mono',monospace; font-size:10.5px; letter-spacing:.12em; font-weight:700; color:#f3ead8; }
+.nbl-mark i{ font-family:'Playfair Display',serif; font-style:italic; color:#f6d7dc; }
+@media (max-width:760px){ .nbl{ grid-template-columns:24px 28px minmax(0,1fr) 70px; } .nbl-g{ grid-column:3 / -1; text-align:left; } }
+
 /* black-and-white photo rows to match: the keeper tray and the boards */
 .kt-slot img, .kl-card img{ filter:grayscale(1); }
 /* tier labels run on one line, past the first column if they need to */

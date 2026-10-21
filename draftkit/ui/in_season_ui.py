@@ -3603,8 +3603,13 @@ def _next_board(ctx, g) -> None:
     owners = sorted(rid_of, key=_finish, reverse=True)
     me = str(g["me"])
     opts = ["Projected"] + [str(i) for i in range(1, len(owners) + 1)]
-    pick_slot = st.segmented_control("Your slot", opts, key=f"nb_slot_{ctx['league_key']}",
-                                     selection_mode="single", default="Projected") or "Projected"
+    _c1, _c2 = st.columns([1, 2])
+    with _c1:
+        view = st.segmented_control("View", ["Full board", "Keepers only"], key=f"nb_view_{ctx['league_key']}", on_change=_keep_open(f"nb_{ctx['league_key']}"),
+                                    selection_mode="single", default="Full board") or "Full board"
+    with _c2:
+        pick_slot = st.segmented_control("Your slot", opts, key=f"nb_slot_{ctx['league_key']}", on_change=_keep_open(f"nb_{ctx['league_key']}"),
+                                         selection_mode="single", default="Projected") or "Projected"
     if pick_slot != "Projected" and me in owners:
         owners.remove(me)
         owners.insert(int(pick_slot) - 1, me)
@@ -3655,6 +3660,12 @@ def _next_board(ctx, g) -> None:
         row = [f'<span class="nb-rd">{r}</span>']
         for sl in range(1, len(order) + 1):
             c = cells[(r, sl)]
+            if view == "Keepers only" and not c["keeper"]:
+                tag = ("your pick" if c["holder"] == my_rid else
+                       f'open &middot; {_esc_(first(owner_of.get(c["holder"], "")))}' if c["traded"] else "open")
+                row.append(f'<div class="nb-c open{" me" if c["holder"] == my_rid else ""}">'
+                           f'<span class="nb-p">#{c["pick"]}</span><small>{tag}</small></div>')
+                continue
             cls = ["nb-c", (c["pid"] and pos_of.get(c["pid"], "")) or ""]
             if c["keeper"]:
                 cls.append("keep")
@@ -3667,7 +3678,54 @@ def _next_board(ctx, g) -> None:
             holder = (f'<em>{_esc_(first(owner_of.get(c["holder"], "")))}</em>' if c["traded"] else "")
             row.append(f'<div class="{" ".join(x for x in cls if x)}"><span class="nb-p">#{c["pick"]}</span>{who}{holder}{via}</div>')
         body.append('<div class="nb-r">' + "".join(row) + "</div>")
-    st.markdown(f'<div class="nb" style="--n:{len(order)}">{head}{"".join(body)}</div>', unsafe_allow_html=True)
+    grid = f'<div class="nb" style="--n:{len(order)}">{head}{"".join(body)}</div>'
+    if view != "Keepers only":
+        st.markdown(grid, unsafe_allow_html=True)
+    else:
+        # everyone not kept, best to worst, with where the full simulation sends
+        # him — and a marker at each of your picks: everyone below it is still there
+        kept_ids = {c["pid"] for c in cells.values() if c["keeper"]}
+        live = sorted((c for c in cells.values() if not c["keeper"]), key=lambda c: c["pick"])
+        goes = {c["pid"]: c for c in live if c["pid"]}
+        posf = st.segmented_control("Position", ["All", "QB", "RB", "WR", "TE"], key=f"nb_pos_{ctx['league_key']}", on_change=_keep_open(f"nb_{ctx['league_key']}"),
+                                    selection_mode="single", default="All") or "All"
+        avail = [p for p in pool if p not in kept_ids]
+        marks = {}
+        for c in live:
+            if c["holder"] == my_rid:
+                marks.setdefault(sum(1 for x in live if x["pick"] < c["pick"]), []).append(c)
+        rows_l, shown = [], 0
+        for i, pid in enumerate(avail[:max(rounds * len(order), 80)]):
+            for c in marks.get(i, []):
+                rows_l.append(f'<div class="nbl-mark"><span>YOUR PICK &middot; {c["round"]}.{c["slot"]:02d} (#{c["pick"]})</span>'
+                              f'<i>{i} players gone before it — everyone below is still there</i></div>')
+            pp = pos_of.get(pid, "")
+            if posf != "All" and pp != posf:
+                continue
+            g_ = goes.get(pid)
+            mine_ = bool(g_ and g_["holder"] == my_rid)
+            rk = (proj.get(pid) or {}).get("rank")
+            try:
+                tm = reg.meta(pid).team or "FA"
+            except Exception:  # noqa: BLE001
+                tm = ""
+            _phid = getattr(reg.meta(pid), "sleeper_pid", None) or pid
+            dest = (f"&rarr; you at #{g_['pick']}" if mine_ else
+                    f"~#{g_['pick']} {_esc_(first(owner_of.get(g_['holder'], '')))}" if g_ else "after the board")
+            rows_l.append(
+                f'<div class="nbl{" mine" if mine_ else ""}"><span class="nbl-n">{i + 1}</span>'
+                f'<img class="nbl-f" src="https://sleepercdn.com/content/nfl/players/thumb/{_esc_(_phid)}.jpg" alt="" loading="lazy">'
+                f'<div class="nbl-t"><b>{_esc_(nm(pid))}</b><span>{_esc_(pp)} &middot; {_esc_(tm)}</span></div>'
+                f'<span class="nbl-r">#{rk}<small>{nxt} rank &middot; R{-(-int(rk or 0) // max(1, len(order)))}</small></span>'
+                f'<span class="nbl-g">{dest}</span></div>')
+            shown += 1
+        lc, rc = st.columns([1.25, 1])
+        with lc:
+            st.markdown(f'<div class="ws-h">{len(kept_ids)} projected keepers &middot; every other pick open</div>{grid}',
+                        unsafe_allow_html=True)
+        with rc:
+            st.markdown(f'<div class="ws-h">Available &middot; best to worst &middot; projected {nxt} rank</div>'
+                        f'<div class="nbl-list">{"".join(rows_l)}</div>', unsafe_allow_html=True)
     _note(f"Order is the projected finish, worst first — the league's lottery will reshuffle it, so "
           f"set **Your slot** to see a different spot. Keepers sit on the picks their teams will "
           f"spend (the latest in their cost round, or the nearest earlier round they hold); everyone "
