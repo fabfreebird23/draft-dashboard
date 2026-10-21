@@ -772,8 +772,10 @@ def _command(ctx, g) -> None:
     with left:
         st.markdown(_day_line(g, cur, reg), unsafe_allow_html=True)
         st.markdown('<div class="ws-h">What to do</div>', unsafe_allow_html=True)
-        for a in acts[:6]:
-            tone = a["tone"] + (" dim" if a.get("dim") else "")
+        # the one that needs you is a red card; the rest stay quiet
+        _hot = next((i for i, a in enumerate(acts[:6]) if a.get("kind") != "ok" and not a.get("dim")), None)
+        for _i, a in enumerate(acts[:6]):
+            tone = a["tone"] + (" dim" if a.get("dim") else "") + (" hot" if _i == _hot else "")
             st.markdown(C.action_html(tone, a["icon"], a["title"], a["detail"], a.get("num"),
                                       a.get("lab", "")), unsafe_allow_html=True)
         _fa = inseason.faab(ctx["meta"]) or {}
@@ -832,7 +834,8 @@ def _command(ctx, g) -> None:
                    else float(g["proj"].get(str(pid), 0) or 0))
             rows.append((slot, nm, f'{pm.team} · {when}', val,
                          _POSC.get(pm.position, "var(--mut2)"),
-                         bool(av["status"]) or str(pid) in _moves or str(pid) in _reseat))
+                         bool(av["status"]) or str(pid) in _moves or str(pid) in _reseat,
+                         getattr(pm, "sleeper_pid", None) or pid))
         st.markdown(C.lineup_bars_html(rows, header="Starting",
                                        proj_label="Pts" if started else "Projected"),
                     unsafe_allow_html=True)
@@ -2500,19 +2503,6 @@ def _keep_open(key: str):
     return lambda: st.session_state.__setitem__(f"drawer_{key}", True)
 
 
-def _lead_html(kick: str, right: str, title: str, sentence: str, row: str = "", tone: str = "") -> str:
-    return (f'<div class="ld {tone}"><div class="ld-k">{C._esc(kick)}<span>{C._esc(right)}</span></div>'
-            f'<div class="ld-t">{C._esc(title)}</div><div class="ld-s">{sentence}</div>{row}</div>')
-
-
-def _lead_row(ctx, g, pid, sub: str, val: str, val_sub: str) -> str:
-    reg = ctx["registry"]
-    pm = reg.meta(pid)
-    face = C.h2h_face_html(getattr(pm, "sleeper_pid", None) or pid, pm.team or "", "l")
-    return (f'<div class="ld-r">{face}<div class="n"><b>{C._esc(pm.name)}</b><span>{C._esc(sub)}</span></div>'
-            f'<div class="v"><b>{C._esc(val)}</b><span>{C._esc(val_sub)}</span></div></div>')
-
-
 def _waivers_run_label() -> str:
     import datetime as _dt, time as _t
     from .. import weekpulse as WP
@@ -3187,9 +3177,10 @@ def _priority_note(ctx, g) -> None:
         _note(f"You're #{pos} on waivers (reverse standings) — finishing lower moves you up the line.")
 
 
-def _prefill_button(ctx, label: str, key: str, oid: str, send=(), get=(), sendp=(), getp=()) -> None:
+def _prefill_button(ctx, label: str, key: str, oid: str, send=(), get=(), sendp=(), getp=(),
+                    primary: bool = False) -> None:
     """Load a suggestion into the trade checker below (partner + both sides)."""
-    if st.button(label, key=key, use_container_width=True):
+    if st.button(label, key=key, use_container_width=True, type="primary" if primary else "secondary"):
         st.session_state[f"td_prefill_{ctx['league_key']}"] = {
             "oid": str(oid), "send": list(send), "get": list(get),
             "sendp": list(sendp), "getp": list(getp)}
@@ -3259,23 +3250,25 @@ def _mode_panel(ctx, g, status, resolved) -> None:
             ask = " · ".join([f"<b>{_esc_(x)}</b>" for x in picks[:2]] +
                              [f'<b>{_esc_(reg.meta(r["pid"]).name)}</b> (R{r["cost_round"]} keeper, +{r["surplus"]})'
                               for r in kt])
-            st.markdown(_lead_html(
-                f"SELL · {pm.position} · {v['ppg']:.1f}/G ROS", f"{ktxt}",
-                f"{pm.name} to {_owner_name(ctx, o)}",
-                f'{_owner_name(ctx, o)} is <b>{status[o]["odds"]}%</b> to make the playoffs and he adds '
-                f'<b>{gain:+.1f}</b> a week to their lineup. Ask for: {ask or "their best future pick"}.'
-                + (f' Also fits: {", ".join(_owner_name(ctx, x) for _g2, x in fits[1:3])}.' if len(fits) > 1 else "")),
-                unsafe_allow_html=True)
-            c = st.columns(3)
-            if picks:
-                with c[0]:
-                    _prefill_button(ctx, f"Check: for {picks[0]}", f"tk_{lk}_{pid}_p", o,
-                                    send=[pm.name], getp=[picks[0]])
-            for i, r in enumerate(kt[:2], 1):
-                with c[i]:
-                    _prefill_button(ctx, f'Check: for {reg.meta(r["pid"]).name.split()[-1]}',
-                                    f'tk_{lk}_{pid}_{r["pid"]}', o, send=[pm.name],
-                                    get=[reg.meta(r["pid"]).name])
+            _ph = getattr(pm, "sleeper_pid", None) or pid
+            st.markdown(C.trade_card_html(
+                pid=_ph, tone="sell",
+                kick=f"SELL TO {_owner_name(ctx, o).upper()} · {status[o]['odds']}% PLAYOFFS · {ktxt.upper()}",
+                title=f"{pm.name}",
+                body=(f'{pm.position} · {v["ppg"]:.1f} a game rest of season. Ask for: {ask or "their best future pick"}.'
+                      + (f' Also fits: {", ".join(_owner_name(ctx, x) for _g2, x in fits[1:3])}.' if len(fits) > 1 else "")),
+                num=f"{gain:+.1f}", num_sub="a week for them"), unsafe_allow_html=True)
+            with st.container(key=f"tcact_{lk}_{pid}"):
+                c = st.columns(3)
+                if picks:
+                    with c[0]:
+                        _prefill_button(ctx, f"Ask for {picks[0]}", f"tk_{lk}_{pid}_p", o,
+                                        send=[pm.name], getp=[picks[0]], primary=True)
+                for i, r in enumerate(kt[:2], 1):
+                    with c[i]:
+                        _prefill_button(ctx, f'Ask for {reg.meta(r["pid"]).name.split()[-1]}',
+                                        f'tk_{lk}_{pid}_{r["pid"]}', o, send=[pm.name],
+                                        get=[reg.meta(r["pid"]).name], primary=not picks and i == 1)
         return
 
     if resolved == "contend":
@@ -3329,21 +3322,25 @@ def _mode_panel(ctx, g, status, resolved) -> None:
                    f'he\'s a keeper for them (R{k["cost_round"]}, +{k["surplus"]}) — it will cost more')
             offer = " · ".join([f"<b>{_esc_(x)}</b>" for x in offer_picks[:2]] +
                                [f'<b>{_esc_(reg.meta(r["pid"]).name)}</b> (keeps R{r["cost_round"]})' for r in spare])
-            st.markdown(_lead_html(
-                f"BUY · {pm.position} · {v['ppg']:.1f}/G ROS", f'{_owner_name(ctx, o)} · {status[o]["odds"]}% playoffs',
-                f"{pm.name} from {_owner_name(ctx, o)}",
-                f'Adds <b>{gain:+.1f}</b> a week to your lineup (<b>{gain * weeks_left:+.0f}</b> over the rest '
-                f'of the season). {why[:1].upper() + why[1:]}. Offer: {offer or "a future pick"} — what a rebuilding team wants.',
-                tone="go"), unsafe_allow_html=True)
-            c = st.columns(3)
-            for i, lab in enumerate(offer_picks[:2]):
-                with c[i]:
-                    _prefill_button(ctx, f"Check: {lab}", f"ct_{lk}_{pid}_{i}", o, get=[pm.name], sendp=[lab])
-            if spare:
-                with c[2]:
-                    _prefill_button(ctx, f'Check: {reg.meta(spare[0]["pid"]).name.split()[-1]}',
-                                    f"ct_{lk}_{pid}_s", o, get=[pm.name],
-                                    send=[reg.meta(spare[0]["pid"]).name])
+            _ph = getattr(pm, "sleeper_pid", None) or pid
+            st.markdown(C.trade_card_html(
+                pid=_ph, tone="buy",
+                kick=f'FROM {_owner_name(ctx, o).upper()} · {status[o]["odds"]}% PLAYOFFS · {"RENTAL" if rental else "THEIR KEEPER"}',
+                title=f"{pm.name}",
+                body=(f'{pm.position} · {v["ppg"]:.1f} a game rest of season, <b>{gain * weeks_left:+.0f}</b> over '
+                      f'the rest of the season. {why[:1].upper() + why[1:]}. Offer: {offer or "a future pick"}.'),
+                num=f"{gain:+.1f}", num_sub="a week for you"), unsafe_allow_html=True)
+            with st.container(key=f"tcact_{lk}_{pid}"):
+                c = st.columns(3)
+                for i, lab in enumerate(offer_picks[:2]):
+                    with c[i]:
+                        _prefill_button(ctx, f"Offer {lab}", f"ct_{lk}_{pid}_{i}", o, get=[pm.name], sendp=[lab],
+                                        primary=(i == 0))
+                if spare:
+                    with c[2]:
+                        _prefill_button(ctx, f'Offer {reg.meta(spare[0]["pid"]).name.split()[-1]}',
+                                        f"ct_{lk}_{pid}_s", o, get=[pm.name],
+                                        send=[reg.meta(spare[0]["pid"]).name], primary=not offer_picks)
         return
     _note("You're on the bubble, so the Trades tab looks both ways — proposals below are scored on "
           "this week; switch to Contend or Tank to aim it.")

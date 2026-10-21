@@ -2012,14 +2012,19 @@ def lineup_bars_html(rows, *, header="Starting", proj_label="Projected") -> str:
     top = max([float(r[3] or 0) for r in rows] or [1.0]) or 1.0
     out = [f'<div class="ws2-lu"><div class="hd"><span>Slot</span><span>{_esc(header)}</span>'
            f'<span>{_esc(proj_label)}</span><span style="text-align:right">Pts</span></div>']
-    for slot, name, sub, proj, colour, hot in rows:
+    for r in rows:
+        slot, name, sub, proj, colour, hot = r[:6]
+        pid = r[6] if len(r) > 6 else None
         p = float(proj or 0)
         w = max(2.0, 100.0 * p / top) if p else 2.0
+        # one crimson ramp and a face per row; `colour` (per position) is no
+        # longer painted — the bars read as one lineup, not four positions
         out.append(
             f'<div class="rw{" hot" if hot else ""}">'
-            f'<span class="ws2-slot" style="color:{colour}">{_esc(slot)}</span>'
-            f'<div class="ws2-pl2"><b>{name}</b><br><span>{_esc(sub)}</span></div>'
-            f'<div class="ws2-mtr"><i style="width:{w:.0f}%;background:{colour}"></i></div>'
+            f'<span class="ws2-slot">{_esc(slot)}</span>'
+            f'<div class="ws2-pl2">{_img(pid, "ws2-face") if pid else ""}<div><b>{name}</b><br>'
+            f'<span>{_esc(sub)}</span></div></div>'
+            f'<div class="ws2-mtr"><i style="width:{w:.0f}%"></i></div>'
             f'<div class="ws2-pj{" zero" if not p else ""}">{p:.1f}</div></div>')
     return "".join(out) + "</div>"
 
@@ -2825,3 +2830,11 @@ def feed_html(rows) -> str:
     return "".join(
         f'<div class="xf"><span class="xf-w">{_esc(w)}</span><b>{_esc(t)}</b>'
         f'<span>{_esc(v)} <b>{_esc(p)}</b></span><em>{_esc(c)}</em></div>' for w, t, v, p, c in rows)
+
+
+def trade_card_html(*, pid, kick, title, body, num, num_sub, tone="buy") -> str:
+    """A trade target as a card: the face, who is selling (or buying), the
+    weekly gain as the big number, and the case in one paragraph."""
+    return (f'<div class="xt {tone}">{_img(pid, "xt-p")}<div class="xt-t"><span>{_esc(kick)}</span>'
+            f'<b>{_esc(title)}</b><p>{body}</p></div>'
+            f'<div class="xt-n"><em>{_esc(num)}</em><small>{_esc(num_sub)}</small></div></div>')

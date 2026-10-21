@@ -2744,6 +2744,96 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 /* a global img rule scales photos DOWN inside their box, which left heroes
    with a face floating mid-banner — sit them on the floor instead */
 .bh-duo,.xb-ph{ object-fit:cover !important; object-position:center bottom !important; }
+/* ==== Command Center, below the hero ====================================
+   The to-do list in one voice: quiet cards, mono icons, cream Anton numbers.
+   The ONE that needs you is a red card. Later rules win over the per-tone ones. */
+.ws2-act,.ws2-act.go,.ws2-act.warn,.ws2-act.bad,.ws2-act.live,.ws2-act.info{ border-left:4px solid var(--line2); }
+.ws2-act .ws2-ic,.ws2-act.go .ws2-ic,.ws2-act.warn .ws2-ic,.ws2-act.bad .ws2-ic,.ws2-act.live .ws2-ic,.ws2-act.info .ws2-ic{
+  color:var(--muted); border-color:var(--line2); }
+.ws2-act .n,.ws2-act.go .n,.ws2-act.warn .n,.ws2-act.bad .n,.ws2-act.live .n,.ws2-act.info .n{
+  font-family:'Anton',sans-serif; font-weight:400; font-size:28px; color:var(--mut2); text-align:right; }
+.ws2-act .t{ font-family:'Oswald',sans-serif; font-weight:500; font-size:15px; }
+.ws2-act.bad,.ws2-act.warn{ border-left-color:#a52733; }
+.ws2-act.hot{ background:#a52733 !important; border:0 !important; }
+.ws2-act.hot .ws2-ic{ color:#f3ead8 !important; border-color:rgba(243,234,216,.5) !important; }
+.ws2-act.hot .t,.ws2-act.hot .n{ color:#f3ead8 !important; } .ws2-act.hot .d,.ws2-act.hot .n small{ color:#f6d7dc !important; }
+/* the lineup: one crimson ramp, a face on every row */
+.ws2-slot{ color:var(--mut2) !important; font-family:'Roboto Mono',monospace; }
+.ws2-mtr i{ background:linear-gradient(90deg,#6e1d27,#a52733 60%,#ff336c) !important; }
+.ws2-lu .rw.hot{ background:rgba(165,39,51,.14); }
+.ws2-pl2{ display:flex; align-items:center; gap:9px; min-width:0; }
+.ws2-pl2>div{ min-width:0; } .ws2-pl2 b{ white-space:nowrap; }
+.ws2-face{ width:30px; height:30px; border-radius:50%; object-fit:cover !important; object-position:top !important;
+  background:var(--panel2); flex:none; }
+.ws2-face.none{ display:inline-block; }
+.ws2-pj{ font-family:'Anton',sans-serif; font-weight:400; font-size:18px; color:#f3ead8; }
+
+/* ==== Today inbox ========================================================
+   A red edge on every card, the face bigger, the gain as a cream Anton
+   number, and a cream primary in place of nine full-width hot-pink buttons. */
+.ib-item,.ib-item.ib-claim,.ib-item.ib-lineup,.ib-item.ib-lock{ border-left:4px solid #a52733 !important; background:var(--panel) !important; }
+.ib-item.ib-lock{ border-left-color:#ff336c !important; }
+.ib-item .ib-kind,.ib-item.ib-claim .ib-kind,.ib-item.ib-lineup .ib-kind{ color:#f0c0c8; }
+.ib-item .ib-row{ grid-template-columns:48px 1fr auto; gap:12px; }
+.ib-item .ib-row .h2h-av,.ib-item .ib-row .h2h-av .hs{ width:48px; height:48px; }
+.ib-item .ib-txt b{ font-size:16px; }
+.ib-item .ib-gain{ font-family:'Anton',sans-serif; font-weight:400; font-size:32px; color:#f3ead8; }
+.ib-item .ib-gain.dn{ color:var(--mut2); }
+[class*="st-key-ibact_"] [data-testid="stHorizontalBlock"]{ justify-content:flex-start; }
+[class*="st-key-ibact_"] [data-testid="stColumn"]{ flex:0 0 auto !important; width:auto !important; min-width:0 !important; }
+[class*="st-key-ibact_"] .stButton button{ width:auto !important; padding:6px 16px !important; background:transparent;
+  border:1px solid var(--line2); color:var(--muted); }
+[class*="st-key-ibact_"] .stButton button[kind="primary"],
+[class*="st-key-ibact_"] [data-testid="stBaseButton-primary"]{ background:#f3ead8 !important; border-color:#f3ead8 !important;
+  color:#141314 !important; font-weight:700; }
+[class*="st-key-ibact_"]{ margin:4px 0 16px 64px; }
+@media (max-width:760px){ [class*="st-key-ibact_"]{ margin-left:0; } }
+.ib-strip .g{ color:#f3ead8; } .ib-strip .a{ color:#f0c0c8; } .ib-strip .d{ color:#ff336c; }
+
+/* ==== Playoffs: the season in crimson ===================================
+   Playoff seeds glow crimson, the rest grey; week tiles carry a crimson bar
+   and an Anton number; the biggest game is the one red tile and a red card. */
+.sa-seeds{ height:130px; }
+.sa-sd i{ background:#3a3436; opacity:1; }
+.sa-sd.in i{ background:linear-gradient(180deg,#ff336c,#a52733); opacity:1; }
+.sa-sd.zero i{ background:var(--line2); }
+.sa-sd b{ font-family:'Anton',sans-serif; font-weight:400; font-size:15px; color:var(--mut2); }
+.sa-sd.in b{ color:#f3ead8; }
+.sa-wk{ padding:8px 0 6px; }
+.sa-wk b,.sa-wk b.g,.sa-wk b.a,.sa-wk b.d{ font-family:'Anton',sans-serif; font-weight:400; font-size:20px; color:#f3ead8; }
+.sa-wk b.d{ color:var(--mut2); }
+.sa-wk i,.sa-wk i.g,.sa-wk i.a,.sa-wk i.d{ background:#ff336c; opacity:.85; }
+.sa-wk i.d{ background:#5d5457; }
+.sa-wk.must{ background:#a52733; border-color:#a52733; }
+.sa-wk.must span,.sa-wk.must em{ color:#f6d7dc; } .sa-wk.must b{ color:#f3ead8 !important; }
+.sa-wk.must i{ background:#f3ead8 !important; }
+.sa-must{ background:#a52733 !important; border:0 !important; }
+.sa-mk span{ color:#f6d7dc; } .sa-mk b{ color:#f3ead8; } .sa-mk em{ font-family:'Anton',sans-serif; font-size:22px; color:#f3ead8; }
+.sa-mn{ color:#f6d7dc !important; } .sa-mn b.g,.sa-mn b.d{ color:#f3ead8; font-family:'Playfair Display',serif; font-style:italic; font-size:15px; }
+
+/* ==== Trades: targets as cards ========================================== */
+.xt{ display:grid; grid-template-columns:76px minmax(0,1fr) auto; gap:14px; align-items:center; background:var(--panel);
+  border:1px solid var(--line); border-left:4px solid #a52733; border-radius:12px; padding:10px 14px; margin:10px 0 6px; }
+.xt-p{ width:76px; height:76px; border-radius:12px; object-fit:cover !important; object-position:top !important;
+  background:rgba(165,39,51,.3); }
+.xt-t{ min-width:0; } .xt-t span{ font-family:'Roboto Mono',monospace; font-size:9.5px; letter-spacing:.1em; color:#f0c0c8; }
+.xt-t b{ display:block; font-family:'Oswald',sans-serif; font-weight:500; font-size:19px; margin:1px 0 2px; }
+.xt-t p{ margin:0; font-size:12px; color:var(--muted); line-height:1.45; } .xt-t p b{ display:inline; font-family:inherit; font-size:inherit; color:var(--ink); }
+.xt-n{ text-align:right; } .xt-n em{ display:block; font-style:normal; font-family:'Anton',sans-serif; font-size:40px; line-height:1; color:#f3ead8; }
+.xt-n small{ font-size:11px; color:var(--muted); white-space:nowrap; }
+[class*="st-key-tcact_"]{ margin:0 0 8px 90px; }
+[class*="st-key-tcact_"] [data-testid="stColumn"]{ flex:0 0 auto !important; width:auto !important; min-width:0 !important; }
+[class*="st-key-tcact_"] .stButton button{ width:auto !important; padding:5px 14px !important; font-size:12px; border-radius:8px;
+  background:transparent; border:1px solid var(--line2); color:var(--muted); }
+[class*="st-key-tcact_"] .stButton button[kind="primary"],
+[class*="st-key-tcact_"] [data-testid="stBaseButton-primary"]{ background:#f3ead8 !important; border-color:#f3ead8 !important;
+  color:#141314 !important; font-weight:700; }
+@media (max-width:760px){ .xt{ grid-template-columns:52px minmax(0,1fr) auto; gap:10px; } .xt-p{ width:52px; height:52px; }
+  .xt-n em{ font-size:28px; } [class*="st-key-tcact_"]{ margin-left:0; } }
+
+/* the label lives in a nested <p> with its own colour */
+[class*="st-key-tcact_"] [data-testid="stBaseButton-primary"] *,
+[class*="st-key-ibact_"] [data-testid="stBaseButton-primary"] *{ color:#141314 !important; }
 /* black-and-white photo rows to match: the keeper tray and the boards */
 .kt-slot img, .kl-card img, .rk-row .pl img{ filter:grayscale(1); }
 /* tier labels run on one line, past the first column if they need to */
