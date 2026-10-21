@@ -1,0 +1,69 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Photo colour + next remocks</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Inter:wght@400;600&family=Roboto+Mono:wght@500&family=Anton&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141314;--panel:#1f1d1e;--panel2:#292627;--line:#332e30;--ink:#f2eef0;--muted:#a2989c;--mut2:#8c8286;--cream:#f3ead8;--red:#a52733;--crimson:#ff336c}
+*{box-sizing:border-box} body{background:#0b0b0b;color:var(--ink);font-family:Inter,sans-serif;margin:0;padding:28px 28px 80px;font-size:13px}
+h1{font-family:Oswald;font-weight:600;font-size:30px;margin:0 0 6px} .sub{color:var(--muted);max-width:110ch;line-height:1.55;margin:0 0 26px}
+section{border-top:1px solid var(--line);padding-top:22px;margin-bottom:44px} h2{font-family:Oswald;font-weight:600;font-size:22px;margin:0 0 4px}
+h2 em{font-style:normal;font-family:'Roboto Mono';font-size:12px;color:var(--crimson);margin-right:10px} p.d{color:var(--muted);line-height:1.55;max-width:100ch;margin:0 0 14px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px} .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.opt h3{font-family:Oswald;font-weight:600;font-size:17px;margin:0 0 4px} .opt p{color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 10px;min-height:72px}
+.app,.board{background:var(--bg);border:1px solid #2a2527;border-radius:14px;padding:12px}
+.lab{font-family:'Roboto Mono';font-size:10px;letter-spacing:.13em;color:var(--mut2);margin:0 0 8px;text-transform:uppercase}
+/* photo rows */
+.r{display:flex;align-items:center;gap:9px;background:#221c1e;border:1px solid #4a2a30;border-radius:999px;padding:4px 10px 4px 4px;margin:5px 0}
+.r b{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .r small{font-family:'Roboto Mono';font-size:9.5px;color:var(--mut2);white-space:nowrap}
+.r .tag{margin-left:auto;font-family:'Roboto Mono';font-size:8px;letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;border-radius:4px;border:1px solid #6b6266;color:var(--cream);white-space:nowrap}
+.r.mine .tag{color:var(--crimson);border-color:var(--crimson)}
+.ph{width:34px;height:34px;border-radius:50%;overflow:hidden;flex:none;position:relative;background:#2a2627;display:block}
+.ph img{width:100%;height:100%;object-fit:cover;object-position:top}
+.o-full .ph{background:color-mix(in srgb,var(--tc) 35%,#1a1718)}
+.o-ring .ph{box-shadow:0 0 0 2px var(--tc);background:color-mix(in srgb,var(--tc) 22%,#1a1718)}
+.o-duo .ph{background:#a52733} .o-duo .ph img{filter:grayscale(1) contrast(1.15);mix-blend-mode:multiply}
+.o-duo .ph::after{content:"";position:absolute;inset:0;background:#ff336c;mix-blend-mode:screen;opacity:.12}
+.o-mine .ph img{filter:grayscale(1);opacity:.75} .o-mine.mine .ph{box-shadow:0 0 0 2px var(--tc);background:color-mix(in srgb,var(--tc) 22%,#1a1718)}
+.o-mine.mine .ph img{filter:none;opacity:1}
+.o-cream .ph{background:#f3ead8}
+.o-paper .ph{background:#f3ead8} .o-paper .ph img{filter:grayscale(1) contrast(1.25) sepia(.35);mix-blend-mode:multiply}
+.o-card .ph{background:var(--tc);box-shadow:0 0 0 2px #f3ead8}
+.o-mix .ph{background:#f3ead8} .o-mix.mine .ph{background:#a52733;box-shadow:0 0 0 2px #ff336c}
+/* command center */
+.ac{display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.ac.hot{background:#a52733;border:0} .ak{font-family:'Roboto Mono';font-size:9.5px;letter-spacing:.12em;color:var(--mut2)} .ac.hot .ak{color:#f6d7dc}
+.ac b{display:block;font-family:Oswald;font-weight:500;font-size:15px} .ac i{font-style:normal;font-size:11.5px;color:var(--muted)} .ac.hot i{color:#f6d7dc}
+.ac em{font-style:normal;font-family:Anton;font-size:30px;color:var(--cream)} .ac:not(.hot) em{color:var(--mut2)}
+.lu{display:grid;grid-template-columns:40px 30px minmax(0,150px) 1fr 44px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}
+.ls{font-family:'Roboto Mono';font-size:9.5px;color:var(--mut2)} .lu img{width:28px;height:28px;border-radius:50%;object-fit:cover;object-position:top;background:var(--panel2)}
+.lu b{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .lb{height:10px;background:var(--panel2);border-radius:99px;overflow:hidden}
+.lb i{display:block;height:100%;background:linear-gradient(90deg,#6e1d27,#a52733 60%,#ff336c)} .lu em{font-style:normal;font-family:Anton;font-size:18px;text-align:right;color:var(--cream)}
+.old{font-size:11.5px;color:var(--mut2);margin-top:8px} .old b{color:var(--muted)}
+/* inbox */
+.ib{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:4px solid #a52733;border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.ib img{width:48px;height:48px;border-radius:50%;object-fit:cover;object-position:top;background:var(--panel2)}
+.ibt span{font-family:'Roboto Mono';font-size:9.5px;letter-spacing:.1em;color:#f0c0c8;text-transform:uppercase} .ibt b{display:block;font-family:Oswald;font-weight:500;font-size:16px}
+.ibt i{font-style:normal;font-size:11.5px;color:var(--muted)} .ib em{font-style:normal;font-family:Anton;font-size:32px;color:var(--cream)}
+.ibb{grid-column:2/-1;display:flex;gap:8px} button{font:600 12px Inter;border-radius:8px;padding:6px 14px;border:1px solid var(--line);background:transparent;color:var(--muted)}
+button.go{background:var(--cream);color:#141314;border-color:var(--cream)}
+/* playoffs */
+.fin{display:flex;gap:8px;align-items:flex-end;height:150px;padding:0 4px}
+.fb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%} .fb i{width:100%;background:#3a3436;border-radius:6px 6px 0 0}
+.fb.in i{background:linear-gradient(180deg,#ff336c,#a52733)} .fb em{font-style:normal;font-family:Anton;font-size:16px;color:var(--cream);margin-bottom:4px} .fb:not(.in) em{color:var(--mut2)}
+.fb span{font-family:'Roboto Mono';font-size:10px;color:var(--mut2);margin-top:4px}
+.wks{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:14px}
+.wk{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px} .wk.big{background:#a52733;border:0}
+.wk span{font-family:'Roboto Mono';font-size:9.5px;color:var(--mut2)} .wk.big span,.wk.big small{color:#f6d7dc}
+.wk b{display:block;font-family:Anton;font-weight:400;font-size:24px;color:var(--cream)} .wb{height:5px;background:#3a3436;border-radius:9px;overflow:hidden;margin:3px 0}
+.wb i{display:block;height:100%;background:#ff336c} .wk.big .wb{background:rgba(0,0,0,.3)} .wk.big .wb i{background:var(--cream)} .wk small{font-size:11px;color:var(--muted)}
+/* trades */
+.tc{display:grid;grid-template-columns:72px 1fr auto;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:8px}
+.tc img{width:72px;height:72px;border-radius:12px;object-fit:cover;object-position:top;background:color-mix(in srgb,#a52733 30%,#1a1718)}
+.tct span{font-family:'Roboto Mono';font-size:9.5px;letter-spacing:.1em;color:#f0c0c8} .tct b{display:block;font-family:Oswald;font-weight:500;font-size:19px}
+.tct i{font-style:normal;font-size:12px;color:var(--muted)} .tcn{text-align:right} .tcn em{display:block;font-style:normal;font-family:Anton;font-size:40px;line-height:1;color:var(--cream)}
+.tcn small{font-size:11px;color:var(--muted)} .tcb{grid-column:2/-1;display:flex;gap:8px}
+@media(max-width:1100px){.grid4,.grid2{grid-template-columns:1fr}}
+</style></head><body>
+<h1>Player photos, round two</h1>
+<p class="sub">Four new treatments, built around the cream. Whichever you pick applies everywhere a face shows up: the Rankings and Waivers boards, the swing cards, the keeper tray and the lineup. The other four sections are the screens I found that still use the old palette (greens, ambers, hot pink, colour-per-position) or a plain table. Real Kreeper data.</p>
+<section><h2><em>01</em>Player photos: cream and beyond</h2><p class="d">Today every face is greyscale. Same five rows, four treatments:</p><div class="grid4"><div class="opt"><h3>E · Cream backdrop</h3><p>Full-colour faces on a cream disc, the same cream as the hero numbers. They pop off the dark rows like stickers.</p><div class="board"><div class="r o-cream mine" style="--tc:#e31837"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/8151.jpg"></span><b>1. Kenneth Walker</b><small>KC · RB</small><span class="tag">you</span></div><div class="r o-cream mine" style="--tc:#69be28"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/9488.jpg"></span><b>2. Jaxon Smith-Njigba</b><small>SEA · WR</small><span class="tag">you</span></div><div class="r o-cream mine" style="--tc:#d3bc8d"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/8144.jpg"></span><b>3. Chris Olave</b><small>NO · WR</small><span class="tag">you</span></div><div class="r o-cream mine" style="--tc:#2a52be"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg"></span><b>4. Malik Nabers</b><small>NYG · WR</small><span class="tag">you</span></div><div class="r o-cream" style="--tc:#6b3fa0"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/11563.jpg"></span><b>5. Bo Nix</b><small>BAL · QB</small><span class="tag">free agent</span></div></div></div><div class="opt"><h3>F · Newsprint cream</h3><p>Faces printed into cream, warm black ink on paper, like the hero photos but in cream instead of red. Editorial; no team colours.</p><div class="board"><div class="r o-paper mine" style="--tc:#e31837"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/8151.jpg"></span><b>1. Kenneth Walker</b><small>KC · RB</small><span class="tag">you</span></div><div class="r o-paper mine" style="--tc:#69be28"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/9488.jpg"></span><b>2. Jaxon Smith-Njigba</b><small>SEA · WR</small><span class="tag">you</span></div><div class="r o-paper mine" style="--tc:#d3bc8d"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/8144.jpg"></span><b>3. Chris Olave</b><small>NO · WR</small><span class="tag">you</span></div><div class="r o-paper mine" style="--tc:#2a52be"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg"></span><b>4. Malik Nabers</b><small>NYG · WR</small><span class="tag">you</span></div><div class="r o-paper" style="--tc:#6b3fa0"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/11563.jpg"></span><b>5. Bo Nix</b><small>BAL · QB</small><span class="tag">free agent</span></div></div></div><div class="opt"><h3>G · Trading card</h3><p>Full colour on a solid team-colour disc with a cream ring. The loudest option, and the most like a sports card.</p><div class="board"><div class="r o-card mine" style="--tc:#e31837"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/8151.jpg"></span><b>1. Kenneth Walker</b><small>KC · RB</small><span class="tag">you</span></div><div class="r o-card mine" style="--tc:#69be28"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/9488.jpg"></span><b>2. Jaxon Smith-Njigba</b><small>SEA · WR</small><span class="tag">you</span></div><div class="r o-card mine" style="--tc:#d3bc8d"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/8144.jpg"></span><b>3. Chris Olave</b><small>NO · WR</small><span class="tag">you</span></div><div class="r o-card mine" style="--tc:#2a52be"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg"></span><b>4. Malik Nabers</b><small>NYG · WR</small><span class="tag">you</span></div><div class="r o-card" style="--tc:#6b3fa0"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/11563.jpg"></span><b>5. Bo Nix</b><small>BAL · QB</small><span class="tag">free agent</span></div></div></div><div class="opt"><h3>H · Cream, red for yours</h3><p>Everyone full colour on cream; your players get a crimson ring and a red disc. Colour everywhere, and yours still stand out.</p><div class="board"><div class="r o-mix mine" style="--tc:#e31837"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/8151.jpg"></span><b>1. Kenneth Walker</b><small>KC · RB</small><span class="tag">you</span></div><div class="r o-mix mine" style="--tc:#69be28"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/9488.jpg"></span><b>2. Jaxon Smith-Njigba</b><small>SEA · WR</small><span class="tag">you</span></div><div class="r o-mix mine" style="--tc:#d3bc8d"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/8144.jpg"></span><b>3. Chris Olave</b><small>NO · WR</small><span class="tag">you</span></div><div class="r o-mix mine" style="--tc:#2a52be"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/11632.jpg"></span><b>4. Malik Nabers</b><small>NYG · WR</small><span class="tag">you</span></div><div class="r o-mix" style="--tc:#6b3fa0"><span class="ph"><img src="https://sleepercdn.com/content/nfl/players/thumb/11563.jpg"></span><b>5. Bo Nix</b><small>BAL · QB</small><span class="tag">free agent</span></div></div></div></div></section>
+</body></html>
