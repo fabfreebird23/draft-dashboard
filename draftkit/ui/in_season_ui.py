@@ -1019,7 +1019,9 @@ def _live_body(ctx, g, *, bound_auto: bool, bound_every: int) -> None:
     wp = W.win_prob(me_end, ms_ * 0.7, opp_end, os_ * 0.7) if opp else None
     left_me = len(ps["pre"]) + len(ps["live"])
     left_op = (len(ops["pre"]) + len(ops["live"])) if ops else 0
-    _wk_lab = ("LIVE" if _n_live else "FINAL" if left_me == 0 else "WEEK") + f" · WEEK {week}"
+    _kicked = bool(ps["live"] or ps["done"])
+    _wk_lab = ("LIVE" if _n_live else "FINAL" if left_me == 0 else
+               "BETWEEN GAMES" if _kicked else "BEFORE KICKOFF") + f" · WEEK {week}"
     st.markdown(C.scoreboard_html(
         me_name="You", me_rec=_record(g, g["me"]), me_pts=f"{me_pts:.1f}",
         me_sub=f"{left_me} still to play · {me_end:.0f} projected",
@@ -1481,7 +1483,8 @@ def _lineup(ctx, g) -> None:
     else:
         _s = "projected — your lineup is set"
     st.markdown(C.hero_html(f"LINEUP · WEEK {g['week']} · {_day.split(' · ', 1)[-1]}",
-                            f'{lc["optimal_total"]:.1f}', _s, photo=_photo), unsafe_allow_html=True)
+                            f'{lc["optimal_total"]:.1f}', _s, photo=_photo,
+                            tone="red" if (n_moves or n_seat) else "ink"), unsafe_allow_html=True)
     _cmp_html = C.lineup_compare_html(
         now_rows=now_rows, set_rows=set_rows,
         now_total=(f"On {_plat} now", "as set", f'{lc["current_total"]:.1f}'),
@@ -4389,17 +4392,15 @@ def _keepers(ctx, g) -> None:
     keeps = [r for r in rows if r["verdict"] == "keep"]
     blocked = [r for r in rows if r["verdict"] == "blocked"]
     best = keeps[0] if keeps else None
-    _tiles([
-        ("Keeper slots", f"{reg_max + rook_max}",
-         f"{reg_max} regular + {rook_max} rookie", "var(--ink)"),
-        ("Your best value", best["name"].split()[-1] if best else "—",
-         f"+{best['surplus']} keeper value" if best else "—", "var(--green)"),
-        ("Blocked", f"{len(blocked)}",
-         blocked[0]["blocked"] if blocked else "none aged out", 
-         "var(--red)" if blocked else "var(--muted)"),
-        ("Escalation", f"−{rules.get('year2_bump_rounds', 0)} rds/yr",
-         f"max {rules.get('max_keep_years', '—')} keep years", "var(--muted)"),
-    ])
+    # the old tile strip, folded into the hero's grid
+    _kgrid = [
+        ("Keeper slots", f"{reg_max + rook_max}", f"{reg_max} regular + {rook_max} rookie"),
+        ("Best value", best["name"].split()[-1] if best else "—",
+         f"+{best['surplus']} keeper value" if best else ""),
+        ("Blocked", f"{len(blocked)}", blocked[0]["blocked"] if blocked else "none aged out"),
+        ("Escalation", f"−{rules.get('year2_bump_rounds', 0)} rds",
+         f"a year · max {rules.get('max_keep_years', '—')} years"),
+    ]
 
     # The answer first — the five he would keep, as faces in their slots — then
     # every player's whole price ladder. The table this replaces showed one
@@ -4415,7 +4416,7 @@ def _keepers(ctx, g) -> None:
         _num, _line = f"+{_best.get('surplus') or 0}", f"keeper value — <b>{_esc_(_best['name'])}</b> is your best keep"
     else:
         _num, _line = "0", "keepers worth their price yet"
-    st.markdown(C.hero_html(f"{int(g['season']) + 1} KEEPERS · IF THE SEASON ENDED TODAY", _num, _line, tone="ink"),
+    st.markdown(C.hero_html(f"{int(g['season']) + 1} KEEPERS · IF THE SEASON ENDED TODAY", _num, _line, grid=_kgrid, tone="ink"),
                 unsafe_allow_html=True)
     st.markdown(C.keeper_tray_html(keeps, reg_max, rook_max), unsafe_allow_html=True)
     # The tray above is the answer; the rest folds, each drawer saying what's in it.
