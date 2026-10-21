@@ -717,10 +717,18 @@ def keeper_outlook(my_pids, *, drafted_round: Dict[str, Any], existing: Dict[str
         # enforce_owned_picks). He traded his 2027 1st to Ned, so Walker and
         # JSN at R1 can't both — or either — be kept; the hub said so and this
         # screen kept them anyway. `owned_rounds` is {round: count}; None skips it.
+        # The bylaw: if the cost round was traded away it moves UP to the
+        # nearest earlier round you own (R7 traded -> R6); never down to a
+        # cheaper one, and with nothing at that round or earlier he can't be kept.
         if (not blocked and owned_rounds is not None and rules.get("enforce_owned_picks", True)
                 and owned_rounds.get(int(cost), 0) <= 0):
-            blocked = (f"needs a {next_season} R{cost} · you don't own one" if next_season
-                       else f"needs an R{cost} pick · you don't own one")
+            up = next((r for r in range(int(cost) - 1, 0, -1) if owned_rounds.get(r, 0) > 0), None)
+            if up is None:
+                blocked = (f"needs a {next_season} pick in R{cost} or earlier · you don't own one"
+                           if cost > 1 else f"needs a {next_season} R1 · you don't own one")
+            else:
+                note = (note + " · " if note else "") + f"R{cost} traded → moves up to R{up}"
+                cost = up
 
         # ---- the ladder: what he costs this year and every year he can be kept
         # after it, so the rule behind the number is on the card. Year 3 is ADP by
