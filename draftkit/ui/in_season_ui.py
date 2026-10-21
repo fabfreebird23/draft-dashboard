@@ -3225,6 +3225,209 @@ def _mode_panel(ctx, g, status, resolved) -> None:
 
 
 
+# ---------------------------------------------------- byes & playoff weeks
+def _bye_planner(ctx, g) -> None:
+    """Every starter's bye through the last playoff week, the weeks you're
+    short, and who could cover each: a rental on a team that's out of it, or a
+    free agent who plays that week."""
+    reg, meta = ctx["registry"], ctx["meta"]
+    byes = g.get("byes") or {}
+    wks = SCH.playoff_weeks(meta)
+    last = (wks[-1] if wks else 17)
+    weeks = list(range(int(g["week"]), last + 1))
+    if not weeks or not byes:
+        return
+    lc = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"])
+    starters = [(sl, str(p)) for sl, p in lc["spots"] if p]
+    rows, outs = [], {w: [] for w in weeks}
+    for sl, p in starters:
+        pm = reg.meta(p)
+        b = byes.get((pm.team or "").upper())
+        rows.append((sl, pm.name, pm.position, b))
+        if b in outs:
+            outs[b].append((pm.position, pm.name))
+    # who could cover a hole: rentals on teams that are out of it, then free agents
+    try:
+        status = _league_status_cached(ctx["league_key"], g["week"], _slow_bucket(g["season"], g["week"]), ctx, g)
+    except Exception:  # noqa: BLE001
+        status = {}
+    w8 = getattr(meta, "scoring_weights", None)
+    ros = _ros_ppg_cached(int(g["season"]), int(g["week"]), meta.scoring, str(sorted((w8 or {}).items())), w8) or {}
+    owner_of = {str(q): str(o) for o, r in g["rosters"].items() for q in (r.get("players") or [])}
+    sellers = {o for o, v in status.items() if o != str(g["me"]) and v["odds"] <= 15}
+
+    def cover(pos, week):
+        best = []
+        for pid, r in ros.items():
+            try:
+                pm = reg.meta(pid)
+            except Exception:  # noqa: BLE001
+                continue
+            if (pm.position or "").upper() != pos or byes.get((pm.team or "").upper()) == week:
+                continue
+            o = owner_of.get(str(pid))
+            if o and o not in sellers:
+                continue
+            games = int(r.get("games") or 0)
+            if not games:
+                continue
+            best.append((float(r.get("pts") or 0) / games, pm.name, o))
+        best.sort(reverse=True)
+        return best[:2]
+    po = set(wks or [])
+    grid = []
+    for sl, name, pos, b in rows:
+        cells = "".join(f'<td class="{"po" if w in po else ""}{" bye" if w == b else ""}">'
+                        f'{"BYE" if w == b else "<i></i>"}</td>' for w in weeks)
+        grid.append(f'<tr><td class="nm"><span class="bp-ps">{_esc_(sl)}</span>{_esc_(name)}</td>{cells}</tr>')
+    tot = "".join(f'<td class="{"po" if w in po else ""}{" bad" if len(outs[w]) >= 3 or (outs[w] and w in po) else " warn" if len(outs[w]) == 2 else ""}">'
+                  f'{len(outs[w]) or ""}</td>' for w in weeks)
+    head = "".join(f'<th class="{"po" if w in po else ""}">{w}</th>' for w in weeks)
+    worst = max(weeks, key=lambda w: (len(outs[w]) + (2 if w in po else 0)) if outs[w] else -1)
+    sev = outs.get(worst) or []
+    lead = ""
+    if sev:
+        names = ", ".join(n for _p, n in sev)
+        lead = (f'<div class="bp-lead"><b>Week {worst}</b>{" — a playoff week" if worst in po else ""}: '
+                f'{_esc_(names)} {"is" if len(sev) == 1 else "are"} on bye.</div>')
+    fixes = []
+    for w in weeks:
+        if not outs[w] or (len(outs[w]) < 2 and w not in po):
+            continue
+        for pos, name in outs[w]:
+            c = cover(pos, w)
+            if c:
+                opts = " · ".join(f'<b>{_esc_(n)}</b> ({ppg:.1f}/g, {"free agent" if not o else _owner_name(ctx, o) + ", out of it"})'
+                                  for ppg, n, o in c)
+                fixes.append(f'<div class="bp-fix"><span>Wk {w} · {_esc_(pos)}</span><div>for {_esc_(name)}: {opts}</div></div>')
+    st.markdown('<div class="bp">' + lead
+                + f'<table class="bp-g"><thead><tr><th></th>{head}</tr></thead><tbody>{"".join(grid)}'
+                + f'<tr class="tot"><td class="nm">starters out</td>{tot}</tr></tbody></table>'
+                + ("".join(fixes[:8]) if fixes else '<div class="ws-note">Every short week is one starter — the bench covers it.</div>')
+                + '</div>', unsafe_allow_html=True)
+
+
+# --------------------------------------------------------- league GM board
+def _gm_board(ctx, g, status) -> None:
+    """Every team at once: where they stand, what they need, what they can
+    spare, which picks they own — and the matches with you."""
+    reg = ctx["registry"]
+    me = str(g["me"])
+    vals = _win_now(ctx, g)
+    from .. import userstate as US
+    tank = set(US.tankers(ctx["league_key"]))
+    info = {}
+    for o, r in g["rosters"].items():
+        pids = [str(p) for p in (r.get("players") or [])]
+        if not pids:
+            continue
+        lc = W.lineup_check(pids, g["slots"], g["proj"], reg, g["byes"], g["week"])
+        starting = {str(p) for _s, p in lc["spots"] if p}
+        weak = W.weakest_slot(pids, g["slots"], g["proj"], reg, byes=g["byes"], week=g["week"])
+        bench_par: dict = {}
+        for p in pids:
+            if p in starting:
+                continue
+            v = vals.get(p) or {}
+            bench_par[v.get("pos") or "?"] = bench_par.get(v.get("pos") or "?", 0) + (v.get("par") or 0)
+        spare = max(bench_par.items(), key=lambda kv: kv[1]) if bench_par else None
+        odds = (status.get(str(o)) or {}).get("odds")
+        mode = ("seller" if (odds is not None and odds <= 15) or str(o) in tank else
+                "contend" if (odds or 0) >= 35 else "bubble")
+        menu = _pick_menu(ctx, g, o)
+        nxt = [int(pk["round"]) for pk in menu.values() if str(pk["season"]) == str(int(g["season"]) + 1)]
+        top = sorted(((vals.get(p) or {}).get("par") or 0, p) for p in pids)[-1:] if mode == "seller" else []
+        info[str(o)] = {"odds": odds, "mode": mode, "weak": weak, "spare": spare if spare and spare[1] > 5 else None,
+                        "picks": nxt, "sell": [reg.meta(p).name for v, p in top if v > 10], "pids": pids}
+    rows = []
+    for o, v in sorted(info.items(), key=lambda kv: -(kv[1]["odds"] or 0)):
+        weak = v["weak"]
+        need = f'{weak[0]} ({weak[1]:.0f})' if weak else "—"
+        sp = v["spare"][0] if v["spare"] else "—"
+        # only the differences from a normal set of one pick a round
+        rnds = v["picks"]
+        last = int(ctx["meta"].draft_rounds or (max(rnds) if rnds else 0) or 0)
+        cnt = {r: rnds.count(r) for r in set(rnds)}
+        missing = [r for r in range(1, last + 1) if cnt.get(r, 0) == 0]
+        extra = sorted(r for r, c in cnt.items() for _ in range(c - 1)) + sorted(r for r in cnt if r > last)
+        parts = ([("no R" + ", R".join(map(str, missing)))] if missing else []) + \
+                ([("+R" + ", +R".join(map(str, extra)))] if extra else [])
+        picks = " · ".join(parts) if rnds else "none"
+        picks = picks or "all"
+        rows.append(f'<tr class="{"me" if o == me else ""}"><td><b>{"You" if o == me else _esc_(_owner_name(ctx, o))}</b></td>'
+                    f'<td class="n">{v["odds"] if v["odds"] is not None else "—"}%</td>'
+                    f'<td><span class="gm-md {v["mode"]}">{v["mode"]}</span></td><td>{_esc_(need)}</td><td>{_esc_(sp)}</td>'
+                    f'<td class="sm">{_esc_(picks)}</td><td class="sm">{_esc_(", ".join(v["sell"]))}</td></tr>')
+    mine = info.get(me) or {}
+    my_need = ((mine.get("weak") or ("", 0, ""))[0] or "").rstrip("0123456789")
+    my_spare = (mine.get("spare") or ("",))[0]
+    matches = []
+    for o, v in info.items():
+        if o == me:
+            continue
+        if v["mode"] == "seller" and my_need:
+            hit = [reg.meta(p).name for p in v["pids"]
+                   if (vals.get(p) or {}).get("pos") in (my_need, "RB", "WR", "TE") and my_need in ("FLEX",)
+                   or (vals.get(p) or {}).get("pos") == my_need]
+            hit = [h for h in hit if any(reg.meta(q).name == h and ((vals.get(q) or {}).get("par") or 0) > 5 for q in v["pids"])]
+            if hit:
+                matches.append(f'<b>{_esc_(_owner_name(ctx, o))}</b> is selling and has your {my_need}: {_esc_(", ".join(hit[:2]))}')
+        if v["mode"] == "contend" and my_spare and v["weak"] and v["weak"][0].rstrip("0123456789") == my_spare:
+            matches.append(f'<b>{_esc_(_owner_name(ctx, o))}</b> is contending and short at {my_spare} — your spare {my_spare}s')
+    st.markdown('<table class="gm-t"><thead><tr><th>Team</th><th>Playoffs</th><th>Mode</th><th>Weakest starter</th>'
+                '<th>Can spare</th><th>' + str(int(g["season"]) + 1) + ' picks</th><th>Worth a call</th></tr></thead><tbody>'
+                + "".join(rows) + '</tbody></table>'
+                + ('<div class="gm-m">' + "".join(f"<div>{m}</div>" for m in matches[:4]) + '</div>' if matches else ""),
+                unsafe_allow_html=True)
+
+
+# ------------------------------------------------------ next year's draft
+def _draft_preview(ctx, g) -> None:
+    """Next season's draft as it would look today: every team's projected
+    keepers off the board, then who's likely there at each pick you own."""
+    from .. import nextyear as NY
+    reg, meta = ctx["registry"], ctx["meta"]
+    n = int(getattr(meta, "num_teams", 10) or 10)
+    kept, kept_rounds = set(), []
+    for o in g["rosters"]:
+        for r in _keeper_rows(ctx, g, as_owner=o):
+            if r.get("verdict") == "keep":
+                kept.add(str(r["pid"]))
+                if r.get("cost_round"):
+                    kept_rounds.append(int(r["cost_round"]))
+    w8 = getattr(meta, "scoring_weights", None) or {}
+    ppr = 1.0 if float(w8.get("rec", 1.0)) >= 0.75 else 0.5
+    proj = NY.projected(n, ppr)
+    pool = [pid for pid, _r in sorted(proj.items(), key=lambda kv: kv[1]["rank"]) if pid not in kept]
+    nxt = str(int(g["season"]) + 1)
+    menu = {lab: pk for lab, pk in _pick_menu(ctx, g, g["me"]).items() if str(pk["season"]) == nxt}
+    if not menu or not pool:
+        _note("No pick or projection data for next year's draft yet.")
+        return
+    cells = []
+    for lab, pk in sorted(menu.items(), key=lambda kv: kv[1]["round"]):
+        rnd = int(pk["round"])
+        overall = PK.overall(rnd, n)
+        # picks before this one that keepers use up: earlier rounds whole, this round half
+        k_before = sum(1 for kr in kept_rounds if kr < rnd) + sum(0.5 for kr in kept_rounds if kr == rnd)
+        i = int(max(0, overall - 1 - k_before))
+        names = [reg.meta(p).name for p in pool[i:i + 3]]
+        cells.append(f'<div class="dp-pk"><b>{_esc_(lab)}</b><span>≈ pick {overall:.0f}</span>'
+                     f'<em>{_esc_(names[0]) if names else "—"}</em><i>{_esc_(" · ".join(names[1:]))}</i></div>')
+    drain = []
+    for pos, depth in (("QB", n), ("RB", 2 * n), ("WR", 2 * n), ("TE", n)):
+        top = [pid for pid, r in sorted(proj.items(), key=lambda kv: kv[1]["rank"])
+               if (reg.meta(pid).position or "").upper() == pos][:depth]
+        k = sum(1 for p in top if p in kept)
+        drain.append(f'<div class="dp-dr"><b>{pos}</b><span>{k} of the top {depth} kept</span></div>')
+    st.markdown(f'<div class="dp"><div class="sa-k">{nxt} DRAFT · AFTER {len(kept)} PROJECTED KEEPERS · WHO\'S LIKELY THERE</div>'
+                f'<div class="dp-pks">{"".join(cells)}</div><div class="dp-drs">{"".join(drain)}</div></div>',
+                unsafe_allow_html=True)
+    _note("Keepers are each team's projected five (the keeper engine, priced on the next-season ADP projection). "
+          "Picks are placed mid-round, since the order isn't set; the names are the best left by projected ADP "
+          "once the keepers ahead of that pick are off the board.")
+
+
 def _trades(ctx, g) -> None:
     from .. import userstate as US
     reg, lk = ctx["registry"], ctx["league_key"]
@@ -3272,6 +3475,9 @@ def _trades(ctx, g) -> None:
                 US.set_tankers(lk, pick_t)
     _mode_panel(ctx, g, status, resolved)
     st.session_state[f"td_resolved_{lk}"] = resolved
+    if status:
+        with st.container(key="drawers_gm"), _drawer("League GM board", "every team's odds, needs, spare parts and picks"):
+            _gm_board(ctx, g, status)
     # Which partners are actually worth talking to. Clicking through seven teams to
     # discover that three of them have a deal is a search the app should do.
     @st.cache_data(ttl=600, show_spinner=False)
@@ -3816,6 +4022,12 @@ def _playoffs(ctx, g) -> None:
                      f"{len(odds)} teams" + (f" · {_owner_name(ctx, _lead)} most likely in" if _lead else ""))
         c2 = _drawer("Your players in the playoff weeks",
                      f"weeks {wks[0]}–{wks[-1]} strength of schedule" if wks else "strength of schedule")
+        c3 = _drawer("Byes, through the playoffs", "every starter's bye and who could cover it")
+    with c3:
+        try:
+            _bye_planner(ctx, g)
+        except Exception:  # noqa: BLE001
+            _note("Couldn't build the bye grid right now.")
     with c1:
         rws = []
         for oid, o in sorted(odds.items(), key=lambda kv: -kv[1]["playoff_pct"]):
@@ -4068,6 +4280,11 @@ def _keepers(ctx, g) -> None:
                "value averaged, and dynasty alone for a player on IR or out for the year, who "
                "keeps his value when every rest-of-season list drops him.")
 
+        with _drawer(f"{int(g['season']) + 1} draft preview", "every team's keepers off the board, then your picks"):
+            try:
+                _draft_preview(ctx, g)
+            except Exception:  # noqa: BLE001
+                _note("Couldn't build the draft preview right now.")
         _ch = (f"{blocked[0]['name']} has aged out" if blocked else
                "build trades around your cheap keepers")
         with _drawer("What this changes now", _ch):

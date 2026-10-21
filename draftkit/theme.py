@@ -2539,6 +2539,38 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .lt-c span{ font-family:'Roboto Mono',monospace; font-size:9.5px; color:var(--mut2); }
 @media (max-width:760px){ .lt-row{ grid-template-columns:1fr; } }
 
+/* ---- byes through the playoffs ---- */
+.bp-lead{ font-size:13px; color:var(--muted); margin:2px 0 10px; } .bp-lead b{ color:#ff6b6b; font-family:'Oswald',sans-serif; font-weight:500; font-size:15px; }
+.bp-g{ width:100%; border-collapse:separate; border-spacing:3px; font-size:11.5px; }
+.bp-g th{ font-family:'Roboto Mono',monospace; font-size:9.5px; color:var(--mut2); font-weight:500; } .bp-g th.po{ color:#f0b357; }
+.bp-g td{ background:var(--panel2); border-radius:4px; height:22px; text-align:center; } .bp-g td.po{ background:rgba(240,179,87,.1); }
+.bp-g td i{ display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--line2); }
+.bp-g td.bye{ background:rgba(255,107,107,.28); color:#ffb0b0; font-family:'Roboto Mono',monospace; font-size:9px; }
+.bp-g td.bye.po{ background:rgba(255,107,107,.5); color:#fff; }
+.bp-g td.nm{ background:none; text-align:left; white-space:nowrap; padding-right:8px; color:var(--ink); }
+.bp-g tr.tot td{ background:none; font-family:'Roboto Mono',monospace; font-weight:600; color:var(--muted); }
+.bp-g tr.tot td.bad{ color:#ff6b6b; } .bp-g tr.tot td.warn{ color:#f0b357; }
+.bp-ps{ font-family:'Roboto Mono',monospace; font-size:9px; color:var(--mut2); margin-right:6px; display:inline-block; min-width:30px; }
+.bp-fix{ display:grid; grid-template-columns:90px 1fr; gap:8px; font-size:12px; color:var(--muted); padding:6px 0; border-top:1px solid var(--line); }
+.bp-fix span{ font-family:'Roboto Mono',monospace; font-size:10px; color:#f0b357; } .bp-fix b{ color:var(--ink); }
+/* ---- league GM board ---- */
+.gm-t{ width:100%; border-collapse:collapse; font-size:12.5px; }
+.gm-t th{ font-family:'Roboto Mono',monospace; font-size:9.5px; letter-spacing:.1em; color:var(--mut2); text-align:left; font-weight:500; padding:6px; border-bottom:1px solid var(--line); }
+.gm-t td{ padding:7px 6px; border-bottom:1px solid var(--line); color:var(--ink); } .gm-t tr.me td{ font-weight:700; }
+.gm-t td.n{ font-family:'Roboto Mono',monospace; } .gm-t td.sm{ font-size:11.5px; color:var(--muted); }
+.gm-md{ font-family:'Roboto Mono',monospace; font-size:10px; padding:2px 7px; border-radius:999px; border:1px solid var(--line2); }
+.gm-md.contend{ color:#5fdc8f; border-color:rgba(95,220,143,.5); } .gm-md.seller{ color:#ff6b6b; border-color:rgba(255,107,107,.5); } .gm-md.bubble{ color:#f0b357; border-color:rgba(240,179,87,.5); }
+.gm-m{ margin-top:10px; } .gm-m div{ font-size:12.5px; color:var(--muted); padding:5px 0; } .gm-m b{ color:#5fdc8f; }
+/* ---- next year's draft preview ---- */
+.dp-pks{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; margin-top:8px; }
+.dp-pk{ background:var(--panel2); border:1px solid var(--line2); border-radius:10px; padding:9px 10px; }
+.dp-pk b{ font-family:'Oswald',sans-serif; font-weight:600; font-size:16px; display:block; color:var(--ink); }
+.dp-pk span{ font-family:'Roboto Mono',monospace; font-size:10px; color:var(--mut2); display:block; }
+.dp-pk em{ font-style:normal; font-weight:600; font-size:13px; display:block; margin-top:6px; color:var(--ink); }
+.dp-pk i{ font-style:normal; font-size:11px; color:var(--muted); }
+.dp-drs{ display:flex; gap:16px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--muted); }
+.dp-dr b{ font-family:'Roboto Mono',monospace; color:var(--ink); margin-right:6px; }
+
 /* ==== One card grammar =====================================================
    Every card built this season brought its own header, padding and number
    size. These rules put them on one shape: a 12px-radius panel, a mono
