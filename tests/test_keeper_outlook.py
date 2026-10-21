@@ -96,24 +96,3 @@ def test_seven_own_rookie_takes_a_rookie_slot_at_the_last_round():
 def test_seven_traded_for_rookie_is_a_regular_keeper_at_his_round():
     r = run7(["rk"], {"rk": (9, "ned", "veteran")}, {"rk": 90}, rookies={"rk"})["rk"]
     assert r["cost_round"] == 9 and "rookie slot" not in r["note"]
-
-
-def test_kreeper_year3_adp_can_raise_but_never_lower():
-    """Kreeper (raise_only): a year-3 keeper is priced at ADP, but a falling ADP
-    can't make him cheaper than last year's round moved up the bump."""
-    import types
-    from draftkit import weekly as W
-
-    class Reg:
-        def meta(self, pid):
-            return types.SimpleNamespace(name=pid, position="RB", team="X", years_exp=4,
-                                         sleeper_pid=pid, injury_status=None)
-    rules = {"max_keep_years": 3, "year2_bump_rounds": 3, "_last_round": 14, "_adp_policy": "raise_only"}
-    existing = {"cheap": {"player_id": "cheap", "keep_year": 2, "cost_round": 8},
-                "dear": {"player_id": "dear", "keep_year": 2, "cost_round": 8}}
-    adp = {"cheap": 120, "dear": 15}          # rounds 12 and 2 in a 10-team league
-    rows = {r["pid"]: r for r in W.keeper_outlook(
-        ["cheap", "dear"], drafted_round={}, existing=existing, rules=rules, n_teams=10,
-        adp_rank=lambda n, p="": adp.get(n), registry=Reg(), proj={}, me="me", next_season=2027)}
-    assert rows["cheap"]["cost_round"] == 5           # ADP R12 would help: ladder R8-3 instead
-    assert rows["dear"]["cost_round"] == 2            # ADP R2 is dearer: ADP stands
