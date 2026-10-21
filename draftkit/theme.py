@@ -2692,7 +2692,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   font-style:italic; font-size:15.5px; }
 .xw{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; }
 .xw-h{ display:flex; align-items:center; gap:10px; }
-.xw-p{ width:38px; height:38px; border-radius:50%; object-fit:cover; object-position:top;
+.xw-p{ width:38px; height:38px; border-radius:50%; object-fit:cover; object-position:top; filter:grayscale(1);
   background:var(--panel2); flex:none; }
 .xw-h b{ display:block; font-family:'Oswald',sans-serif; font-weight:500; font-size:15px; }
 .xw-h span{ font-size:11px; color:var(--mut2); }
@@ -2834,23 +2834,15 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 /* the label lives in a nested <p> with its own colour */
 [class*="st-key-tcact_"] [data-testid="stBaseButton-primary"] *,
 [class*="st-key-ibact_"] [data-testid="stBaseButton-primary"] *{ color:#141314 !important; }
-/* ==== Player photos, treatment H ========================================
-   Every face in full colour on a cream disc — the hero numerals' cream — and
-   YOUR players on a red disc with a crimson ring, so they read at a glance
-   down a long board. (Hero and scoreboard cut-outs stay duotone: those are
-   editorial, these are people in a list.) */
-.rk-row .pl img,.xw-p,.xt-p,.h2h-av .hs,.kl-card img{ filter:none !important; background:#f3ead8 !important; }
-.rk-row .pl img{ border:2px solid #f3ead8 !important; }
-.rk-row.me .pl img,.xw.mine .xw-p,.ws2-face,.h2h-side.l .h2h-av .hs,.kl-card img,
-.ib-item.ib-lineup .h2h-av .hs,.ib-item.ib-lock .h2h-av .hs{
-  background:#a52733 !important; box-shadow:0 0 0 2px #ff336c; border-color:#a52733 !important; }
-.ws2-face{ filter:none !important; }
-.h2h-av .hs{ border-radius:50% !important; }
-.kt-ph{ filter:none !important; background:#a52733 !important; }
-.kt-slot.rk .kt-ph{ background:#6e1d27 !important; }
+/* ==== Player photos, treatment H (Rankings and Waivers boards only) =====
+   Full colour on a cream disc — the hero numerals' cream — and YOUR players
+   on a red disc with a crimson ring, so they read at a glance down a long
+   board. Everywhere else keeps its own photo look. */
+.rk-row .pl img{ filter:none !important; background:#f3ead8 !important; border:2px solid #f3ead8 !important; }
+.rk-row.me .pl img{ background:#a52733 !important; border-color:#a52733 !important; box-shadow:0 0 0 2px #ff336c; }
 
 /* black-and-white photo rows to match: the keeper tray and the boards */
-/* (photos were greyscale here until the H treatment below) */
+.kt-slot img, .kl-card img{ filter:grayscale(1); }
 /* tier labels run on one line, past the first column if they need to */
 .rk-tier .band{ white-space:nowrap; width:max-content; max-width:none; }
 /* the Waivers board's last column is the bid, where Rankings shows the owner */
@@ -2861,7 +2853,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .kt-slot{ background:#110f10 !important; border:0 !important; border-radius:4px !important; padding:0 0 10px !important;
   overflow:hidden; gap:0 !important; }
 .kt-slot.rk{ box-shadow:inset 0 -3px 0 rgba(181,156,240,.55); }
-.kt-ph{ width:100%; height:118px; object-fit:cover; object-position:top;
+.kt-ph{ width:100%; height:118px; object-fit:cover; object-position:top; filter:grayscale(1) contrast(1.05);
   background:#2a2627; display:block; }
 .kt-slot b{ font-family:'Anton',sans-serif !important; font-weight:400 !important; font-size:32px !important;
   color:#f0c0c8 !important; line-height:1.15; margin-top:6px; }
