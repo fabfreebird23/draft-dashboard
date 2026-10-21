@@ -35,6 +35,28 @@ def player_sd(pos: str, mean: float) -> float:
     return max(_FLOOR_SD, float(mean or 0.0) * _CV.get((pos or "").upper(), _CV_DEFAULT))
 
 
+_RULED_OUT = {"OUT", "IR", "PUP", "SUS", "NA"}
+
+
+def _playable(pids, registry):
+    """`pids` minus anyone the platform has ruled out (Out, IR, PUP, suspended).
+
+    availability() deliberately leaves projections alone and trusts the host to
+    price absences, but not every feed does: in B&B week 7 the projections still
+    gave Breece Hall (Out) 15.7 and Jordan Mason (IR) 10.5, and the optimiser
+    told him to start both. A man who is ruled out is never the best lineup.
+    Questionable/Doubtful stay in — those are his call, and they're flagged."""
+    out = []
+    for p in pids or []:
+        try:
+            st_ = (getattr(registry.meta(p), "injury_status", None) or "").strip().upper().replace(" ", "")
+        except Exception:  # noqa: BLE001
+            st_ = ""
+        if st_ not in _RULED_OUT:
+            out.append(p)
+    return out
+
+
 def team_distribution(pids, slots, proj: dict, registry, byes=None, week=None,
                       current=None):
     """(mean, sd) of a lineup — the one that is SET if we know it, else the best legal one.
@@ -52,7 +74,7 @@ def team_distribution(pids, slots, proj: dict, registry, byes=None, week=None,
     if cur:
         used = cur
     else:
-        lu = LU.optimize(list(pids or []), None, slots, proj, registry, byes=byes, week=week)
+        lu = LU.optimize(_playable(pids, registry), None, slots, proj, registry, byes=byes, week=week)
         used = [getattr(sp, "pid", None) for sp in (getattr(lu, "spots", []) or [])]
     mean, var = 0.0, 0.0
     for pid in used:
@@ -136,7 +158,7 @@ def lineup_check(pids, slots, proj: dict, registry, byes=None, week=None,
     changes, and telling him to make five moves when only one alters who plays would
     burn the screen's credibility on noise.
     """
-    lu = LU.optimize(list(pids or []), None, slots, proj, registry, byes=byes, week=week)
+    lu = LU.optimize(_playable(pids, registry), None, slots, proj, registry, byes=byes, week=week)
     opt = [(getattr(s, "slot", ""), getattr(s, "pid", None)) for s in (getattr(lu, "spots", []) or [])]
     opt_total, opt_sd = team_distribution(pids, slots, proj, registry, byes, week)
 

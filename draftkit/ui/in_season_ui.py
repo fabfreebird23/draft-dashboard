@@ -1412,64 +1412,14 @@ def _lineup(ctx, g) -> None:
             _pos_of[p] = s
     # the slot each man ends up in
     end_slot = {pid: slots[i] for i, pid in seated.items()}
-    _kick = WV.kickoff_of(reg, games)
-    _kicks = sorted({_kick(p) for p in (cur_set | opt_set)} - {float("inf")})
-    _early, _late = (_kicks[0] if _kicks else None), (_kicks[-1] if _kicks else None)
-
-    def _ktone(p):
-        k = _kick(p)
-        if k == float("inf") or len(_kicks) < 2:
-            return ""
-        return "early" if k == _early else "late" if k == _late else ""
-
-    def _row(slot, pid, *, state="", sub_extra=""):
-        colour = _POSC.get(slot, "var(--mut2)")
-        if not pid:
-            return (slot, colour, '<span class="ws-dim">(empty)</span>', "nobody set", "—", "", "0.0", state)
-        pm = reg.meta(pid)
-        gm = WV.game_of(reg, games, pid)
-        opp = (("vs " if gm.get("home") else "@ ") + gm["opp"]) if gm else "bye"
-        av = W.availability(pm)
-        sub = f'{pm.team} · {opp}'
-        if av["status"]:
-            sub += f' · <span style="color:var(--amber)">{av["status"][:4].upper()}</span>'
-        if sub_extra:
-            sub += f' · {sub_extra}'
-        pj = score_label(pid)
-        return (slot, colour, pm.name + (f'<span class="lc-tag {state}">' +
-                                        ("start" if state == "in" else f'from {_pos_of.get(pid, "bench")}')
-                                        + '</span>' if state in ("in", "mv") else ""),
-                sub, GT.day_label(gm), _ktone(pid), pj, state)
-
-    now_rows, set_rows, marks = [], [], []
+    # a re-seat: the same man, moved to a different slot so a later game holds the flex
+    n_reseat = 0
     for i, (slot, pid) in enumerate(cur):
         new = seated.get(i)
-        # NOW column
-        if pid and pid in outs and any(m["out"] == pid for m in lc["moves"]):
-            repl = next((q for q in ins if reg.meta(q).position == reg.meta(pid).position), None) or (next(iter(ins)) if ins else None)
-            gain = next((m["gain"] for m in lc["moves"] if m["out"] == pid), None)
-            now_rows.append(_row(slot, pid, state="out",
-                                 sub_extra=(f'bench him · {reg.meta(repl).name.split()[-1]} {float(gain):+.1f}'
-                                            if repl and gain is not None else "bench him")))
-        else:
-            now_rows.append(_row(slot, pid))
-        # SET column
-        if not new:
-            set_rows.append(_row(slot, None)); marks.append(("·", "")); continue
-        if new in ins:
-            set_rows.append(_row(slot, new, state="in", sub_extra="from the bench"))
-            marks.append(("↑", "g"))
-        elif new != pid and _pos_of.get(new) != slot:
-            why = ""
-            gm = WV.game_of(reg, games, new)
-            if gm:
-                why = f'plays {GT.day_label(gm)}'
-            set_rows.append(_row(slot, new, state="mv", sub_extra=why))
-            marks.append(("⇄", "on"))
-        else:
-            set_rows.append(_row(slot, new)); marks.append(("·", ""))
+        if new and new not in ins and new != pid and _pos_of.get(new) != slot:
+            n_reseat += 1
 
-    n_moves, n_seat = len(lc["moves"]), sum(1 for m in marks if m[0] == "⇄")
+    n_moves, n_seat = len(lc["moves"]), n_reseat
     _plat = "ESPN" if ctx["meta"].platform == "espn" else "Sleeper"
     # the lead: what to do, as a sentence; the calendar rides in the kicker
     _day = re.sub(r"<[^>]+>", "", _day_line(g, cur, reg)).strip()
@@ -1488,18 +1438,63 @@ def _lineup(ctx, g) -> None:
     st.markdown(C.hero_html(f"LINEUP · WEEK {g['week']} · {_day.split(' · ', 1)[-1]}",
                             f'{lc["optimal_total"]:.1f}', _s, photo=_photo,
                             tone="red" if (n_moves or n_seat) else "ink"), unsafe_allow_html=True)
-    _cmp_html = C.lineup_compare_html(
-        now_rows=now_rows, set_rows=set_rows,
-        now_total=(f"On {_plat} now", "as set", f'{lc["current_total"]:.1f}'),
-        set_total=("Set this", ("seated by kickoff" if src == "Projections" else f"per {src} · by kickoff"),
-                   f'{lc["optimal_total"]:.1f}'),
-        marks=marks)
+    # ---- the lineup: ONE list, the change inline ---------------------------
+    # Two nine-man columns ("now" and "set this") were the same nine most
+    # weeks. One list says it once; a row that changes turns red and names who
+    # comes in and who sits.
+    _gain_of = {m["in"]: (m["out"], float(m["gain"])) for m in lc["moves"]}
+    _photo_of = lambda q: getattr(reg.meta(q), "sleeper_pid", None) or q  # noqa: E731
+    one = []
+    for i, (slot, pid) in enumerate(cur):
+        new = seated.get(i)
+        if not new:
+            one.append({"slot": slot, "name": '<span class="ws-dim">(empty)</span>', "sub": "nobody set",
+                        "pts": 0.0, "pid": None})
+            continue
+        pm = reg.meta(new)
+        gm = WV.game_of(reg, games, new)
+        opp_ = (("vs " if gm.get("home") else "@ ") + gm["opp"]) if gm else "bye"
+        av = W.availability(pm)
+        sub = f'{pm.team} · {opp_} · {GT.day_label(gm)}'
+        if av["status"]:
+            sub += f' · <b class="xl-q">{av["status"][:4].upper()}</b>'
+        state, gain = "", ""
+        if new in ins:
+            state = "in"
+            out_pid, g_ = _gain_of.get(new, (None, None))
+            if out_pid:
+                sub += f' · for {reg.meta(out_pid).name.split()[-1]}, who sits'
+            if g_ is not None:
+                gain = f"{g_:+.1f}"
+        elif new != pid and _pos_of.get(new) != slot:
+            state = "mv"
+            sub += f' · from {_pos_of.get(new, "bench")}, so the later game holds the {slot}'
+        one.append({"slot": slot, "name": pm.name, "sub": sub, "pid": _photo_of(new),
+                    "pts": float(g["proj"].get(str(new), 0) or 0), "pts_label": score_label(new),
+                    "state": state, "gain": gain})
     if n_moves or n_seat:
-        st.markdown(_cmp_html, unsafe_allow_html=True)
+        _head = " · ".join(x for x in (f'{n_moves} MOVE{"S" if n_moves != 1 else ""} · {_gain:+.1f}' if n_moves else "",
+                                       f'{n_seat} RE-SEAT{"S" if n_seat != 1 else ""}' if n_seat else "") if x)
     else:
-        # nothing to change: both columns would be the same nine, so it folds
-        with st.container(key="drawers_top"), _drawer("Your nine", f'{lc["current_total"]:.1f} projected · as set'):
-            st.markdown(_cmp_html, unsafe_allow_html=True)
+        _head = "SET"
+    _sub_head = ("the taps are below, in the order " + _plat + " takes them" if (n_moves or n_seat)
+                 else "nothing to change · every flex holds the latest game")
+    _bench = sorted((float(g["proj"].get(str(q), 0) or 0), str(q)) for q in g["mine"]
+                    if str(q) not in set(map(str, seated.values())))
+    def _bsub(q):
+        _st = W.availability(reg.meta(q))["status"]
+        return (f'{reg.meta(q).team} · {GT.day_label(WV.game_of(reg, games, q))}'
+                + (f' · <b class="xl-q">{_esc_(_st[:4].upper())}</b>' if _st else ""))
+    _bench = [(reg.meta(q).name, _bsub(q), v, _photo_of(q)) for v, q in sorted(_bench, reverse=True)[:7]]
+    c_l, c_b = st.columns([1.55, 1])
+    with c_l:
+        st.markdown(C.lineup_one_html(one, head=_head, hot=bool(n_moves or n_seat))
+                    .replace('</span></div>', f'</span><span class="xl-hs">{_sub_head}</span></div>', 1)
+                    + ("" if src == "Projections" else
+                       f'<div class="xl-src">sorted by {_esc_(src)} · points are our projections</div>'),
+                    unsafe_allow_html=True)
+    with c_b:
+        st.markdown('<div class="ws-h">Bench</div>' + C.bench_list_html(_bench), unsafe_allow_html=True)
 
     # ---- the taps, in order -------------------------------------------------
     pairs = []

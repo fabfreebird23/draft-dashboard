@@ -2604,15 +2604,10 @@ def _ordinal(n: int) -> str:
 
 # ------------------------------------------------------------- start / sit
 def start_sit_html(A: dict, B: dict, wp, n_def: int = 32, dvp_label: str = "this season") -> str:
-    """Two players side by side, then the reasons and the call."""
+    """Two players as a duel, in the scoreboard's grammar: the one starting on
+    red, the other on black, the edge as the cover number in the middle, and
+    each man's floor-to-ceiling range with his projection marked."""
     hi = max(A["ceil"], B["ceil"], 1.0) * 1.08
-
-    def rng(p, cls):
-        lo, md, up = (100 * p["floor"] / hi, 100 * p["mean"] / hi, 100 * p["ceil"] / hi)
-        return (f'<div class="ss-rr"><span>{_esc(p["name"].split()[-1])}</span>'
-                f'<div class="ss-rg"><i class="ss-rl {cls}" style="left:{lo:.1f}%;width:{up - lo:.1f}%"></i>'
-                f'<i class="ss-rm" style="left:{md:.1f}%"></i></div>'
-                f'<b>{p["mean"]:.1f}</b><em>{p["floor"]:.0f}–{p["ceil"]:.0f}</em></div>')
 
     def matchup(p):
         if not p.get("opp"):
@@ -2621,42 +2616,45 @@ def start_sit_html(A: dict, B: dict, wp, n_def: int = 32, dvp_label: str = "this
         r = p.get("dvp")
         if not r:
             return f'{at} {p["opp"]}'
-        soft = r > n_def * 0.66
-        hard = r < n_def * 0.34
-        word = "a soft" if soft else ("a tough" if hard else "a middling")
-        return f'{at} {p["opp"]} — {word} {p["pos"]} matchup (#{int(r)} of {n_def}, {dvp_label})'
+        word = "a soft" if r > n_def * 0.66 else ("a tough" if r < n_def * 0.34 else "a middling")
+        return f'{at} {p["opp"]} · {word} {p["pos"]} matchup (#{int(r)} of {n_def})'
 
     better = A if (wp and wp[0] >= wp[1]) or (not wp and A["mean"] >= B["mean"]) else B
-    other = B if better is A else A
-    side = lambda p, cls: (
-        f'<div class="ss-c{" on" if p is better else ""}">'
-        f'{h2h_face_html(p.get("face"), p.get("team") or "", "l")}'
-        f'<b>{_esc(p["name"])}</b><span>{_esc(p["when"] or "")}'
-        f'{" · starting" if p["starting"] else " · bench"}</span></div>')
-    reasons = [("Matchup", matchup(A) if A is better else matchup(B), "g"),
-               ("vs", matchup(other), "m")]
+    # red is the man in the lineup now; if both or neither start, the first pick
+    red = A if (A["starting"] or not B["starting"]) else B
+    black = B if red is A else A
+    late = None
     if A.get("kick") and B.get("kick") and abs(A["kick"] - B["kick"]) > 3600:
         late = A if A["kick"] > B["kick"] else B
-        reasons.append(("Timing", f'{late["name"]} plays later — starting him keeps the seat open '
-                                  f'for late news', "a"))
-    rs = "".join(f'<div><b class="{c}">{_esc(k)}</b><span>{_esc(v)}</span></div>' for k, v, c in reasons)
-    tiles = ""
-    if wp:
-        d = abs(wp[0] - wp[1])
-        tiles = (f'<div class="ss-t"><div><span>START {_esc(A["name"].split()[-1].upper())}</span>'
-                 f'<b class="{"g" if wp[0] >= wp[1] else ""}">{wp[0]}%</b><em>win prob</em></div>'
-                 f'<div><span>START {_esc(B["name"].split()[-1].upper())}</span>'
-                 f'<b class="{"g" if wp[1] > wp[0] else ""}">{wp[1]}%</b><em>win prob</em></div>'
-                 f'<div><span>EDGE</span><b class="{"g" if d else ""}">{d:+d}</b><em>pts of win %</em></div></div>')
-    call = (f'Start {_esc(better["name"])}' if (not wp or wp[0] != wp[1])
-            else "A coin flip — go with the later kickoff")
+
+    def side(p, cls):
+        lo, md, up = (100 * p["floor"] / hi, 100 * p["mean"] / hi, 100 * p["ceil"] / hi)
+        tag = ("STARTING" if p["starting"] else "BENCH") + (f' · {p["when"]}' if p.get("when") else "")
+        note = matchup(p) + (" · plays later" if p is late else "")
+        ph = _img(p.get("face"), "xd-ph")
+        txt = (f'<div class="xd-t{" r" if cls == "op" else ""}"><span>{_esc(tag.upper())}</span>'
+               f'<b title="{_esc(p["name"])}">{_esc(p["name"].split()[-1] if len(p["name"]) > 14 else p["name"])}</b>'
+               f'<em>{p["mean"]:.1f}</em>'
+               f'<div class="xd-rg"><i style="left:{lo:.1f}%;width:{max(2.0, up - lo):.1f}%"></i>'
+               f'<u style="left:{md:.1f}%"></u></div>'
+               f'<small>{p["floor"]:.0f}–{p["ceil"]:.0f} · {_esc(note)}</small></div>')
+        return f'<div class="xd-s {cls}">' + (ph + txt if cls == "me" else txt + ph) + '</div>'
+
     if A["starting"] and B["starting"]:
         call = "Both already start — nothing to decide between them"
-    return (f'<div class="ss"><div class="ss-pair">{side(A, "g")}<div class="ss-vs">vs</div>{side(B, "a")}</div>'
-            f'<div class="ss-box"><div class="ss-k">FLOOR · MEDIAN · CEILING</div>'
-            f'{rng(A, "g" if better is A else "a")}{rng(B, "g" if better is B else "a")}</div>'
-            f'<div class="ss-box"><div class="ss-k">WHAT DECIDES IT</div><div class="ss-why">{rs}</div></div>'
-            f'{tiles}<div class="ss-call">{call}</div></div>')
+    elif wp and wp[0] == wp[1]:
+        call = "A coin flip — go with the later kickoff" if late else "A coin flip"
+    else:
+        call = f'Start {better["name"]}'
+    if wp:
+        d = abs(wp[0] - wp[1])
+        mid = (f'<span class="xd-k">EDGE</span><b>{d}</b><em>points of win %</em>'
+               f'<i>{_esc(call)}</i><small>start {_esc(A["name"].split()[-1])} {wp[0]}% · '
+               f'start {_esc(B["name"].split()[-1])} {wp[1]}%</small>')
+    else:
+        d = abs(A["mean"] - B["mean"])
+        mid = f'<span class="xd-k">EDGE</span><b>{d:.1f}</b><em>projected points</em><i>{_esc(call)}</i>'
+    return (f'<div class="xd">{side(red, "me")}<div class="xd-m">{mid}</div>{side(black, "op")}</div>')
 
 
 # ------------------------------------------------------------- draft lottery
@@ -2838,3 +2836,30 @@ def trade_card_html(*, pid, kick, title, body, num, num_sub, tone="buy") -> str:
     return (f'<div class="xt {tone}">{_img(pid, "xt-p")}<div class="xt-t"><span>{_esc(kick)}</span>'
             f'<b>{_esc(title)}</b><p>{body}</p></div>'
             f'<div class="xt-n"><em>{_esc(num)}</em><small>{_esc(num_sub)}</small></div></div>')
+
+
+def lineup_one_html(rows, *, head: str, hot: bool = False, top: float = 0.0) -> str:
+    """The lineup as ONE list: a face, the kickoff and a crimson bar per row.
+    A row that changes turns red and says who comes in and who sits.
+    `rows` is [{slot, name, sub, pts, pid, state, note, gain}] — state is
+    "in" (from the bench), "mv" (re-seated) or ""."""
+    top = top or max([float(r.get("pts") or 0) for r in rows] or [1.0]) or 1.0
+    out = [f'<div class="xl-h"><span class="xl-pill{" red" if hot else ""}">{head}</span></div>']
+    for r in rows:
+        p = float(r.get("pts") or 0)
+        st_ = r.get("state") or ""
+        tag = {"in": "IN", "mv": "MOVED"}.get(st_, "")
+        out.append(
+            f'<div class="xl{" " + st_ if st_ else ""}"><span class="xl-s">{_esc(r["slot"])}</span>'
+            f'{_img(r.get("pid"), "xl-f")}'
+            f'<div class="xl-n"><b>{r["name"]}{f" <em>{tag}</em>" if tag else ""}</b><i>{r.get("sub") or ""}</i></div>'
+            f'<div class="xl-b"><i style="width:{max(2.0, 100 * p / top):.0f}%"></i></div>'
+            f'<b class="xl-p">{_esc(r.get("pts_label") or f"{p:.1f}")}</b>'
+            f'<span class="xl-g">{_esc(r.get("gain") or "")}</span></div>')
+    return "".join(out)
+
+
+def bench_list_html(rows) -> str:
+    """[(name, sub, pts, pid)] — the bench, quiet."""
+    return "".join(f'<div class="xbn">{_img(pid, "xl-f")}<div><b>{_esc(n)}</b><i>{sub}</i></div>'
+                   f'<em>{pts:.1f}</em></div>' for n, sub, pts, pid in rows)
