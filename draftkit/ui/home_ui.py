@@ -229,8 +229,21 @@ def _inbox(presets, pulses, on_pick) -> None:
                     if it.get("key") not in gone),
                    key=lambda it: it.get("ts") or 9e18)
     nxt = next((it["when"] for it in items if it.get("kind") != "CLAIM"), "")
-    st.markdown(C.inbox_head_html(len(items), f"first lock {nxt}" if nxt else ""),
-                unsafe_allow_html=True)
+    # the cover: what needs you, across every league, and each league's one number
+    short = {"The Kreeper League": "Kreeper", "Show us your TD's": "TD's", "Babies and Boomer": "B&B"}
+    grid = []
+    for pr, pu in zip(presets, pulses):
+        if not (pu or {}).get("ok"):
+            continue
+        pp = pu.get("playoff_pct")
+        grid.append((short.get(pr.get("label"), pr.get("label")),
+                     f"{pp}%" if pp is not None else (pu.get("record") or "—"),
+                     "playoffs" if pp is not None else "record"))
+    n = len(items)
+    st.markdown(C.hero_html(f"ACROSS {len(grid) or len(presets)} LEAGUES" + (f" · FIRST LOCK {nxt.upper()}" if nxt else ""),
+                            str(n), ("thing needs" if n == 1 else "things need") + " you before Sunday"
+                            if n else "Nothing needs you — every lineup is set",
+                            grid=grid[:4] or None), unsafe_allow_html=True)
     for i, it in enumerate(items):
         st.markdown(C.inbox_item_html(it), unsafe_allow_html=True)
         with st.container(key=f"ibact_{i}"):

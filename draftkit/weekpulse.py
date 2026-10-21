@@ -103,6 +103,25 @@ def pulse(preset: dict, registry, week: int, byes: Optional[dict] = None) -> dic
         se = (rosters.get(me) or {}).get("settings") or {}
         if se.get("wins") is not None:
             out["record"] = f'{int(se.get("wins") or 0)}–{int(se.get("losses") or 0)}'
+        # playoff odds for Today's four-league grid: a quick 2,000-season run on
+        # a random schedule (the Playoffs tab plays the real one, 10,000 times)
+        try:
+            from . import schedule as SCH
+            means, sds, recs = {}, {}, {}
+            for oid, r in rosters.items():
+                if not r.get("players"):
+                    continue
+                means[oid], sds[oid] = W.team_distribution(r["players"], slots, proj, registry, byes, week)
+                rs = r.get("settings") or {}
+                recs[oid] = (int(rs.get("wins") or 0), int(rs.get("losses") or 0))
+            wks = SCH.playoff_weeks(meta)
+            pt = int((getattr(meta, "playoff_settings", None) or {}).get("teams") or 4)
+            odds = W.season_odds(means, sds, recs, max(0, (wks[0] if wks else 15) - week),
+                                 min(pt, len(means)), n_sims=2000)
+            if me in odds:
+                out["playoff_pct"] = odds[me]["playoff_pct"]
+        except Exception:  # noqa: BLE001 — the grid shows "—" instead
+            pass
         lc = W.lineup_check(mine, slots, proj, registry, byes, week, current=starters)
         cur = lc["current"]
         oid = _opponent(provider, plat, lid, rosters, me, week)

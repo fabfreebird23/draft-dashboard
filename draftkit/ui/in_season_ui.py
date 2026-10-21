@@ -622,16 +622,26 @@ def _command(ctx, g) -> None:
               else f"from {100*wp:.0f}% as the lineup stands"),
              "up" if (wp_fixed or 0) >= .5 else "dn"),
         ]
-    st.markdown(C.week_hero_html(
-        me_name=_owner_name(ctx, g["me"]) or "You", me_sub=me_sub,
-        me_pts=f"{_me_pts:.1f}",
-        opp_name=(_owner_name(ctx, oid) if opp else "No opponent"), opp_sub=opp_sub,
-        opp_pts=(f"{_opp_pts:.1f}" if opp else "—"),
-        week=g["week"],
-        margin=(_me_end - _opp_end) if opp else None,
-        win_pct=(100 * (wp_live if started else wp)) if wp is not None else None,
-        tiles=tiles, live=started and phase != "done", final=(phase == "done")),
-        unsafe_allow_html=True)
+    # the hero: your chance this week as the number, the score as the line,
+    # the four tiles as its grid
+    _wp = (wp_live if started else wp)
+    _opp_nm = _owner_name(ctx, oid) if opp else ""
+    if not opp:
+        _num, _line = f"{_me_end:.0f}", "projected — no opponent this week"
+    elif phase == "done":
+        _num = f"{_me_pts:.1f}"
+        _line = f'{"beat" if _me_pts > _opp_pts else "lost to"} <b>{_esc_(_opp_nm)}</b>, {_me_pts:.1f}–{_opp_pts:.1f}'
+    elif started:
+        _num = f"{100 * (_wp or 0):.0f}%"
+        _line = f'to beat <b>{_esc_(_opp_nm)}</b> — {_me_pts:.1f}–{_opp_pts:.1f} now, {_me_end:.0f}–{_opp_end:.0f} projected'
+    else:
+        _num = f"{100 * (_wp or 0):.0f}%"
+        _line = f'to beat <b>{_esc_(_opp_nm)}</b> — projected {_me_end:.0f}–{_opp_end:.0f}'
+    st.markdown(C.hero_html(f"WEEK {g['week']}" + (" · LIVE" if started and phase != "done" else "")
+                            + (f" · VS {_opp_nm.upper()}" if opp else ""),
+                            _num, _line,
+                            grid=[(lbl, val, sub) for lbl, val, sub, _tone in tiles[:4]]),
+                unsafe_allow_html=True)
 
     # ---- WHAT TO DO, ranked by what it is worth — and by what day it is ----
     # The list ranks by points at stake. The calendar decides what "at stake"
@@ -1439,17 +1449,19 @@ def _lineup(ctx, g) -> None:
     # the lead: what to do, as a sentence; the calendar rides in the kicker
     _day = re.sub(r"<[^>]+>", "", _day_line(g, cur, reg)).strip()
     _gain = float(lc["optimal_total"]) - float(lc["current_total"])
+    # the hero: the projected total, the moves as the sentence, the best
+    # starter in duotone
+    _top = max((p for p in opt_pids if p), key=lambda p: float(g["proj"].get(str(p), 0) or 0), default=None)
+    _photo = getattr(reg.meta(_top), "sleeper_pid", None) or _top if _top else None
     if n_moves or n_seat:
         _t = " · ".join(x for x in (f'{n_moves} move{"s" if n_moves != 1 else ""}' if n_moves else "",
                                      f'{n_seat} re-seat{"s" if n_seat != 1 else ""}' if n_seat else "") if x)
-        _s = ((f'Worth <b>{_gain:+.1f}</b> this week. ' if n_moves else "Same starters, better seats. ")
-              + f'The taps are below, in the order {_plat} takes them.')
-        st.markdown(_lead_html(f"LINEUP · WEEK {g['week']}", _day.split(" · ", 1)[-1], _t, _s, tone="warn"),
-                    unsafe_allow_html=True)
+        _s = (f'projected with <b>{_t}</b>' + (f' — worth {_gain:+.1f}' if n_moves else " — same starters, better seats")
+              + f'. The taps are below, in the order {_plat} takes them.')
     else:
-        st.markdown(_lead_html(f"LINEUP · WEEK {g['week']}", _day.split(" · ", 1)[-1], "Your lineup is set",
-                               "Nobody on the bench beats a starter, and every flex holds the latest game.",
-                               tone="go"), unsafe_allow_html=True)
+        _s = "projected — your lineup is set"
+    st.markdown(C.hero_html(f"LINEUP · WEEK {g['week']} · {_day.split(' · ', 1)[-1]}",
+                            f'{lc["optimal_total"]:.1f}', _s, photo=_photo), unsafe_allow_html=True)
     _cmp_html = C.lineup_compare_html(
         now_rows=now_rows, set_rows=set_rows,
         now_total=(f"On {_plat} now", "as set", f'{lc["current_total"]:.1f}'),
@@ -1686,6 +1698,13 @@ def _rankings_ros(ctx, g) -> None:
         rows.sort(key=lambda r: r["r"][sk])
     owner_of = {str(p): str(oid) for oid, r in g["rosters"].items() for p in (r.get("players") or [])}
     me = str(g["me"])
+    _top10 = rows[:10]
+    _mine10 = [r for r in _top10 if owner_of.get(r["pid"]) == me]
+    st.markdown(C.hero_html(f"REST OF SEASON · {pos}", str(len(_mine10)),
+                            "of the top ten are yours" + (f' — <b>{_esc_(reg.meta(_mine10[0]["pid"]).name)}</b> leads them'
+                                                          if _mine10 else ""),
+                            photo=(_mine10[0]["pid"] if _mine10 else (_top10[0]["pid"] if _top10 else None))),
+                unsafe_allow_html=True)
     if who == "Mine":
         rows = [r for r in rows if owner_of.get(r["pid"]) == me]
     elif who == "Free agents":
@@ -1946,6 +1965,15 @@ def _rankings(ctx, g) -> None:
     for r in rows:
         pools.setdefault((r["pos"] if not cross else "*", "cons"), []).append(r["cons"]) if r["cons"] is not None else None
         pools.setdefault((r["pos"] if not cross else "*", "proj"), []).append(-r["proj"])
+    # the hero counts YOUR men in the top ten of the whole view, before the
+    # who-cut (on "Mine" every row is yours, which says nothing)
+    _top10 = rows[:10]
+    _mine10 = [r for r in _top10 if r["owner"] == me]
+    st.markdown(C.hero_html(f"THIS WEEK · {pos if pos not in ('WAIVERS',) else 'WAIVERS'}", str(len(_mine10)),
+                            "of the top ten are yours" + (f' — <b>{_esc_(_mine10[0]["name"])}</b> leads them'
+                                                          if _mine10 else ""),
+                            photo=(_mine10[0]["pid"] if _mine10 else (_top10[0]["pid"] if _top10 else None))),
+                unsafe_allow_html=True)
     # the who-cut
     if who == "Mine":
         rows = [r for r in rows if r["owner"] == me]
@@ -2473,6 +2501,26 @@ def _waivers_run_label() -> str:
         return "Wed 3:00 AM"
 
 
+def _best_stash(ctx, g, taken) -> Optional[dict]:
+    """In a keeper league: the free agent with the best projected NEXT-season
+    ADP — a waiver add keeps at the last round, so he's next year's cheapest
+    keeper. None in a redraft league or when nobody projects inside 10 rounds."""
+    from .. import nextyear as NY
+    meta, reg = ctx["meta"], ctx["registry"]
+    if meta.platform != "sleeper" or not K.league_has_keepers(str(meta.league_id)):
+        return None
+    n = int(getattr(meta, "num_teams", 10) or 10)
+    try:
+        proj = NY.projected(n, 1.0)
+    except Exception:  # noqa: BLE001
+        return None
+    last = int((K.load_keeper_rules(str(meta.league_id)) or {}).get("draft_rounds") or meta.draft_rounds or 14)
+    best = min(((r["rank"], pid) for pid, r in proj.items() if pid not in {str(t) for t in taken}), default=None)
+    if not best or best[0] > n * 10:
+        return None
+    return {"pid": best[1], "name": reg.meta(best[1]).name, "rank": best[0], "cost": last}
+
+
 def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> None:
     """Every free agent worth a look in ONE table, each source a column.
 
@@ -2525,37 +2573,85 @@ def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> Non
     order = {"Trending": lambda r: (-r["adds"], -r["gain"]),
              "Ballers' list": lambda r: (r["ballers"] or 999, -r["gain"])}
     show.sort(key=order.get(lens, lambda r: (-r["gain"], r["ballers"] or 999, -r["adds"], -r["proj"])))
-    out = []
-    for r in show[:25]:
+    # ---- the board: the Rankings look — photo pills, tiers, coloured columns
+    from .. import nextyear as NY
+    keeper_lg = meta.platform == "sleeper" and K.league_has_keepers(str(meta.league_id))
+    nxt = {}
+    if keeper_lg:
+        try:
+            nxt = NY.projected(int(getattr(meta, "num_teams", 10) or 10), 1.0)
+        except Exception:  # noqa: BLE001
+            nxt = {}
+    n_t = int(getattr(meta, "num_teams", 10) or 10)
+    ecr = g.get("ecr") or {}
+
+    def tier(r):
+        nr = (nxt.get(r["pid"]) or {}).get("rank")
+        if r["gain"] >= 1.0:
+            return ("S", "Starts for you", "a real claim")
+        if r["gain"] > 0.05:
+            return ("A", "Closest to starting", "a tiebreak, not a claim")
+        if nr and nr <= n_t * 10:
+            return ("B", "Stash for next year", "keeps at the last round")
+        if r["adds"] >= 50000:
+            return ("C", "Rising", "the league is adding him")
+        return ("D", "Depth", "")
+    if lens == "All":
+        order_t = {"S": 0, "A": 1, "B": 2, "C": 3, "D": 4}
+        show.sort(key=lambda r: (order_t[tier(r)[0]], -r["gain"], (nxt.get(r["pid"]) or {}).get("rank") or 999, -r["adds"]))
+    cols = "320fr 64fr 72fr 78fr 72fr 78fr 74fr" + (" 72fr" if keeper_lg else "") + " 120fr"
+    heads = ["", "Proj", "+You", "Ballers", "FP", "Adds 24h", "Rostered"] + (["2027"] if keeper_lg else []) + ["Bid here"]
+    out = [f'<div class="rk" style="--cols:{cols}"><div class="rk-hd">'
+           + "".join(f'<span class="{"lbl" if h == "Bid here" else "on" if h == "+You" else ""}">{h}</span>' for h in heads)
+           + '</div>']
+    band = None
+    for r in show[:30]:
+        t = tier(r) if lens == "All" else None
+        if t and t[0] != band:
+            band = t[0]
+            out.append(f'<div class="rk-tier"><div class="band t{t[0]}"><em>{t[0]}</em>{_esc_(t[1])}'
+                       f'<small>{_esc_(t[2])}</small></div><i></i></div>')
         if r["gain"] > 0.05:
             b = FM.bid(meta, g["week"], r, budget, left, weeks_left) if budget else None
-            bid = (_chip("claim", "ok") if (b is None or b.get("mode") == "priority")
-                   else _chip(f'${b["low"]}–{b["high"]}', "ok"))
+            bid = ("claim" if (b is None or b.get("mode") == "priority") else f'${b["low"]}–{b["high"]}')
         else:
-            bid = '<span class="ws-fnt">—</span>'
+            bid = "—"
         _av = W.availability(reg.meta(r["pid"]))
-        _fl = (" " + _chip(_av["status"][:4], "bad" if _av["severity"] >= 3 else "warn")) if _av["status"] else ""
-        out.append([
-            f'<b>{_esc_(r["name"])}</b> {_pos_pill(r["pos"])}{_fl}',
-            f'{r["proj"]:.1f}',
-            (f'<b class="ws-up">+{r["gain"]:.1f}</b>' if r["gain"] > 0.05 else '<span class="ws-fnt">+0.0</span>'),
-            (f'#{r["ballers"]}' + (f' <span class="ws-fnt">${r["ballers_bid"][0]}–{r["ballers_bid"][1]}</span>'
-                                   if r["ballers_bid"] else "")) if r["ballers"] else '<span class="ws-fnt">—</span>',
-            (f'+{r["adds"] / 1000:.0f}k' if r["adds"] >= 1000 else (f'+{r["adds"]}' if r["adds"] else '<span class="ws-fnt">—</span>')),
-            (f'{r["owned"]:.0f}%' if r["owned"] is not None else '<span class="ws-fnt">—</span>'),
-            bid,
-        ])
-    if out:
-        st.markdown(_tbl(["Player", "~Proj", "~+You", "Ballers", "Adds 24h", "~Rostered", "Bid here"], out,
-                         widths=["auto", "62px", "70px", "112px", "80px", "84px", "100px"], wide=True),
-                    unsafe_allow_html=True)
+        inj = (f'<small style="color:var(--amber)"> {_av["status"][:1].upper()}</small>' if _av["status"] else "")
+        e = ecr.get(r["pid"]) or {}
+        fp = e.get("pos_rank") or ""
+        bl = r["ballers"]
+        nr = (nxt.get(r["pid"]) or {}).get("rank")
+
+        def c(v, cls, label):
+            return f'<div data-k="{label}" class="c {cls}">{v}</div>'
+        cells = [
+            c(f'{r["proj"]:.1f}', "", "Proj"),
+            c((f'+{r["gain"]:.1f}' if r["gain"] > 0.05 else "+0.0"), ("g sort" if r["gain"] > 0.05 else "dim sort"), "+You"),
+            c((f'#{bl}' + (f'<small>${r["ballers_bid"][0]}–{r["ballers_bid"][1]}</small>' if r["ballers_bid"] else "")) if bl else "—",
+              ("g" if bl and bl <= 8 else "y" if bl and bl <= 20 else "dim"), "Ballers"),
+            c(fp or "—", "y" if fp else "dim", "FP"),
+            c((f'+{r["adds"] / 1000:.0f}k' if r["adds"] >= 1000 else (f'+{r["adds"]}' if r["adds"] else "—")),
+              ("g" if r["adds"] >= 100000 else "y" if r["adds"] >= 20000 else "dim"), "Adds 24h"),
+            c(f'{r["owned"]:.0f}%' if r["owned"] is not None else "—", "", "Rostered"),
+        ]
+        if keeper_lg:
+            cells.append(c(f"#{nr}" if nr else "—", ("g" if nr and nr <= n_t * 6 else "y" if nr and nr <= n_t * 10 else "dim"), "2027"))
+        out.append(f'<div class="rk-row fa"><div class="pl">{_T.img_tag(r["pid"], "")}'
+                   f'<b>{_esc_(r["name"])}<small>{_esc_(r["team"])} · {r["pos"]}{inj}</small></b>'
+                   f'<span class="tag fa">free agent</span></div>' + "".join(cells)
+                   + f'<div class="own"><b class="{"bid" if bid != "—" else ""}">{_esc_(bid)}</b></div></div>')
+    out.append("</div>")
+    if show:
+        st.markdown("".join(out), unsafe_allow_html=True)
     else:
         _note("Nobody fits this filter right now.")
     _mk = FM.market_for(meta, g["week"]) if budget else None
     _note("**+You** is what he'd add to your starting lineup this week — a player who doesn't crack "
           "your nine is worth $0 to you however highly he's ranked elsewhere. **Ballers** is the "
           "Fantasy Footballers' rank and their FAAB range in this league's dollars. **Adds 24h** is "
-          "Sleeper-wide. **Bid here** is priced from this league's own history"
+          "Sleeper-wide. **2027** (keeper leagues) is his projected next-season ADP — a waiver add keeps at "
+          "the last round, so a good number there is a cheap keeper. **Bid here** is priced from this league's own history"
           + (f" — {_mk.summary()}." if (_mk and _mk.summary()) else "."))
 
 
@@ -2591,33 +2687,34 @@ def _waivers(ctx, g) -> None:
     _lc = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"])
     _bench = sorted(((float(g["proj"].get(str(p), 0) or 0), str(p)) for p in _lc.get("bench") or []))
     drop = reg.meta(_bench[0][1]).name if _bench else None
-    kick = f"WAIVERS · WEEK {g['week']}"
-    if top:
-        b = FM.bid(meta, g["week"], top, budget, left, weeks_left) if budget else None
-        own = ((g.get("ros") or {}).get(str(top["pid"])) or (g.get("ecr") or {}).get(str(top["pid"])) or {}).get("owned")
-        if budget and b and b.get("mode") != "priority":
-            how = f'Bid <b>${b["low"]}–{b["high"]}</b>' + (f', drop <b>{_esc_(drop)}</b>' if drop else "") + "."
-        else:
-            how = (f'Waiver priority <b>#{_wpos}</b> decides it' if _wpos else "Put the claim in") + \
-                  (f', drop <b>{_esc_(drop)}</b>' if drop else "") + "."
-        st.markdown(_lead_html(kick, f"claims run {run_at}", f'Claim {top["name"]}',
-                               f'He adds <b>{top["gain"]:+.1f}</b> to your starting lineup this week. {how}',
-                               _lead_row(ctx, g, top["pid"],
-                                         f'{top["pos"]} · {reg.meta(top["pid"]).team} · {top["proj"]:.1f} proj'
-                                         + (f' · {own:.0f}% rostered' if own is not None else ""),
-                                         f'{top["gain"]:+.1f}', "to your week"), "go"),
+    kick = f"WAIVERS · WEEK {g['week']} · CLAIMS RUN {run_at.upper()}"
+    _ph = lambda pid: getattr(reg.meta(pid), "sleeper_pid", None) or pid  # noqa: E731
+    stash = _best_stash(ctx, g, taken)
+    if not budget and _wpos:
+        # a priority league (B&B): the number is your place in line. Last in
+        # the standings is first on the wire every week — the other half of a tank.
+        line = ("first in line every week while you're last — anyone you claim is yours" if _wpos == 1
+                else f"in the waiver order — {_wpos - 1} team{'s' if _wpos != 2 else ''} claim before you")
+        if top:
+            line += f'. <b>{_esc_(top["name"])}</b> starts for you: {top["gain"]:+.1f} a week'
+        if stash:
+            line += (f'. Best stash for next year: <b>{_esc_(stash["name"])}</b>, projected #{stash["rank"]} '
+                     f'and keepable at R{stash["cost"]}')
+        st.markdown(C.hero_html(f"WAIVER PRIORITY · WEEK {g['week']}", f"#{_wpos}", line,
+                                photo=_ph((top or stash or {}).get("pid")) if (top or stash) else None),
                     unsafe_allow_html=True)
-    elif close:
-        st.markdown(_lead_html(kick, f"claims run {run_at}", "No claim worth making this week",
-                               f'Nobody on the wire beats a starter by a point. The closest is '
-                               f'<b>{_esc_(close["name"])}</b> at {close["gain"]:+.1f} — a tiebreak, not a claim.',
-                               _lead_row(ctx, g, close["pid"],
-                                         f'{close["pos"]} · {reg.meta(close["pid"]).team} · {close["proj"]:.1f} proj',
-                                         f'{close["gain"]:+.1f}', "to your week")),
+    elif top:
+        b = FM.bid(meta, g["week"], top, budget, left, weeks_left) if budget else None
+        how = (f'bid <b>${b["low"]}–{b["high"]}</b>' if (b and b.get("mode") != "priority") else "claim him")
+        st.markdown(C.hero_html(kick, f'+{top["gain"]:.1f}',
+                                f'a week from <b>{_esc_(top["name"])}</b> — {how}'
+                                + (f', drop {_esc_(drop)}' if drop else ""), photo=_ph(top["pid"])),
                     unsafe_allow_html=True)
     else:
-        st.markdown(_lead_html(kick, f"claims run {run_at}", "No claim worth making this week",
-                               "No free agent would start for you. Your nine are the nine."),
+        line = "free agents would start for you — no claim this week"
+        if close:
+            line += f'. The closest is <b>{_esc_(close["name"])}</b>, {close["gain"]:+.1f}: a tiebreak'
+        st.markdown(C.hero_html(kick, str(n_up), line, photo=_ph(close["pid"]) if close else None),
                     unsafe_allow_html=True)
 
     # the claim builder shows only when there's something to build
@@ -2631,6 +2728,7 @@ def _waivers(ctx, g) -> None:
     wv = _udk_wv(g["season"], g["week"], reg)
     gain_of = _fa_gain_cached(ctx["league_key"], g["week"], _slow_bucket(g["season"], g["week"]),
                               ctx, g, frozenset(taken))
+    _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left)
     with st.container(key="drawers"):
         if budget and not (queued or top):
             with _drawer("Your claims", "none queued"):
@@ -2644,14 +2742,7 @@ def _waivers(ctx, g) -> None:
             with _drawer("Last waiver run", summ):
                 st.markdown(C.waiver_recap_html(rec, when=when_s, left=left, budget=budget, rows=rrows),
                             unsafe_allow_html=True)
-        try:
-            tr = api.get_trending("add", 24, 200) or {}
-        except Exception:  # noqa: BLE001
-            tr = {}
-        hot = next((reg.meta(str(p)).name for p in tr if str(p) not in taken), None)
-        with _drawer("Free agents", f'{n_up} start for you' + (f' · {hot} most added' if hot else ""),
-                     key=f"fa_{ctx['league_key']}"):
-            _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left)
+
         _start_kd = [p for p in g["slots"] if p in ("K", "DST")]
         if (g.get("games") or {}) and _start_kd:
             with _drawer("Streaming", "defenses and kickers by this week's matchup"):
@@ -3072,6 +3163,23 @@ def _lottery_block(ctx, g) -> None:
     rows = [("As you are", base)] + ([(f"After selling {len(sell)} ({names})", sold)] if sold else [])
     st.markdown(C.lottery_html(rows, weights=spec["weights"], chase=(lo, hi), season=int(g["season"]) + 1),
                 unsafe_allow_html=True)
+    _priority_note(ctx, g)
+
+
+def _priority_note(ctx, g) -> None:
+    """In a reverse-standings waiver league, last place is also first on the wire
+    every week — the other thing a tank buys, and the way to stock next year's
+    cheap keepers (a waiver add keeps at the last round)."""
+    meta = ctx["meta"]
+    if inseason.faab(meta):
+        return
+    pos = inseason.waiver_position(meta, str(g["me"]))
+    if pos == 1:
+        _note("**You're #1 on waivers.** This league runs reverse-standings priority, so staying last "
+              "keeps you first in line every week — any free agent you want is yours. Use it on players "
+              "who'd be cheap keepers next year: a waiver add keeps at the last round (Waivers → the 2027 column).")
+    elif pos:
+        _note(f"You're #{pos} on waivers (reverse standings) — finishing lower moves you up the line.")
 
 
 def _prefill_button(ctx, label: str, key: str, oid: str, send=(), get=(), sendp=(), getp=()) -> None:
@@ -3114,6 +3222,11 @@ def _mode_panel(ctx, g, status, resolved) -> None:
             _note("No team is a clear contender yet (35%+ to make it), so there's nobody to sell to.")
             return
         sell = _sellables(ctx, g, vals, my_k)
+        _my = (status.get(me) or {}).get("odds")
+        st.markdown(C.hero_html(f"TANK · {_my}% TO MAKE IT" if _my is not None else "TANK",
+                                str(len(buyers)), "contenders who'd pay for what you have",
+                                photo=(sell[0][0] if sell else None), red=True), unsafe_allow_html=True)
+        _priority_note(ctx, g)
         if not sell:
             _note("Nothing on your roster is worth much to a contender that you aren't keeping.")
             return
@@ -3184,6 +3297,13 @@ def _mode_panel(ctx, g, status, resolved) -> None:
                 rental = not (k and k.get("verdict") == "keep")
                 targets.append((gain, str(p), o, v, k, rental))
         targets.sort(key=lambda t: (-(t[0] * (1.3 if t[5] else 1.0))))
+        _my = (status.get(me) or {}).get("odds")
+        st.markdown(C.hero_html(f"CONTEND · {_my}% TO MAKE IT" if _my is not None else "CONTEND",
+                                str(len(sellers)),
+                                f"team{'s' if len(sellers) != 1 else ''} out of it and selling"
+                                + (f' — <b>{_esc_(reg.meta(targets[0][1]).name)}</b> adds {targets[0][0]:+.1f} a week'
+                                   if targets else ""),
+                                photo=(targets[0][1] if targets else None)), unsafe_allow_html=True)
         if not targets:
             _note("Nobody on those rosters would start for you.")
             return
@@ -4004,6 +4124,24 @@ def _playoffs(ctx, g) -> None:
          "derived from this league's settings", "var(--muted)"),
         ("Weeks to play", f"{weeks_left}", "before the bracket", "var(--muted)"),
     ])
+    _odds = mine.get("playoff_pct", 0)
+    _grid = []
+    if sim and sim.get("seeds"):
+        _likely = sim["seeds"].index(max(sim["seeds"])) + 1
+        _line = f"to make it — most likely the {C._ordinal(_likely)} seed"
+        _wk = sim.get("weeks") or []
+        if _wk:
+            _lev = lambda w: w["swing"] * 4 * (w["p_win"] / 100) * (1 - w["p_win"] / 100)  # noqa: E731
+            _big = max(_wk, key=_lev)
+            if _lev(_big) >= 3:
+                _grid.append(("Biggest game", f'W{_big["week"]}',
+                              f'vs {_owner_name(ctx, _big["opp"])} · {_big["p_win"]}%'))
+    else:
+        _line = f"to make it — top {pt} of {len(means)}"
+    _rec = recs.get(me, (0, 0))
+    _grid.append(("Record", f"{_rec[0]}-{_rec[1]}", f"{weeks_left} weeks to play"))
+    st.markdown(C.hero_html(f"PLAYOFF ODDS · {g['season']}", f"{_odds}%", _line, grid=_grid),
+                unsafe_allow_html=True)
     if sim and sim.get("weeks"):
         wk_rows = [dict(w, opp_name=_owner_name(ctx, w["opp"])) for w in sim["weeks"]]
         rec = recs.get(me, (0, 0))
@@ -4260,6 +4398,18 @@ def _keepers(ctx, g) -> None:
     # every player's whole price ladder. The table this replaces showed one
     # number per player, which is why the keeper bugs of September were
     # invisible: a price with no rule beside it cannot be checked.
+    _last = int(rules.get("_last_round") or meta.draft_rounds or 14)
+    _cheap = [r for r in keeps if (r.get("cost_round") or 0) >= _last - 2]
+    if _cheap:
+        _num, _line = str(len(_cheap)), (f"of your {len(keeps)} would cost a round-{_last - 2}-or-later pick"
+                                         f" — <b>{_esc_(_cheap[0]['name'])}</b> at R{_cheap[0]['cost_round']}")
+    elif keeps:
+        _best = max(keeps, key=lambda r: r.get("surplus") or -99)
+        _num, _line = f"+{_best.get('surplus') or 0}", f"keeper value — <b>{_esc_(_best['name'])}</b> is your best keep"
+    else:
+        _num, _line = "0", "keepers worth their price yet"
+    st.markdown(C.hero_html(f"{int(g['season']) + 1} KEEPERS · IF THE SEASON ENDED TODAY", _num, _line),
+                unsafe_allow_html=True)
     st.markdown(C.keeper_tray_html(keeps, reg_max, rook_max), unsafe_allow_html=True)
     # The tray above is the answer; the rest folds, each drawer saying what's in it.
     _best = keeps[0] if keeps else None

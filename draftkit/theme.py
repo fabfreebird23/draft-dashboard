@@ -46,7 +46,7 @@ NAVY = "#16263f"
 CSS = """
 <style>
 /*bs-theme*/
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Oswald:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Oswald:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600&family=Anton&family=Playfair+Display:ital,wght@0,700;1,700&display=swap');
 /* ===== Night Draft — light variant (teal accent) ===== */
 :root{
   /* --- Bloody Sunday. Crimson has exactly TWO jobs: the brand, and genuine
@@ -2570,6 +2570,62 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .dp-pk i{ font-style:normal; font-size:11px; color:var(--muted); }
 .dp-drs{ display:flex; gap:16px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--muted); }
 .dp-dr b{ font-family:'Roboto Mono',monospace; color:var(--ink); margin-right:6px; }
+
+/* ==== tab heroes (the editorial cover on every tab) ======================
+   The crimson block from the tank screen, on every tab: cream Anton number,
+   Playfair italic line, the player multiplied into the red. */
+.bh{ position:relative; display:grid; grid-template-columns:1fr; align-items:end; background:#a52733;
+  border:0; border-radius:12px; overflow:hidden; min-height:220px; margin:0 0 12px; }
+.bh.has-grid{ grid-template-columns:1fr auto; }
+.bh-l{ position:relative; z-index:2; padding:18px 24px 20px; }
+.bh-k{ display:block; font-size:11px; letter-spacing:.18em; text-transform:uppercase; font-weight:700; color:#f6d7dc; }
+.bh-n{ display:block; font-family:'Anton',sans-serif; font-weight:400; color:#f3ead8; line-height:.92;
+  margin-top:22px; background:none !important; padding:0 !important; }
+.bh-n.bh-xl{ font-size:140px; } .bh-n.bh-lg{ font-size:112px; } .bh-n.bh-md{ font-size:84px; }
+.bh-l em{ display:block; font-family:'Playfair Display',serif; font-style:italic; font-weight:700; font-size:25px;
+  color:#f3ead8; margin-top:8px; max-width:46ch; line-height:1.25; }
+.bh-l em b{ font-style:normal; color:#fff; text-decoration:underline; text-decoration-color:rgba(243,234,216,.45);
+  text-underline-offset:4px; }
+.bh-grid{ position:relative; z-index:2; display:grid; grid-template-columns:repeat(2,minmax(140px,1fr)); align-self:stretch;
+  border-left:1px solid rgba(243,234,216,.22); background:rgba(17,15,16,.18); }
+.bh-grid div{ padding:12px 16px; border-bottom:1px solid rgba(243,234,216,.18); border-right:1px solid rgba(243,234,216,.18); }
+.bh-grid span{ display:block; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:#f6d7dc; }
+.bh-grid b{ display:block; font-family:'Anton',sans-serif; font-weight:400; font-size:38px; color:#f3ead8; line-height:1.15; }
+.bh-grid i{ font-style:normal; font-size:12px; color:#f6d7dc; }
+.bh-duo{ position:absolute; right:3%; bottom:0; height:118%; max-height:330px; object-fit:cover; z-index:1;
+  filter:grayscale(1) contrast(1.15); mix-blend-mode:multiply; opacity:.92; }
+.bh.has-grid .bh-duo{ display:none; }
+@media (max-width:760px){
+  .bh{ min-height:180px; } .bh.has-grid{ grid-template-columns:1fr; }
+  .bh-grid{ border-left:0; border-top:1px solid rgba(243,234,216,.22); }
+  .bh-n.bh-xl{ font-size:104px; } .bh-n.bh-lg{ font-size:84px; } .bh-n.bh-md{ font-size:64px; }
+  .bh-l em{ font-size:20px; } .bh-duo{ opacity:.6; height:100%; right:0; }
+}
+/* black-and-white photo rows to match: the keeper tray and the boards */
+.kt-slot img, .kl-card img, .rk-row .pl img{ filter:grayscale(1); }
+/* tier labels run on one line, past the first column if they need to */
+.rk-tier .band{ white-space:nowrap; width:max-content; max-width:none; }
+/* the Waivers board's last column is the bid, where Rankings shows the owner */
+.rk-row .own b.bid{ color:#5fdc8f; font-family:'Roboto Mono',monospace; font-size:13px; letter-spacing:0; text-transform:none; }
+/* the keeper tray as a photo row: B&W portraits, pink Anton rounds, Playfair names */
+.kt-tray{ background:transparent !important; border:0 !important; padding:0 !important; }
+.kt-slots{ gap:10px !important; }
+.kt-slot{ background:#110f10 !important; border:0 !important; border-radius:4px !important; padding:0 0 10px !important;
+  overflow:hidden; gap:0 !important; }
+.kt-slot.rk{ box-shadow:inset 0 -3px 0 rgba(181,156,240,.55); }
+.kt-ph{ width:100%; height:118px; object-fit:cover; object-position:top; filter:grayscale(1) contrast(1.05);
+  background:#2a2627; display:block; }
+.kt-slot b{ font-family:'Anton',sans-serif !important; font-weight:400 !important; font-size:32px !important;
+  color:#f0c0c8 !important; line-height:1.15; margin-top:6px; }
+.kt-slot span{ font-family:'Playfair Display',serif !important; font-weight:700; font-size:14.5px !important; color:#f3ead8 !important; }
+.kt-slot.empty .kt-empty{ width:100%; height:118px; border-radius:0; border:0; background:#1b1819; }
+@media (max-width:760px){ .kt-ph,.kt-slot.empty .kt-empty{ height:80px; } .kt-slot b{ font-size:24px !important; }
+  .kt-slot span{ font-size:12px !important; } }
+@media (max-width:760px){
+  .bh.has-grid{ grid-template-columns:1fr; } .bh-grid{ border-left:0; border-top:1px solid #3a2f2a; }
+  .bh-n.xl{ font-size:104px; } .bh-n.lg{ font-size:84px; } .bh-n.md{ font-size:64px; }
+  .bh-l em{ font-size:20px; } .bh-duo{ opacity:.32; }
+}
 
 /* ==== One card grammar =====================================================
    Every card built this season brought its own header, padding and number

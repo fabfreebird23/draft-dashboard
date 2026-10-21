@@ -2427,7 +2427,10 @@ def keeper_tray_html(keeps, reg_max: int, rook_max: int) -> str:
         for i in range(n):
             if i < len(rows):
                 r = rows[i]
-                cells.append(f'<div class="kt-slot {kind}">{h2h_face_html(r.get("face"), r.get("team") or "", "l")}'
+                face = str(r.get("face") or "")
+                src = (f"https://sleepercdn.com/images/team_logos/nfl/{_esc(face.lower())}.png" if face.isalpha()
+                       else f"https://sleepercdn.com/content/nfl/players/thumb/{_esc(face)}.jpg")
+                cells.append(f'<div class="kt-slot {kind}"><img class="kt-ph" src="{src}" alt="" loading="lazy">'
                              f'<b>R{r["cost_round"]}</b><span>{_esc(r["name"].split()[-1])}</span></div>')
             else:
                 cells.append(f'<div class="kt-slot {kind} empty"><div class="kt-empty"></div><b>—</b><span>open</span></div>')
@@ -2674,3 +2677,24 @@ def lottery_html(rows: list, *, weights: list, chase: tuple, season: int) -> str
             + f'<div class="sa-cap">The Chase for the Pick is seeds <b>{lo}–{hi}</b> ({lo} v {hi}, {lo + 1} v {hi - 1}) '
               f'and its winner gets <b>{weights[0]}</b> balls; the worst record gets {weights[1]}, and it halves from '
               f'there. Selection order is a weighted draw; #1 picks his draft slot first.</div></div>')
+
+
+# ------------------------------------------------------------- tab hero
+def hero_html(kick: str, num, line: str, *, photo=None, grid=None, red: bool = False) -> str:
+    """The page's answer as a magazine cover: one big cream number, the
+    sentence it stands for in italics, an optional duotone player and an
+    optional grid of the other numbers that matter. Every tab opens with one."""
+    g = ""
+    if grid:
+        g = '<div class="bh-grid">' + "".join(
+            f'<div><span>{_esc(k)}</span><b>{_esc(v)}</b><i>{_esc(s)}</i></div>' for k, v, s in grid) + '</div>'
+    ph = ""
+    if photo:
+        ph = f'<img class="bh-duo" src="https://sleepercdn.com/content/nfl/players/thumb/{_esc(photo)}.jpg" alt="" loading="lazy">'
+    num = str(num)
+    # bh- prefixed: a bare "lg" is the league chip's class and gave the number
+    # a grey pill behind it
+    size = "bh-xl" if len(num) <= 3 else "bh-lg" if len(num) <= 5 else "bh-md"
+    return (f'<div class="bh{" has-grid" if grid else ""}"><div class="bh-l">'
+            f'<span class="bh-k">{_esc(kick)}</span><b class="bh-n {size}">{_esc(num)}</b>'
+            f'<em>{line}</em></div>{g}{ph}</div>')
