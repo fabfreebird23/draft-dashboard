@@ -1854,6 +1854,72 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   text-transform:uppercase; color:var(--mut2); white-space:nowrap; text-align:right; }
 .tb-wk b{ color:var(--ink); font-weight:600; } .tb-wk .on{ color:var(--crimson); }
 [class*="st-key-navbar"] [data-testid="stHorizontalBlock"]{ align-items:flex-end; }
+/* ==== NAV · "Broadcast rail" (design/nav_remock_4x.html, option A) ====
+   Leagues: an uppercase rail, your record beside each, a crimson underline on
+   the one you're in. Tabs: condensed caps on a hairline, the active one
+   underlined. Sub-tabs: small mono pills, the active one filled. */
+.st-key-tb_leagues [data-testid="stButtonGroup"]{ gap:22px !important; justify-content:flex-end; }
+.st-key-tb_leagues [data-testid="stButtonGroup"] button{ background:transparent !important;
+  border:0 !important; border-bottom:2px solid transparent !important; border-radius:0 !important;
+  padding:4px 0 7px !important; box-shadow:none !important; min-height:0; margin:0 0 0 20px !important; }
+.st-key-tb_leagues [data-testid="stButtonGroup"] button p{ font-family:'Oswald',sans-serif !important;
+  font-size:14.5px !important; font-weight:400 !important; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--muted); white-space:nowrap; }
+.st-key-tb_leagues [data-testid="stButtonGroup"] button p::first-letter{ font-size:9px; vertical-align:2px; }
+.st-key-tb_leagues [data-testid="stButtonGroup"] button p::after{ font-family:'Roboto Mono',monospace;
+  font-size:10px; letter-spacing:0; color:var(--mut2); margin-left:7px; text-transform:none; }
+.st-key-tb_leagues [data-testid="stButtonGroup"] button:hover p{ color:var(--ink); }
+.st-key-tb_leagues [data-testid="stButtonGroup"] button[kind="segmented_controlActive"]{
+  border-bottom-color:var(--crimson) !important; }
+.st-key-tb_leagues [data-testid="stButtonGroup"] button[kind="segmented_controlActive"] p{ color:var(--ink); }
+.st-key-tb_leagues [data-testid="stButtonGroup"] button[kind="segmented_controlActive"] p::after{ color:var(--crimson); }
+
+.st-key-navbar > [data-testid="stHorizontalBlock"]{ border-bottom:1px solid var(--line); }
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"]{ gap:0 !important; }
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button{ background:transparent !important;
+  border:0 !important; border-radius:0 !important; box-shadow:none !important; padding:10px 16px 11px !important;
+  position:relative; min-height:0; }
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button p{
+  font-family:'Oswald',sans-serif !important; font-weight:500 !important; font-size:16px !important;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button:hover p{ color:var(--ink); }
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button[kind="segmented_controlActive"] p{ color:var(--ink); }
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button[kind="segmented_controlActive"]::after{
+  content:""; position:absolute; left:16px; right:16px; bottom:-1px; height:3px; background:var(--crimson);
+  border-radius:3px 3px 0 0; }
+
+.st-key-navbar_more, .st-key-navbar_draft, .st-key-lineup_src{ position:relative; }
+.st-key-navbar_more [data-testid="stButtonGroup"], .st-key-navbar_draft [data-testid="stButtonGroup"],
+.st-key-lineup_src [data-testid="stButtonGroup"]{ gap:6px !important; align-items:center; }
+.st-key-navbar_more [data-testid="stButtonGroup"] > div:last-child::before, .st-key-lineup_src [data-testid="stButtonGroup"] > div:last-child::before{
+  font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.14em; color:var(--mut2);
+  margin-right:6px; align-self:center; }
+.st-key-navbar_more [data-testid="stButtonGroup"] > div:last-child::before{ content:"MORE"; }
+.st-key-lineup_src [data-testid="stButtonGroup"] > div:last-child::before{ content:"SOURCE"; }
+.st-key-navbar_more [data-testid="stButtonGroup"] > div:last-child,
+.st-key-lineup_src [data-testid="stButtonGroup"] > div:last-child{ align-items:center; }
+.st-key-navbar_more [data-testid="stButtonGroup"] button, .st-key-navbar_draft [data-testid="stButtonGroup"] button,
+.st-key-lineup_src [data-testid="stButtonGroup"] button{ background:transparent !important; margin-right:6px !important;
+  border:1px solid var(--line) !important; border-radius:20px !important; padding:4px 12px !important;
+  min-height:0; box-shadow:none !important; }
+.st-key-navbar_more [data-testid="stButtonGroup"] button p, .st-key-navbar_draft [data-testid="stButtonGroup"] button p,
+.st-key-lineup_src [data-testid="stButtonGroup"] button p{ font-family:'Roboto Mono',monospace !important;
+  font-size:12px !important; font-weight:400 !important; color:var(--muted); white-space:nowrap; }
+.st-key-navbar_more [data-testid="stButtonGroup"] button[kind="segmented_controlActive"],
+.st-key-navbar_draft [data-testid="stButtonGroup"] button[kind="segmented_controlActive"],
+.st-key-lineup_src [data-testid="stButtonGroup"] button[kind="segmented_controlActive"]{
+  background:var(--accent-fill) !important; border-color:var(--accent-fill) !important; }
+.st-key-navbar_more [data-testid="stButtonGroup"] button[kind="segmented_controlActive"] p,
+.st-key-navbar_draft [data-testid="stButtonGroup"] button[kind="segmented_controlActive"] p,
+.st-key-lineup_src [data-testid="stButtonGroup"] button[kind="segmented_controlActive"] p{ color:#fff; }
+@media (max-width:760px){
+  .st-key-tb_leagues [data-testid="stButtonGroup"]{ gap:14px !important; justify-content:flex-start; }
+  .st-key-tb_leagues [data-testid="stButtonGroup"] button{ margin:0 14px 0 0 !important; }
+  .st-key-tb_leagues [data-testid="stButtonGroup"] button p{ font-size:12.5px !important; }
+  .st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button{ padding:9px 11px 10px !important; }
+  .st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button p{ font-size:14px !important; }
+  .st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button[kind="segmented_controlActive"]::after{ left:11px; right:11px; }
+}
 /* ---- movers: ticker, badges, deltas ---- */
 [class*="st-key-rk_tick"]{ margin:-2px 0 8px; }
 [class*="st-key-rk_tick"] .stButton button{ font-family:'Roboto Mono',ui-monospace,monospace;

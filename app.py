@@ -956,9 +956,15 @@ def _league_switcher(ctx) -> None:
         by_label[lab] = p
     # ::first-letter is the dot and nothing else, so each league's state shows
     # in its own colour without tinting its name.
+    # the record rides on the name as CSS, not in the label: the label is the
+    # widget's value, and a record changing under it would orphan the selection
+    recs = [((pu or {}).get("record") or "").replace("\u2013", "-") if (pu or {}).get("ok") else ""
+            for pu in pulses]
     st.markdown("<style>" + "".join(
         f'.st-key-tb_leagues [data-testid="stButtonGroup"] button:nth-of-type({i}) '
-        f'p::first-letter{{color:{t};}}' for i, t in enumerate(tones, 1)) + "</style>",
+        f'p::first-letter{{color:{t};}}' for i, t in enumerate(tones, 1)) + "".join(
+        f'.st-key-tb_leagues [data-testid="stButtonGroup"] button:nth-of-type({i}) '
+        f'p::after{{content:"{r}";}}' for i, r in enumerate(recs, 1) if r) + "</style>",
         unsafe_allow_html=True)
     cur = next((l for l, p in by_label.items() if str(p["league_id"]) == cur_lid), labels[0])
     key = "tb_league_pick"

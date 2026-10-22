@@ -1378,6 +1378,7 @@ def _lineup(ctx, g) -> None:
     _srcs = ["Projections", "FantasyPros", "Flock", "The Ballers", "Vegas"]
     _skey = f"lineup_src_{ctx['league_key']}"
     with st.container(key="lineup_src"):
+        st.session_state.setdefault(_skey, _srcs[0])
         src = st.segmented_control("Rank by", _srcs, key=_skey, selection_mode="single",
                                    label_visibility="collapsed") or _srcs[0]
     score, score_label = _source_scores(pn, g, src)
