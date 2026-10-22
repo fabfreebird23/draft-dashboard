@@ -2506,6 +2506,24 @@ def _drawer(title: str, summary: str = "", expanded: bool = False, key: str = ""
     return st.expander(f"**{title}**" + (f"  ·  {summary}" if summary else ""), expanded=expanded)
 
 
+def _lazy(key: str, label: str) -> bool:
+    """Inside a drawer: True once he has asked for its contents this session.
+
+    Streamlit runs an expander's body even when it's shut, so the Keepers tab
+    was building every team's keepers, next year's board and every player's
+    history before any drawer was opened. A drawer that's expensive shows one
+    button until it's wanted, then stays built (and open) for the session."""
+    flag = f"lazy_{key}"
+    if st.session_state.get(flag):
+        return True
+
+    def _go():
+        st.session_state[flag] = True
+        st.session_state[f"drawer_{key}"] = True
+    st.button(label, key=f"lazybtn_{key}", on_click=_go)
+    return False
+
+
 def _keep_open(key: str):
     """on_change callback for a widget that lives in drawer `key`."""
     return lambda: st.session_state.__setitem__(f"drawer_{key}", True)
@@ -3308,7 +3326,7 @@ def _mode_panel(ctx, g, status, resolved) -> None:
             fits.sort(reverse=True)
             gain, o = fits[0]
             if o not in their_k:
-                their_k[o] = [r for r in _keeper_rows(ctx, g, pids=g["rosters"][o]["players"], from_owner=o)
+                their_k[o] = [r for r in (_all_keeper_rows(ctx, g).get(o) or [])
                               if (r.get("surplus") or 0) >= 10 and not r.get("blocked")]
             theirs_start = {str(q) for _s, q in W.lineup_check(g["rosters"][o]["players"], g["slots"],
                                                                g["proj"], reg, g["byes"], g["week"])["spots"] if q}
@@ -3352,7 +3370,7 @@ def _mode_panel(ctx, g, status, resolved) -> None:
         st.markdown('<div class="ws-h">Buy from teams that are out of it</div>', unsafe_allow_html=True)
         targets = []
         for o in sellers:
-            tk = {str(r["pid"]): r for r in _keeper_rows(ctx, g, as_owner=o)}
+            tk = {str(r["pid"]): r for r in (_all_keeper_rows(ctx, g).get(o) or [])}
             for p in g["rosters"][o]["players"]:
                 v = vals.get(str(p)) or {}
                 if (v.get("par") or 0) <= 5:
@@ -3574,23 +3592,56 @@ def _gm_board(ctx, g, status) -> None:
 
 
 # ------------------------------------------------------ next year's draft
+@st.cache_data(ttl=1800, show_spinner=False, max_entries=12)
+def _league_keeper_rows_cached(lk: str, week: int, bucket: int, version: int, _ctx, _g) -> dict:
+    """{owner_id: [every keeper row for that team]} — priced once per league on
+    the 15-minute clock and shared by the 2027 board, the preview, the trade
+    market and the tank/contend panel (which each used to run their own pass
+    per team). The warmer fills it off the request."""
+    out = {}
+    for o in _g["rosters"]:
+        try:
+            out[o] = _keeper_rows(_ctx, _g, as_owner=o)
+        except Exception:  # noqa: BLE001
+            out[o] = []
+    return out
+
+
+def _all_keeper_rows(ctx, g) -> dict:
+    return _league_keeper_rows_cached(ctx["league_key"], g["week"], _slow_bucket(g["season"], g["week"]),
+                                      _GATHER_V, ctx, g)
+
+
 def _league_keepers(ctx, g) -> dict:
     """{owner_id: [keeper rows that would be kept]} — every team's projected
-    keepers, priced through the league's rules. Memoised for the run: the
-    preview and the board both need it and it prices every roster."""
-    key = f"_lk{_GATHER_V}_{ctx['league_key']}_{g['week']}_{_slow_bucket(g['season'], g['week'])}"
-    memo = st.session_state.get(key)
-    if memo is not None:
-        return memo
-    out = {}
-    for o in g["rosters"]:
-        out[o] = [r for r in _keeper_rows(ctx, g, as_owner=o) if r.get("verdict") == "keep"]
-    st.session_state[key] = out
-    return out
+    keepers, priced through the league's rules."""
+    return {o: [r for r in rows if r.get("verdict") == "keep"] for o, rows in _all_keeper_rows(ctx, g).items()}
 
 
 @st.cache_data(ttl=6 * 3600, show_spinner=False)
 def _player_history(league_id: str, season: int) -> dict:
+    """The keeper history, from a day-old copy on disk if there is one — it
+    walks four seasons of Sleeper drafts and the keeper files, a dozen requests
+    that never change for past seasons, so a restart shouldn't pay them."""
+    import json as _json
+    import time as _t
+    p = config.DATA_DIR / f"history_{league_id}_{season}.json"
+    try:
+        if p.exists() and _t.time() - p.stat().st_mtime < 24 * 3600:
+            raw = _json.loads(p.read_text())
+            return {pid: {int(y): e for y, e in yrs.items()} for pid, yrs in raw.items()}
+    except Exception:  # noqa: BLE001
+        pass
+    out = _player_history_live(league_id, season)
+    try:
+        config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        p.write_text(_json.dumps(out))
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+def _player_history_live(league_id: str, season: int) -> dict:
     """{pid: {season: {...}}} — every season this league has a record of him:
     the round he went in that year's draft and who took him, and, from the
     league's keeper files, whether he was kept, at what round and which year of
@@ -3886,6 +3937,17 @@ def _draft_preview(ctx, g) -> None:
           "once the keepers ahead of that pick are off the board.")
 
 
+@st.cache_data(ttl=900, show_spinner=False)
+def _partner_ideas(mine, opp, week, nproj, _g, _reg):
+    """One partner's one-for-ones and packages. The exact re-scoring behind them
+    is most of a Trades visit, and the same pair is asked for on every rerun."""
+    ones = W.trade_ideas(list(mine), list(opp), _g["slots"], _g["proj"], _reg,
+                         byes=_g["byes"], week=week, max_ideas=4)
+    pkgs = W.trade_packages(list(mine), list(opp), _g["slots"], _g["proj"], _reg,
+                            byes=_g["byes"], week=week, max_ideas=5)
+    return ones, pkgs
+
+
 def _trades(ctx, g) -> None:
     from .. import userstate as US
     reg, lk = ctx["registry"], ctx["league_key"]
@@ -4010,10 +4072,8 @@ def _trades(ctx, g) -> None:
     _analyzer(ctx, g, oid, opp)
 
     with st.spinner("Searching one-for-ones and packages…"):
-        ones = W.trade_ideas(g["mine"], opp, g["slots"], g["proj"], reg,
-                             byes=g["byes"], week=g["week"], max_ideas=4)
-        pkgs = W.trade_packages(g["mine"], opp, g["slots"], g["proj"], reg,
-                                byes=g["byes"], week=g["week"], max_ideas=5)
+        ones, pkgs = _partner_ideas(tuple(map(str, g["mine"])), tuple(map(str, opp)),
+                                    g["week"], len(g["proj"]), g, reg)
     ideas = []
     for i in ones:
         ideas.append({"shape": "1-for-1", "send_names": [i["send_name"]],
@@ -4774,15 +4834,18 @@ def _keepers(ctx, g) -> None:
 
         with _drawer(f"{int(g['season']) + 1} board", "every pick simulated — keepers in their slots, the rest by projected ADP",
                      key=f"nb_{ctx['league_key']}"):
-            try:
-                _next_board(ctx, g)
-            except Exception:  # noqa: BLE001
-                _note("Couldn't build next year's board right now.")
-        with _drawer(f"{int(g['season']) + 1} draft preview", "every team's keepers off the board, then your picks"):
-            try:
-                _draft_preview(ctx, g)
-            except Exception:  # noqa: BLE001
-                _note("Couldn't build the draft preview right now.")
+            if _lazy(f"nb_{ctx['league_key']}", "Build next year's board"):
+                try:
+                    _next_board(ctx, g)
+                except Exception:  # noqa: BLE001
+                    _note("Couldn't build next year's board right now.")
+        with _drawer(f"{int(g['season']) + 1} draft preview", "every team's keepers off the board, then your picks",
+                     key=f"dp_{ctx['league_key']}"):
+            if _lazy(f"dp_{ctx['league_key']}", "Show the preview"):
+                try:
+                    _draft_preview(ctx, g)
+                except Exception:  # noqa: BLE001
+                    _note("Couldn't build the draft preview right now.")
         _ch = (f"{blocked[0]['name']} has aged out" if blocked else
                "build trades around your cheap keepers")
         with _drawer("What this changes now", _ch):

@@ -150,7 +150,7 @@ def price_rounds(rules: dict, season: int, fallback: int = 14) -> int:
     return int((rules or {}).get("draft_rounds") or fallback or 14)
 
 
-def load_keeper_rules(league_id: str) -> dict:
+def _load_keeper_rules_live(league_id: str) -> dict:
     """House keeper rules from the dashboard's config.yaml `league:`/`rules:`
     blocks — Sleeper's own settings only expose a flat `max_keepers` total, not
     the regular/rookie split, the year cap, or the cost-escalation-per-year rule."""
@@ -291,7 +291,7 @@ def _parse_draft_order(text: str) -> List[str]:
     return out
 
 
-def load_keepers(league_id: str, season: int, rostered: bool = True) -> Dict[str, List[dict]]:
+def _load_keepers_live(league_id: str, season: int, rostered: bool = True) -> Dict[str, List[dict]]:
     """{owner_id: [keeper dicts]} for the league/season, or {} if none/unknown.
     Filtered to players each manager still rosters, so a player traded after a
     keeper was submitted can't be kept by two teams. `rostered=False` returns
@@ -700,3 +700,35 @@ def build_placements(keepers: Dict[str, List[dict]], owner_slot: Dict[str, int],
             kept_pids.add(pid)
             by_owner.setdefault(str(owner_id), []).append(pid)
     return {"by_overall": by_overall, "kept_pids": kept_pids, "by_owner": by_owner}
+
+
+# ---- memo ------------------------------------------------------------------
+# load_keepers / load_keeper_rules went to GitHub on EVERY call, and a keeper
+# screen calls them once per team (and the trade panels again per partner) —
+# the larger half of a 20-second Trades tab. Ten minutes in memory; callers
+# get a copy so nobody can mutate the shared one.
+import copy as _copy
+import time as _time
+
+_MEMO: Dict[tuple, tuple] = {}
+_TTL = 600
+
+
+def _memo(key, fn):
+    hit = _MEMO.get(key)
+    if hit and _time.time() - hit[0] < _TTL:
+        return _copy.deepcopy(hit[1])
+    val = fn()
+    # don't pin an empty answer from a network blip for ten minutes
+    if val:
+        _MEMO[key] = (_time.time(), val)
+    return _copy.deepcopy(val)
+
+
+def load_keepers(league_id: str, season: int, rostered: bool = True) -> Dict[str, List[dict]]:
+    return _memo(("keepers", str(league_id), int(season), bool(rostered)),
+                 lambda: _load_keepers_live(league_id, season, rostered))
+
+
+def load_keeper_rules(league_id: str) -> dict:
+    return _memo(("rules", str(league_id)), lambda: _load_keeper_rules_live(league_id))

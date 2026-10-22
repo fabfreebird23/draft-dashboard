@@ -68,7 +68,8 @@ def _warm_league(preset: dict, week: int) -> str:
         pass
     ctx = _fns["ctx"](json.dumps(sel, sort_keys=True, default=str), slow)
     a = mark()
-    g = IS._gather_cached(ctx["league_key"], week, fast, ctx)   # Command Center, Matchup
+    # the version must match the tabs' call or this warms a key nobody reads
+    g = IS._gather_cached(ctx["league_key"], week, fast, ctx, IS._GATHER_V)   # Command Center, Matchup
     b = mark()
     pn = IS._panels(ctx, g)                                    # Flock / Ballers / Vegas
     # The movers ticker reads a snapshot index per panel — five GitHub round
@@ -95,6 +96,15 @@ def _warm_league(preset: dict, week: int) -> str:
     else:
         IS._fa_gain_cached(lk, week, slow, ctx, g, taken)       # the optimiser pass
         IS._waiver_board_cached(lk, week, slow, ctx, g, taken)
+    try:  # every team's keepers, priced once: the 2027 board, preview, trades
+        from . import keepers as K
+        if ctx["meta"].platform == "sleeper" and K.league_has_keepers(str(ctx["meta"].league_id)):
+            IS._league_keeper_rows_cached(lk, week, slow, IS._GATHER_V, ctx, g)
+            IS._player_history(str(ctx["meta"].league_id), int(g["season"]))   # board pop-outs
+            from . import nextyear as NY                                      # 2027 ADP
+            NY.projected(int(getattr(ctx["meta"], "num_teams", 10) or 10), 1.0)
+    except Exception:  # noqa: BLE001
+        pass
     try:  # the league's FAAB market: ~5 s of Sleeper reads the first time
         from . import faabmarket as FM
         FM.market_for(ctx["meta"], week)

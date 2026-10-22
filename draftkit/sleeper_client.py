@@ -165,15 +165,28 @@ def league_chain(league_id: str) -> List[Dict[str, Any]]:
     return chain
 
 
+_PLAYERS_MEM: Dict[str, Any] = {"mtime": None, "data": None}
+
+
 def get_players() -> Dict[str, Any]:
-    """Sleeper's full NFL player map (~5MB), cached to disk and refreshed daily."""
+    """Sleeper's full NFL player map (~5MB), cached to disk and refreshed daily.
+
+    Parsed ONCE per process and held in memory until the file on disk changes:
+    it used to be re-read and re-parsed (~0.4s) on every call, and a cold tab
+    makes several (the registry, the next-year projection, injury checks).
+    Callers must treat the dict as read-only."""
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     if _PLAYERS_CACHE.exists():
-        age = time.time() - _PLAYERS_CACHE.stat().st_mtime
-        if age < _PLAYERS_MAX_AGE:
-            return json.loads(_PLAYERS_CACHE.read_text())
+        st_ = _PLAYERS_CACHE.stat()
+        if time.time() - st_.st_mtime < _PLAYERS_MAX_AGE:
+            if _PLAYERS_MEM["mtime"] == st_.st_mtime and _PLAYERS_MEM["data"] is not None:
+                return _PLAYERS_MEM["data"]
+            data = json.loads(_PLAYERS_CACHE.read_text())
+            _PLAYERS_MEM.update(mtime=st_.st_mtime, data=data)
+            return data
     data = _get("players/nfl")
     _PLAYERS_CACHE.write_text(json.dumps(data))
+    _PLAYERS_MEM.update(mtime=_PLAYERS_CACHE.stat().st_mtime, data=data)
     return data
 
 

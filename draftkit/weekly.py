@@ -57,6 +57,31 @@ def _playable(pids, registry):
     return out
 
 
+_LU_MEMO: Dict[tuple, list] = {}
+
+
+def _best_lineup(pids, slots, proj, registry, byes, week) -> list:
+    """The optimiser's starters for a roster, memoised on the exact inputs.
+
+    The trade screens ask the same question hundreds of times a run — every
+    team's base lineup, then that lineup plus each sell candidate — and the
+    exact optimiser costs ~20ms a call. Keyed on the roster as a set, the
+    slots, the week and the IDENTITY of the projection dict (one per gathered
+    context; a new context is a new dict), so it never serves a stale lineup
+    across a refresh. Bounded so a long-lived process can't grow it forever."""
+    key = (tuple(sorted(str(p) for p in (pids or []))), tuple(slots or ()), id(proj), len(proj or {}),
+           id(registry), week, id(byes))
+    hit = _LU_MEMO.get(key)
+    if hit is not None:
+        return hit
+    lu = LU.optimize(_playable(pids, registry), None, slots, proj, registry, byes=byes, week=week)
+    used = [getattr(sp, "pid", None) for sp in (getattr(lu, "spots", []) or [])]
+    if len(_LU_MEMO) > 20000:
+        _LU_MEMO.clear()
+    _LU_MEMO[key] = used
+    return used
+
+
 def team_distribution(pids, slots, proj: dict, registry, byes=None, week=None,
                       current=None):
     """(mean, sd) of a lineup — the one that is SET if we know it, else the best legal one.
@@ -74,8 +99,7 @@ def team_distribution(pids, slots, proj: dict, registry, byes=None, week=None,
     if cur:
         used = cur
     else:
-        lu = LU.optimize(_playable(pids, registry), None, slots, proj, registry, byes=byes, week=week)
-        used = [getattr(sp, "pid", None) for sp in (getattr(lu, "spots", []) or [])]
+        used = _best_lineup(pids, slots, proj, registry, byes, week)
     mean, var = 0.0, 0.0
     for pid in used:
         if not pid:
