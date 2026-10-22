@@ -1150,12 +1150,14 @@ def main():
         # In season the header carries the OTHER leagues too: one click to
         # switch, and each with the dot Home uses, so "does another league need
         # me" is answered without going Home. Pre-season keeps the plain name.
-        head = st.columns([1.15, 3.0, 1.35, 1.7, 0.4] if _drafted else [3.35, 1.7, 2.15, 0.4])
+        # In season (the "broadcast rail"): wordmark + the week on the left, the
+        # leagues as a rail on the right, then the data dots and the menu.
+        head = st.columns([2.1, 3.3, 0.75, 0.35] if _drafted else [3.35, 1.7, 2.15, 0.4])
         with head[0]:
             st.markdown(f'<div class="tb-row tb-id">{theme.cherry_svg(19)}'
                         f'<span class="bs-word">Bloody<em>Sunday</em></span>'
-                        + ("" if _drafted else f'<span class="tb-sep"></span>'
-                                               f'<span class="tb-name">{meta.name}</span>')
+                        + (f'<span class="tb-wk tb-wk-in">{_week_line()}</span>' if _drafted else
+                           f'<span class="tb-sep"></span><span class="tb-name">{meta.name}</span>')
                         + '</div>', unsafe_allow_html=True)
         if _drafted:
             with head[1], st.container(key="tb_leagues"):
@@ -1164,8 +1166,8 @@ def main():
                 _league_switcher(ctx)
                 if _timing:
                     print(f"[timing] switcher {_tm.perf_counter()-_tsw:.2f}s", file=_sys.stderr)
-            head = [head[0], head[2], head[3], head[4]]
-        with head[1], st.container(key="tb_phase"):
+            head = [None, head[2], head[3]]
+        with (st.container() if _drafted else head[1]), st.container(key="tb_phase"):
             # st.segmented_control, NOT a styled radio. Hiding a radio's glyph means
             # selecting on Streamlit's internal DOM, and that DOM is not stable: on
             # 1.50 the glyph is label>div, on the newer build Cloud resolves to it's a
@@ -1175,19 +1177,19 @@ def main():
             # Once the league has drafted the toggle goes away: the season is the
             # season, and the draft screens live under More → Draft until August.
             if _drafted:
-                ph_sel = "In-season"
-                st.markdown('<div class="ph-note tb-wk">' + _week_line() + '</div>',
-                            unsafe_allow_html=True)
+                ph_sel = "In-season"          # the week line rides beside the wordmark
             else:
                 ph_sel = st.segmented_control(
                     "phase", ["Pre-season", "In-season"], key=pkey,
                     selection_mode="single", label_visibility="collapsed") or st.session_state[pkey]
-        with head[2]:
+        if not _drafted:
+            head = [None, None, head[2], head[3]]
+        with head[-2]:
             # In season the team count and scoring are facts he set once in
             # August; the header keeps only the data-health dots.
             st.markdown(f'<div class="tb-row tb-pills">{"" if _drafted else pills}{cluster}</div>',
                         unsafe_allow_html=True)
-        with head[3], st.container(key="tb_more"):
+        with head[-1], st.container(key="tb_more"):
             with st.popover("⋯", use_container_width=True):
                 def _toggle_dark():
                     st.session_state["dark_mode"] = not st.session_state.get("dark_mode", True)
@@ -1246,7 +1248,7 @@ def main():
             st.session_state[ikey] = "More"
             st.session_state[mkey] = _want
         with st.container(key="navbar"):
-            _nc = st.columns([3.4, 2.4])
+            _nc = st.columns([6.2, 1], vertical_alignment="center")
             with _nc[0]:
                 itab = st.segmented_control("nav", nav, key=ikey, selection_mode="single",
                                             label_visibility="collapsed") or nav[0]

@@ -1874,7 +1874,20 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .st-key-tb_leagues [data-testid="stButtonGroup"] button[kind="segmented_controlActive"] p{ color:var(--ink); }
 .st-key-tb_leagues [data-testid="stButtonGroup"] button[kind="segmented_controlActive"] p::after{ color:var(--crimson); }
 
-.st-key-navbar > [data-testid="stHorizontalBlock"]{ border-bottom:1px solid var(--line); }
+.st-key-navbar{ border-bottom:1px solid var(--line); margin-bottom:12px !important; }
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"],
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] > div{ width:100%; border:0 !important; }
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button:last-of-type{ margin-left:auto !important; }
+.st-key-navbar .ws-ext{ justify-content:flex-end; margin:0; }
+.st-key-tb_leagues [data-testid="stButtonGroup"], .st-key-tb_leagues [data-testid="stButtonGroup"] > div,
+.st-key-tb_leagues [data-testid="stButtonGroup"] div:has(> button){ width:100%; justify-content:flex-end !important; }
+.st-key-tb_league_pick, .st-key-navbar [class*="st-key-nav_in_"]{ width:100% !important; }
+.st-key-tb_league_pick [data-testid="stButtonGroup"], .st-key-tb_league_pick [data-testid="stButtonGroup"] > div{ width:100% !important; }
+/* Streamlit closes every button group with a flex:10000 ::after spacer, which
+   eats the free space and pins the buttons left whatever justify-content says */
+.st-key-tb_league_pick [data-testid="stButtonGroup"] > div::after,
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] > div::after{ content:none !important; display:none !important; }
+.tb-wk-in{ margin-left:22px; text-align:left; }
 .st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"]{ gap:0 !important; }
 .st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button{ background:transparent !important;
   border:0 !important; border-radius:0 !important; box-shadow:none !important; padding:10px 16px 11px !important;
@@ -1891,13 +1904,15 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .st-key-navbar_more, .st-key-navbar_draft, .st-key-lineup_src{ position:relative; }
 .st-key-navbar_more [data-testid="stButtonGroup"], .st-key-navbar_draft [data-testid="stButtonGroup"],
 .st-key-lineup_src [data-testid="stButtonGroup"]{ gap:6px !important; align-items:center; }
-.st-key-navbar_more [data-testid="stButtonGroup"] > div:last-child::before, .st-key-lineup_src [data-testid="stButtonGroup"] > div:last-child::before{
-  font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.14em; color:var(--mut2);
-  margin-right:6px; align-self:center; }
-.st-key-navbar_more [data-testid="stButtonGroup"] > div:last-child::before{ content:"MORE"; }
-.st-key-lineup_src [data-testid="stButtonGroup"] > div:last-child::before{ content:"SOURCE"; }
-.st-key-navbar_more [data-testid="stButtonGroup"] > div:last-child,
-.st-key-lineup_src [data-testid="stButtonGroup"] > div:last-child{ align-items:center; }
+/* the row's label sits on the CONTAINER, not inside the widget: Cloud's newer
+   Streamlit nests the buttons differently, and a pseudo-element in there landed
+   on its own line above the pills */
+.st-key-navbar_more, .st-key-lineup_src{ padding-left:58px; }
+.st-key-navbar_more::before, .st-key-lineup_src::before{ position:absolute; left:0; top:50%;
+  transform:translateY(-50%); font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.14em;
+  color:var(--mut2); }
+.st-key-navbar_more::before{ content:"MORE"; }
+.st-key-lineup_src::before{ content:"SOURCE"; }
 .st-key-navbar_more [data-testid="stButtonGroup"] button, .st-key-navbar_draft [data-testid="stButtonGroup"] button,
 .st-key-lineup_src [data-testid="stButtonGroup"] button{ background:transparent !important; margin-right:6px !important;
   border:1px solid var(--line) !important; border-radius:20px !important; padding:4px 12px !important;
@@ -1913,7 +1928,9 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .st-key-navbar_draft [data-testid="stButtonGroup"] button[kind="segmented_controlActive"] p,
 .st-key-lineup_src [data-testid="stButtonGroup"] button[kind="segmented_controlActive"] p{ color:#fff; }
 @media (max-width:760px){
-  .st-key-tb_leagues [data-testid="stButtonGroup"]{ gap:14px !important; justify-content:flex-start; }
+  .st-key-tb_leagues [data-testid="stButtonGroup"], .st-key-tb_leagues [data-testid="stButtonGroup"] > div,
+  .st-key-tb_leagues [data-testid="stButtonGroup"] div:has(> button){ justify-content:flex-start !important; }
+  .tb-wk-in{ margin-left:10px; overflow:hidden; text-overflow:ellipsis; }
   .st-key-tb_leagues [data-testid="stButtonGroup"] button{ margin:0 14px 0 0 !important; }
   .st-key-tb_leagues [data-testid="stButtonGroup"] button p{ font-size:12.5px !important; }
   .st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button{ padding:9px 11px 10px !important; }
