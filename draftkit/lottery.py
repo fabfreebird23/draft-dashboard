@@ -92,3 +92,105 @@ def simulate(team_means: Dict[str, float], team_sds: Dict[str, float], records: 
             "expected": round(float(sum((i + 1) * x for i, x in enumerate(sel))), 1),
             "paths": {k: round(100 * v / n_sims) for k, v in tier_hits.items()},
             "chase_seeds": (playoff_teams + 1, playoff_teams + chase_teams)}
+
+
+# ------------------------------------------------------------- every team's odds
+# The three keeper leagues draw their order three different ways. `style` names
+# which, and each is copied from that hub's own lottery module:
+#
+#   chase     B&B — tiers: Chase winner, the rest worst -> best record, champion
+#             last; a full weighted draw for the selection order.
+#   inverted  Kreeper — placement INVERTED onto lottery rank inside each bracket:
+#             the consolation bracket's last place gets weights[0], its champion
+#             the worst of that group; then the playoff bracket's 4th place down
+#             to the champion on weights[-1]. The draw IS the draft order.
+#   final     7½ Men — final standing incl. the Chase, worst first; the champion
+#             is floored to the smallest weight; only `draws` selections are
+#             drawn and everyone after falls in ball-weight order.
+#
+# Selection order is read as draft slot: whoever chooses first takes 1.01. That
+# is what nearly everyone does, and the hubs deliberately don't model the rest.
+
+def _bracket(rng, mu, sd, seeds):
+    """Four seeds -> finish order [champ, runner-up, 3rd, 4th] (two-week rounds)."""
+    def score(t):
+        return rng.normal(mu[t], sd[t]) + rng.normal(mu[t], sd[t])
+    if len(seeds) < 4:
+        return list(seeds)
+    a, b, c, d = seeds[:4]
+    s1 = (a, d) if score(a) >= score(d) else (d, a)
+    s2 = (b, c) if score(b) >= score(c) else (c, b)
+    w1, l1 = s1
+    w2, l2 = s2
+    champ, ru = (w1, w2) if score(w1) >= score(w2) else (w2, w1)
+    third, fourth = (l1, l2) if score(l1) >= score(l2) else (l2, l1)
+    return [champ, ru, third, fourth] + list(seeds[4:])
+
+
+def slot_odds(team_means: Dict[str, float], team_sds: Dict[str, float], records: Dict[str, tuple],
+              points_for: Dict[str, float], schedule: Dict[int, List[tuple]], playoff_teams: int,
+              spec: dict, *, median: bool = False, n_sims: int = 4000, seed: int = 7) -> Dict[str, list]:
+    """{team: [P(slot 1) .. P(slot N)] in percent} for every team."""
+    teams = sorted(team_means)
+    n = len(teams)
+    weights = list(spec.get("weights") or [])
+    style = spec.get("style", "chase")
+    if n < 4 or len(weights) < n:
+        return {}
+    weights = weights[:n]
+    idx = {t: i for i, t in enumerate(teams)}
+    rng = np.random.default_rng(seed)
+    mu = np.array([team_means[t] for t in teams])
+    sd = np.array([team_sds.get(t, 20) or 20 for t in teams])
+    wins = np.tile(np.array([float(records.get(t, (0, 0))[0]) for t in teams]), (n_sims, 1))
+    pts = np.tile(np.array([float(points_for.get(t, 0) or 0) for t in teams]), (n_sims, 1))
+    for wk in sorted(schedule):
+        score = rng.normal(mu, sd, size=(n_sims, n))
+        pts += score
+        for a, b in schedule[wk]:
+            if a in idx and b in idx:
+                ia, ib = idx[a], idx[b]
+                aw = score[:, ia] >= score[:, ib]
+                wins[:, ia] += aw
+                wins[:, ib] += ~aw
+        if median:
+            playing = sorted({idx[t] for pr in schedule[wk] for t in pr if t in idx})
+            sub = score[:, playing]
+            wins[:, playing] += np.argsort(np.argsort(-sub, axis=1), axis=1) < len(playing) // 2
+    order = np.argsort(-(wins * 1e5 + pts), axis=1)          # best -> worst, per sim
+    pt = max(1, min(playoff_teams, n))
+    chase_n = int(spec.get("chase_teams", 4))
+    draws = spec.get("draws")
+    hits = np.zeros((n, n))
+    w = np.array(weights, dtype=float)
+    for s in range(n_sims):
+        o = list(order[s])
+        po = _bracket(rng, mu, sd, o[:pt])
+        rest = o[pt:]
+        if style == "inverted":
+            co = _bracket(rng, mu, sd, rest[:4]) + rest[4:]
+            # consolation last place first ... its champion; then playoff 4th ... champion
+            ranked = co[::-1] + po[::-1]
+        elif style == "final":
+            co = _bracket(rng, mu, sd, rest[:chase_n]) + rest[chase_n:]
+            final = po + co                                   # 1 = champion .. N = last
+            ranked = final[1:][::-1] + [final[0]]             # champion floored
+        else:                                                 # chase
+            co = _bracket(rng, mu, sd, rest[:chase_n]) if len(rest) >= 4 else []
+            chase = co[0] if co else None
+            champ = po[0]
+            others = [t for t in o[::-1] if t not in (chase, champ)]
+            ranked = ([chase] if chase is not None else []) + others + [champ]
+        k = n if not draws else min(int(draws), n)
+        pool = list(range(n))
+        pw = w.copy()
+        got = []
+        for _ in range(k):
+            p = pw[pool] / pw[pool].sum()
+            j = pool[int(rng.choice(len(pool), p=p))]
+            got.append(j)
+            pool.remove(j)
+        got += pool                                           # the rest in weight order
+        for slot, j in enumerate(got):
+            hits[ranked[j], slot] += 1
+    return {t: [round(100 * float(x) / n_sims, 1) for x in hits[idx[t]]] for t in teams}

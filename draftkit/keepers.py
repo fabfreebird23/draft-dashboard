@@ -25,13 +25,16 @@ from . import sleeper_client as api
 # Year 3 is ADP, mandatory, in all three.
 KEEPER_REPOS: Dict[str, dict] = {
     "1310907162930733056": {"repo": "fabfreebird23/kreeper-league", "branch": "keeper-data",
-                            "adp_policy": "raise_only"},
+                            "adp_policy": "raise_only",
+                            # kreeper/lottery.py: placement inverted inside each
+                            # bracket, and the draw sets the draft order itself
+                            "lottery": {"style": "inverted", "weights": [25, 22, 19, 14, 10, 6, 3, 1]}},
     "1312885282554535936": {"repo": "fabfreebird23/babies-and-boomer", "branch": "keeper-data",
                             "adp_policy": "discount",
                             # next season's draft-order lottery (the hub's config.yaml
                             # `lottery.weights`): Chase winner, then worst -> best
                             # record, then the champion. The Chase is seeds 5-8.
-                            "lottery": {"weights": [640, 320, 160, 80, 40, 20, 8, 4, 2, 1],
+                            "lottery": {"style": "chase", "weights": [640, 320, 160, 80, 40, 20, 8, 4, 2, 1],
                                         "chase_teams": 4}},
     # 7½ Men's hub is a different program with a different file layout, so its
     # rules are written out here rather than regex-read from its config.yaml
@@ -56,6 +59,11 @@ KEEPER_REPOS: Dict[str, dict] = {
                                       # rookies and veterans together, 16 rounds
                                       "consolidated_from": 2027, "consolidated_rounds": 16,
                                       "enforce_owned_picks": True},
+                            # halfmen/lottery.py: final standing incl. the Chase,
+                            # champion floored, two selections drawn, the rest by
+                            # weight (the per-drum repeat lock-out isn't modelled)
+                            "lottery": {"style": "final", "weights": [24, 21, 18, 15, 10, 7, 3, 2],
+                                        "chase_teams": 4, "draws": 2},
                             "drafts": {"veteran": ["1393111328339562496", "1399627678364999680"],
                                        "rookie": ["1391297052188626944"]}},
 }

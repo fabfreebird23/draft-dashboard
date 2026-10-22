@@ -3222,7 +3222,7 @@ def _lottery_block(ctx, g) -> None:
     land as you are, and after selling the sell list."""
     from .. import lottery as LT
     spec = K.lottery_spec(str(ctx["meta"].league_id))
-    if not spec:
+    if not spec or spec.get("style", "chase") != "chase":
         return
     si = _sim_inputs(ctx, g)
     if not si["fx"]:
@@ -3592,6 +3592,38 @@ def _gm_board(ctx, g, status) -> None:
 
 
 # ------------------------------------------------------ next year's draft
+@st.cache_data(ttl=1800, show_spinner=False, max_entries=8)
+def _slot_odds_cached(lk: str, week: int, bucket: int, version: int, _ctx, _g) -> dict:
+    """{owner: [P(slot 1) .. P(slot N)]} from the league's own lottery, run over
+    the rest of the season (draftkit/lottery.slot_odds). {} without a spec."""
+    from .. import lottery as LT
+    spec = K.lottery_spec(str(_ctx["meta"].league_id))
+    if not spec:
+        return {}
+    si = _sim_inputs(_ctx, _g)
+    fx = {int(k): v for k, v in (si["fx"] or {}).items()}
+    return LT.slot_odds(si["means"], si["sds"], si["recs"], si["pf"], fx, si["pt"], spec,
+                        median=si["median"], n_sims=10000)
+
+
+def _odds_html(odds: dict, owners: list, me: str, name) -> str:
+    """Heat map: one row per team (likeliest first), one column per slot."""
+    n = len(owners)
+    exp = {o: sum((i + 1) * p for i, p in enumerate(odds.get(o) or [])) / 100 for o in owners}
+    rows = ['<div class="lo-r hd"><span>Team</span>' + "".join(f"<span>{i}</span>" for i in range(1, n + 1))
+            + "<span>Avg</span></div>"]
+    for o in sorted(owners, key=lambda o: exp[o]):
+        ps = (odds.get(o) or [0] * n)[:n]
+        top = max(range(n), key=lambda i: ps[i]) if ps else 0
+        cells = "".join(
+            f'<span class="lo-c{" top" if i == top and ps[i] else ""}" style="--a:{min(1.0, p / 45):.2f}">'
+            f'{p:.0f}</span>' if p >= 0.5 else '<span class="lo-c z">·</span>'
+            for i, p in enumerate(ps))
+        rows.append(f'<div class="lo-r{" me" if o == me else ""}"><span class="lo-t">{_esc_(name(o))}</span>'
+                    f'{cells}<span class="lo-e">{exp[o]:.1f}</span></div>')
+    return f'<div class="lo" style="--n:{n}">{"".join(rows)}</div>'
+
+
 @st.cache_data(ttl=1800, show_spinner=False, max_entries=12)
 def _league_keeper_rows_cached(lk: str, week: int, bucket: int, version: int, _ctx, _g) -> dict:
     """{owner_id: [every keeper row for that team]} — priced once per league on
@@ -3755,7 +3787,13 @@ def _next_board(ctx, g) -> None:
         return -(int(se.get("wins") or 0) * 1000 + float(se.get("fpts") or 0))
     owners = sorted(rid_of, key=_finish, reverse=True)
     me = str(g["me"])
-    opts = ["Projected"] + [str(i) for i in range(1, len(owners) + 1)]
+    try:
+        odds = _slot_odds_cached(ctx["league_key"], g["week"], _slow_bucket(g["season"], g["week"]),
+                                 _GATHER_V, ctx, g)
+    except Exception:  # noqa: BLE001 — odds are a nicety; the board stands without them
+        odds = {}
+    odds = {o: odds.get(str(o)) for o in owners if odds.get(str(o))}
+    opts = ["Projected"] + (["Likeliest"] if len(odds) == len(owners) else []) + [str(i) for i in range(1, len(owners) + 1)]
     _c1, _c2 = st.columns([1, 2])
     with _c1:
         view = st.segmented_control("View", ["Full board", "Keepers only"], key=f"nb_view_{ctx['league_key']}", on_change=_keep_open(f"nb_{ctx['league_key']}"),
@@ -3763,7 +3801,15 @@ def _next_board(ctx, g) -> None:
     with _c2:
         pick_slot = st.segmented_control("Your slot", opts, key=f"nb_slot_{ctx['league_key']}", on_change=_keep_open(f"nb_{ctx['league_key']}"),
                                          selection_mode="single", default="Projected") or "Projected"
-    if pick_slot != "Projected" and me in owners:
+    if pick_slot == "Likeliest":
+        # every team on its single likeliest slot, clashes settled by who wants it most
+        left, placed = set(range(len(owners))), {}
+        for p, o, i in sorted(((odds[o][i], o, i) for o in owners for i in range(len(owners))), reverse=True):
+            if o not in placed and i in left:
+                placed[o] = i
+                left.discard(i)
+        owners = sorted(owners, key=lambda o: placed.get(o, 99))
+    elif pick_slot != "Projected" and me in owners:
         owners.remove(me)
         owners.insert(int(pick_slot) - 1, me)
     order = [rid_of[o] for o in owners]
@@ -3885,8 +3931,22 @@ def _next_board(ctx, g) -> None:
         with rc:
             st.markdown(f'<div class="ws-h">Available &middot; best to worst &middot; projected {nxt} rank</div>'
                         f'<div class="nbl-list">{"".join(rows_l)}</div>', unsafe_allow_html=True)
+    if odds:
+        _spec = K.lottery_spec(str(meta.league_id)) or {}
+        _mine = odds.get(me) or []
+        _best = max(range(len(_mine)), key=lambda i: _mine[i]) + 1 if _mine else None
+        _how = {"inverted": "placement inverted inside each bracket; the draw is the order",
+                "final": "final standing incl. the Chase, champion floored, two choices drawn",
+                "chase": "Chase winner, then worst to best, champion last"}.get(_spec.get("style"), "")
+        with st.container(key=f"lo_{ctx['league_key']}"):
+            st.markdown(f'<div class="ws-h">{nxt} draft-order odds &middot; 10,000 seasons &middot; '
+                        f'{_esc_(_how)}</div>' + _odds_html(odds, owners, me, first)
+                        + (f'<div class="lo-k">You: likeliest <b>slot {_best}</b> ({_mine[_best - 1]:.0f}%) '
+                           f'&middot; top three {sum(_mine[:3]):.0f}%</div>' if _best else ""),
+                        unsafe_allow_html=True)
     _note(f"Order is the projected finish, worst first — the league's lottery will reshuffle it, so "
-          f"set **Your slot** to see a different spot. Keepers sit on the picks their teams will "
+          f"set **Your slot** to see a different spot, or **Likeliest** to put every team on the slot "
+          f"its lottery odds favour. Keepers sit on the picks their teams will "
           f"spend (the latest in their cost round, or the nearest earlier round they hold); everyone "
           f"else goes best-available off the projected {nxt} ADP, with no team taking a third QB or TE. "
           f"Next year's NFL rookies aren't priced until they're drafted, so the board leans veteran.")

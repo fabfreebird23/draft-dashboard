@@ -2935,6 +2935,21 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .nb-c.WR{ box-shadow:inset 3px 0 0 #6aa6f0; } .nb-c.TE{ box-shadow:inset 3px 0 0 #f0b357; }
 .nb-c.keep{ background:#1d1718; border-color:#5a4a2a; } .nb-c.keep small{ color:#f3ead8; }
 .nb-c.me{ background:rgba(165,39,51,.32); border-color:#a52733; }
+/* ---- 2027 board: draft-order odds heat map ---- */
+.lo{ display:grid; gap:3px; margin:4px 0 6px; font-family:'Roboto Mono',monospace; }
+.lo-r{ display:grid; grid-template-columns:minmax(80px,1.3fr) repeat(var(--n),minmax(26px,1fr)) 44px; gap:3px; align-items:center; }
+.lo-r.hd span{ font-size:9.5px; color:var(--mut2); text-align:center; letter-spacing:.06em; }
+.lo-r.hd span:first-child{ text-align:left; }
+.lo-t{ font-family:'Oswald',sans-serif; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lo-c{ text-align:center; font-size:11px; padding:5px 0; border-radius:4px; color:#f3ead8;
+       background:rgba(165,39,51,var(--a)); border:1px solid rgba(165,39,51,calc(var(--a) * .9 + .1)); }
+.lo-c.z{ background:transparent; border-color:var(--line); color:var(--mut2); }
+.lo-c.top{ outline:1px solid #f3ead8; outline-offset:-1px; font-weight:600; }
+.lo-e{ text-align:right; font-size:11px; color:var(--muted); }
+.lo-r.me .lo-t{ color:#e8545f; }
+.lo-k{ font-size:12px; color:var(--muted); margin:2px 0 8px; }
+.lo-k b{ color:var(--text); }
+@media (max-width:760px){ .lo-r{ grid-template-columns:64px repeat(var(--n),minmax(18px,1fr)) 32px; gap:2px; } .lo-c{ font-size:9.5px; } }
 .nb-c.me.keep{ background:rgba(165,39,51,.5); }
 @media (max-width:760px){ .nb-r{ grid-template-columns:24px repeat(var(--n), 84px); } }
 
