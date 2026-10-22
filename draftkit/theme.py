@@ -2935,6 +2935,24 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .nb-c.WR{ box-shadow:inset 3px 0 0 #6aa6f0; } .nb-c.TE{ box-shadow:inset 3px 0 0 #f0b357; }
 .nb-c.keep{ background:#1d1718; border-color:#5a4a2a; } .nb-c.keep small{ color:#f3ead8; }
 .nb-c.me{ background:rgba(165,39,51,.32); border-color:#a52733; }
+/* ---- 2027 board: practice draft ---- */
+.nb-c.mine{ background:rgba(165,39,51,.55); border-color:#e8545f; }
+.nb-c.clock{ border:1px dashed #e8545f; background:rgba(232,84,95,.12); }
+.nb-c.clock small{ color:#e8545f; font-weight:600; letter-spacing:.06em; }
+.np-clk{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; background:#160f10; border:1px solid #5a2128;
+         border-radius:10px; padding:10px 14px; margin:2px 0 8px; }
+.np-clk span{ font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.14em; color:#e8545f; }
+.np-clk b{ font-family:'Oswald',sans-serif; font-size:28px; font-weight:500; color:#f3ead8; line-height:1; }
+.np-clk i{ font-style:normal; font-size:12px; color:#bfb3a8; }
+.np-clk.done span{ color:#5fdc8f; }
+.np-mine{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin:6px 0 10px; }
+.np-h{ font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.12em; color:var(--mut2); margin-right:4px; }
+.np-p{ display:inline-flex; gap:6px; align-items:baseline; background:var(--panel); border:1px solid var(--line);
+       border-radius:6px; padding:3px 8px; font-family:'Oswald',sans-serif; font-size:13px; }
+.np-p em{ font-style:normal; font-family:'Roboto Mono',monospace; font-size:10px; color:var(--mut2); }
+.np-p small{ font-family:'Roboto Mono',monospace; font-size:9px; color:var(--muted); }
+.np-p.QB{ box-shadow:inset 3px 0 0 #b59cf0; } .np-p.RB{ box-shadow:inset 3px 0 0 #5fdc8f; }
+.np-p.WR{ box-shadow:inset 3px 0 0 #6aa6f0; } .np-p.TE{ box-shadow:inset 3px 0 0 #f0b357; }
 /* ---- 2027 board: draft-order odds heat map ---- */
 .lo{ display:grid; gap:3px; margin:4px 0 6px; font-family:'Roboto Mono',monospace; }
 .lo-r{ display:grid; grid-template-columns:minmax(80px,1.3fr) repeat(var(--n),minmax(26px,1fr)) 44px; gap:3px; align-items:center; }

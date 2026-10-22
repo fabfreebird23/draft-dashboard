@@ -3761,6 +3761,81 @@ def _hist_pop(ctx, g, pid, label_html: str, future: str = "") -> str:
             f'<strong>{_esc_(nm_)}</strong><ul>{body}</ul>{fut}</div></details>')
 
 
+def _practice_panel(ctx, cells, clock, state, key, pool, pos_of, proj, nm, nxt, n, my_rid) -> None:
+    """The practice draft's controls: who's on the clock, the best still there,
+    Draft / Auto-pick / Undo / Reset. The CPU drafts every other pick
+    best-available off the projected ADP (no third QB or TE)."""
+    lk = ctx["league_key"]
+    keep = _keep_open(f"nb_{lk}")
+    taken = {c["pid"] for c in cells.values() if c["pid"] and not c.get("future")}
+    avail = [p for p in pool if p not in taken]
+    mine = sorted((c for c in cells.values() if c.get("forced")), key=lambda c: c["pick"])
+
+    def _set(pick, pid):
+        def go():
+            keep()
+            if pid:
+                state["picks"][pick] = str(pid)
+            st.session_state[key] = state
+        return go
+
+    def _undo():
+        keep()
+        if state["picks"]:
+            state["picks"].pop(max(state["picks"]))
+        st.session_state[key] = state
+
+    def _reset():
+        keep()
+        state["picks"] = {}
+        st.session_state[key] = state
+
+    def lab(pid):
+        rk = (proj.get(pid) or {}).get("rank")
+        return f"{nm(pid)} · {pos_of.get(pid, '')} · #{rk}" if rk else nm(pid)
+    if clock:
+        gone = sum(1 for c in cells.values() if c["pick"] < clock["pick"])
+        st.markdown(f'<div class="np-clk"><span>ON THE CLOCK</span><b>{clock["round"]}.{clock["slot"]:02d}</b>'
+                    f'<i>pick #{clock["pick"]} &middot; {gone} gone, keepers included &middot; '
+                    f'best left: {_esc_(nm(avail[0])) if avail else "—"}</i></div>', unsafe_allow_html=True)
+        # his roster so far shapes the CPU's caps, not his: he can take a 3rd QB
+        opts = avail[:60]
+        c1, c2, c3, c4, c5 = st.columns([3, 1, 1, 1, 1])
+        with c1:
+            sel = st.selectbox("Best available", opts, format_func=lab, key=f"np_sel_{lk}_{clock['pick']}",
+                               on_change=keep, label_visibility="collapsed")
+        with c2:
+            st.button("Draft", key=f"np_go_{lk}", type="primary", on_click=_set(clock["pick"], sel),
+                      use_container_width=True)
+        with c3:
+            # auto-pick takes what the CPU would: best available inside the caps
+            have = {}
+            for c in cells.values():
+                if c["holder"] == my_rid and c["pid"] and not c.get("future"):
+                    have[pos_of.get(c["pid"], "")] = have.get(pos_of.get(c["pid"], ""), 0) + 1
+            from ..nextboard import CAPS
+            auto = next((p for p in avail if have.get(pos_of.get(p, ""), 0) < CAPS.get(pos_of.get(p, ""), 99)), None)
+            st.button("Auto-pick", key=f"np_auto_{lk}", on_click=_set(clock["pick"], auto),
+                      use_container_width=True)
+        with c4:
+            st.button("Undo", key=f"np_undo_{lk}", on_click=_undo, disabled=not state["picks"],
+                      use_container_width=True)
+        with c5:
+            st.button("Reset", key=f"np_reset_{lk}", on_click=_reset, disabled=not state["picks"],
+                      use_container_width=True)
+    else:
+        st.markdown(f'<div class="np-clk done"><span>DRAFT DONE</span><b>{len(mine)} picks</b>'
+                    f'<i>every pick you own in {nxt} is made &middot; Reset to run it again</i></div>',
+                    unsafe_allow_html=True)
+        st.button("Reset", key=f"np_reset_{lk}", on_click=_reset)
+    if mine:
+        chips = "".join(f'<span class="np-p {pos_of.get(c["pid"], "")}"><em>{c["round"]}.{c["slot"]:02d}</em>'
+                        f'{_esc_(nm(c["pid"]))}<small>{_esc_(pos_of.get(c["pid"], ""))}</small></span>'
+                        for c in mine)
+        st.markdown(f'<div class="np-mine"><span class="np-h">Your picks</span>{chips}</div>',
+                    unsafe_allow_html=True)
+
+
 def _next_board(ctx, g) -> None:
     """Next season's draft, every pick simulated (draftkit/nextboard.py)."""
     from .. import nextboard as NB, nextyear as NY
@@ -3796,7 +3871,7 @@ def _next_board(ctx, g) -> None:
     opts = ["Projected"] + (["Likeliest"] if len(odds) == len(owners) else []) + [str(i) for i in range(1, len(owners) + 1)]
     _c1, _c2 = st.columns([1, 2])
     with _c1:
-        view = st.segmented_control("View", ["Full board", "Keepers only"], key=f"nb_view_{ctx['league_key']}", on_change=_keep_open(f"nb_{ctx['league_key']}"),
+        view = st.segmented_control("View", ["Full board", "Keepers only", "Practice"], key=f"nb_view_{ctx['league_key']}", on_change=_keep_open(f"nb_{ctx['league_key']}"),
                                     selection_mode="single", default="Full board") or "Full board"
     with _c2:
         pick_slot = st.segmented_control("Your slot", opts, key=f"nb_slot_{ctx['league_key']}", on_change=_keep_open(f"nb_{ctx['league_key']}"),
@@ -3830,7 +3905,24 @@ def _next_board(ctx, g) -> None:
             pos_of[pid] = (reg.meta(pid).position or "").upper()
         except Exception:  # noqa: BLE001
             pos_of[pid] = ""
-    cells = NB.build(order, rounds, held, keepers, pool, pos_of)
+    # the practice draft: his picks, kept per order (a new slot is a new draft)
+    _pk = f"np_{ctx['league_key']}"
+    _ps = st.session_state.get(_pk) or {}
+    if _ps.get("order") != tuple(order):
+        _ps = {"order": tuple(order), "picks": {}}
+        st.session_state[_pk] = _ps
+    practice = view == "Practice"
+    cells = NB.build(order, rounds, held, keepers, pool, pos_of, forced=_ps["picks"] if practice else None)
+    clock = None
+    if practice:
+        _rid = rid_of.get(me)
+        _open = sorted((c for c in cells.values() if c["holder"] == _rid and not c["keeper"]
+                        and c["pick"] not in _ps["picks"]), key=lambda c: c["pick"])
+        clock = _open[0] if _open else None
+        if clock:
+            for c in cells.values():
+                if c["pick"] >= clock["pick"] and not c["keeper"]:
+                    c["future"] = True
     _kfut = {str(r["pid"]): f'{nxt}: keeps at R{r.get("cost_round")} &middot; {_esc_(r.get("note") or "")}'
              for rows_ in _league_keepers(ctx, g).values() for r in rows_}
 
@@ -3842,7 +3934,9 @@ def _next_board(ctx, g) -> None:
     my_rid = rid_of.get(me)
     mine = sorted((c for c in cells.values() if c["holder"] == my_rid), key=lambda c: c["pick"])
     live = [c for c in mine if not c["keeper"] and c["pid"]]
-    if live:
+    if practice:
+        _practice_panel(ctx, cells, clock, _ps, _pk, pool, pos_of, proj, nm, nxt, len(order), my_rid)
+    elif live:
         c0 = live[0]
         _ph = getattr(reg.meta(c0["pid"]), "sleeper_pid", None) or c0["pid"]
         st.markdown(C.hero_html(
@@ -3861,6 +3955,13 @@ def _next_board(ctx, g) -> None:
         row = [f'<span class="nb-rd">{r}</span>']
         for sl in range(1, len(order) + 1):
             c = cells[(r, sl)]
+            if practice and c.get("future"):
+                _on = clock and c["pick"] == clock["pick"]
+                tag = ("ON THE CLOCK" if _on else "your pick" if c["holder"] == my_rid else
+                       f'{_esc_(first(owner_of.get(c["holder"], "")))}' if c["traded"] else "")
+                row.append(f'<div class="nb-c open{" me" if c["holder"] == my_rid else ""}{" clock" if _on else ""}">'
+                           f'<span class="nb-p">#{c["pick"]}</span><small>{tag}</small></div>')
+                continue
             if view == "Keepers only" and not c["keeper"]:
                 tag = ("your pick" if c["holder"] == my_rid else
                        f'open &middot; {_esc_(first(owner_of.get(c["holder"], "")))}' if c["traded"] else "open")
@@ -3870,6 +3971,8 @@ def _next_board(ctx, g) -> None:
             cls = ["nb-c", (c["pid"] and pos_of.get(c["pid"], "")) or ""]
             if c["keeper"]:
                 cls.append("keep")
+            if c.get("forced"):
+                cls.append("mine")
             if c["holder"] == my_rid:
                 cls.append("me")
             via = (f'<i>&#9668; {_esc_(first(owner_of.get(c["origin"], "")))}</i>' if c["traded"] else "")

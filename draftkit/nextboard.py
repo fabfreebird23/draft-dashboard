@@ -43,12 +43,15 @@ def sequence(order: List[int], rounds: int, snake: bool = True) -> List[Tuple[in
 def build(order: List[int], rounds: int, held: Dict[Tuple[int, int], int],
           keepers: Dict[int, List[Tuple[str, int]]], pool: List[str],
           pos_of: Dict[str, str], *, snake: bool = True,
-          caps: Optional[Dict[str, int]] = None) -> Dict[Tuple[int, int], dict]:
+          caps: Optional[Dict[str, int]] = None,
+          forced: Optional[Dict[int, str]] = None) -> Dict[Tuple[int, int], dict]:
     """{(round, slot): {pick, round, slot, holder, origin, traded, pid, keeper}}.
 
     `held` maps (round, origin_roster_id) -> the roster id holding that pick now.
     `keepers` maps roster id -> [(pid, cost_round)].
     `pool` is every candidate pid, best first.
+    `forced` maps pick number -> pid for picks a person made (the practice
+    draft); everything else is still taken best-available around them.
     """
     caps = CAPS if caps is None else caps
     seq = sequence(order, rounds, snake)
@@ -92,6 +95,13 @@ def build(order: List[int], rounds: int, held: Dict[Tuple[int, int], int],
         if c["pid"]:
             continue
         mine = counts.setdefault(c["holder"], {})
+        fp = str((forced or {}).get(pick) or "")
+        if fp and fp in avail:
+            c.update(pid=fp, forced=True)
+            p = pos_of.get(fp, "")
+            mine[p] = mine.get(p, 0) + 1
+            avail.remove(fp)
+            continue
         for i, p in enumerate(avail):
             pos = pos_of.get(p, "")
             if pos in caps and mine.get(pos, 0) >= caps[pos]:

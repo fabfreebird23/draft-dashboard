@@ -37,3 +37,10 @@ def test_no_third_qb():
     cells = NB.build([10], 4, {}, {}, pool, pos)
     picked = [cells[(r, 1)]["pid"] for r in range(1, 5)]
     assert picked[:2] == ["q1", "q2"] and picked[2] == "r1"
+
+
+def test_forced_pick_overrides_best_available():
+    cells = NB.build([10, 20], 2, {}, {}, ["a", "b", "c", "d"], {p: "RB" for p in "abcd"},
+                     forced={1: "c"})
+    assert cells[(1, 1)]["pid"] == "c" and cells[(1, 1)].get("forced")
+    assert cells[(1, 2)]["pid"] == "a"           # the CPU takes the best left

@@ -1,0 +1,175 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#161415; --panel:#232022; --panel2:#2c282a; --line:#332e30; --ink:#f2eef0; --muted:#a2989c; --mut2:#95898e;
+  --crimson:#ff336c; --crimson-d:#e02557; --gold:#e6b25c; --soft:#3a1020; }
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{ background:#0e0d0d; color:var(--ink); font-family:Inter,sans-serif; padding:26px; width:1460px; }
+.lab{ font-family:'Roboto Mono',monospace; font-size:11px; letter-spacing:.16em; color:var(--crimson); margin:0 0 8px 4px; }
+.lab b{ color:var(--ink); font-weight:500; letter-spacing:.06em; margin-left:8px; }
+.lab i{ font-style:normal; color:var(--mut2); letter-spacing:0; margin-left:10px; font-family:Inter; font-size:12px; }
+.frame{ background:var(--bg); border:1px solid var(--line); border-radius:12px; margin-bottom:30px; overflow:hidden; }
+.body{ height:46px; padding:14px 28px; color:var(--mut2); font-size:12px; }
+.body span{ display:inline-block; height:14px; width:340px; background:var(--panel); border-radius:4px; margin-right:12px; }
+
+/* logo — unchanged */
+.logo{ display:inline-flex; align-items:center; gap:10px; }
+.logo svg{ flex:none; }
+.word{ font-family:Oswald; font-style:italic; font-weight:700; font-size:25px; letter-spacing:-.04em; }
+.word em{ color:var(--crimson); font-style:italic; }
+.mono{ font-family:'Roboto Mono',monospace; }
+.dot{ width:8px; height:8px; border-radius:50%; background:var(--gold); display:inline-block; }
+
+/* ================= A · BROADCAST RAIL ================= */
+.a-top{ display:flex; align-items:center; gap:34px; padding:16px 28px 0; }
+.a-lg{ display:flex; gap:26px; margin-left:auto; align-items:flex-end; }
+.a-lg a{ font-family:Oswald; font-size:15px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted);
+  padding:4px 0 8px; border-bottom:2px solid transparent; display:flex; gap:7px; align-items:center; }
+.a-lg a small{ font-family:'Roboto Mono'; font-size:10px; color:var(--mut2); letter-spacing:0; text-transform:none; }
+.a-lg a.on{ color:var(--ink); border-color:var(--crimson); }
+.a-lg a.on small{ color:var(--crimson); }
+.a-st{ font-size:10.5px; color:var(--mut2); letter-spacing:.12em; }
+.a-tabs{ display:flex; gap:0; padding:0 28px; margin-top:10px; border-bottom:1px solid var(--line); }
+.a-tabs a{ font-family:Oswald; font-weight:500; font-size:17px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--muted); padding:12px 18px 13px; position:relative; }
+.a-tabs a.on{ color:var(--ink); }
+.a-tabs a.on:after{ content:""; position:absolute; left:18px; right:18px; bottom:-1px; height:3px; background:var(--crimson); border-radius:3px 3px 0 0; }
+.a-tabs a .live{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--crimson); margin:0 0 3px 6px; box-shadow:0 0 0 3px rgba(255,51,108,.2); }
+.a-tabs .more{ margin-left:auto; color:var(--mut2); }
+.a-sub{ display:flex; gap:6px; padding:12px 28px; align-items:center; }
+.a-sub span.k{ font-family:'Roboto Mono'; font-size:10px; letter-spacing:.14em; color:var(--mut2); margin-right:8px; }
+.a-sub a{ font-family:'Roboto Mono'; font-size:12px; color:var(--muted); padding:5px 11px; border-radius:20px; border:1px solid var(--line); }
+.a-sub a.on{ color:#fff; background:var(--crimson-d); border-color:var(--crimson-d); }
+
+/* ================= B · ONE SEGMENTED BAR ================= */
+.b-top{ display:flex; align-items:center; padding:16px 28px; gap:20px; }
+.b-sw{ margin-left:auto; display:flex; background:#0f0e0e; border:1px solid var(--line); border-radius:12px; padding:4px; gap:2px; }
+.b-sw a{ display:flex; align-items:center; gap:8px; padding:8px 15px; border-radius:9px; font-size:14px; font-weight:500; color:var(--muted); }
+.b-sw a.on{ background:var(--panel2); color:var(--ink); box-shadow:inset 0 0 0 1px #4a3a40; }
+.b-sw a .rec{ font-family:'Roboto Mono'; font-size:11px; color:var(--mut2); }
+.b-sw a.on .rec{ color:var(--crimson); }
+.b-bar{ margin:0 28px; display:flex; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:4px; }
+.b-bar a{ flex:1; text-align:center; padding:11px 0; border-radius:9px; font-size:15px; font-weight:600; color:var(--muted); position:relative; }
+.b-bar a.on{ background:var(--crimson-d); color:#fff; box-shadow:0 4px 14px rgba(224,37,87,.35); }
+.b-bar a + a:before{ content:""; position:absolute; left:0; top:12px; bottom:12px; width:1px; background:var(--line); }
+.b-bar a.on:before, .b-bar a.on + a:before{ display:none; }
+.b-bar a sup{ font-family:'Roboto Mono'; font-size:9.5px; background:var(--soft); color:var(--crimson); border-radius:8px; padding:1px 5px; margin-left:5px; vertical-align:2px; }
+.b-sub{ display:flex; gap:22px; padding:14px 40px 10px; }
+.b-sub a{ font-size:13.5px; color:var(--mut2); padding-bottom:6px; border-bottom:2px solid transparent; }
+.b-sub a.on{ color:var(--ink); border-color:var(--ink); }
+
+/* ================= C · SCOREBOARD STRIP ================= */
+.c-top{ display:flex; align-items:stretch; border-bottom:1px solid var(--line); }
+.c-top .logo{ padding:16px 28px; border-right:1px solid var(--line); }
+.c-lg{ display:flex; flex:1; }
+.c-lg a{ flex:1; padding:12px 18px; border-right:1px solid var(--line); display:grid; grid-template-columns:1fr auto; gap:2px 10px; align-content:center; }
+.c-lg a b{ font-family:Oswald; font-weight:500; font-size:15px; letter-spacing:.02em; }
+.c-lg a .r{ font-family:'Roboto Mono'; font-size:15px; text-align:right; }
+.c-lg a small{ font-family:'Roboto Mono'; font-size:10px; color:var(--mut2); letter-spacing:.06em; }
+.c-lg a .w{ color:#7fd8b4; } .c-lg a .l{ color:#ff8fae; }
+.c-lg a.on{ background:linear-gradient(180deg,#2a1219,#1d1416); box-shadow:inset 0 -3px 0 var(--crimson); }
+.c-st{ padding:12px 22px; display:flex; flex-direction:column; justify-content:center; gap:4px; font-size:10.5px; letter-spacing:.12em; color:var(--mut2); }
+.c-st b{ color:var(--gold); font-weight:500; }
+.c-tabs{ display:flex; padding:0 28px; gap:4px; background:#121011; border-bottom:1px solid var(--line); }
+.c-tabs a{ padding:13px 16px; font-size:14px; font-weight:500; color:var(--muted); display:flex; gap:8px; align-items:center; }
+.c-tabs a i{ font-style:normal; font-family:'Roboto Mono'; font-size:10px; color:var(--mut2); }
+.c-tabs a.on{ color:var(--ink); background:var(--bg); border:1px solid var(--line); border-bottom-color:var(--bg); border-radius:8px 8px 0 0; margin-bottom:-1px; }
+.c-tabs a.on i{ color:var(--crimson); }
+.c-tabs a .badge{ font-family:'Roboto Mono'; font-size:10px; color:#fff; background:var(--crimson-d); border-radius:9px; padding:1px 6px; }
+.c-sub{ display:flex; align-items:center; gap:4px; padding:12px 28px; font-size:13px; }
+.c-sub .crumb{ font-family:Oswald; font-size:14px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink); margin-right:10px; }
+.c-sub .crumb:after{ content:"›"; color:var(--crimson); margin-left:10px; }
+.c-sub a{ color:var(--muted); padding:4px 10px; border-radius:6px; }
+.c-sub a.on{ color:var(--ink); background:var(--panel2); }
+
+/* ================= D · EDITORIAL MASTHEAD ================= */
+.d-top{ display:flex; align-items:center; padding:18px 28px 14px; gap:26px; }
+.d-lg{ margin-left:auto; display:flex; align-items:center; gap:14px; font-family:Oswald; font-size:17px; font-style:italic; letter-spacing:-.01em; }
+.d-lg a{ color:var(--mut2); }
+.d-lg a.on{ color:var(--ink); text-decoration:underline; text-decoration-color:var(--crimson); text-decoration-thickness:3px; text-underline-offset:6px; }
+.d-lg span{ color:#4a4245; font-style:normal; }
+.d-rule{ height:3px; background:linear-gradient(90deg,var(--crimson) 0 130px,var(--line) 130px); margin:0 28px; }
+.d-tabs{ display:flex; padding:0 28px; }
+.d-tabs a{ flex:1; padding:14px 0 12px 14px; border-left:1px solid var(--line); color:var(--muted); }
+.d-tabs a:first-child{ border-left:0; padding-left:0; }
+.d-tabs a small{ display:block; font-family:'Roboto Mono'; font-size:10px; color:var(--mut2); letter-spacing:.1em; margin-bottom:4px; }
+.d-tabs a b{ font-family:Oswald; font-weight:600; font-size:19px; text-transform:uppercase; letter-spacing:.02em; }
+.d-tabs a.on{ background:var(--crimson-d); color:#fff; padding-left:14px; border-left-color:var(--crimson-d); }
+.d-tabs a.on small{ color:#ffd0dc; }
+.d-sub{ display:flex; gap:20px; padding:12px 28px; border-top:1px solid var(--line); background:#121011; align-items:center; }
+.d-sub a{ font-size:13px; color:var(--mut2); display:flex; align-items:center; gap:7px; }
+.d-sub a:before{ content:""; width:5px; height:5px; border-radius:50%; background:#4a4245; }
+.d-sub a.on{ color:var(--ink); font-weight:600; }
+.d-sub a.on:before{ background:var(--crimson); }
+.d-sub .k{ font-family:'Roboto Mono'; font-size:10px; letter-spacing:.14em; color:var(--crimson); margin-right:4px; }
+</style></head><body>
+
+<!-- the logo SVG, same as cherry_svg -->
+<template id="mark"></template>
+
+<div class="lab">A <b>BROADCAST RAIL</b><i>leagues as an uppercase rail with your record; tabs as condensed type with a crimson underline; sub-tabs as mono pills</i></div>
+<div class="frame">
+  <div class="a-top">
+    <span class="logo"><svg width="26" height="29" viewBox="0 0 34 38"><rect width="34" height="38" rx="6" fill="#ff336c"/><circle cx="15" cy="26" r="7" fill="#fff"/><path d="M16 19 C17 13,20 11,21 10" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><span class="word">Bloody<em>Sunday</em></span></span>
+    <span class="a-st mono">WEEK 7 · WED · WAIVERS OPEN</span>
+    <div class="a-lg">
+      <a>Kreeper <small>4-3</small></a><a>Babies &amp; Boomer <small>5-2</small></a><a class="on">7½ Men <small>3-4</small></a><a>TD's <small>6-1</small></a>
+    </div>
+  </div>
+  <div class="a-tabs">
+    <a>Command Center</a><a>Live<span class="live"></span></a><a class="on">Lineup</a><a>Rankings</a><a>Waivers</a><a>Matchup</a><a>Trades</a><a class="more">More ▾</a>
+  </div>
+  <div class="a-sub"><span class="k">SOURCE</span><a class="on">Projections</a><a>FantasyPros</a><a>Flock</a><a>The Ballers</a><a>Vegas</a></div>
+  <div class="body"><span></span><span></span></div>
+</div>
+
+<div class="lab">B <b>ONE SEGMENTED BAR</b><i>leagues in a switch with your record; every tab in one full-width bar, the active one filled crimson; sub-tabs as quiet underlined text</i></div>
+<div class="frame">
+  <div class="b-top">
+    <span class="logo"><svg width="26" height="29" viewBox="0 0 34 38"><rect width="34" height="38" rx="6" fill="#ff336c"/><circle cx="15" cy="26" r="7" fill="#fff"/><path d="M16 19 C17 13,20 11,21 10" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><span class="word">Bloody<em>Sunday</em></span></span>
+    <div class="b-sw">
+      <a><span class="dot"></span>Kreeper <span class="rec">4-3</span></a><a><span class="dot"></span>Babies and Boomer <span class="rec">5-2</span></a><a class="on"><span class="dot"></span>7½ Men <span class="rec">3-4</span></a><a><span class="dot"></span>TD's <span class="rec">6-1</span></a>
+    </div>
+  </div>
+  <div class="b-bar">
+    <a>Command Center</a><a>Live</a><a class="on">Lineup</a><a>Rankings</a><a>Waivers<sup>3</sup></a><a>Matchup</a><a>Trades</a><a>More ▾</a>
+  </div>
+  <div class="b-sub"><a class="on">Projections</a><a>FantasyPros</a><a>Flock</a><a>The Ballers</a><a>Vegas</a></div>
+  <div class="body"><span></span><span></span></div>
+</div>
+
+<div class="lab">C <b>SCOREBOARD STRIP</b><i>each league is a scoreboard cell: record, standing, this week's score; folder tabs with counts; sub-tabs as a breadcrumb</i></div>
+<div class="frame">
+  <div class="c-top">
+    <span class="logo"><svg width="26" height="29" viewBox="0 0 34 38"><rect width="34" height="38" rx="6" fill="#ff336c"/><circle cx="15" cy="26" r="7" fill="#fff"/><path d="M16 19 C17 13,20 11,21 10" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><span class="word">Bloody<em>Sunday</em></span></span>
+    <div class="c-lg">
+      <a><b>Kreeper</b><span class="r w">4-3</span><small>3RD · VS NED</small><small class="w">W 112-98</small></a>
+      <a><b>Babies &amp; Boomer</b><span class="r w">5-2</span><small>2ND · VS GRANT</small><small class="l">L 101-118</small></a>
+      <a class="on"><b>7½ Men</b><span class="r l">3-4</span><small>6TH · VS THAD</small><small class="mono">0-0 SUN</small></a>
+      <a><b>TD's</b><span class="r w">6-1</span><small>1ST · VS MIKE</small><small class="w">W 130-95</small></a>
+    </div>
+    <div class="c-st mono"><b>WEEK 7 · WED</b>WAIVERS OPEN</div>
+  </div>
+  <div class="c-tabs">
+    <a>Command Center</a><a>Live <i>SUN</i></a><a class="on">Lineup <i>2 FIX</i></a><a>Rankings</a><a>Waivers <span class="badge">3</span></a><a>Matchup <i>48%</i></a><a>Trades</a><a>More ▾</a>
+  </div>
+  <div class="c-sub"><span class="crumb">Lineup</span><a class="on">Projections</a><a>FantasyPros</a><a>Flock</a><a>The Ballers</a><a>Vegas</a></div>
+  <div class="body"><span></span><span></span></div>
+</div>
+
+<div class="lab">D <b>EDITORIAL MASTHEAD</b><i>leagues as italic Oswald words like a section line; numbered tab columns with the active one a solid crimson block; sub-tabs as a dotted second line</i></div>
+<div class="frame">
+  <div class="d-top">
+    <span class="logo"><svg width="26" height="29" viewBox="0 0 34 38"><rect width="34" height="38" rx="6" fill="#ff336c"/><circle cx="15" cy="26" r="7" fill="#fff"/><path d="M16 19 C17 13,20 11,21 10" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><span class="word">Bloody<em>Sunday</em></span></span>
+    <span class="a-st mono">WEEK 7 · WEDNESDAY · WAIVERS OPEN</span>
+    <div class="d-lg"><a>Kreeper</a><span>/</span><a>Babies and Boomer</a><span>/</span><a class="on">7½ Men</a><span>/</span><a>TD's</a></div>
+  </div>
+  <div class="d-rule"></div>
+  <div class="d-tabs">
+    <a><small>01</small><b>Command</b></a><a><small>02 · SUN</small><b>Live</b></a><a class="on"><small>03 · 2 TO FIX</small><b>Lineup</b></a><a><small>04</small><b>Rankings</b></a><a><small>05 · 3 CLAIMS</small><b>Waivers</b></a><a><small>06 · 48%</small><b>Matchup</b></a><a><small>07</small><b>Trades</b></a><a><small>08</small><b>More ▾</b></a>
+  </div>
+  <div class="d-sub"><span class="k">LINEUP BY</span><a class="on">Projections</a><a>FantasyPros</a><a>Flock</a><a>The Ballers</a><a>Vegas</a></div>
+  <div class="body"><span></span><span></span></div>
+</div>
+</body></html>
