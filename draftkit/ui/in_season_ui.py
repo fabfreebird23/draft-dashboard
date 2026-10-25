@@ -4472,6 +4472,72 @@ def _team_of(ctx, g, roster_id):
     return None
 
 
+def _pool_watch_data(ctx, g) -> Optional[dict]:
+    """This week's 2027 pool against the last snapshot: who fell into it (a
+    projected keeper nobody would keep now), who left it (newly kept), and the
+    projected-ADP movers. Saves this week's snapshot the first time it's seen."""
+    from .. import nextyear as NY, userstate as US
+    meta = ctx["meta"]
+    n = int(getattr(meta, "num_teams", 10) or 10)
+    w8 = getattr(meta, "scoring_weights", None) or {}
+    ppr = 1.0 if float(w8.get("rec", 1.0)) >= 0.75 else 0.5 if float(w8.get("rec", 1.0)) >= 0.25 else 0.0
+    proj = NY.projected(n, ppr)
+    if not proj:
+        return None
+    kept = sorted({str(r["pid"]) for rows_ in _league_keepers(ctx, g).values() for r in rows_})
+    ranks = {pid: v["rank"] for pid, v in proj.items() if v.get("rank") and v["rank"] <= 220}
+    lk = ctx["league_key"]
+    wk = f'{g["season"]}-{int(g["week"]):02d}'
+    snaps = US.pool_snaps(lk)
+    if wk not in snaps:
+        US.save_pool_snap(lk, wk, {"ranks": ranks, "kept": kept})
+    prev_keys = sorted(k for k in snaps if k < wk)
+    if not prev_keys:
+        return {"since": None}
+    pk = prev_keys[-1]
+    prev = snaps[pk]
+    pr, pkept = prev.get("ranks") or {}, set(prev.get("kept") or [])
+    into = [p for p in pkept if p not in set(kept)]
+    out_ = [p for p in kept if p not in pkept]
+    movers = sorted(((pr[p] - ranks[p], p) for p in ranks if p in pr and ranks[p] <= 150),
+                    key=lambda x: -abs(x[0]))
+    up = [(d, p) for d, p in movers if d > 0][:6]
+    down = [(d, p) for d, p in movers if d < 0][:6]
+    since = "week " + str(int(pk.split("-")[1]))
+    bits = [f"{len(into)} into the pool" if into else "", f"{len(out_)} newly kept" if out_ else "",
+            f"top riser {_esc_(ctx['registry'].meta(up[0][1]).name)} +{up[0][0]}" if up else ""]
+    return {"since": since, "into": into, "out": out_, "up": up, "down": down, "ranks": ranks,
+            "summary": f"since {since} · " + (" · ".join(b for b in bits if b) or "no change")}
+
+
+def _pool_watch(ctx, g, d) -> None:
+    reg = ctx["registry"]
+    nxt = int(g["season"]) + 1
+
+    def nm(p):
+        try:
+            m = reg.meta(p)
+            return f"{m.name} · {m.position}"
+        except Exception:  # noqa: BLE001
+            return str(p)
+
+    def col(title, items, cls):
+        body = "".join(f'<div class="pw-r"><span>{_esc_(t)}</span><b class="{cls}">{v}</b></div>' for t, v in items) \
+            or '<div class="pw-r"><span class="ws-dim">nobody</span></div>'
+        return f'<div class="pw-c"><div class="ws-h">{title}</div>{body}</div>'
+    rk = d["ranks"]
+    html = ('<div class="pw">'
+            + col(f"Fell into the {nxt} pool", [(nm(p), f"#{rk.get(p, '—')}") for p in d["into"][:8]], "in")
+            + col("Newly kept (left the pool)", [(nm(p), f"#{rk.get(p, '—')}") for p in d["out"][:8]], "out")
+            + col("Projected ADP risers", [(nm(p), f"+{x}") for x, p in d["up"]], "in")
+            + col("Projected ADP fallers", [(nm(p), f"{x}") for x, p in d["down"]], "out")
+            + '</div>')
+    st.markdown(html, unsafe_allow_html=True)
+    _note(f"Compared with the snapshot from {d['since']}. The pool is everyone no team is projected to keep; "
+          f"a player falls into it when his keeper price stops being worth it to whoever holds him. "
+          f"Ranks are the projected {nxt} ADP.")
+
+
 # a draft pick's rough trade weight by round — the shape every pick chart
 # shares (a first is worth about two thirds again a second, and the gap
 # narrows): enough to say what a fair "get my first back" offer looks like
@@ -5208,6 +5274,19 @@ def _keepers(ctx, g) -> None:
                          f'{len(_unl)} keepable if you get the pick back · best {_unl[0]["name"]} +{_unl[0]["surplus"]}'
                          if len(_unl) else "", key=f"unl_{ctx['league_key']}"):
                 _unlock_panel(ctx, g, sorted(_unl, key=lambda r: -(r.get("surplus") or 0)))
+        try:
+            _pw = _pool_watch_data(ctx, g)
+        except Exception:  # noqa: BLE001 — a watch list, never worth the tab
+            _pw = None
+        if _pw:
+            with _drawer("Pool watch", _pw.get("summary") or "first snapshot saved · changes show from next week",
+                         key=f"pw_{ctx['league_key']}"):
+                if _pw.get("since"):
+                    _pool_watch(ctx, g, _pw)
+                else:
+                    _note(f"This week's {int(g['season']) + 1} pool is saved — every team's projected keepers and "
+                          f"the projected ADP. From next week this shows who fell into the pool, who got kept, "
+                          f"and who moved.")
         with _drawer("Your roster, priced year by year",
                      f"{len(rows)} players" + (f" · best value {_best['name']} +{_best['surplus']}" if _best else "")):
             st.markdown('<div class="kl-grid">' + "".join(C.keeper_card_html(r) for r in rows) + '</div>',

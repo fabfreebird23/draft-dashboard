@@ -3245,6 +3245,14 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 @keyframes m3top{ from{ transform:rotateX(0); } to{ transform:rotateX(-90deg); } }
 @keyframes m3bot{ from{ transform:rotateX(90deg); } to{ transform:rotateX(0); } }
 .m3-fp{ display:inline-block; width:.26em; text-align:center; }
+/* pool watch */
+.pw{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+.pw-c{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; min-width:0; }
+.pw-r{ display:flex; justify-content:space-between; gap:8px; font-size:12.5px; padding:3px 0; border-bottom:1px solid var(--line2); }
+.pw-r span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pw-r b{ font-family:'Roboto Mono',monospace; font-weight:500; font-size:11.5px; } .pw-r b.in{ color:#7fd8b4; } .pw-r b.out{ color:#ff8fae; }
+@media (max-width:900px){ .pw{ grid-template-columns:1fr 1fr; } }
+@media (max-width:520px){ .pw{ grid-template-columns:1fr; } }
 /* keeper unlock finder */
 .un-h{ display:flex; align-items:baseline; gap:10px; margin:10px 0 4px; }
 .un-h b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:17px; text-transform:uppercase; letter-spacing:.03em; }

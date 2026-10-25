@@ -127,3 +127,17 @@ def set_tankers(league_key: str, owners: List[str]) -> None:
     d = dict(_get("mode", league_key, {}) or {})
     d["tankers"] = [str(o) for o in owners]
     _put("mode", league_key, d)
+
+
+def pool_snaps(league_key: str) -> Dict[str, dict]:
+    """{"2026-07": {ranks: {pid: rank}, kept: [pid]}} — one per week, for Pool watch."""
+    return _get("poolwatch", league_key, {}) or {}
+
+
+def save_pool_snap(league_key: str, week_key: str, snap: dict) -> None:
+    snaps = dict(pool_snaps(league_key))
+    snaps[week_key] = snap
+    # a season of weeks is plenty; keep the newest dozen
+    for k in sorted(snaps)[:-12]:
+        snaps.pop(k, None)
+    _put("poolwatch", league_key, snaps)
