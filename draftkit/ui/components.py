@@ -2989,36 +2989,46 @@ def clock_cube_html(cur: str, cur_sub: str, prev: Optional[str] = None, prev_sub
 
 
 def league_ring_html(cards) -> str:
-    """[{name, rec, line, pct, on}] on a cover-flow arc: every league in view,
-    the arc turning to bring each to the front in turn; hover holds it still.
-    (A closed ring showed one card at a time — with four, the sides sit edge-on.)"""
+    """[{name, rec, po, line, pct, on}] as a cover-flow: one league centred and
+    square-on, its neighbours angled in at each side, the rest waiting behind;
+    every few seconds they all shift one place. Hover holds it.
+
+    Each card runs the same loop of positions, offset in time by its place, so
+    it is plain CSS. (A rotating ring showed edge-on cards that ran off the
+    stage and cut their text.)"""
     cards = [c for c in cards if c]
     n = len(cards)
     if n < 2:
         return ""
-    import math
-    w, step = 230, min(360 / n, 34.0)
-    rad = round((w / 2 + 14) / math.tan(math.radians(step / 2)))
+    hold, T = 3.0, 3.0 * n
+    half = n // 2
+
+    def pos(o):
+        if o == 0:
+            return "transform:translateX(0) translateZ(0) rotateY(0deg);opacity:1"
+        if abs(o) == 1:
+            return (f"transform:translateX(calc({o} * var(--cf-x,84%))) translateZ(-140px) rotateY({-o * 30}deg);opacity:.72")
+        return "transform:translateX(0) translateZ(-300px) rotateY(0deg) scale(.82);opacity:0"
+    stops = []
+    for j in range(n + 1):
+        o = ((-j + half) % n) - half
+        t0 = 100 * j / n
+        stops.append(f"{t0:.2f}%{{{pos(o)}}}")
+        if j < n:
+            stops.append(f"{t0 + 100 / n * .74:.2f}%{{{pos(o)}}}")
+    kf = f"m3cf{n}"
     faces = []
     for i, c in enumerate(cards):
+        o = ((i + half) % n) - half              # where card i starts
+        j = (-o) % n                             # the step of the loop that puts it there
         pct = c.get("pct")
         po = f'<span class="po">{_esc(c["po"])}</span>' if c.get("po") else ""
         faces.append(
-            f'<div class="m3-lc{" on" if c.get("on") else ""}" style="transform:rotateY({i * step:.1f}deg) translateZ({rad}px)">'
+            f'<div class="m3-lc{" on" if c.get("on") else ""}" style="animation-name:{kf};animation-duration:{T:.1f}s;'
+            f'animation-delay:-{j * hold:.1f}s">'
             f'<span class="nm">{_esc(c["name"])}</span><b>{_esc(c.get("rec") or "—")}{po}</b>'
             f'<em>{_esc(c.get("line") or "")}</em>'
             + (f'<div class="wp"><i style="width:{max(0, min(100, pct)):.0f}%"></i></div><small>{pct:.0f}% to win this week</small>'
                if pct is not None else "<small>&nbsp;</small>") + "</div>")
-    # out along the arc and back: hold on each card, then glide to the next
-    seq = list(range(n)) + list(range(n - 2, 0, -1))
-    hold, stops = 100 / len(seq), []
-    for k, i in enumerate(seq + [0]):
-        a = -i * step
-        t = min(100, k * hold)
-        stops.append(f"{t:.2f}%{{transform:translateZ(-{rad}px) rotateX(-4deg) rotateY({a:.1f}deg)}}")
-        if k < len(seq):
-            stops.append(f"{min(100, t + hold * .72):.2f}%{{transform:translateZ(-{rad}px) rotateX(-4deg) rotateY({a:.1f}deg)}}")
-    kf = f"m3arc{n}"
     return (f'<style>@keyframes {kf}{{{"".join(stops)}}}</style>'
-            f'<div class="m3-ringst"><div class="m3-ring" style="animation-name:{kf};animation-duration:{len(seq) * 3.0:.1f}s">'
-            + "".join(faces) + '</div></div>')
+            f'<div class="m3-ringst"><div class="m3-ring">' + "".join(faces) + '</div></div>')
