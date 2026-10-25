@@ -3245,6 +3245,16 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 @keyframes m3top{ from{ transform:rotateX(0); } to{ transform:rotateX(-90deg); } }
 @keyframes m3bot{ from{ transform:rotateX(90deg); } to{ transform:rotateX(0); } }
 .m3-fp{ display:inline-block; width:.26em; text-align:center; }
+/* keeper unlock finder */
+.un-h{ display:flex; align-items:baseline; gap:10px; margin:10px 0 4px; }
+.un-h b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:17px; text-transform:uppercase; letter-spacing:.03em; }
+.un-h span{ font-size:12px; color:var(--muted); } .un-h em{ font-style:normal; color:var(--crimson); font-weight:600; }
+.un-r{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--panel); border:1px solid var(--line);
+  border-radius:9px; padding:8px 12px; font-size:13px; }
+.un-w{ font-weight:600; min-width:110px; } .un-p{ font-family:'Roboto Mono',monospace; color:#f3ead8; background:var(--accent-soft);
+  border:1px solid var(--accent-line); border-radius:5px; padding:1px 7px; }
+.un-a{ color:var(--mut2); font-size:11px; } .un-s{ font-family:'Roboto Mono',monospace; font-size:12px; color:var(--ink); }
+.un-v{ margin-left:auto; font-family:'Roboto Mono',monospace; font-size:10.5px; color:#7fd8b4; } .un-v.thin{ color:var(--amber); }
 .xl-lk{ font-family:'Roboto Mono',monospace; font-style:normal; font-size:9px; letter-spacing:.1em; font-weight:500;
   color:#f3ead8; background:#3a2f32; border-radius:3px; padding:1px 5px; margin-right:3px; }
 /* a score just landed: one pulse of light on that side of the board */

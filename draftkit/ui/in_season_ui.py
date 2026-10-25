@@ -4472,6 +4472,101 @@ def _team_of(ctx, g, roster_id):
     return None
 
 
+# a draft pick's rough trade weight by round — the shape every pick chart
+# shares (a first is worth about two thirds again a second, and the gap
+# narrows): enough to say what a fair "get my first back" offer looks like
+def _pick_weight(rnd: int) -> float:
+    return 100.0 * max(1, int(rnd)) ** -0.8
+
+
+def _unlock_panel(ctx, g, rows) -> None:
+    """Keepers the bylaw blocks because the pick they'd cost was traded away:
+    who holds a pick that would let him be kept, a fair package of your later
+    picks for it, and a button that loads the deal into the Trades checker."""
+    nxt = str(int(g["season"]) + 1)
+    me = str(g["me"])
+    my_rid = _roster_id(g, me)
+    owner_of_rid = {r.get("roster_id"): o for o, r in g["rosters"].items()}
+    allp = g.get("picks") or {}
+    mine = sorted((pk for pk in allp.get(int(my_rid), []) if str(pk.get("season")) == nxt),
+                  key=lambda pk: int(pk["round"])) if my_rid is not None else []
+    my_menu = {lab: pk for lab, pk in _pick_menu(ctx, g, me).items()}
+    lk = ctx["league_key"]
+    # never offer a pick one of your planned keepers already sits on
+    _kept = {}
+    for k_ in _keeper_rows(ctx, g):
+        if k_.get("verdict") == "keep" and k_.get("cost_round"):
+            _kept[int(k_["cost_round"])] = _kept.get(int(k_["cost_round"]), 0) + 1
+    _held = {}
+    for pk in mine:
+        _held[int(pk["round"])] = _held.get(int(pk["round"]), 0) + 1
+
+    def _spare(rnd):
+        return _held.get(rnd, 0) > _kept.get(rnd, 0)
+    _need = {}
+    for r in rows:
+        _need[int(r.get("cost_round") or 1)] = _need.get(int(r.get("cost_round") or 1), 0) + 1
+    shown = 0
+    for r in rows[:4]:
+        need = int(r.get("cost_round") or 1)
+        offers = []
+        for rid, pks in allp.items():
+            if my_rid is not None and int(rid) == int(my_rid):
+                continue
+            oid = owner_of_rid.get(int(rid))
+            if not oid:
+                continue
+            menu = _pick_menu(ctx, g, oid)
+            for lab, pk in menu.items():
+                if str(pk.get("season")) == nxt and int(pk["round"]) <= need:
+                    offers.append((int(pk["round"]), str(oid), lab, pk))
+        if not offers:
+            continue
+        # your own original pick first (the one that's easiest to ask back),
+        # then the latest pick that still unlocks him — the cheapest to buy
+        offers.sort(key=lambda x: (int(x[3].get("origin") or -1) != int(my_rid or -2), -x[0], _owner_name(ctx, x[1])))
+        st.markdown(f'<div class="un-h"><b>{_esc_(r["name"])}</b><span>{_esc_(r.get("pos") or "")} · '
+                    f'keeps at R{need} · <em>+{r.get("surplus")}</em> keeper value</span></div>',
+                    unsafe_allow_html=True)
+        for rnd, oid, lab, pk in offers[:3]:
+            target = _pick_weight(rnd) * 0.95
+            send, tot = [], 0.0
+            for mp in [x for x in mine if int(x["round"]) > rnd and _spare(int(x["round"]))]:
+                if tot >= target:
+                    break
+                send.append(mp)
+                tot += _pick_weight(int(mp["round"]))
+            sendl = [l for l, pk_ in my_menu.items() if any(pk_ is x for x in send)]
+            ok = tot >= target
+            c1, c2 = st.columns([4, 1.3], vertical_alignment="center")
+            with c1:
+                st.markdown(
+                    f'<div class="un-r"><span class="un-w">{_esc_(_owner_name(ctx, oid))}</span>'
+                    f'<span class="un-p">{_esc_(lab)}</span><span class="un-a">for</span>'
+                    f'<span class="un-s">{_esc_(" + ".join(sendl) if sendl else "a player (no later picks to send)")}</span>'
+                    f'<span class="un-v{"" if ok else " thin"}">{"fair by the pick chart" if ok else "light — add a player"}</span></div>',
+                    unsafe_allow_html=True)
+            with c2:
+                def _go(oid=oid, lab=lab, sendl=sendl):
+                    st.session_state[f"td_prefill_{lk}"] = {"oid": oid, "send": [], "get": [],
+                                                           "sendp": list(sendl), "getp": [lab]}
+                    st.session_state[f"nav_in_{lk}"] = "Trades"
+                st.button("Load in Trades", key=f"unl_go_{lk}_{r['pid']}_{oid}_{rnd}", on_click=_go,
+                          use_container_width=True)
+            shown += 1
+    _dup = [rd for rd, c in _need.items() if c > 1]
+    if _dup:
+        _note(f"One pick unlocks one keeper: {', '.join(f'{_need[d]} of these need R{d}' for d in _dup)}, "
+              f"so it takes that many picks to keep them all.")
+    if not shown:
+        _note("Nobody else holds a pick early enough to unlock these.")
+    else:
+        _note(f"A keeper whose cost round you traded away moves **up** to the nearest earlier pick you own; "
+              f"with none, he can't be kept. Any {nxt} pick in his round or earlier fixes that. The package "
+              f"is your later {nxt} picks summed on a standard pick chart to just over the pick you get — "
+              f"a starting offer, not a price.")
+
+
 def _pick_menu(ctx, g, owner_id) -> dict:
     """{label: pick} of the future picks this manager holds, in order.
 
@@ -5106,6 +5201,13 @@ def _keepers(ctx, g) -> None:
     # The tray above is the answer; the rest folds, each drawer saying what's in it.
     _best = keeps[0] if keeps else None
     with st.container(key="drawers"):
+        _unl = [r for r in rows if r.get("blocked") and "you don't own" in str(r["blocked"])
+                and (r.get("surplus") or 0) > 0]
+        if _unl:
+            with _drawer("Unlock blocked keepers",
+                         f'{len(_unl)} keepable if you get the pick back · best {_unl[0]["name"]} +{_unl[0]["surplus"]}'
+                         if len(_unl) else "", key=f"unl_{ctx['league_key']}"):
+                _unlock_panel(ctx, g, sorted(_unl, key=lambda r: -(r.get("surplus") or 0)))
         with _drawer("Your roster, priced year by year",
                      f"{len(rows)} players" + (f" · best value {_best['name']} +{_best['surplus']}" if _best else "")):
             st.markdown('<div class="kl-grid">' + "".join(C.keeper_card_html(r) for r in rows) + '</div>',
