@@ -2741,15 +2741,25 @@ def scoreboard_html(*, me_name, me_rec, me_pts, me_sub, me_photo, opp_name, opp_
                  for k, v, s in tiles)
     # `flaps` = (my last score, theirs): the points become split-flap digits
     # and whichever changed since that run fold over
+    fm = fo = ""
     if flaps is not None:
         mp, op = flap_html(me_pts, flaps[0]), flap_html(opp_pts, flaps[1])
+
+        # whoever just scored gets one beat of light on their side
+        def _up(new, old):
+            try:
+                return float(new) > float(old) + 0.05
+            except (TypeError, ValueError):
+                return False
+        fm = " up" if _up(me_pts, flaps[0]) else ""
+        fo = " up" if _up(opp_pts, flaps[1]) else ""
     else:
         mp, op = _esc(me_pts), _esc(opp_pts)
-    return (f'<div class="xb"><div class="xb-side me">{_img(me_photo, "xb-ph")}'
+    return (f'<div class="xb"><div class="xb-side me{fm}">{_img(me_photo, "xb-ph")}'
             f'<div class="xb-t"><span>{_esc(me_name)}{" · " + _esc(me_rec) if me_rec else ""}</span>'
             f'<b>{mp}</b><i>{_esc(me_sub)}</i></div></div>'
             f'<div class="xb-mid"><span class="xb-k">{_esc(label)}</span>{mid}</div>'
-            f'<div class="xb-side op"><div class="xb-t"><span>{_esc(opp_name)}'
+            f'<div class="xb-side op{fo}"><div class="xb-t"><span>{_esc(opp_name)}'
             f'{" · " + _esc(opp_rec) if opp_rec else ""}</span><b>{op}</b>'
             f'<i>{_esc(opp_sub)}</i></div>{_img(opp_photo, "xb-ph")}</div></div>'
             + (f'<div class="xb-tiles">{th}</div>' if th else '<div class="xb-gap"></div>'))

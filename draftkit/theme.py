@@ -3064,7 +3064,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
          border-radius:10px; padding:10px 14px; margin:2px 0 8px; }
 .np-clk span{ font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.14em; color:#e8545f; }
 .np-clk b{ font-family:'Oswald',sans-serif; font-size:28px; font-weight:500; color:#f3ead8; line-height:1; }
-.np-clk i{ font-style:normal; font-size:12px; color:#bfb3a8; }
+.np-clk i{ font-style:normal; font-size:12px; color:#bfb3a8; } .np-clk i strong{ color:#f3ead8; font-weight:600; }
 .np-clk.done span{ color:#5fdc8f; }
 .np-mine{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin:6px 0 10px; }
 .np-h{ font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.12em; color:var(--mut2); margin-right:4px; }
@@ -3245,6 +3245,14 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 @keyframes m3top{ from{ transform:rotateX(0); } to{ transform:rotateX(-90deg); } }
 @keyframes m3bot{ from{ transform:rotateX(90deg); } to{ transform:rotateX(0); } }
 .m3-fp{ display:inline-block; width:.26em; text-align:center; }
+.xl-lk{ font-family:'Roboto Mono',monospace; font-style:normal; font-size:9px; letter-spacing:.1em; font-weight:500;
+  color:#f3ead8; background:#3a2f32; border-radius:3px; padding:1px 5px; margin-right:3px; }
+/* a score just landed: one pulse of light on that side of the board */
+.xb-side.up{ animation:m3hit 1.6s ease-out 1; }
+.xb-side.me.up{ --hit:rgba(255,51,108,.55); } .xb-side.op.up{ --hit:rgba(243,234,216,.28); }
+@keyframes m3hit{ 0%{ box-shadow:inset 0 0 0 0 var(--hit); } 18%{ box-shadow:inset 0 0 0 3px var(--hit), inset 0 0 60px var(--hit); }
+  100%{ box-shadow:inset 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion:reduce){ .xb-side.up{ animation:none; } }
 /* the scoreboard styles every span under .xb-t as its small caps label — the
    flap is made of spans, so it takes its size and layout back here */
 .xb-t .m3-flap, .xb-t .m3-flap span, .xb-t .m3-flap i{ font-size:inherit !important; font-style:normal !important; line-height:1em !important; letter-spacing:0 !important; text-transform:none !important;

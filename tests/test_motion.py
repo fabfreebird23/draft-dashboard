@@ -16,3 +16,10 @@ def test_towers_and_ring_render():
     assert C.towers_html([("QB", 20.0, 18.0), ("RB", 30.0, 35.0)]).count("m3-pr ") == 4
     assert C.league_ring_html([{"name": "A", "rec": "1-0"}]) == ""
     assert "m3-lc" in C.league_ring_html([{"name": "A"}, {"name": "B"}])
+
+
+def test_scoreboard_flashes_the_side_that_scored():
+    kw = dict(me_name="You", me_rec="", me_sub="", me_photo=None, opp_name="X", opp_rec="", opp_sub="",
+              opp_photo=None, label="LIVE")
+    h = C.scoreboard_html(me_pts="80.1", opp_pts="50.0", flaps=("78.6", "50.0"), **kw)
+    assert 'xb-side me up' in h and 'xb-side op up' not in h

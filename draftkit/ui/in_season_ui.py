@@ -1507,6 +1507,9 @@ def _lineup(ctx, g) -> None:
         opp_ = (("vs " if gm.get("home") else "@ ") + gm["opp"]) if gm else "bye"
         av = W.availability(pm)
         sub = f'{pm.team} · {opp_} · {GT.day_label(gm)}'
+        # kicked off = locked in this slot: say so, so the lack of advice reads
+        if gm and GT.status(gm) in ("in", "post"):
+            sub = f'<b class="xl-lk">{"LIVE" if GT.status(gm) == "in" else "DONE"} · LOCKED</b> ' + sub
         if av["status"]:
             sub += f' · <b class="xl-q">{av["status"][:4].upper()}</b>'
         state, gain = "", ""
@@ -3035,9 +3038,34 @@ def _matchup(ctx, g) -> None:
                      else float(g["proj"].get(str(p_), 0) or 0))
                 out[ps_] = out.get(ps_, 0.0) + v
             return out
+        _tw = st.segmented_control("Towers", ["By position", "By slot"], key=f"mu_tw_{ctx['league_key']}",
+                                   selection_mode="single", default="By position",
+                                   label_visibility="collapsed") or "By position"
+
+        def _pv(p_, lv):
+            if not p_ or str(p_) == "0":
+                return 0.0
+            return (WV.live_projection([("", p_)], g["proj"], reg, games, lv) if started
+                    else float(g["proj"].get(str(p_), 0) or 0))
+        if _tw == "By slot":
+            # slot against slot: his QB against yours, RB1 against RB1
+            _seen, _groups = {}, []
+            for s_, a_, b_ in zip(g["slots"], g["starters"], ost):
+                if s_ in ("BN", "IR", "TAXI"):
+                    continue
+                _seen[s_] = _seen.get(s_, 0) + 1
+                _lab = s_ if g["slots"].count(s_) == 1 else f"{s_}{_seen[s_]}"
+                _groups.append((_lab.replace("SUPER_FLEX", "SF"), _pv(a_, me_live), _pv(b_, opp_live)))
+            _order = []
+        else:
+            _groups = None
         _a, _b = _by_pos(g["starters"], me_live), _by_pos(ost, opp_live)
         _order = [x for x in ("QB", "RB", "WR", "TE", "K", "DEF") if x in _a or x in _b]
-        if _order:
+        if _groups:
+            st.markdown(C.towers_html(_groups, me="You", them=them,
+                                      note="slot against slot — " + ("actual so far plus the rest" if started else "projected")),
+                        unsafe_allow_html=True)
+        elif _order:
             st.markdown(C.towers_html([(x, _a.get(x, 0.0), _b.get(x, 0.0)) for x in _order],
                                       me="You", them=them,
                                       note="projected finish by position — actual so far plus the rest"
@@ -3893,9 +3921,24 @@ def _practice_panel(ctx, cells, clock, state, key, pool, pos_of, proj, nm, nxt, 
             st.button("Reset", key=f"np_reset_{lk}", on_click=_reset, disabled=not state["picks"],
                       use_container_width=True)
     else:
-        st.markdown(f'<div class="np-clk done"><span>DRAFT DONE</span><b>{len(mine)} picks</b>'
-                    f'<i>every pick you own in {nxt} is made &middot; Reset to run it again</i></div>',
-                    unsafe_allow_html=True)
+        # the grade: every team's whole class (keepers + picks) by projected
+        # next-year value, and the pick of yours that beat its slot the most
+        tot = {}
+        for c in cells.values():
+            if c["pid"]:
+                tot[c["holder"]] = tot.get(c["holder"], 0.0) + float((proj.get(c["pid"]) or {}).get("value") or 0)
+        order_ = sorted(tot, key=lambda h: -tot[h])
+        place = order_.index(my_rid) + 1 if my_rid in order_ else None
+        steals = sorted(((c["pick"] - int((proj.get(c["pid"]) or {}).get("rank") or c["pick"]), c) for c in mine),
+                        key=lambda x: -x[0])
+        grade = ("A" if place == 1 else "A-" if place == 2 else "B+" if place and place <= n // 3 + 1
+                 else "B" if place and place <= n // 2 else "C+" if place and place <= 2 * n // 3 else "C")
+        st.markdown(f'<div class="np-clk done"><span>DRAFT DONE</span><b>{grade}</b>'
+                    f'<i>your class ranks <strong>{place} of {n}</strong> by projected {nxt} value'
+                    + (f' &middot; best value: <strong>{_esc_(nm(steals[0][1]["pid"]))}</strong> at #{steals[0][1]["pick"]}, '
+                       f'ranked #{(proj.get(steals[0][1]["pid"]) or {}).get("rank")} ({steals[0][0]:+d})'
+                       if steals and steals[0][0] > 0 else "")
+                    + ' &middot; Reset to run it again</i></div>', unsafe_allow_html=True)
         st.button("Reset", key=f"np_reset_{lk}", on_click=_reset)
     if mine:
         chips = "".join(f'<span class="np-p {pos_of.get(c["pid"], "")}"><em>{c["round"]}.{c["slot"]:02d}</em>'
