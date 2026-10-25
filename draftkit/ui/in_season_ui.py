@@ -4175,6 +4175,26 @@ def _draft_preview(ctx, g) -> None:
           "once the keepers ahead of that pick are off the board.")
 
 
+def _scan_sig(g, partners) -> tuple:
+    return (tuple(sorted(map(str, g["mine"]))),
+            tuple((str(o), tuple(map(str, pl))) for o, pl in partners), len(g["proj"]))
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _scan_cached(sig, _mine, _slots, _proj, _reg) -> dict:
+    """Mutual deals per partner. Module level (it lived inside _trades) so the
+    background warmer can build it before Trades is opened — the scan was most
+    of a 20-second first visit."""
+    out = {}
+    for o, pids in sig[1]:
+        n = len([1 for i in W.trade_ideas(_mine, list(pids), _slots, _proj, _reg,
+                                          max_ideas=4) if i["mutual"]])
+        n += len([1 for i in W.trade_packages(_mine, list(pids), _slots, _proj, _reg,
+                                              max_ideas=5) if i["mutual"]])
+        out[o] = n
+    return out
+
+
 @st.cache_data(ttl=900, show_spinner=False)
 def _partner_ideas(mine, opp, week, nproj, _g, _reg):
     """One partner's one-for-ones and packages. The exact re-scoring behind them
@@ -4238,20 +4258,9 @@ def _trades(ctx, g) -> None:
             _gm_board(ctx, g, status)
     # Which partners are actually worth talking to. Clicking through seven teams to
     # discover that three of them have a deal is a search the app should do.
-    @st.cache_data(ttl=600, show_spinner=False)
-    def _scan(sig, _mine, _slots, _proj):
-        out = {}
-        for o, pids in sig:
-            n = len([1 for i in W.trade_ideas(_mine, list(pids), _slots, _proj, reg,
-                                              max_ideas=4) if i["mutual"]])
-            n += len([1 for i in W.trade_packages(_mine, list(pids), _slots, _proj, reg,
-                                                  max_ideas=5) if i["mutual"]])
-            out[o] = n
-        return out
-
     with st.spinner("Scanning the league for deals that clear…"):
-        counts = _scan(tuple((o, tuple(pl)) for o, pl in partners),
-                       g["mine"], g["slots"], g["proj"])
+        _cs = _scan_cached(_scan_sig(g, partners), g["mine"], g["slots"], g["proj"], reg)
+        counts = {o: _cs.get(str(o), 0) for o, _pl in partners}
     # partners in the order this mode wants them: a tank sells to contenders
     # (best odds first), a contender buys from the teams that are out of it
     _odds = lambda o: (status.get(str(o)) or {}).get("odds", 50)  # noqa: E731

@@ -271,7 +271,7 @@ def _heavy(ctx: dict, week: int, slow: int) -> None:
     from .ui import in_season_ui as IS
     from . import config
     fast = IS._refresh_bucket(config.current_season(), week)
-    g = IS._gather_cached(ctx["league_key"], week, fast, ctx)
+    g = IS._gather_cached(ctx["league_key"], week, fast, ctx, IS._GATHER_V)
     pn = IS._panels(ctx, g)
     lk, reg = ctx["league_key"], ctx["registry"]
     owner_of = {}
@@ -283,3 +283,13 @@ def _heavy(ctx: dict, week: int, slow: int) -> None:
     IS._waiver_board_cached(lk, week, slow, ctx, g, taken)
     for pos in ("FLEX", "ALL"):
         IS._rk_rows_cached(lk, week, slow, pos, reg, g, pn, owner_of, IS._PANEL_VER)
+    # Trades: the league-wide deal scan, then the deepest partner's ideas
+    try:
+        partners = [(o, r["players"]) for o, r in g["rosters"].items() if o != g["me"] and r["players"]]
+        counts = IS._scan_cached(IS._scan_sig(g, partners), g["mine"], g["slots"], g["proj"], reg)
+        if counts:
+            best = max(counts, key=counts.get)
+            opp = dict(partners).get(best) or []
+            IS._partner_ideas(tuple(map(str, g["mine"])), tuple(map(str, opp)), g["week"], len(g["proj"]), g, reg)
+    except Exception:  # noqa: BLE001
+        pass
