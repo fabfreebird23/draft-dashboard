@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import functools
 import math
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 from .. import theme
 
@@ -2435,8 +2435,19 @@ def keeper_tray_html(keeps, reg_max: int, rook_max: int) -> str:
                 face = str(r.get("face") or "")
                 src = (f"https://sleepercdn.com/images/team_logos/nfl/{_esc(face.lower())}.png" if face.isalpha()
                        else f"https://sleepercdn.com/content/nfl/players/thumb/{_esc(face)}.jpg")
-                cells.append(f'<div class="kt-slot {kind}"><img class="kt-ph" src="{src}" alt="" loading="lazy">'
-                             f'<b>R{r["cost_round"]}</b><span>{_esc(r["name"].split()[-1])}</span></div>')
+                sur = r.get("surplus")
+                worth = r.get("worth")
+                back = (f'<div class="kx-b"><div class="kx-n">{_esc(r["name"])}</div>'
+                        f'<div class="kx-m">{_esc(r.get("pos") or "")} · {_esc(r.get("team") or "FA")}</div>'
+                        f'<div class="kx-r"><span>Costs</span><strong>R{r["cost_round"]}</strong></div>'
+                        + (f'<div class="kx-r"><span>Plays like</span><strong>R{worth}</strong></div>' if worth else "")
+                        + (f'<div class="kx-r"><span>This week</span><strong>{r.get("proj") or 0:.1f}</strong></div>')
+                        + (f'<div class="kx-v">{sur:+d}<small>KEEPER VALUE</small></div>' if sur is not None else "")
+                        + '</div>')
+                cells.append(f'<div class="kt-slot {kind} kx" tabindex="0" style="--dl:{len(cells) * 120}ms">'
+                             f'<div class="kx-in"><div class="kx-f"><img class="kt-ph" src="{src}" alt="" loading="lazy">'
+                             f'<b>R{r["cost_round"]}</b><span>{_esc(r["name"].split()[-1])}</span><i class="kx-sh"></i></div>'
+                             f'{back}</div></div>')
             else:
                 cells.append(f'<div class="kt-slot {kind} empty"><div class="kt-empty"></div><b>—</b><span>open</span></div>')
     return (f'<div class="kt-tray"><div class="kt-k">YOUR {reg_max + rook_max} FOR NEXT YEAR · '
@@ -2720,7 +2731,7 @@ def _img(pid, cls):
 
 
 def scoreboard_html(*, me_name, me_rec, me_pts, me_sub, me_photo, opp_name, opp_rec, opp_pts,
-                    opp_sub, opp_photo, label, win_pct=None, tiles=()) -> str:
+                    opp_sub, opp_photo, label, win_pct=None, tiles=(), flaps=None) -> str:
     """Live and Matchup open with this: your side red with your best player,
     theirs ink, the win probability as the cover number in the middle."""
     wp = "" if win_pct is None else f"{max(0.0, min(100.0, float(win_pct))):.0f}"
@@ -2728,12 +2739,18 @@ def scoreboard_html(*, me_name, me_rec, me_pts, me_sub, me_photo, opp_name, opp_
            f'<div class="xb-bar"><i style="width:{wp}%"></i></div>') if wp else '<b>—</b>'
     th = "".join(f'<div><span>{_esc(k)}</span><b>{_esc(v)}</b><i>{_esc(s)}</i></div>'
                  for k, v, s in tiles)
+    # `flaps` = (my last score, theirs): the points become split-flap digits
+    # and whichever changed since that run fold over
+    if flaps is not None:
+        mp, op = flap_html(me_pts, flaps[0]), flap_html(opp_pts, flaps[1])
+    else:
+        mp, op = _esc(me_pts), _esc(opp_pts)
     return (f'<div class="xb"><div class="xb-side me">{_img(me_photo, "xb-ph")}'
             f'<div class="xb-t"><span>{_esc(me_name)}{" · " + _esc(me_rec) if me_rec else ""}</span>'
-            f'<b>{_esc(me_pts)}</b><i>{_esc(me_sub)}</i></div></div>'
+            f'<b>{mp}</b><i>{_esc(me_sub)}</i></div></div>'
             f'<div class="xb-mid"><span class="xb-k">{_esc(label)}</span>{mid}</div>'
             f'<div class="xb-side op"><div class="xb-t"><span>{_esc(opp_name)}'
-            f'{" · " + _esc(opp_rec) if opp_rec else ""}</span><b>{_esc(opp_pts)}</b>'
+            f'{" · " + _esc(opp_rec) if opp_rec else ""}</span><b>{op}</b>'
             f'<i>{_esc(opp_sub)}</i></div>{_img(opp_photo, "xb-ph")}</div></div>'
             + (f'<div class="xb-tiles">{th}</div>' if th else '<div class="xb-gap"></div>'))
 
@@ -2863,3 +2880,108 @@ def bench_list_html(rows) -> str:
     """[(name, sub, pts, pid)] — the bench, quiet."""
     return "".join(f'<div class="xbn">{_img(pid, "xl-f")}<div><b>{_esc(n)}</b><i>{sub}</i></div>'
                    f'<em>{pts:.1f}</em></div>' for n, sub, pts, pid in rows)
+
+
+# ------------------------------------------------------------ 3D motion (m3-)
+# design/anim3d_6x.html. Pure CSS: every one of these is a string of markup,
+# and each animation plays on render, so a Streamlit rerun is what moves it.
+
+def flap_html(text: str, prev: Optional[str] = None) -> str:
+    """A score as split-flap digits. Digits that changed since `prev` fold over
+    once (old top half drops, new bottom half lands); the rest sit still."""
+    text = str(text)
+    prev = str(prev) if prev is not None else None
+    if prev is not None and len(prev) < len(text):
+        prev = " " * (len(text) - len(prev)) + prev
+    out = []
+    for i, ch in enumerate(text):
+        if not ch.isdigit():
+            out.append(f'<span class="m3-fp">{_esc(ch)}</span>')
+            continue
+        old = prev[i] if prev is not None and i < len(prev) else ch
+        if old == ch:
+            out.append(f'<span class="m3-fl"><span class="t"><i>{ch}</i></span><span class="b"><i>{ch}</i></span></span>')
+        else:
+            o = _esc(old.strip() or "0")
+            out.append(f'<span class="m3-fl go" style="--dl:{i * 60}ms"><span class="t"><i>{ch}</i></span>'
+                       f'<span class="b"><i>{o}</i></span><span class="lt"><i>{o}</i></span>'
+                       f'<span class="lb"><i>{ch}</i></span></span>')
+    return f'<span class="m3-flap">{"".join(out)}</span>'
+
+
+def towers_html(groups, *, me="You", them="Them") -> str:
+    """[(pos, mine, theirs)] as isometric towers, yours crimson against theirs —
+    each pair grows from the floor on render."""
+    top = max([max(a, b) for _p, a, b in groups] + [1.0])
+    cols, labs = [], []
+    for i, (pos, a, b) in enumerate(groups):
+        for side, v in (("me", a), ("op", b)):
+            h = max(4, round(v / top * 118))
+            cols.append(f'<div class="m3-col {side}" style="--h:{h}px;--dl:{i * 90}ms">'
+                        f'<i class="s1"></i><i class="s2"></i><i class="tp"></i></div>')
+        win = "me" if a > b + 0.05 else "op" if b > a + 0.05 else ""
+        labs.append(f'<div class="m3-tl {win}"><b>{_esc(pos)}</b><span>{a:.1f}</span><em>{b:.1f}</em></div>')
+    return (f'<div class="m3-tw"><div class="m3-iso">{"".join(cols)}</div>'
+            f'<div class="m3-tls">{"".join(labs)}</div>'
+            f'<div class="m3-tk"><span><i class="me"></i>{_esc(me)}</span><span><i class="op"></i>{_esc(them)}</span>'
+            f'<span>projected points by position</span></div></div>')
+
+
+def drum_html(*, slot: int, pct: float, top3: float, n_teams: int, my_share: float, season: int) -> str:
+    """The lottery drum: balls on a tumbling sphere, yours crimson in the share
+    the league's weights give you, and one drops out to your likeliest slot."""
+    import math
+    n = 30
+    mine = max(1, round(n * max(0.0, min(1.0, my_share))))
+    balls = []
+    for i in range(n):
+        y = 1 - 2 * (i + .5) / n
+        r = math.sqrt(max(0.0, 1 - y * y))
+        th = i * 2.39996
+        hot = (i * 7) % n < mine
+        balls.append(f'<i class="{"hot" if hot else ""}" style="transform:translate3d('
+                     f'{math.cos(th) * r * 78:.0f}px,{y * 78:.0f}px,{math.sin(th) * r * 78:.0f}px)">'
+                     f'{(i % n_teams) + 1}</i>')
+    return (f'<div class="m3-dr"><div class="m3-sp">{"".join(balls)}<s></s><s class="y"></s><s class="x"></s></div>'
+            f'<div class="m3-ball">{slot}</div>'
+            f'<div class="m3-dk"><span>{season} · YOUR LIKELIEST SLOT</span><b>1.{slot:02d}</b>'
+            f'<em>{pct:.0f}% to land it · {top3:.0f}% top three</em></div></div>')
+
+
+def clock_cube_html(cur: str, cur_sub: str, prev: Optional[str] = None, prev_sub: str = "") -> str:
+    """The pick on the clock as a cube face; after a pick it rolls in from the
+    last one, so every Draft click visibly turns the board over."""
+    side = (f'<div class="m3-cf sd"><b>{_esc(prev)}</b><small>{_esc(prev_sub)}</small></div>' if prev else "")
+    return (f'<div class="m3-cube{" roll" if prev else ""}"><div class="m3-cf fr"><b>{_esc(cur)}</b>'
+            f'<small>{_esc(cur_sub)}</small></div>{side}</div>')
+
+
+def league_ring_html(cards) -> str:
+    """[{name, rec, line, pct, on}] as a slowly turning ring — one card per league,
+    pausing on each; hover holds it still."""
+    cards = [c for c in cards if c]
+    n = len(cards)
+    if n < 2:
+        return ""
+    import math
+    w = 230
+    rad = round(w / 2 / math.tan(math.pi / n) + 40)
+    faces = []
+    for i, c in enumerate(cards):
+        pct = c.get("pct")
+        faces.append(
+            f'<div class="m3-lc{" on" if c.get("on") else ""}" style="transform:rotateY({i * 360 / n:.1f}deg) translateZ({rad}px)">'
+            f'<span class="nm">{_esc(c["name"])}</span><b>{_esc(c.get("rec") or "—")}</b>'
+            f'<em>{_esc(c.get("line") or "")}</em>'
+            + (f'<div class="wp"><i style="width:{max(0, min(100, pct)):.0f}%"></i></div><small>{pct:.0f}% to win this week</small>'
+               if pct is not None else "<small>&nbsp;</small>") + "</div>")
+    hold, stops = 100 / n, []
+    for i in range(n + 1):
+        a = -i * 360 / n
+        stops.append(f"{min(100, i * hold):.2f}%{{transform:translateZ(-{rad}px) rotateX(-6deg) rotateY({a:.1f}deg)}}")
+        if i < n:
+            stops.append(f"{min(100, i * hold + hold * .78):.2f}%{{transform:translateZ(-{rad}px) rotateX(-6deg) rotateY({a:.1f}deg)}}")
+    kf = f"m3ring{n}"
+    return (f'<style>@keyframes {kf}{{{"".join(stops)}}}</style>'
+            f'<div class="m3-ringst"><div class="m3-ring" style="animation-name:{kf};animation-duration:{n * 3.2:.1f}s">'
+            + "".join(faces) + '</div></div>')

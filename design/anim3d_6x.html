@@ -1,0 +1,245 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3D Motion Mocks</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#161415; --panel:#232022; --panel2:#2c282a; --line:#332e30; --ink:#f2eef0; --muted:#a2989c; --mut2:#95898e;
+  --crimson:#ff336c; --crimson-d:#e02557; --deep:#a52733; --cream:#f3ead8; --gold:#e6b25c; --green:#7fd8b4; }
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{ background:#0e0d0d; color:var(--ink); font-family:Inter,sans-serif; padding:28px 16px 60px; }
+h1{ font-family:Oswald; font-style:italic; font-weight:700; font-size:30px; letter-spacing:-.03em; max-width:1240px; margin:0 auto 4px; }
+h1 em{ color:var(--crimson); font-style:italic; }
+.sub{ max-width:1240px; margin:0 auto 22px; color:var(--muted); font-size:13px; }
+.grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(380px,1fr)); gap:18px; max-width:1240px; margin:0 auto; }
+.cell{ background:var(--bg); border:1px solid var(--line); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; }
+.stage{ height:330px; position:relative; perspective:900px; display:grid; place-items:center; overflow:hidden;
+  background:radial-gradient(ellipse at 50% 40%,#2a1a1e 0%,#161415 70%); }
+.cap{ padding:12px 16px 14px; border-top:1px solid var(--line); }
+.cap .n{ font-family:'Roboto Mono'; font-size:10.5px; letter-spacing:.16em; color:var(--crimson); }
+.cap b{ font-family:Oswald; font-weight:500; font-size:17px; letter-spacing:.03em; text-transform:uppercase; margin-left:8px; }
+.cap p{ font-size:12.5px; color:var(--muted); margin-top:5px; line-height:1.45; }
+.cap i{ font-style:normal; color:var(--cream); }
+.mono{ font-family:'Roboto Mono',monospace; }
+
+/* ============ 1 · PLAYER CARD FLIP + TILT ============ */
+.card{ width:190px; height:262px; transform-style:preserve-3d; animation:flip 6s cubic-bezier(.6,.05,.3,1) infinite; }
+.card .f{ position:absolute; inset:0; border-radius:14px; backface-visibility:hidden; overflow:hidden;
+  border:1px solid #5a2128; box-shadow:0 30px 50px rgba(0,0,0,.55); }
+.card .front{ background:linear-gradient(160deg,#a52733 0%,#3a0f16 70%); }
+.card .front img{ position:absolute; bottom:46px; left:50%; width:190px; transform:translateX(-50%); filter:grayscale(1) contrast(1.1);
+  mix-blend-mode:luminosity; }
+.card .front .nm{ position:absolute; left:0; right:0; bottom:0; padding:9px 12px; background:#120c0d; }
+.card .front .nm b{ font-family:Oswald; font-size:19px; font-weight:600; text-transform:uppercase; display:block; }
+.card .front .nm small{ font-family:'Roboto Mono'; font-size:10px; color:var(--mut2); }
+.card .front .pos{ position:absolute; top:10px; left:12px; font-family:Oswald; font-size:30px; font-weight:700; color:var(--cream); }
+.card .shine{ position:absolute; inset:0; background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.22) 48%,transparent 60%);
+  background-size:250% 100%; animation:shine 6s linear infinite; mix-blend-mode:screen; }
+.card .back{ transform:rotateY(180deg); background:#1a1415; padding:16px; display:flex; flex-direction:column; gap:9px; }
+.card .back h4{ font-family:Oswald; font-size:16px; text-transform:uppercase; letter-spacing:.04em; }
+.card .back .row{ display:flex; justify-content:space-between; font-family:'Roboto Mono'; font-size:11.5px; color:var(--muted);
+  border-bottom:1px solid var(--line); padding-bottom:6px; }
+.card .back .row b{ color:var(--ink); font-weight:500; }
+.card .back .big{ font-family:Oswald; font-size:46px; font-weight:700; color:var(--crimson); line-height:1; margin-top:auto; }
+.card .back .big small{ font-family:'Roboto Mono'; font-size:10px; color:var(--mut2); display:block; letter-spacing:.12em; }
+@keyframes flip{ 0%,8%{ transform:rotateY(-18deg) rotateX(8deg); } 40%,58%{ transform:rotateY(180deg) rotateX(-6deg); }
+  90%,100%{ transform:rotateY(342deg) rotateX(8deg); } }
+@keyframes shine{ 0%{ background-position:150% 0; } 100%{ background-position:-100% 0; } }
+.floor{ position:absolute; bottom:34px; width:220px; height:30px; border-radius:50%; background:radial-gradient(rgba(255,51,108,.35),transparent 70%);
+  filter:blur(6px); }
+
+/* ============ 2 · ON THE CLOCK CUBE ============ */
+.cube{ width:150px; height:150px; position:relative; transform-style:preserve-3d; animation:cube 8s cubic-bezier(.7,0,.2,1) infinite; }
+.cube div{ position:absolute; inset:0; display:grid; place-items:center; align-content:center; border:1px solid #5a2128;
+  background:linear-gradient(150deg,#2a1218,#120c0d); }
+.cube div b{ font-family:Oswald; font-weight:700; font-size:58px; color:var(--cream); letter-spacing:-.02em; line-height:1; }
+.cube div small{ font-family:'Roboto Mono'; font-size:10px; letter-spacing:.16em; color:var(--crimson); margin-top:6px; }
+.cube .c1{ transform:translateZ(75px); } .cube .c2{ transform:rotateY(90deg) translateZ(75px); }
+.cube .c3{ transform:rotateY(180deg) translateZ(75px); } .cube .c4{ transform:rotateY(270deg) translateZ(75px); }
+.cube .c1{ background:linear-gradient(150deg,#e02557,#7a1424); } .cube .c1 small{ color:#ffd0dc; }
+@keyframes cube{ 0%,18%{ transform:rotateX(-14deg) rotateY(0); } 25%,43%{ transform:rotateX(-14deg) rotateY(-90deg); }
+  50%,68%{ transform:rotateX(-14deg) rotateY(-180deg); } 75%,93%{ transform:rotateX(-14deg) rotateY(-270deg); } 100%{ transform:rotateX(-14deg) rotateY(-360deg); } }
+.clockring{ position:absolute; width:250px; height:250px; border-radius:50%; border:2px solid rgba(255,51,108,.15);
+  transform:rotateX(74deg); animation:ring 2s linear infinite; }
+.clockring:after{ content:""; position:absolute; top:-5px; left:50%; width:9px; height:9px; border-radius:50%; background:var(--crimson);
+  box-shadow:0 0 14px var(--crimson); }
+@keyframes ring{ to{ transform:rotateX(74deg) rotateZ(360deg); } }
+
+/* ============ 3 · LEAGUE CAROUSEL ============ */
+.ring{ width:170px; height:110px; position:relative; transform-style:preserve-3d; animation:spin 14s cubic-bezier(.65,0,.35,1) infinite; }
+.ring .lg{ position:absolute; inset:0; border-radius:12px; padding:12px 14px; border:1px solid var(--line); background:#1d191a;
+  display:flex; flex-direction:column; justify-content:space-between; backface-visibility:hidden; box-shadow:0 18px 30px rgba(0,0,0,.5); }
+.ring .lg b{ font-family:Oswald; font-size:18px; text-transform:uppercase; letter-spacing:.03em; }
+.ring .lg .r{ font-family:Oswald; font-size:32px; font-weight:600; line-height:1; }
+.ring .lg small{ font-family:'Roboto Mono'; font-size:10px; color:var(--mut2); letter-spacing:.08em; }
+.ring .lg .dot{ position:absolute; top:13px; right:13px; width:8px; height:8px; border-radius:50%; background:var(--gold); }
+.ring .lg:nth-child(1){ transform:rotateY(0) translateZ(170px); border-color:var(--crimson); background:linear-gradient(160deg,#3a1020,#1d191a); }
+.ring .lg:nth-child(2){ transform:rotateY(90deg) translateZ(170px); }
+.ring .lg:nth-child(3){ transform:rotateY(180deg) translateZ(170px); }
+.ring .lg:nth-child(4){ transform:rotateY(270deg) translateZ(170px); }
+@keyframes spin{ 0%,20%{ transform:translateZ(-170px) rotateX(-8deg) rotateY(0); } 25%,45%{ transform:translateZ(-170px) rotateX(-8deg) rotateY(-90deg); }
+  50%,70%{ transform:translateZ(-170px) rotateX(-8deg) rotateY(-180deg); } 75%,95%{ transform:translateZ(-170px) rotateX(-8deg) rotateY(-270deg); }
+  100%{ transform:translateZ(-170px) rotateX(-8deg) rotateY(-360deg); } }
+
+/* ============ 4 · LOTTERY DRUM ============ */
+.drum{ width:200px; height:200px; position:relative; transform-style:preserve-3d; animation:tumble 5s linear infinite; }
+.drum .b{ position:absolute; left:50%; top:50%; width:26px; height:26px; margin:-13px; border-radius:50%;
+  display:grid; place-items:center; font-family:'Roboto Mono'; font-size:10px; font-weight:500; color:#120c0d;
+  background:radial-gradient(circle at 35% 30%,#fff 0%,var(--cream) 30%,#b8a98f 100%); }
+.drum .b.hot{ background:radial-gradient(circle at 35% 30%,#ffd0dc 0%,var(--crimson) 40%,#7a1424 100%); color:#fff; }
+.drum .wire{ position:absolute; inset:0; border-radius:50%; border:1px solid rgba(243,234,216,.18); }
+@keyframes tumble{ to{ transform:rotateX(360deg) rotateY(720deg); } }
+.draw{ position:absolute; right:22px; top:24px; text-align:right; }
+.draw small{ font-family:'Roboto Mono'; font-size:10px; letter-spacing:.16em; color:var(--mut2); display:block; }
+.draw b{ font-family:Oswald; font-size:44px; font-weight:700; color:var(--crimson); line-height:1; display:block; }
+.draw b, .draw span{ animation:pop 5s ease-in-out infinite; }
+.draw span{ font-size:12px; color:var(--cream); display:block; }
+@keyframes pop{ 0%,70%{ opacity:0; transform:translateY(14px) scale(.9); } 78%,96%{ opacity:1; transform:none; } 100%{ opacity:0; } }
+.chute{ position:absolute; width:26px; height:26px; border-radius:50%; left:50%; top:50%; margin:-13px;
+  background:radial-gradient(circle at 35% 30%,#ffd0dc 0%,var(--crimson) 40%,#7a1424 100%); box-shadow:0 0 18px var(--crimson);
+  font-family:'Roboto Mono'; font-size:10px; color:#fff; display:grid; place-items:center; animation:out 5s cubic-bezier(.5,0,.2,1) infinite; }
+@keyframes out{ 0%,62%{ opacity:0; transform:translate(0,0) scale(.4); } 70%{ opacity:1; transform:translate(0,0) scale(1); }
+  82%,96%{ opacity:1; transform:translate(120px,-96px) scale(1.5); } 100%{ opacity:0; transform:translate(120px,-96px) scale(1.5); } }
+
+/* ============ 5 · 3D WIN-PROB BARS ============ */
+.iso{ transform-style:preserve-3d; transform:rotateX(58deg) rotateZ(-38deg); display:flex; gap:26px; align-items:flex-end; margin-top:150px; }
+.col{ position:relative; width:46px; height:46px; transform-style:preserve-3d; }
+.col .top, .col .s1, .col .s2{ position:absolute; }
+.col .top{ inset:0; transform:translateZ(var(--h)); background:var(--c); animation:none; }
+.col .s1{ left:0; bottom:0; width:46px; height:var(--h); transform-origin:bottom; transform:rotateX(-90deg); background:var(--c2); }
+.col .s2{ left:46px; top:0; width:var(--h); height:46px; transform-origin:left; transform:rotateY(-90deg); background:var(--c3); }
+.col{ --c:#ff336c; --c2:#a52733; --c3:#7a1424; animation:grow 4s cubic-bezier(.4,0,.2,1) infinite alternate; }
+.col.them{ --c:#4a4245; --c2:#2c282a; --c3:#1d191a; }
+@property --h{ syntax:'<length>'; inherits:true; initial-value:10px; }
+.col:nth-child(1){ --to:118px; } .col:nth-child(2){ --to:78px; } .col:nth-child(3){ --to:96px; } .col:nth-child(4){ --to:58px; }
+@keyframes grow{ from{ --h:10px; } to{ --h:var(--to); } }
+.wp{ position:absolute; left:22px; top:22px; }
+.wp small{ font-family:'Roboto Mono'; font-size:10px; letter-spacing:.16em; color:var(--mut2); display:block; }
+.wp b{ font-family:Oswald; font-size:46px; font-weight:700; line-height:1; }
+.wp b em{ font-style:normal; color:var(--crimson); }
+.wp span{ font-size:12px; color:var(--muted); }
+.legend{ position:absolute; right:20px; bottom:16px; display:flex; gap:14px; font-family:'Roboto Mono'; font-size:10px; color:var(--mut2); }
+.legend i{ display:inline-block; width:9px; height:9px; margin-right:5px; vertical-align:-1px; background:var(--crimson); }
+.legend i.t{ background:#4a4245; }
+
+/* ============ 6 · SPLIT-FLAP SCORE ============ */
+.board{ display:flex; flex-direction:column; gap:12px; }
+.line{ display:flex; align-items:center; gap:10px; }
+.line .tm{ width:96px; font-family:Oswald; font-size:16px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); text-align:right; }
+.line.me .tm{ color:var(--ink); }
+.flap{ position:relative; width:44px; height:62px; perspective:300px; font-family:Oswald; font-weight:700; font-size:46px; color:var(--cream); }
+.flap .h{ position:absolute; left:0; right:0; height:50%; overflow:hidden; background:#1f1a1b; display:flex; justify-content:center; }
+.flap .h span{ line-height:62px; }
+.flap .t{ top:0; border-radius:6px 6px 0 0; align-items:flex-start; border-bottom:1px solid #0e0d0d; }
+.flap .b{ bottom:0; border-radius:0 0 6px 6px; align-items:flex-end; }
+.flap .b span{ margin-top:-31px; }
+.flap .t span{ }
+.flap .fold{ top:0; border-radius:6px 6px 0 0; transform-origin:bottom; backface-visibility:hidden; z-index:2;
+  animation:fold var(--d,3s) cubic-bezier(.5,0,.5,1) infinite; background:#2a2324; }
+.line.me .flap .h{ background:#3a1020; } .line.me .flap .fold{ background:#4a1428; }
+@keyframes fold{ 0%,70%{ transform:rotateX(0); } 85%,100%{ transform:rotateX(-180deg); } }
+.flap .nx{ animation:swap var(--d,3s) steps(1) infinite; }
+.flap .pv{ animation:swapb var(--d,3s) steps(1) infinite; }
+@keyframes swap{ 0%,78%{ opacity:0; } 79%,100%{ opacity:1; } }
+@keyframes swapb{ 0%,78%{ opacity:1; } 79%,100%{ opacity:0; } }
+.flap .stack{ position:relative; width:100%; height:100%; }
+.flap .stack span{ position:absolute; left:0; right:0; text-align:center; }
+.live{ font-family:'Roboto Mono'; font-size:10px; letter-spacing:.16em; color:var(--crimson); margin-bottom:4px; text-align:center; }
+.live:before{ content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--crimson); margin-right:7px;
+  box-shadow:0 0 0 0 rgba(255,51,108,.6); animation:ping 1.4s infinite; vertical-align:0; }
+@keyframes ping{ to{ box-shadow:0 0 0 9px rgba(255,51,108,0); } }
+
+@media (prefers-reduced-motion:reduce){ *{ animation-duration:0s !important; animation-iteration-count:1 !important; } }
+@media (max-width:420px){ .grid{ grid-template-columns:1fr; } .stage{ height:300px; } }
+</style></head><body>
+<h1>Bloody<em>Sunday</em> · 3D motion</h1>
+<p class="sub">Six live mocks, pure CSS 3D (no libraries), in the app's palette and fonts. Each one loops; all of them respect "reduce motion".</p>
+<div class="grid">
+
+<!-- 1 -->
+<div class="cell"><div class="stage">
+  <div class="floor"></div>
+  <div class="card">
+    <div class="f front"><span class="pos">WR</span>
+      <img src="https://sleepercdn.com/content/nfl/players/7564.jpg" alt="">
+      <div class="nm"><b>Ja'Marr Chase</b><small>CIN · WR1 · KEEP R3</small></div><div class="shine"></div></div>
+    <div class="f back"><h4>Ja'Marr Chase</h4>
+      <div class="row"><span>Week 7 proj</span><b>21.4</b></div>
+      <div class="row"><span>Season rank</span><b>WR2</b></div>
+      <div class="row"><span>2027 rank</span><b>#3</b></div>
+      <div class="row"><span>Keeper cost</span><b>R3</b></div>
+      <div class="big">+88<small>KEEPER VALUE</small></div></div>
+  </div></div>
+  <div class="cap"><span class="n">01</span><b>Player card flip</b>
+    <p>Tap a player and the card turns over to his numbers, catching a light sweep as it turns. <i>Where:</i> Rankings, Waivers, the 2027 board.</p></div></div>
+
+<!-- 2 -->
+<div class="cell"><div class="stage">
+  <div class="clockring"></div>
+  <div class="cube">
+    <div class="c1"><b>1.01</b><small>ON THE CLOCK</small></div>
+    <div class="c2"><b>1.02</b><small>GRANT</small></div>
+    <div class="c3"><b>1.03</b><small>DEVIN</small></div>
+    <div class="c4"><b>1.04</b><small>IAN</small></div>
+  </div></div>
+  <div class="cap"><span class="n">02</span><b>On the clock</b>
+    <p>The pick number is a cube that rolls to the next slot after each pick, with a timer orbiting beneath it. <i>Where:</i> Live Draft, Practice draft.</p></div></div>
+
+<!-- 3 -->
+<div class="cell"><div class="stage">
+  <div class="ring">
+    <div class="lg"><span class="dot"></span><b>Kreeper</b><span class="r">4-2</span><small>3RD · VS NED · 61%</small></div>
+    <div class="lg"><span class="dot"></span><b>Babies &amp; Boomer</b><span class="r">2-10</span><small>9TH · VS GRANT · 38%</small></div>
+    <div class="lg"><span class="dot"></span><b>7½ Men</b><span class="r">8-4</span><small>2ND · VS THAD · 57%</small></div>
+    <div class="lg"><span class="dot"></span><b>TD's</b><span class="r">5-1</span><small>1ST · VS MIKE · 72%</small></div>
+  </div></div>
+  <div class="cap"><span class="n">03</span><b>League carousel</b>
+    <p>Switching leagues spins a ring of four league cards: record, place, opponent, win odds. <i>Where:</i> Home, the league rail.</p></div></div>
+
+<!-- 4 -->
+<div class="cell"><div class="stage">
+  <div class="drum" id="drum"><div class="wire"></div><div class="wire" style="transform:rotateY(90deg)"></div><div class="wire" style="transform:rotateX(90deg)"></div></div>
+  <div class="chute">1</div>
+  <div class="draw"><small>2027 · FIRST CHOICE</small><b>1.01</b><span>Brandon · 26% odds</span></div></div>
+  <div class="cap"><span class="n">04</span><b>Lottery drum</b>
+    <p>Balls weighted like the league's real lottery tumble in a wire sphere; one drops out and reveals a slot. <i>Where:</i> the draft-order odds, lottery night.</p></div></div>
+
+<!-- 5 -->
+<div class="cell"><div class="stage">
+  <div class="wp"><small>WEEK 7 · WIN PROBABILITY</small><b><em>61</em>%</b><br><span>you 124.8 · Ned 113.2 projected</span></div>
+  <div class="iso">
+    <div class="col"><div class="s1"></div><div class="s2"></div><div class="top"></div></div>
+    <div class="col them"><div class="s1"></div><div class="s2"></div><div class="top"></div></div>
+    <div class="col"><div class="s1"></div><div class="s2"></div><div class="top"></div></div>
+    <div class="col them"><div class="s1"></div><div class="s2"></div><div class="top"></div></div>
+  </div>
+  <div class="legend"><span><i></i>you</span><span><i class="t"></i>them</span><span>QB · RB · WR · TE</span></div></div>
+  <div class="cap"><span class="n">05</span><b>Matchup towers</b>
+    <p>Position groups rise as isometric towers, yours in crimson against theirs, and grow as the projections move. <i>Where:</i> Matchup, Live.</p></div></div>
+
+<!-- 6 -->
+<div class="cell"><div class="stage">
+  <div class="board">
+    <div class="live">LIVE · Q3 · 8:42</div>
+    <div class="line me"><span class="tm">Brandon</span>
+      <div class="flap" style="--d:3.2s"><div class="h t"><div class="stack"><span class="pv">1</span><span class="nx">1</span></div></div><div class="h b"><div class="stack"><span class="pv">1</span><span class="nx">1</span></div></div></div>
+      <div class="flap" style="--d:3.2s"><div class="h t"><div class="stack"><span class="pv">0</span><span class="nx">0</span></div></div><div class="h b"><div class="stack"><span class="pv">0</span><span class="nx">0</span></div></div></div>
+      <div class="flap" style="--d:3.2s"><div class="h t"><div class="stack"><span class="pv">4</span><span class="nx">8</span></div></div><div class="h b"><div class="stack"><span class="pv">4</span><span class="nx">8</span></div></div><div class="h fold"><span>4</span></div></div>
+    </div>
+    <div class="line"><span class="tm">Ned</span>
+      <div class="flap" style="--d:4.1s"><div class="h t"><div class="stack"><span class="pv">0</span><span class="nx">0</span></div></div><div class="h b"><div class="stack"><span class="pv">0</span><span class="nx">0</span></div></div></div>
+      <div class="flap" style="--d:4.1s"><div class="h t"><div class="stack"><span class="pv">9</span><span class="nx">9</span></div></div><div class="h b"><div class="stack"><span class="pv">9</span><span class="nx">9</span></div></div></div>
+      <div class="flap" style="--d:4.1s"><div class="h t"><div class="stack"><span class="pv">1</span><span class="nx">7</span></div></div><div class="h b"><div class="stack"><span class="pv">1</span><span class="nx">7</span></div></div><div class="h fold"><span>1</span></div></div>
+    </div>
+  </div></div>
+  <div class="cap"><span class="n">06</span><b>Split-flap scoreboard</b>
+    <p>Live scores tick over like a stadium board, one flap per digit, every time a play lands. <i>Where:</i> Live, Home, the Mac menu-bar card.</p></div></div>
+
+</div>
+<script>
+// lottery balls on a sphere, a few "hot" (the heaviest weights)
+const d=document.getElementById('drum'); const n=26;
+for(let i=0;i<n;i++){ const y=1-2*(i+.5)/n, r=Math.sqrt(1-y*y), th=i*2.39996;
+  const b=document.createElement('div'); b.className='b'+(i%7===0?' hot':''); b.textContent=String(i%10+1);
+  const R=88; b.style.transform=`translate3d(${Math.cos(th)*r*R}px,${y*R}px,${Math.sin(th)*r*R}px)`; d.appendChild(b); }
+</script>
+</body></html>

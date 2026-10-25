@@ -290,6 +290,18 @@ def _render_pulse(presets, on_pick) -> None:
     st.markdown(C.day_band_html(kicker=band["kicker"], title=band["title"], sub=band["sub"],
                                 number=band.get("number"), number_label=band.get("label", "")),
                 unsafe_allow_html=True)
+    # every league on one turning ring: record, this week's game, the odds
+    _ring = []
+    for preset, p in zip(presets, pulses):
+        if not p.get("ok"):
+            continue
+        _sc = f' · {p.get("me_pts")}–{p.get("opp_pts")}' if p.get("me_pts") not in (None, "") else ""
+        _ring.append({"name": p.get("name") or preset.get("label"), "rec": p.get("record") or "",
+                      "line": f'vs {p.get("opp_name") or "—"}{_sc}', "pct": p.get("win_pct"),
+                      "on": p.get("action") in ("Fix lineup", "Decide", "Claim")})
+    _rh = C.league_ring_html(_ring)
+    if _rh:
+        st.markdown(_rh, unsafe_allow_html=True)
     for preset, p in zip(presets, pulses):
         lkey = f"{preset['platform']}_{preset['league_id']}"
         with st.container(key=f"hmrow_{lkey}"):

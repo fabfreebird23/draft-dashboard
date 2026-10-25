@@ -1038,7 +1038,12 @@ def _live_body(ctx, g, *, bound_auto: bool, bound_every: int) -> None:
     _kicked = bool(ps["live"] or ps["done"])
     _wk_lab = ("LIVE" if _n_live else "FINAL" if left_me == 0 else
                "BETWEEN GAMES" if _kicked else "BEFORE KICKOFF") + f" · WEEK {week}"
+    # the split-flap score: whatever changed since the last poll folds over
+    _fk = f"lv_prev_{ctx['league_key']}"
+    _flaps = st.session_state.get(_fk) or (f"{me_pts:.1f}", f"{opp_pts:.1f}" if opp else "—")
+    st.session_state[_fk] = (f"{me_pts:.1f}", f"{opp_pts:.1f}" if opp else "—")
     st.markdown(C.scoreboard_html(
+        flaps=_flaps,
         me_name="You", me_rec=_record(g, g["me"]), me_pts=f"{me_pts:.1f}",
         me_sub=f"{left_me} still to play · {me_end:.0f} projected",
         me_photo=_top_photo(reg, g, [p for _s, p in mcur]),
@@ -2977,10 +2982,32 @@ def _matchup(ctx, g) -> None:
         _sb = dict(me_pts=f"{mm:.1f}", opp_pts=f"{om:.1f}", win_pct=100 * wp,
                    label=f'PROJECTED · WEEK {g["week"]}',
                    me_sub=f"set lineup · {ms:.0f}-pt spread", opp_sub=f"set lineup · {os_:.0f}-pt spread")
+    if started:
+        _fk = f"mu_prev_{ctx['league_key']}"
+        _sb["flaps"] = st.session_state.get(_fk) or (_sb["me_pts"], _sb["opp_pts"])
+        st.session_state[_fk] = (_sb["me_pts"], _sb["opp_pts"])
     st.markdown(C.scoreboard_html(
         me_name="You", me_rec=_record(g, g["me"]), me_photo=_top_photo(reg, g, g["starters"]),
         opp_name=them, opp_rec=_record(g, oid), opp_photo=_top_photo(reg, g, ost),
         tiles=_tiles_m, **_sb), unsafe_allow_html=True)
+    # the two lineups as towers, position by position, projected
+    try:
+        def _by_pos(pids):
+            out = {}
+            for p_ in pids or []:
+                if not p_ or str(p_) == "0":
+                    continue
+                ps_ = (reg.meta(str(p_)).position or "").upper()
+                ps_ = "DEF" if ps_ in ("DST", "D/ST") else ps_
+                out[ps_] = out.get(ps_, 0.0) + float(g["proj"].get(str(p_), 0) or 0)
+            return out
+        _a, _b = _by_pos(g["starters"]), _by_pos(ost)
+        _order = [x for x in ("QB", "RB", "WR", "TE", "K", "DEF") if x in _a or x in _b]
+        if _order:
+            st.markdown(C.towers_html([(x, _a.get(x, 0.0), _b.get(x, 0.0)) for x in _order],
+                                      me="You", them=them), unsafe_allow_html=True)
+    except Exception:  # noqa: BLE001 — a picture, never worth the tab
+        pass
     if started:
         st.markdown(C.still_to_play_html([
             (f'Yours still to play · {len(ps["pre"]) + len(ps["live"])}',
@@ -3796,7 +3823,12 @@ def _practice_panel(ctx, cells, clock, state, key, pool, pos_of, proj, nm, nxt, 
         return f"{nm(pid)} · {pos_of.get(pid, '')} · #{rk}" if rk else nm(pid)
     if clock:
         gone = sum(1 for c in cells.values() if c["pick"] < clock["pick"])
-        st.markdown(f'<div class="np-clk"><span>ON THE CLOCK</span><b>{clock["round"]}.{clock["slot"]:02d}</b>'
+        _lab = f'{clock["round"]}.{clock["slot"]:02d}'
+        _lk = f"np_last_{lk}"
+        _prev = st.session_state.get(_lk)
+        st.session_state[_lk] = _lab
+        _cube = C.clock_cube_html(_lab, "ON THE CLOCK", _prev if _prev and _prev != _lab else None, "DRAFTED")
+        st.markdown(f'<div class="np-clk"><span>ON THE CLOCK</span>{_cube}'
                     f'<i>pick #{clock["pick"]} &middot; {gone} gone, keepers included &middot; '
                     f'best left: {_esc_(nm(avail[0])) if avail else "—"}</i></div>', unsafe_allow_html=True)
         # his roster so far shapes the CPU's caps, not his: he can take a 3rd QB
@@ -4043,6 +4075,9 @@ def _next_board(ctx, g) -> None:
                 "final": "final standing incl. the Chase, champion floored, two choices drawn",
                 "chase": "Chase winner, then worst to best, champion last"}.get(_spec.get("style"), "")
         with st.container(key=f"lo_{ctx['league_key']}"):
+            if _best:
+                st.markdown(C.drum_html(slot=_best, pct=_mine[_best - 1], top3=sum(_mine[:3]), n_teams=len(owners),
+                                        my_share=(_mine[0] / 100 if _mine else 0.1), season=nxt), unsafe_allow_html=True)
             st.markdown(f'<div class="ws-h">{nxt} draft-order odds &middot; 10,000 seasons &middot; '
                         f'{_esc_(_how)}</div>' + _odds_html(odds, owners, me, first)
                         + (f'<div class="lo-k">You: likeliest <b>slot {_best}</b> ({_mine[_best - 1]:.0f}%) '
