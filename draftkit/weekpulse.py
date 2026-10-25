@@ -266,7 +266,8 @@ def day_band(pulses: list, week: int, phase: str) -> dict:
     if live:
         lead = sum(1 for p in live if _num(p.get("me_pts")) > _num(p.get("opp_pts")))
         return {"kicker": kicker, "title": f"Games on — leading in {lead} of {len(live)}",
-                "sub": " · ".join(f'{p["name"]} {p.get("me_pts")}–{p.get("opp_pts")}' for p in live[:4]),
+                # the scores themselves are on the league ring and the rows right below
+                "sub": "every score is in the rows below",
                 "number": str(sum(len(p.get("chips") or []) and 1 for p in live)), "label": "live"}
     if phase == "waivers" and claims:
         return {"kicker": kicker,

@@ -295,7 +295,9 @@ def _render_pulse(presets, on_pick) -> None:
         if not p.get("ok"):
             continue
         _sc = f' · {p.get("me_pts")}–{p.get("opp_pts")}' if p.get("me_pts") not in (None, "") else ""
-        _ring.append({"name": p.get("name") or preset.get("label"), "rec": p.get("record") or "",
+        _pp = p.get("playoff_pct")
+        _ring.append({"name": p.get("name") or preset.get("label"),
+                      "rec": p.get("record") or "", "po": (f"{_pp:.0f}% playoffs" if _pp is not None else ""),
                       "line": f'vs {p.get("opp_name") or "—"}{_sc}', "pct": p.get("win_pct"),
                       "on": p.get("action") in ("Fix lineup", "Decide", "Claim")})
     _rh = C.league_ring_html(_ring)

@@ -3350,6 +3350,7 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 .m3-lc.on{ border-color:var(--crimson); }
 .m3-lc .nm{ font-family:'Oswald',sans-serif; font-size:15px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink); }
 .m3-lc b{ font-family:'Oswald',sans-serif; font-weight:600; font-size:32px; line-height:1; color:var(--ink); }
+.m3-lc b .po{ font-family:'Roboto Mono',monospace; font-weight:400; font-size:10.5px; color:var(--crimson); margin-left:8px; letter-spacing:0; vertical-align:6px; }
 .m3-lc em{ font-style:normal; font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .m3-lc .wp{ height:4px; background:var(--panel2); border-radius:3px; margin-top:auto; overflow:hidden; }
 .m3-lc .wp i{ display:block; height:100%; background:var(--crimson); }

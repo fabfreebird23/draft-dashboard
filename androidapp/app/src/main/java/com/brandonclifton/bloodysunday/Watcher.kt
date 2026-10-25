@@ -26,8 +26,10 @@ import java.util.concurrent.TimeUnit
  * a buzz and they are the two he picked:
  *
  *   LOCK — a starter is questionable or out and a man on his bench plays the
- *          same week at the same slot for more points. Raised once per player
- *          per week, and only while the news can still be acted on.
+ *          same week at the same slot for more points (or, ruled out, nobody
+ *          covers him). Raised once per player per STATUS per week — so a
+ *          downgrade to Out still buzzes — and only while both men's games
+ *          are still to play.
  *   FLIP — a matchup changes hands. Not a fresh probability every tick, which
  *          would be noise: only when the projected winner is not who it was
  *          the last time this ran.
@@ -75,6 +77,7 @@ class Watcher(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, par
         fun check(ctx: Context) {
             val state = State(ctx)
             val week = nflWeek() ?: return
+            games = gameStates()
             for (lg in Config.LEAGUES) {
                 val id = state.leagueId(lg.slug) ?: continue
                 try {
@@ -159,6 +162,8 @@ class Watcher(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, par
                 val p = players.optJSONObject(pid) ?: continue
                 val status = p.optString("injury_status", "")
                 if (status !in setOf("Questionable", "Doubtful", "Out", "IR")) continue
+                // kicked off = locked in his slot; nothing to tell him
+                if (!open(p.optString("team", ""))) continue
                 val pos = p.optString("position", "")
                 val mine_pts = proj.optDouble(pid, 0.0)
                 var best: Pair<String, Double>? = null
@@ -166,13 +171,26 @@ class Watcher(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, par
                     val bp = players.optJSONObject(b) ?: continue
                     if (bp.optString("position", "") != pos) continue
                     if (bp.optString("injury_status", "") in setOf("Out", "IR")) continue
+                    if (!open(bp.optString("team", ""))) continue
                     val bpts = proj.optDouble(b, 0.0)
                     if (bpts <= mine_pts) continue
                     if (best == null || bpts > best!!.second) best = b to bpts
                 }
-                val swap = best ?: continue
-                val key = "lock_${lg.slug}_${week}_$pid"
-                if (state.getBool(key) != null) continue     // said once is enough
+                val name0 = (p.optString("first_name", "") + " " + p.optString("last_name", "")).trim()
+                // keyed by STATUS too: Friday's "questionable" must not swallow
+                // Sunday's "ruled out" — that downgrade is the alert that matters
+                val key = "lock_${lg.slug}_${week}_${pid}_$status"
+                if (state.getBool(key) != null) continue     // said once per status
+                val swap = best
+                if (swap == null) {
+                    // ruled out with nobody on the bench to cover: the wire is the move
+                    if (status in setOf("Out", "IR")) {
+                        state.putBool(key, true)
+                        notify(ctx, key.hashCode(), "${lg.label}: $name0 is ${status.lowercase()}",
+                            "Nobody on your bench covers the $pos — check the wire before his game.")
+                    }
+                    continue
+                }
                 state.putBool(key, true)
                 val bname = players.optJSONObject(swap.first)?.let {
                     it.optString("first_name", "") + " " + it.optString("last_name", "")
@@ -201,6 +219,32 @@ class Watcher(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, par
                 .build()
             ctx.getSystemService(NotificationManager::class.java).notify(id, n)
         }
+
+        /** Team (Sleeper's abbreviation) -> "pre" / "in" / "post" for this week, from
+         *  ESPN's public scoreboard. Empty when it can't be read, which means "assume
+         *  everyone is still to play" rather than going quiet. */
+        @Volatile private var games: Map<String, String> = emptyMap()
+
+        private fun gameStates(): Map<String, String> {
+            val sb = json("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard")
+                as? JSONObject ?: return emptyMap()
+            val out = HashMap<String, String>()
+            val evs = sb.optJSONArray("events") ?: return out
+            for (i in 0 until evs.length()) {
+                val ev = evs.getJSONObject(i)
+                val state = ev.optJSONObject("status")?.optJSONObject("type")?.optString("state") ?: continue
+                val comps = ev.optJSONArray("competitions")?.optJSONObject(0)?.optJSONArray("competitors") ?: continue
+                for (j in 0 until comps.length()) {
+                    var abbr = comps.getJSONObject(j).optJSONObject("team")?.optString("abbreviation") ?: continue
+                    if (abbr == "WSH") abbr = "WAS"          // the one name the two disagree on
+                    out[abbr] = state
+                }
+            }
+            return out
+        }
+
+        /** Still to play: his game hasn't kicked off (or we can't tell). */
+        private fun open(team: String): Boolean = games[team]?.let { it == "pre" } ?: true
 
         fun json(url: String): Any? {
             val c = URL(url).openConnection() as HttpURLConnection

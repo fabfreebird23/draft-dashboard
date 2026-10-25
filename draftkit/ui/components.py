@@ -3002,9 +3002,10 @@ def league_ring_html(cards) -> str:
     faces = []
     for i, c in enumerate(cards):
         pct = c.get("pct")
+        po = f'<span class="po">{_esc(c["po"])}</span>' if c.get("po") else ""
         faces.append(
             f'<div class="m3-lc{" on" if c.get("on") else ""}" style="transform:rotateY({i * step:.1f}deg) translateZ({rad}px)">'
-            f'<span class="nm">{_esc(c["name"])}</span><b>{_esc(c.get("rec") or "—")}</b>'
+            f'<span class="nm">{_esc(c["name"])}</span><b>{_esc(c.get("rec") or "—")}{po}</b>'
             f'<em>{_esc(c.get("line") or "")}</em>'
             + (f'<div class="wp"><i style="width:{max(0, min(100, pct)):.0f}%"></i></div><small>{pct:.0f}% to win this week</small>'
                if pct is not None else "<small>&nbsp;</small>") + "</div>")
