@@ -2912,19 +2912,39 @@ def flap_html(text: str, prev: Optional[str] = None) -> str:
 
 
 def towers_html(groups, *, me="You", them="Them", note="projected points by position") -> str:
-    """[(pos, mine, theirs)] as isometric towers, yours crimson against theirs —
-    each pair grows from the floor on render."""
+    """[(pos, mine, theirs)] as isometric towers, yours crimson in front, theirs
+    grey just behind — drawn in SVG so each pair stands exactly over its own
+    label (a rotated CSS plane drifted the towers off their columns), and each
+    grows from the floor on render."""
+    n = max(1, len(groups))
+    gw, w, dx, dy, floor, hmax = 128, 30, 16, -9, 176, 132
     top = max([max(a, b) for _p, a, b in groups] + [1.0])
-    cols, labs = [], []
+    W_ = gw * n
+
+    def prism(x, yb, h, cls, dl):
+        h = max(3.0, h)
+        front = f'<rect x="{x}" y="{yb - h:.1f}" width="{w}" height="{h:.1f}" class="f"/>'
+        side = (f'<polygon class="s" points="{x + w},{yb} {x + w + dx},{yb + dy} '
+                f'{x + w + dx},{yb + dy - h:.1f} {x + w},{yb - h:.1f}"/>')
+        topf = (f'<polygon class="t" points="{x},{yb - h:.1f} {x + w},{yb - h:.1f} '
+                f'{x + w + dx},{yb + dy - h:.1f} {x + dx},{yb + dy - h:.1f}"/>')
+        return f'<g class="m3-pr {cls}" style="--dl:{dl}ms">{side}{front}{topf}</g>'
+
+    body, labs = [], []
     for i, (pos, a, b) in enumerate(groups):
-        for side, v in (("me", a), ("op", b)):
-            h = max(4, round(v / top * 118))
-            cols.append(f'<div class="m3-col {side}" style="--h:{h}px;--dl:{i * 90}ms">'
-                        f'<i class="s1"></i><i class="s2"></i><i class="tp"></i></div>')
+        cx = gw * i + gw / 2
+        # theirs first (behind and to the right), then yours in front
+        body.append(prism(cx - 4, floor - 10, b / top * hmax, "op", i * 90 + 60))
+        body.append(prism(cx - w - 8, floor, a / top * hmax, "me", i * 90))
         win = "me" if a > b + 0.05 else "op" if b > a + 0.05 else ""
-        labs.append(f'<div class="m3-tl {win}"><b>{_esc(pos)}</b><span>{a:.1f}</span><em>{b:.1f}</em></div>')
-    return (f'<div class="m3-tw"><div class="m3-iso">{"".join(cols)}</div>'
-            f'<div class="m3-tls">{"".join(labs)}</div>'
+        labs.append(f'<line x1="{cx - 52}" x2="{cx + 52}" y1="{floor + 12}" y2="{floor + 12}" class="m3-ln {win}"/>'
+                    f'<text x="{cx}" y="{floor + 34}" class="m3-tp">{_esc(pos)}</text>'
+                    f'<text x="{cx - 6}" y="{floor + 52}" class="m3-tv me" text-anchor="end">{a:.1f}</text>'
+                    f'<text x="{cx + 6}" y="{floor + 52}" class="m3-tv op" text-anchor="start">{b:.1f}</text>')
+    svg = (f'<svg class="m3-svg" viewBox="0 0 {W_} {floor + 60}" preserveAspectRatio="xMidYMax meet" '
+           f'role="img" aria-label="Projected points by position, you against {_esc(them)}">'
+           + "".join(body) + "".join(labs) + "</svg>")
+    return (f'<div class="m3-tw" style="--tw:{W_}px">{svg}'
             f'<div class="m3-tk"><span><i class="me"></i>{_esc(me)}</span><span><i class="op"></i>{_esc(them)}</span>'
             f'<span>{_esc(note)}</span></div></div>')
 

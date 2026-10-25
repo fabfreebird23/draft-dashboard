@@ -1877,10 +1877,37 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .st-key-navbar{ border-bottom:1px solid var(--line); margin-bottom:12px !important; }
 .st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"],
 .st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] > div{ width:100%; border:0 !important; }
-.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button:last-of-type{ margin-left:auto !important; }
+/* the tabs take the row; the Sleeper link takes only what it needs, and a tab
+   never shrinks to "COMMAND CEN…" — past the edge the row scrolls instead */
+.st-key-navbar [data-testid="stHorizontalBlock"]{ flex-wrap:nowrap !important; }
+.st-key-navbar [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child{ flex:1 1 auto !important; min-width:0 !important; width:auto !important; }
+.st-key-navbar [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child{ flex:0 0 auto !important; width:auto !important; min-width:0 !important; }
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"]{ overflow-x:auto; scrollbar-width:none; }
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"]::-webkit-scrollbar{ display:none; }
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button{ flex:0 0 auto !important; }
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button p{ overflow:visible !important; text-overflow:clip !important; }
+/* the league rail keeps one line too */
+.st-key-tb_league_pick [data-testid="stButtonGroup"] > div{ flex-wrap:nowrap !important; overflow-x:auto; scrollbar-width:none; }
+.st-key-tb_league_pick [data-testid="stButtonGroup"] button{ flex:0 0 auto !important; }
+@media (max-width:1180px){
+  .tb-id{ flex-wrap:wrap; row-gap:3px; }
+  .tb-wk-in{ flex-basis:100%; margin-left:0; font-size:9px; }
+  .st-key-tb_leagues [data-testid="stButtonGroup"] button{ margin-left:12px !important; }
+  .st-key-tb_leagues [data-testid="stButtonGroup"] button p{ font-size:12.5px !important; }
+  .st-key-tb_leagues [data-testid="stButtonGroup"] button p::after{ margin-left:4px; }
+}
+/* More sits right after Trades: pushed to the far edge it left a dead gap on
+   wide screens and, on mid widths, pushed the row past its box so it
+   scrolled and clipped "WAIVERS" at the left */
+.st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] > div{ flex-wrap:nowrap !important; overflow:visible; }
+@media (max-width:1180px){
+  .st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button{ padding:10px 11px 11px !important; }
+  .st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button p{ font-size:14.5px !important; letter-spacing:.04em; }
+  .st-key-navbar [class*="st-key-nav_in_"] [data-testid="stButtonGroup"] button[kind="segmented_controlActive"]::after{ left:11px; right:11px; }
+}
 .st-key-navbar .ws-ext{ justify-content:flex-end; margin:0; }
 .st-key-tb_leagues [data-testid="stButtonGroup"], .st-key-tb_leagues [data-testid="stButtonGroup"] > div,
-.st-key-tb_leagues [data-testid="stButtonGroup"] div:has(> button){ width:100%; justify-content:flex-end !important; }
+.st-key-tb_leagues [data-testid="stButtonGroup"] div:has(> button){ width:100%; justify-content:safe flex-end !important; }
 .st-key-tb_league_pick, .st-key-navbar [class*="st-key-nav_in_"]{ width:100% !important; }
 .st-key-tb_league_pick [data-testid="stButtonGroup"], .st-key-tb_league_pick [data-testid="stButtonGroup"] > div{ width:100% !important; }
 /* Streamlit closes every button group with a flex:10000 ::after spacer, which
@@ -2738,6 +2765,17 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .xb-tiles i{ font-style:normal; font-size:11.5px; color:#a2989c; }
 .xb-gap{ height:12px; }
+/* a laptop-width pane gives each side ~270px — the photo beside the score
+   took all of it and the score collapsed to nothing, so from here down the
+   photo sits behind the number the way it does on a phone */
+@media (max-width:1180px){
+  .xb-side{ position:relative; }
+  .xb-side.me{ justify-content:flex-end; } .xb-side.op{ justify-content:flex-start; }
+  .xb-ph{ position:absolute; bottom:0; height:170px; margin:0; z-index:0; }
+  .xb-side.me .xb-ph{ left:-10px; } .xb-side.op .xb-ph{ right:-10px; opacity:.45; }
+  .xb-t{ position:relative; z-index:1; flex:0 0 auto; max-width:100%; } .xb-side.me .xb-t{ text-align:right; }
+  .xb-side.me .xb-t .m3-flap{ justify-content:flex-end; }
+}
 @media (max-width:760px){
   .xb{ grid-template-columns:1fr 1fr; min-height:0; }
   .xb-mid{ grid-column:1 / -1; grid-row:2; flex-direction:row; flex-wrap:wrap; gap:4px 10px; padding:8px 12px; }
@@ -3193,8 +3231,8 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 .kx-v small{ display:block; font-family:'Roboto Mono',monospace; font-size:9px; letter-spacing:.14em; color:#95898e; font-weight:400; }
 
 /* 6 · split-flap score digits */
-.m3-flap{ display:inline-flex; gap:3px; align-items:stretch; }
-.m3-fl{ position:relative; display:inline-block; width:.62em; height:1em; perspective:300px; }
+.m3-flap{ display:inline-flex; gap:2px; align-items:stretch; }
+.m3-fl{ position:relative; display:inline-block; width:.54em; height:1em; perspective:300px; }
 .m3-fl > span{ position:absolute; left:0; right:0; height:50%; overflow:hidden; background:rgba(0,0,0,.28); }
 .m3-fl > span i{ position:absolute; left:0; right:0; height:1em; line-height:1em; text-align:center; font-style:normal; }
 .m3-fl .t, .m3-fl .lt{ top:0; border-radius:.06em .06em 0 0; }
@@ -3217,29 +3255,24 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 .xb-t .m3-fp{ display:inline-block !important; }
 .xb-t .m3-fl > span > i{ display:block !important; position:absolute !important; height:1em !important; }
 .xb-side.me .xb-t .m3-flap{ justify-content:flex-start; }
+/* flap digits are boxes, not glyphs, so they run wider than the plain number;
+   on anything short of a big screen they shrink with the column instead of
+   crushing the line under them to a letter a row */
+.xb-t b > .m3-flap{ font-size:clamp(30px, 4.3vw, 76px) !important; }
+.xb-t{ min-width:0; } .xb-t i{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
+@media (max-width:760px){ .xb-t b > .m3-flap{ font-size:38px !important; } }
 
-/* 5 · matchup towers */
-.m3-tw{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px 12px; margin:6px 0 14px; overflow:hidden; }
-.m3-iso{ height:190px; display:flex; align-items:flex-end; justify-content:center; gap:18px; transform-style:preserve-3d;
-  transform:rotateX(58deg) rotateZ(-38deg); margin:0 auto; }
-.m3-col{ position:relative; width:34px; height:34px; transform-style:preserve-3d; --c:#ff336c; --c2:#a52733; --c3:#7a1424; }
-.m3-col.op{ --c:#4a4245; --c2:#2c282a; --c3:#1d191a; margin-right:14px; }
-.m3-col i{ position:absolute; display:block; }
-.m3-col .tp{ inset:0; background:var(--c); transform:translateZ(var(--h)); animation:m3tp 1.1s cubic-bezier(.3,.9,.3,1) var(--dl,0ms) 1 both; }
-.m3-col .s1{ left:0; bottom:0; width:34px; height:var(--h); transform-origin:bottom; background:var(--c2);
-  transform:rotateX(-90deg) scaleY(1); animation:m3s1 1.1s cubic-bezier(.3,.9,.3,1) var(--dl,0ms) 1 both; }
-.m3-col .s2{ left:34px; top:0; width:var(--h); height:34px; transform-origin:left; background:var(--c3);
-  transform:rotateY(-90deg) scaleX(1); animation:m3s2 1.1s cubic-bezier(.3,.9,.3,1) var(--dl,0ms) 1 both; }
-@keyframes m3tp{ from{ transform:translateZ(0); } }
-@keyframes m3s1{ from{ transform:rotateX(-90deg) scaleY(0); } }
-@keyframes m3s2{ from{ transform:rotateY(-90deg) scaleX(0); } }
-.m3-tls{ display:flex; justify-content:center; gap:10px; margin-top:4px; flex-wrap:wrap; }
-.m3-tl{ min-width:74px; text-align:center; font-family:'Roboto Mono',monospace; font-size:11px; color:var(--mut2);
-  border-top:2px solid var(--line); padding-top:5px; }
-.m3-tl b{ display:block; font-family:'Oswald',sans-serif; font-weight:500; font-size:14px; letter-spacing:.06em; color:var(--ink); }
-.m3-tl span{ color:var(--crimson); margin-right:6px; } .m3-tl em{ font-style:normal; }
-.m3-tl.me{ border-top-color:var(--crimson); } .m3-tl.op{ border-top-color:#6c6367; }
-.m3-tk{ display:flex; justify-content:flex-end; gap:14px; margin-top:8px; font-family:'Roboto Mono',monospace; font-size:10px; color:var(--mut2); }
+/* 5 · matchup towers (SVG) */
+.m3-tw{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px 12px; margin:6px 0 14px; }
+.m3-svg{ display:block; width:100%; max-width:var(--tw); height:auto; margin:0 auto; overflow:visible; }
+.m3-pr .f{ fill:#a52733; } .m3-pr .s{ fill:#6e1824; } .m3-pr .t{ fill:#ff336c; }
+.m3-pr.op .f{ fill:#332e30; } .m3-pr.op .s{ fill:#221e20; } .m3-pr.op .t{ fill:#4a4245; }
+.m3-pr{ transform-box:fill-box; transform-origin:50% 100%; animation:m3grow 1.1s cubic-bezier(.3,.9,.3,1) var(--dl,0ms) 1 backwards; }
+@keyframes m3grow{ from{ transform:scaleY(0); } }
+.m3-ln{ stroke:var(--line); stroke-width:2; } .m3-ln.me{ stroke:#ff336c; } .m3-ln.op{ stroke:#6c6367; }
+.m3-tp{ font-family:'Oswald',sans-serif; font-weight:500; font-size:17px; letter-spacing:.06em; fill:var(--ink); text-anchor:middle; }
+.m3-tv{ font-family:'Roboto Mono',monospace; font-size:13px; } .m3-tv.me{ fill:#ff336c; } .m3-tv.op{ fill:var(--mut2); }
+.m3-tk{ display:flex; justify-content:flex-end; gap:14px; margin-top:6px; font-family:'Roboto Mono',monospace; font-size:10px; color:var(--mut2); flex-wrap:wrap; }
 .m3-tk i{ display:inline-block; width:9px; height:9px; margin-right:5px; vertical-align:-1px; background:#ff336c; }
 .m3-tk i.op{ background:#4a4245; }
 
@@ -3297,12 +3330,11 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 .m3-lc small{ font-family:'Roboto Mono',monospace; font-size:9.5px; color:var(--mut2); margin-top:3px; }
 
 @media (max-width:760px){
-  .m3-iso{ height:150px; gap:12px; } .m3-col, .m3-col .s1{ width:26px; } .m3-col{ height:26px; } .m3-col .s2{ left:26px; height:26px; }
   .m3-dr{ flex-direction:column; height:auto; padding:20px 0; gap:14px; } .m3-ball{ display:none; } .m3-dk{ text-align:center; }
   .m3-ringst{ height:170px; } .m3-ring{ width:190px; height:116px; }
 }
 @media (prefers-reduced-motion:reduce){
-  .kx-in, .kx-sh, .m3-fl .lt, .m3-fl .lb, .m3-col i, .m3-sp, .m3-ball, .m3-dk, .m3-cube, .m3-ring{ animation:none !important; }
+  .kx-in, .kx-sh, .m3-fl .lt, .m3-fl .lb, .m3-pr, .m3-sp, .m3-ball, .m3-dk, .m3-cube, .m3-ring{ animation:none !important; }
   .m3-fl .lt{ display:none; } .m3-ball{ opacity:0; } .kx-in{ transition:none; }
 }
 </style>
