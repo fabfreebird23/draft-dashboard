@@ -271,9 +271,8 @@ def _inbox(presets, pulses, on_pick) -> None:
              if pu.get("ok") and pr.get("label") not in busy]
     if items:
         st.markdown(C.inbox_quiet_html(quiet), unsafe_allow_html=True)
-    st.markdown(C.inbox_strip_html([
-        (short.get(pr.get("label"), pr.get("label")), pu.get("win_pct"))
-        for pr, pu in zip(presets, pulses) if pu.get("ok")]), unsafe_allow_html=True)
+    # (the win-% strip that sat here repeated the league ring and the rows
+    # below, unlabelled, beside the hero's playoff % — three numbers, one look)
 
 
 def _render_pulse(presets, on_pick) -> None:

@@ -2440,7 +2440,7 @@ def keeper_tray_html(keeps, reg_max: int, rook_max: int) -> str:
                 back = (f'<div class="kx-b"><div class="kx-n">{_esc(r["name"])}</div>'
                         f'<div class="kx-m">{_esc(r.get("pos") or "")} · {_esc(r.get("team") or "FA")}</div>'
                         f'<div class="kx-r"><span>Costs</span><strong>R{r["cost_round"]}</strong></div>'
-                        + (f'<div class="kx-r"><span>Plays like</span><strong>R{worth}</strong></div>' if worth else "")
+                        + (f'<div class="kx-r"><span>ADP</span><strong>#{worth}</strong></div>' if worth else "")
                         + (f'<div class="kx-r"><span>This week</span><strong>{r.get("proj") or 0:.1f}</strong></div>')
                         + (f'<div class="kx-v">{sur:+d}<small>KEEPER VALUE</small></div>' if sur is not None else "")
                         + '</div>')
@@ -2906,10 +2906,12 @@ def flap_html(text: str, prev: Optional[str] = None) -> str:
             out.append(f'<span class="m3-fl go" style="--dl:{i * 60}ms"><span class="t"><i>{ch}</i></span>'
                        f'<span class="b"><i>{o}</i></span><span class="lt"><i>{o}</i></span>'
                        f'<span class="lb"><i>{ch}</i></span></span>')
-    return f'<span class="m3-flap">{"".join(out)}</span>'
+    # read once, as the number: the halves repeat every digit for the fold
+    return (f'<span class="m3-flap" role="img" aria-label="{_esc(text)}">'
+            f'<span aria-hidden="true" style="display:contents">{"".join(out)}</span></span>')
 
 
-def towers_html(groups, *, me="You", them="Them") -> str:
+def towers_html(groups, *, me="You", them="Them", note="projected points by position") -> str:
     """[(pos, mine, theirs)] as isometric towers, yours crimson against theirs —
     each pair grows from the floor on render."""
     top = max([max(a, b) for _p, a, b in groups] + [1.0])
@@ -2924,7 +2926,7 @@ def towers_html(groups, *, me="You", them="Them") -> str:
     return (f'<div class="m3-tw"><div class="m3-iso">{"".join(cols)}</div>'
             f'<div class="m3-tls">{"".join(labs)}</div>'
             f'<div class="m3-tk"><span><i class="me"></i>{_esc(me)}</span><span><i class="op"></i>{_esc(them)}</span>'
-            f'<span>projected points by position</span></div></div>')
+            f'<span>{_esc(note)}</span></div></div>')
 
 
 def drum_html(*, slot: int, pct: float, top3: float, n_teams: int, my_share: float, season: int) -> str:
@@ -2957,31 +2959,35 @@ def clock_cube_html(cur: str, cur_sub: str, prev: Optional[str] = None, prev_sub
 
 
 def league_ring_html(cards) -> str:
-    """[{name, rec, line, pct, on}] as a slowly turning ring — one card per league,
-    pausing on each; hover holds it still."""
+    """[{name, rec, line, pct, on}] on a cover-flow arc: every league in view,
+    the arc turning to bring each to the front in turn; hover holds it still.
+    (A closed ring showed one card at a time — with four, the sides sit edge-on.)"""
     cards = [c for c in cards if c]
     n = len(cards)
     if n < 2:
         return ""
     import math
-    w = 230
-    rad = round(w / 2 / math.tan(math.pi / n) + 40)
+    w, step = 230, min(360 / n, 34.0)
+    rad = round((w / 2 + 14) / math.tan(math.radians(step / 2)))
     faces = []
     for i, c in enumerate(cards):
         pct = c.get("pct")
         faces.append(
-            f'<div class="m3-lc{" on" if c.get("on") else ""}" style="transform:rotateY({i * 360 / n:.1f}deg) translateZ({rad}px)">'
+            f'<div class="m3-lc{" on" if c.get("on") else ""}" style="transform:rotateY({i * step:.1f}deg) translateZ({rad}px)">'
             f'<span class="nm">{_esc(c["name"])}</span><b>{_esc(c.get("rec") or "—")}</b>'
             f'<em>{_esc(c.get("line") or "")}</em>'
             + (f'<div class="wp"><i style="width:{max(0, min(100, pct)):.0f}%"></i></div><small>{pct:.0f}% to win this week</small>'
                if pct is not None else "<small>&nbsp;</small>") + "</div>")
-    hold, stops = 100 / n, []
-    for i in range(n + 1):
-        a = -i * 360 / n
-        stops.append(f"{min(100, i * hold):.2f}%{{transform:translateZ(-{rad}px) rotateX(-6deg) rotateY({a:.1f}deg)}}")
-        if i < n:
-            stops.append(f"{min(100, i * hold + hold * .78):.2f}%{{transform:translateZ(-{rad}px) rotateX(-6deg) rotateY({a:.1f}deg)}}")
-    kf = f"m3ring{n}"
+    # out along the arc and back: hold on each card, then glide to the next
+    seq = list(range(n)) + list(range(n - 2, 0, -1))
+    hold, stops = 100 / len(seq), []
+    for k, i in enumerate(seq + [0]):
+        a = -i * step
+        t = min(100, k * hold)
+        stops.append(f"{t:.2f}%{{transform:translateZ(-{rad}px) rotateX(-4deg) rotateY({a:.1f}deg)}}")
+        if k < len(seq):
+            stops.append(f"{min(100, t + hold * .72):.2f}%{{transform:translateZ(-{rad}px) rotateX(-4deg) rotateY({a:.1f}deg)}}")
+    kf = f"m3arc{n}"
     return (f'<style>@keyframes {kf}{{{"".join(stops)}}}</style>'
-            f'<div class="m3-ringst"><div class="m3-ring" style="animation-name:{kf};animation-duration:{n * 3.2:.1f}s">'
+            f'<div class="m3-ringst"><div class="m3-ring" style="animation-name:{kf};animation-duration:{len(seq) * 3.0:.1f}s">'
             + "".join(faces) + '</div></div>')

@@ -167,6 +167,14 @@ def pulse(preset: dict, registry, week: int, byes: Optional[dict] = None) -> dic
         risky = avail["at_risk"]
         out["injuries"] = [(a["name"], a["status"], a.get("cost_if_out")) for a in risky]
         out["injury_rows"] = risky
+        # a swap is only a swap while both men are still to play: once either has
+        # kicked off it's locked, and counting it showed "2 changes · +81.8"
+        # in the middle of Sunday for moves nobody could make
+        def _open(m):
+            return all(GT.status(WV.game_of(registry, games, x)) not in ("in", "post") for x in (m["out"], m["in"]))
+        _moves = [m for m in lc["moves"] if _open(m)] if games else lc["moves"]
+        if len(_moves) != len(lc["moves"]):
+            lc = dict(lc, moves=_moves, gain=round(sum(float(m.get("gain") or 0) for m in _moves), 1))
         out["moves"] = lc["moves"]
         adv = WV.slot_advice(cur, registry, games) if lc["have_current"] else []
         _benching = {str(m["out"]) for m in lc["moves"]}
@@ -332,6 +340,14 @@ def _inbox(out: dict, registry, games: dict, week: int, preset: dict, started: b
         except Exception:  # noqa: BLE001
             return 0.0
 
+    def _pre(pid) -> bool:
+        # by game STATUS, not kickoff time: a game in progress can come back
+        # with no kickoff, which let a locked swap through as "1 thing needs you"
+        try:
+            return GT.status(WV.game_of(registry, games, pid)) not in ("in", "post")
+        except Exception:  # noqa: BLE001
+            return True
+
     def when_label(ts: float) -> str:
         """'Sun 1:00' — the day and the kickoff, in the clock he lives on."""
         if not ts:
@@ -343,7 +359,7 @@ def _inbox(out: dict, registry, games: dict, week: int, preset: dict, started: b
     for m in (out.get("moves") or [])[:3]:
         o, i = str(m["out"]), str(m["in"])
         k = min(x for x in (kick(o), kick(i)) if x) if (kick(o) or kick(i)) else 0.0
-        if k and k < now:
+        if (k and k < now) or not (_pre(o) and _pre(i)):
             continue                              # already locked: nothing to do
         name_o, name_i = registry.meta(o).name, registry.meta(i).name
         inj = risky.get(o)
@@ -360,7 +376,7 @@ def _inbox(out: dict, registry, games: dict, week: int, preset: dict, started: b
         if pid in seen:
             continue
         k = kick(pid)
-        if k and k < now:
+        if (k and k < now) or not _pre(pid):
             continue
         items.append({
             "kind": "LOCK", "league": lg, "pid": pid, "team": a.get("team") or "",

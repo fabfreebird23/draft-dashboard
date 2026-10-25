@@ -3171,7 +3171,7 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 .kt-slot.kx{ background:transparent !important; padding:0 !important; overflow:visible !important; perspective:900px;
   outline:none; cursor:pointer; display:block !important; }
 .kx-in{ position:relative; transform-style:preserve-3d; transition:transform .7s cubic-bezier(.6,.05,.3,1);
-  animation:kxpeek 1.4s cubic-bezier(.6,.05,.3,1) var(--dl,0ms) 1 both; }
+  animation:kxpeek 1.4s cubic-bezier(.6,.05,.3,1) var(--dl,0ms) 1 backwards; }
 .kt-slot.kx:hover .kx-in, .kt-slot.kx:focus .kx-in, .kt-slot.kx:focus-within .kx-in{ transform:rotateY(180deg); }
 @keyframes kxpeek{ 0%{ transform:rotateY(-70deg) translateZ(-40px); opacity:0; } 60%{ opacity:1; } 100%{ transform:none; opacity:1; } }
 .kx-f, .kx-b{ backface-visibility:hidden; -webkit-backface-visibility:hidden; background:#110f10; border-radius:4px; overflow:hidden; }
@@ -3187,6 +3187,8 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 .kx-r{ display:flex; justify-content:space-between; font-family:'Roboto Mono',monospace; font-size:11px; color:#a2989c;
   border-bottom:1px solid #332e30; padding-bottom:4px; }
 .kx-r strong{ color:#f2eef0; font-weight:500; }
+.kt-slot .kx-r span{ font-family:'Roboto Mono',monospace !important; font-size:11px !important; font-weight:400 !important;
+  color:#a2989c !important; padding:0 !important; }
 .kx-v{ margin-top:auto; font-family:'Oswald',sans-serif; font-weight:700; font-size:34px; line-height:1; color:#ff336c; }
 .kx-v small{ display:block; font-family:'Roboto Mono',monospace; font-size:9px; letter-spacing:.14em; color:#95898e; font-weight:400; }
 
@@ -3205,6 +3207,16 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 @keyframes m3top{ from{ transform:rotateX(0); } to{ transform:rotateX(-90deg); } }
 @keyframes m3bot{ from{ transform:rotateX(90deg); } to{ transform:rotateX(0); } }
 .m3-fp{ display:inline-block; width:.26em; text-align:center; }
+/* the scoreboard styles every span under .xb-t as its small caps label — the
+   flap is made of spans, so it takes its size and layout back here */
+.xb-t .m3-flap, .xb-t .m3-flap span, .xb-t .m3-flap i{ font-size:inherit !important; font-style:normal !important; line-height:1em !important; letter-spacing:0 !important; text-transform:none !important;
+  font-weight:inherit !important; color:inherit !important; margin:0 !important; }
+.xb-t .m3-flap{ display:inline-flex !important; }
+.xb-t .m3-fl{ display:inline-block !important; }
+.xb-t .m3-fl > span{ display:block !important; position:absolute !important; }
+.xb-t .m3-fp{ display:inline-block !important; }
+.xb-t .m3-fl > span > i{ display:block !important; position:absolute !important; height:1em !important; }
+.xb-side.me .xb-t .m3-flap{ justify-content:flex-start; }
 
 /* 5 · matchup towers */
 .m3-tw{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px 12px; margin:6px 0 14px; overflow:hidden; }
@@ -3246,7 +3258,8 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
   display:grid; place-items:center; font-family:'Roboto Mono',monospace; font-size:12px; color:#fff;
   background:radial-gradient(circle at 35% 30%,#ffd0dc 0%,#ff336c 40%,#7a1424 100%); box-shadow:0 0 18px #ff336c;
   animation:m3out 2.2s cubic-bezier(.5,0,.2,1) .6s 1 both; }
-@keyframes m3out{ 0%{ opacity:0; transform:scale(.4); } 30%{ opacity:1; transform:scale(1); } 100%{ opacity:1; transform:translate(150px,-62px) scale(1.25); } }
+@keyframes m3out{ 0%{ opacity:0; transform:scale(.4); } 30%{ opacity:1; transform:scale(1); } 80%{ opacity:1; transform:translate(150px,0) scale(1.25); }
+  100%{ opacity:0; transform:translate(150px,0) scale(1.6); } }
 .m3-dk{ min-width:200px; animation:m3pop .6s ease-out 2.4s 1 both; }
 .m3-dk span{ display:block; font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.16em; color:var(--mut2); }
 .m3-dk b{ display:block; font-family:'Oswald',sans-serif; font-weight:700; font-size:54px; line-height:1; color:#ff336c; margin:4px 0; }
@@ -3274,6 +3287,7 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 .m3-ringst:hover .m3-ring{ animation-play-state:paused; }
 .m3-lc{ position:absolute; inset:0; border-radius:12px; padding:12px 14px; border:1px solid var(--line); background:var(--panel);
   display:flex; flex-direction:column; gap:2px; backface-visibility:hidden; box-shadow:0 18px 30px rgba(0,0,0,.35); }
+.m3-ringst{ perspective:1400px !important; }
 .m3-lc.on{ border-color:var(--crimson); }
 .m3-lc .nm{ font-family:'Oswald',sans-serif; font-size:15px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink); }
 .m3-lc b{ font-family:'Oswald',sans-serif; font-weight:600; font-size:32px; line-height:1; color:var(--ink); }

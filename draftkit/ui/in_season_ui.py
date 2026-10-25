@@ -574,8 +574,8 @@ def _still_rows(cur, reg, g, live, proj):
 def _command(ctx, g) -> None:
     reg = ctx["registry"]
     games, phase, live = g.get("games") or {}, g.get("phase") or "setup", g.get("live") or {}
-    lc = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"],
-                        current=g.get("starters"))
+    lc = _open_moves(W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"],
+                                    current=g.get("starters")), reg, games)
     avail = W.availability_report(g["mine"], g["slots"], g["proj"], reg,
                                   byes=g["byes"], week=g["week"], starters=g["starters"])
     oid, opp = _opponent(ctx, g)
@@ -694,7 +694,10 @@ def _command(ctx, g) -> None:
                                 + (f' still to go · {100*wp_live:.0f}% now' if wp_live is not None else ""))
                      if phase != "done" else f'{_me_pts:.1f} – {_opp_pts:.1f} final',
                      "num": f"{_me_pts:.1f}", "lab": f"vs {_opp_pts:.1f}"})
-    for a in avail["at_risk"][:3]:
+    # a man whose game has started is locked in his slot: nothing to tell him
+    def _locked(pid):
+        return GT.status(WV.game_of(reg, games, pid)) in ("in", "post") if games else False
+    for a in [x for x in avail["at_risk"] if not _locked(x.get("pid"))][:3]:
         cost = a.get("cost_if_out")
         if cost is None:
             body, num, lab = "", None, ""
@@ -719,7 +722,7 @@ def _command(ctx, g) -> None:
                      "title": f'{a["name"]} — {a["status"]}'
                      + (f' <span class="ws-fnt">({a["detail"]})</span>' if a["detail"] else ""),
                      "detail": body, "num": num, "lab": lab})
-    for m in lc["moves"][:3]:
+    for m in [x for x in lc["moves"] if not (_locked(x["out"]) or _locked(x["in"]))][:3]:
         _in, _out = reg.meta(m["in"]), reg.meta(m["out"])
         _v = ECR.verdict((g.get("ecr") or {}).get(str(m["out"])),
                          (g.get("ecr") or {}).get(str(m["in"])))
@@ -915,6 +918,35 @@ def _command(ctx, g) -> None:
 _LIVE_CADENCE = {"5s": 5, "10s": 10, "30s": 30}
 
 
+def _open_moves(lc: dict, reg, games: dict) -> dict:
+    """The lineup check with the swaps nobody can make taken out: once either
+    man's game has kicked off he is locked in his slot. Sunday afternoon was
+    telling him to bench a starter already on the field."""
+    if not games or not lc.get("moves"):
+        return lc
+    def locked(pid):
+        return GT.status(WV.game_of(reg, games, pid)) in ("in", "post")
+    keep = [m for m in lc["moves"] if not (locked(m["out"]) or locked(m["in"]))]
+    if len(keep) == len(lc["moves"]):
+        return lc
+    return dict(lc, moves=keep, gain=round(sum(float(m.get("gain") or 0) for m in keep), 1),
+                locked_moves=len(lc["moves"]) - len(keep))
+
+
+def _dpc(ps: dict) -> str:
+    """"3 done · 3 playing · 3 to come" — "0 of 9 played" beside 50 points read
+    as a bug, because a man mid-game has scored but hasn't finished."""
+    if not ps:
+        return ""
+    done = len(ps.get("done") or [])
+    bits = [f"{done} done"] if done else []
+    if ps.get("live"):
+        bits.append(f'{len(ps["live"])} playing')
+    if ps.get("pre"):
+        bits.append(f'{len(ps["pre"])} to come')
+    return " · ".join(bits) or "all done"
+
+
 def _live_view(ctx, g) -> None:
     """Bind the polling cadence, then hand the screen to one fragment.
 
@@ -1045,12 +1077,12 @@ def _live_body(ctx, g, *, bound_auto: bool, bound_every: int) -> None:
     st.markdown(C.scoreboard_html(
         flaps=_flaps,
         me_name="You", me_rec=_record(g, g["me"]), me_pts=f"{me_pts:.1f}",
-        me_sub=f"{left_me} still to play · {me_end:.0f} projected",
+        me_sub=f"{_dpc(ps)} · {me_end:.0f} projected",
         me_photo=_top_photo(reg, g, [p for _s, p in mcur]),
         opp_name=(_owner_name(ctx, oid) if opp else "No opponent"),
         opp_rec=(_record(g, oid) if opp else ""),
         opp_pts=(f"{opp_pts:.1f}" if opp else "—"),
-        opp_sub=(f"{left_op} still to play · {opp_end:.0f} projected" if opp else "none scheduled"),
+        opp_sub=(f"{_dpc(ops)} · {opp_end:.0f} projected" if opp else "none scheduled"),
         opp_photo=(_top_photo(reg, g, [p for _s, p in ocur]) if opp else None),
         label=_wk_lab, win_pct=(100 * wp) if wp is not None else None,
         tiles=[
@@ -1368,8 +1400,8 @@ def _lineup(ctx, g) -> None:
     kickoff, with the taps to make in the order the platform will take them."""
     reg = ctx["registry"]
     games = g.get("games") or {}
-    lc = W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"],
-                        current=g.get("starters"))
+    lc = _open_moves(W.lineup_check(g["mine"], g["slots"], g["proj"], reg, g["byes"], g["week"],
+                                    current=g.get("starters")), reg, games)
     if not lc["have_current"]:
         st.warning("Couldn't read the lineup you have set, so there is nothing to compare "
                    "against. The Command Center shows the best available lineup.")
@@ -1404,7 +1436,7 @@ def _lineup(ctx, g) -> None:
             _note(f"{src} doesn't rank " + ", ".join(reg.meta(p).name for p in missing[:5])
                        + (" and others" if len(missing) > 5 else "")
                        + " — they sort behind everyone it does.")
-        lc = lc_src
+        lc = _open_moves(lc_src, reg, games)
     cur = lc["current"]
     slots = [s for s, _p in cur]
     # The set to start: the optimiser's. Then SEAT it by kickoff.
@@ -2976,8 +3008,7 @@ def _matchup(ctx, g) -> None:
         _tiles_m[0] = ("Projected final", f"{me_end:.0f} – {opp_end:.0f}", f"was {100*wp:.0f}% at kickoff")
         _sb = dict(me_pts=f"{me_now:.1f}", opp_pts=f"{opp_now:.1f}", win_pct=100 * wp_now,
                    label=("FINAL" if phase == "done" else "LIVE") + f' · WEEK {g["week"]}',
-                   me_sub=f'{ps["n"] - len(ps["pre"]) - len(ps["live"])} of {ps["n"]} played',
-                   opp_sub=f'{ops["n"] - len(ops["pre"]) - len(ops["live"])} of {ops["n"]} played')
+                   me_sub=_dpc(ps), opp_sub=_dpc(ops))
     else:
         _sb = dict(me_pts=f"{mm:.1f}", opp_pts=f"{om:.1f}", win_pct=100 * wp,
                    label=f'PROJECTED · WEEK {g["week"]}',
@@ -2992,20 +3023,25 @@ def _matchup(ctx, g) -> None:
         tiles=_tiles_m, **_sb), unsafe_allow_html=True)
     # the two lineups as towers, position by position, projected
     try:
-        def _by_pos(pids):
+        def _by_pos(pids, lv):
             out = {}
             for p_ in pids or []:
                 if not p_ or str(p_) == "0":
                     continue
                 ps_ = (reg.meta(str(p_)).position or "").upper()
                 ps_ = "DEF" if ps_ in ("DST", "D/ST") else ps_
-                out[ps_] = out.get(ps_, 0.0) + float(g["proj"].get(str(p_), 0) or 0)
+                # once games are on: the same "where it ends" as the scoreboard
+                v = (WV.live_projection([("", p_)], g["proj"], reg, games, lv) if started
+                     else float(g["proj"].get(str(p_), 0) or 0))
+                out[ps_] = out.get(ps_, 0.0) + v
             return out
-        _a, _b = _by_pos(g["starters"]), _by_pos(ost)
+        _a, _b = _by_pos(g["starters"], me_live), _by_pos(ost, opp_live)
         _order = [x for x in ("QB", "RB", "WR", "TE", "K", "DEF") if x in _a or x in _b]
         if _order:
             st.markdown(C.towers_html([(x, _a.get(x, 0.0), _b.get(x, 0.0)) for x in _order],
-                                      me="You", them=them), unsafe_allow_html=True)
+                                      me="You", them=them,
+                                      note="projected finish by position — actual so far plus the rest"
+                                      if started else "projected points by position"), unsafe_allow_html=True)
     except Exception:  # noqa: BLE001 — a picture, never worth the tab
         pass
     if started:
@@ -3827,7 +3863,7 @@ def _practice_panel(ctx, cells, clock, state, key, pool, pos_of, proj, nm, nxt, 
         _lk = f"np_last_{lk}"
         _prev = st.session_state.get(_lk)
         st.session_state[_lk] = _lab
-        _cube = C.clock_cube_html(_lab, "ON THE CLOCK", _prev if _prev and _prev != _lab else None, "DRAFTED")
+        _cube = C.clock_cube_html(_lab, "YOU", _prev if _prev and _prev != _lab else None, "DRAFTED")
         st.markdown(f'<div class="np-clk"><span>ON THE CLOCK</span>{_cube}'
                     f'<i>pick #{clock["pick"]} &middot; {gone} gone, keepers included &middot; '
                     f'best left: {_esc_(nm(avail[0])) if avail else "—"}</i></div>', unsafe_allow_html=True)
@@ -3909,6 +3945,9 @@ def _next_board(ctx, g) -> None:
     with _c2:
         pick_slot = st.segmented_control("Your slot", opts, key=f"nb_slot_{ctx['league_key']}", on_change=_keep_open(f"nb_{ctx['league_key']}"),
                                          selection_mode="single", default="Projected") or "Projected"
+    # the odds read before the board — they decide its order — but they're
+    # drawn last, once the board's names exist; this holds their place
+    _odds_box = st.container()
     if pick_slot == "Likeliest":
         # every team on its single likeliest slot, clashes settled by who wants it most
         left, placed = set(range(len(owners))), {}
@@ -4074,7 +4113,7 @@ def _next_board(ctx, g) -> None:
         _how = {"inverted": "placement inverted inside each bracket; the draw is the order",
                 "final": "final standing incl. the Chase, champion floored, two choices drawn",
                 "chase": "Chase winner, then worst to best, champion last"}.get(_spec.get("style"), "")
-        with st.container(key=f"lo_{ctx['league_key']}"):
+        with _odds_box, st.container(key=f"lo_{ctx['league_key']}"):
             if _best:
                 st.markdown(C.drum_html(slot=_best, pct=_mine[_best - 1], top3=sum(_mine[:3]), n_teams=len(owners),
                                         my_share=(_mine[0] / 100 if _mine else 0.1), season=nxt), unsafe_allow_html=True)
