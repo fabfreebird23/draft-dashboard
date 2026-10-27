@@ -203,6 +203,51 @@ def hot_market(rows: List[dict], since: Optional[int] = None) -> dict:
             "second_max": max(second) if second else None, "claims": hot}
 
 
+HOT_SINCE = 2024          # Kreeper's budget has been $100 since; older bids are scaled, but the room changed too
+_ROOM: Dict[tuple, tuple] = {}
+
+
+def hot_room(league_id: str, me: Optional[str] = None, season: Optional[int] = None) -> Optional[dict]:
+    """What it takes to win a hot claim in this league right now.
+
+    Each rival's ceiling is the biggest hot bid it has made since HOT_SINCE,
+    but never more than the FAAB it has left. `bid` beats every ceiling but
+    the single highest (one team's record bid shouldn't set yours); `sure`
+    beats them all. Never below what a typical hot claim has cost here.
+    Memoized ten minutes per league."""
+    import time
+    key = (str(league_id), str(me or ""))
+    hit = _ROOM.get(key)
+    if hit and time.time() - hit[0] < 600:
+        return hit[1]
+    rows = all_claims(str(league_id), season)
+    out = None
+    if rows:
+        budget = max((r["budget"] for r in rows if r["season"] == max(x["season"] for x in rows)), default=100)
+        prof = hot_profiles(rows, HOT_SINCE)
+        mkt = hot_market(rows, HOT_SINCE)
+        left = faab_left(str(league_id))
+        mine = None
+        if me:
+            mine = next((b["team"] for r in rows for b in r["bids"] if str(b.get("user") or "") == str(me)), None)
+        ceil = {}
+        for t, p in prof.items():
+            if t == mine:
+                continue
+            cap = int(round(p["max"] * budget))
+            ceil[t] = min(cap, left[t]) if t in left else cap
+        if ceil and mkt["n"]:
+            order = sorted(ceil.items(), key=lambda kv: -kv[1])
+            typical = int(round((mkt["won_avg"] or 0) * budget))
+            p90 = int(round((mkt["second_p90"] or 0) * budget)) + 1
+            second = order[1][1] if len(order) > 1 else order[0][1]
+            out = {"bid": max(second + 2, p90, typical), "sure": order[0][1] + 1, "top": order[0],
+                   "second": order[1] if len(order) > 1 else None, "typical": typical, "p90": p90,
+                   "ceilings": dict(order), "left": left, "n": mkt["n"], "me": mine, "budget": budget}
+    _ROOM[key] = (time.time(), out)
+    return out
+
+
 def faab_left(league_id: str) -> Dict[str, int]:
     """{manager: FAAB left this season} from Sleeper's rosters."""
     try:

@@ -2391,7 +2391,9 @@ def _claim_builder(ctx, g, board, left: int, budget: int, weeks_left: int) -> No
             if "bid" not in (c.get("_set") or []):
                 c["bid"] = None
         if c.get("bid") is None:
-            c["bid"] = (c.get("range") or {}).get("low") or 1
+            _r = c.get("range") or {}
+            # a hot claim: the number that beats the room, not the bottom of it
+            c["bid"] = (_r.get("high") if _r.get("mode") == "hot" else _r.get("low")) or 1
         try:
             pm = reg.meta(c["pid"])
             c.setdefault("name", pm.name)
@@ -2444,7 +2446,7 @@ def _claim_builder(ctx, g, board, left: int, budget: int, weeks_left: int) -> No
             a, b, u, d, x = st.columns([2.6, 3.2, 0.8, 0.8, 0.8])
             rng = c.get("range") or {}
             lo, hi = int(rng.get("low") or 1), int(rng.get("high") or max(1, int(c["bid"])))
-            opts = sorted({lo, (lo + hi) // 2, hi, int(c["bid"])})
+            opts = sorted({lo, (lo + hi) // 2, hi, int(c["bid"])} | ({int(rng["sure"])} if rng.get("sure") else set()))
             bid = a.selectbox("Bid", opts, index=opts.index(int(c["bid"])), key=f"cb_bid_{lk}_{c['pid']}",
                               format_func=lambda v: f"${v}", label_visibility="collapsed")
             cur_drop = c.get("drop_name") or drop_opts[0]
@@ -2475,12 +2477,20 @@ def _claim_builder(ctx, g, board, left: int, budget: int, weeks_left: int) -> No
 
     # add from the board: the best adds not already queued
     have = {str(c["pid"]) for c in queue}
-    adds = [r for r in board if r.get("gain", 0) > 0.05 and str(r["pid"]) not in have][:4]
+    # today's most-added players first (a breakout is bought before he starts
+    # for you), then the best upgrades
+    _hot = FM.hot_pids()
+    hot_adds = [r for r in board if str(r["pid"]) in _hot and str(r["pid"]) not in have][:2]
+    adds = hot_adds + [r for r in board if r.get("gain", 0) > 0.05 and str(r["pid"]) not in have
+                       and r not in hot_adds][:4 - len(hot_adds)]
     if adds:
         cols = st.columns(len(adds))
         for col, r in zip(cols, adds):
-            if col.button(f'+ {r["name"].split()[-1]} {r["gain"]:+.1f}', key=f"cb_add_{lk}_{r['pid']}",
-                          use_container_width=True):
+            _hb = FM.bid(ctx["meta"], g["week"], r, budget, left, weeks_left) if r in hot_adds else None
+            _lab = (f'🔥 {r["name"].split()[-1]} ${_hb["high"]}' if (_hb and _hb.get("mode") == "hot")
+                    else f'+ {r["name"].split()[-1]} {r["gain"]:+.1f}')
+            if col.button(_lab, key=f"cb_add_{lk}_{r['pid']}", use_container_width=True,
+                          help=(_hb or {}).get("note")):
                 US.add_claim(lk, {"pid": str(r["pid"]), "name": r["name"], "gain": r["gain"],
                                   "range": FM.bid(ctx["meta"], g["week"], r, budget, left, weeks_left),
                                   "bid": None, "drop": None})
@@ -2725,9 +2735,13 @@ def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> Non
             band = t[0]
             out.append(f'<div class="rk-tier"><div class="band t{t[0]}"><em>{t[0]}</em>{_esc_(t[1])}'
                        f'<small>{_esc_(t[2])}</small></div><i></i></div>')
-        if r["gain"] > 0.05:
+        _bnote = ""
+        if r["gain"] > 0.05 or (budget and str(r["pid"]) in FM.hot_pids()):
             b = FM.bid(meta, g["week"], r, budget, left, weeks_left) if budget else None
-            bid = ("claim" if (b is None or b.get("mode") == "priority") else f'${b["low"]}–{b["high"]}')
+            if b and b.get("mode") == "hot":
+                bid, _bnote = f'🔥 ${b["high"]}', b.get("note") or ""
+            else:
+                bid = ("claim" if (b is None or b.get("mode") == "priority") else f'${b["low"]}–{b["high"]}')
         else:
             bid = "—"
         _av = W.availability(reg.meta(r["pid"]))
@@ -2759,7 +2773,8 @@ def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> Non
         out.append(f'<div class="rk-row fa"><div class="pl">{_T.img_tag(r["pid"], "")}'
                    f'<b>{_esc_(r["name"])}<small>{_esc_(r["team"])} · {r["pos"]}{inj}</small></b>'
                    f'<span class="tag fa">free agent</span></div>' + "".join(cells)
-                   + f'<div class="own"><b class="{"bid" if bid != "—" else ""}">{_esc_(bid)}</b></div></div>')
+                   + f'<div class="own"><b class="{"bid" if bid != "—" else ""}"'
+                   + (f' title="{_esc_(_bnote)}"' if _bnote else "") + f'>{_esc_(bid)}</b></div></div>')
     out.append("</div>")
     if show:
         st.markdown("".join(out), unsafe_allow_html=True)

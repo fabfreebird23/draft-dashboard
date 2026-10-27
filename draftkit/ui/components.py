@@ -2502,6 +2502,10 @@ def claim_row_html(i: int, c: dict) -> str:
     """One claim in the queue: priority, the man, the drop that pays for him, the bid."""
     rng = c.get("range") or {}
     rtxt = f'range ${rng.get("low")}–{rng.get("high")}' if rng.get("high") else "your call"
+    if rng.get("mode") == "hot":
+        top = (rng.get("room") or {}).get("top") or ("", 0)
+        rtxt = (f'hot · ${rng.get("high")} beats all but {top[0]}' + (f' · ${rng["sure"]} beats all' if rng.get("sure") else "")
+                if top[0] and rng.get("sure", 0) > rng.get("high", 0) else f'hot · ${rng.get("high")} beats every rival')
     drop = c.get("drop_name") or "no drop — open spot"
     gain = c.get("gain")
     gtxt = f' · {gain:+.1f} to your week' if isinstance(gain, (int, float)) else ""

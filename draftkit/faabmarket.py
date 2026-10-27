@@ -31,6 +31,8 @@ from . import config, sleeper_client as api
 
 SEED = config.ROOT / "data_seed" / "faab"
 FAAB = 2                  # Sleeper settings.waiver_type: 0 rolling, 1 reverse standings, 2 FAAB
+# His Sleeper account (app.MY_SLEEPER_ID): his own bids aren't a rival's.
+MY_SLEEPER_ID = "964703051971887104"
 # Pseudo-claims of the pooled prior a thin league borrows from. 7½ Men has one
 # season (24 claims); on its own a single $9 claim would set its price.
 PRIOR_N = 25.0
@@ -274,6 +276,127 @@ def bid(meta, week: int, row: dict, budget: int, left: int, weeks_left: int) -> 
         mk = market_for(meta, week)
     except Exception:  # noqa: BLE001 — no history is the old value-only advice
         mk = None
+    hot = str(row.get("pid")) in hot_pids()
+    if hot and mk is not None and mk.faab and left > 0:
+        hb = hot_bid(meta, row, left, week)
+        if hb:
+            return hb
     return recommend(mk, gain=float(row.get("gain") or 0), proj=float(row.get("proj") or 0),
-                     budget=budget, left=left, weeks_left=weeks_left,
-                     hot=str(row.get("pid")) in hot_pids())
+                     budget=budget, left=left, weeks_left=weeks_left, hot=hot)
+
+
+NEED_WEIGHT = {"need": 1.0, "ok": 0.75, "set": 0.45}
+
+
+def position_needs(meta, pos: str, week: int) -> Dict[str, dict]:
+    """{manager: {tier, depth, players}} — how badly each team needs a `pos`.
+
+    A team's depth is the projected points of its best few at the position:
+    its starters there plus one for a FLEX or a bye (QB: starters plus one).
+    The bottom third of the league by that number "need" him, the top third
+    are "set", the rest "ok". A team that's set at RB bids less on an RB —
+    the hot-claim price weights each rival's ceiling by this."""
+    pos = str(pos or "").upper()
+    try:
+        lg = api.get_league(str(meta.league_id)) or {}
+        rosters = api.get_rosters(str(meta.league_id)) or []
+        users = {u.get("user_id"): str(u.get("display_name") or "").strip() for u in api.get_users(str(meta.league_id)) or []}
+        players = api.get_players() or {}
+    except Exception:  # noqa: BLE001
+        return {}
+    slots = list(lg.get("roster_positions") or [])
+    k = slots.count(pos) + (1 if pos in ("RB", "WR", "TE") and "FLEX" in slots else 0) + (1 if pos == "QB" else 0)
+    if not k:
+        return {}
+    season = int(getattr(meta, "season", 0) or config.current_season())
+    proj = _week_proj(season, int(week))
+    depth = {}
+    for r in rosters:
+        mine = [(float(proj.get(str(p), 0) or 0), (players.get(str(p)) or {}).get("full_name") or str(p))
+                for p in (r.get("players") or []) if (players.get(str(p)) or {}).get("position") == pos]
+        mine.sort(reverse=True)
+        name = users.get(r.get("owner_id"), f"Team {r.get('roster_id')}")
+        depth[name] = {"depth": round(sum(v for v, _n in mine[:k]), 1), "players": [n for _v, n in mine[:k]]}
+    order = sorted(depth, key=lambda n: depth[n]["depth"])
+    third = max(1, len(order) // 3)
+    for i, n in enumerate(order):
+        depth[n]["tier"] = "need" if i < third else "set" if i >= len(order) - third else "ok"
+    return depth
+
+
+def _demand_rank(meta, pid: str) -> tuple:
+    """(his rank among this league's free agents by Sleeper adds today, the
+    names of the ones ahead of him)."""
+    try:
+        tr = api.get_trending("add", 24, 200) or {}
+        rostered = {str(p) for r in api.get_rosters(str(meta.league_id)) or [] for p in (r.get("players") or [])}
+        players = api.get_players() or {}
+    except Exception:  # noqa: BLE001
+        return None, []
+    avail = [p for p in sorted(tr, key=lambda p: -tr[p]) if p not in rostered
+             and (players.get(p) or {}).get("position") not in (None, "DEF", "K")]
+    if pid not in avail:
+        return None, []
+    i = avail.index(pid)
+    return i + 1, [(players.get(p) or {}).get("full_name") or p for p in avail[:i]]
+
+
+def hot_bid(meta, row: dict, left: int, week: int = 1) -> Optional[dict]:
+    """A player half the internet is adding (Sleeper's 25 most-added in a
+    day) isn't priced like the league's usual claim — 78% of those went
+    uncontested for $0–2, and the old advice put Jonah Coleman (10/26) at
+    $1–16. Here the price comes from the league's HOT claims and from what
+    each rival has bid on one and has left to spend (faabhistory.hot_room):
+    `high` beats every rival but the single biggest spender's record, `sure`
+    beats them all. It isn't capped by this week's lineup gain — a breakout
+    is bought for the weeks after this one (and, in a keeper league, next year)."""
+    if getattr(meta, "platform", "") != "sleeper":
+        return None
+    from . import faabhistory as FH
+    try:
+        room = FH.hot_room(str(meta.league_id), getattr(meta, "my_team", None) or MY_SLEEPER_ID,
+                           int(getattr(meta, "season", 0) or config.current_season()))
+    except Exception:  # noqa: BLE001
+        room = None
+    if not room:
+        return None
+    # The room's price is what it takes to win a claim the league fights over.
+    # Whether it fights over THIS one depends on what else is out there:
+    # on 10/26 Jonah Coleman was the 12th most-added free agent in Kreeper,
+    # behind Caleb Douglas at 362k adds — so the note says where he stands.
+    # Weight each rival's ceiling by how much it needs this position: a team
+    # set at RB doesn't chase an RB the way a team starting a backup does.
+    pos = ((api.get_players() or {}).get(str(row.get("pid"))) or {}).get("position", "")
+    needs = position_needs(meta, pos, week) if pos else {}
+    me = room.get("me")
+    ceil = {t: int(round(v * NEED_WEIGHT.get((needs.get(t) or {}).get("tier", "ok"), 1.0)))
+            for t, v in room["ceilings"].items()} if needs else dict(room["ceilings"])
+    order = sorted(ceil.items(), key=lambda kv: -kv[1])
+    second = order[1][1] if len(order) > 1 else order[0][1]
+    hi = min(max(second + 2, room["p90"]), left)
+    lo = min(max(room["typical"], room["p90"]) if not needs else room["p90"], hi)
+    sure = min(order[0][1] + 1, left)
+    top_t, top_v = order[0]
+    rank, ahead = _demand_rank(meta, str(row.get("pid")))
+    note = f"hot claim · ${hi} wins it if the league fights over him: it beats every rival's biggest hot bid since {FH.HOT_SINCE}"
+    if sure > hi:
+        note += f" except {top_t}'s (${top_v}); ${sure} beats them all"
+    if needs:
+        need_t = [t for t, d in needs.items() if d["tier"] == "need" and t != me]
+        set_t = [t for t, d in needs.items() if d["tier"] == "set" and t != me]
+        mine_t = (needs.get(me) or {}).get("tier")
+        note += (f" · thin at {pos}: {', '.join(need_t) or 'nobody'} · set at {pos}: {', '.join(set_t) or 'nobody'}"
+                 + (f" (you: {'need' if mine_t == 'need' else 'set' if mine_t == 'set' else 'middling'})" if mine_t else ""))
+    if rank == 1:
+        note += " · the most-added free agent in this league today"
+    elif rank:
+        note += (f" · #{rank} most-added free agent here today, behind " + ", ".join(ahead[:3])
+                 + (f" and {len(ahead) - 3} more" if len(ahead) > 3 else "")
+                 + " — rivals may spend there first")
+    capped = [f"{t} ${v}" for t, v in room["ceilings"].items() if t in room["left"] and v == room["left"][t] and v < hi]
+    if capped:
+        note += " · capped by FAAB left: " + ", ".join(capped[:2])
+    if float(row.get("gain") or 0) <= 0.05:
+        note += " · doesn't start for you this week: a stash"
+    return {"low": lo, "high": hi, "sure": sure, "note": note, "mode": "hot", "room": dict(room, top=order[0], ceilings=dict(order)),
+            "needs": {t: d["tier"] for t, d in needs.items()}, "pos": pos}
