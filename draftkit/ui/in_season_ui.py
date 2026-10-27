@@ -1213,8 +1213,12 @@ def _flock(season: int, week: int, _registry, ver: int = 0):
 
 @st.cache_data(ttl=3600, show_spinner=False, hash_funcs={"builtins.object": id})
 def _udk_wv(season: int, week: int, _registry):
+    """The Ballers' waiver list for the run AHEAD — the week after the one
+    being played. Asked for the current week, a Monday showed last week's list
+    (Jonah Coleman #32 at $0, 10/26) while theirs for the coming run had him #1
+    at 10–15%. Falls back to this week's only until next week's is posted."""
     from .. import udk_waivers as UW
-    return UW.weekly(season, week, _registry)
+    return UW.weekly(season, week + 1, _registry) or UW.weekly(season, week, _registry)
 
 
 @st.cache_data(ttl=3600, show_spinner="Reading the book…", hash_funcs={"builtins.object": id})
@@ -2479,8 +2483,19 @@ def _claim_builder(ctx, g, board, left: int, budget: int, weeks_left: int) -> No
     have = {str(c["pid"]) for c in queue}
     # today's most-added players first (a breakout is bought before he starts
     # for you), then the best upgrades
-    _hot = FM.hot_pids()
-    hot_adds = [r for r in board if str(r["pid"]) in _hot and str(r["pid"]) not in have][:2]
+    # the players the experts price highest first — a breakout is bought
+    # before he starts for you — then the best lineup upgrades
+    # (from the experts' lists, not just this board: Caleb Douglas was
+    # theirs before he was anyone's lineup upgrade)
+    _ex = FM.expert_pids(ctx["meta"], g["week"])
+    _rost = {str(p) for r in g["rosters"].values() for p in r["players"]}
+    _on_board = {str(r["pid"]): r for r in board}
+    _worth = lambda p: (FM.expert_worth(ctx["meta"], g["week"], p) or {}).get("hi", 0)  # noqa: E731
+    _pl = FM.api.get_players() or {}
+    hot_adds = []
+    for p in sorted((p for p in _ex if p not in _rost and p not in have), key=lambda p: -_worth(p))[:2]:
+        hot_adds.append(_on_board.get(p) or {"pid": p, "name": (_pl.get(p) or {}).get("full_name") or p,
+                                             "gain": 0.0, "proj": float(g["proj"].get(p, 0) or 0)})
     adds = hot_adds + [r for r in board if r.get("gain", 0) > 0.05 and str(r["pid"]) not in have
                        and r not in hot_adds][:4 - len(hot_adds)]
     if adds:
@@ -2720,6 +2735,7 @@ def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> Non
     out = [f'<div class="rk" style="--cols:{cols}"><div class="rk-hd">'
            + "".join(f'<span class="{"lbl" if h == "Bid here" else "on" if h == "+You" else ""}">{h}</span>' for h in heads)
            + '</div>']
+    _expert = FM.expert_pids(meta, g["week"]) if budget else set()
     if lens == "All":
         _by = {}
         for r in show:
@@ -2736,7 +2752,7 @@ def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> Non
             out.append(f'<div class="rk-tier"><div class="band t{t[0]}"><em>{t[0]}</em>{_esc_(t[1])}'
                        f'<small>{_esc_(t[2])}</small></div><i></i></div>')
         _bnote = ""
-        if r["gain"] > 0.05 or (budget and str(r["pid"]) in FM.hot_pids()):
+        if r["gain"] > 0.05 or (budget and str(r["pid"]) in _expert):
             b = FM.bid(meta, g["week"], r, budget, left, weeks_left) if budget else None
             if b and b.get("mode") == "hot":
                 bid, _bnote = f'${b["high"]} hot', b.get("note") or ""

@@ -277,8 +277,11 @@ def bid(meta, week: int, row: dict, budget: int, left: int, weeks_left: int) -> 
     except Exception:  # noqa: BLE001 — no history is the old value-only advice
         mk = None
     hot = str(row.get("pid")) in hot_pids()
-    if hot and mk is not None and mk.faab and left > 0:
-        hb = hot_bid(meta, row, left, week)
+    worth = expert_worth(meta, week, str(row.get("pid")))
+    # A contested-claim price only for a player the experts put a price on:
+    # trending alone put Brenton Strange and Dameon Pierce at Coleman's $26.
+    if worth and worth["hi"] > 0 and mk is not None and mk.faab and left > 0:
+        hb = hot_bid(meta, row, left, week, worth=worth, budget=budget)
         if hb:
             return hb
     return recommend(mk, gain=float(row.get("gain") or 0), proj=float(row.get("proj") or 0),
@@ -341,7 +344,35 @@ def _demand_rank(meta, pid: str) -> tuple:
     return i + 1, [(players.get(p) or {}).get("full_name") or p for p in avail[:i]]
 
 
-def hot_bid(meta, row: dict, left: int, week: int = 1) -> Optional[dict]:
+def expert_worth(meta, week: int, pid: str) -> Optional[dict]:
+    """The experts' price on him (expertfaab.values) for the waiver run ahead:
+    {lo, hi, src} as shares of budget, or None when no list names him."""
+    if getattr(meta, "platform", "") != "sleeper":
+        return None
+    from . import expertfaab as EF
+    season = int(getattr(meta, "season", 0) or config.current_season())
+    try:
+        vals = EF.values(season, int(week) + 1)
+    except Exception:  # noqa: BLE001
+        return None
+    return vals.get(str(pid))
+
+
+def expert_pids(meta, week: int) -> set:
+    """Players any expert list puts a price above $0 on this week."""
+    if getattr(meta, "platform", "") != "sleeper":
+        return set()
+    from . import expertfaab as EF
+    season = int(getattr(meta, "season", 0) or config.current_season())
+    try:
+        vals = EF.values(season, int(week) + 1)
+    except Exception:  # noqa: BLE001
+        return set()
+    return {p for p, v in vals.items() if v.get("hi", 0) > 0}
+
+
+def hot_bid(meta, row: dict, left: int, week: int = 1, worth: Optional[dict] = None,
+            budget: int = 100) -> Optional[dict]:
     """A player half the internet is adding (Sleeper's 25 most-added in a
     day) isn't priced like the league's usual claim — 78% of those went
     uncontested for $0–2, and the old advice put Jonah Coleman (10/26) at
@@ -367,20 +398,42 @@ def hot_bid(meta, row: dict, left: int, week: int = 1) -> Optional[dict]:
     # Weight each rival's ceiling by how much it needs this position: a team
     # set at RB doesn't chase an RB the way a team starting a backup does.
     pos = ((api.get_players() or {}).get(str(row.get("pid"))) or {}).get("position", "")
-    needs = position_needs(meta, pos, week) if pos else {}
+    needs = position_needs(meta, pos, int(week) + 1) if pos else {}       # the week the claim is for
     me = room.get("me")
     ceil = {t: int(round(v * NEED_WEIGHT.get((needs.get(t) or {}).get("tier", "ok"), 1.0)))
             for t, v in room["ceilings"].items()} if needs else dict(room["ceilings"])
     order = sorted(ceil.items(), key=lambda kv: -kv[1])
     second = order[1][1] if len(order) > 1 else order[0][1]
-    hi = min(max(second + 2, room["p90"]), left)
-    lo = min(max(room["typical"], room["p90"]) if not needs else room["p90"], hi)
+    win = min(max(second + 2, room["p90"]), left)
     sure = min(order[0][1] + 1, left)
     top_t, top_v = order[0]
     rank, ahead = _demand_rank(meta, str(row.get("pid")))
-    note = f"hot claim · ${hi} wins it if the league fights over him: it beats every rival's biggest hot bid since {FH.HOT_SINCE}"
-    if sure > hi:
-        note += f" except {top_t}'s (${top_v}); ${sure} beats them all"
+    # What he's worth (the experts, in this league's dollars) against what it
+    # takes to win him here: bid the smaller. Worth more than beating everyone
+    # → the bid that wins, with the sure thing offered; worth less than a
+    # contested claim costs → his worth, and he may go elsewhere.
+    w_lo = int(round((worth or {}).get("lo", 0) * budget))
+    w_hi = int(round((worth or {}).get("hi", 1) * budget))
+    srcs = " · ".join(f"{k} {int(round(a * 100))}–{int(round(b * 100))}%" for k, (a, b) in ((worth or {}).get("src") or {}).items())
+    if worth and worth.get("week"):
+        srcs += f", week {worth['week']} lists"
+    hi = min(win, w_hi, left)
+    lo = min(max(1, w_lo), hi)
+    if worth is None:
+        note = f"hot claim · ${hi} wins it if the league fights over him"
+    elif w_hi < win:
+        note = (f"worth ${w_lo}–{w_hi} to the experts ({srcs}) — less than a fight for him costs here "
+                f"(${win}), so bid his worth and let him go if it's contested")
+    else:
+        note = f"worth ${w_lo}–{w_hi} to the experts ({srcs}) · ${hi} wins it if the league fights over him"
+    if worth is None or w_hi >= win:
+        note += f": it beats every rival's biggest hot bid since {FH.HOT_SINCE}"
+        if sure > hi:
+            note += f" except {top_t}'s (${top_v})"
+            note += (f"; ${sure} beats them all and is still within his worth" if sure <= w_hi
+                     else f"; ${sure} beats them all but is more than he's worth")
+    if sure > w_hi:
+        sure = hi
     if needs:
         need_t = [t for t, d in needs.items() if d["tier"] == "need" and t != me]
         set_t = [t for t, d in needs.items() if d["tier"] == "set" and t != me]
@@ -399,4 +452,4 @@ def hot_bid(meta, row: dict, left: int, week: int = 1) -> Optional[dict]:
     if float(row.get("gain") or 0) <= 0.05:
         note += " · doesn't start for you this week: a stash"
     return {"low": lo, "high": hi, "sure": sure, "note": note, "mode": "hot", "room": dict(room, top=order[0], ceilings=dict(order)),
-            "needs": {t: d["tier"] for t, d in needs.items()}, "pos": pos}
+            "needs": {t: d["tier"] for t, d in needs.items()}, "pos": pos, "worth": (w_lo, w_hi), "win": win}
