@@ -2853,6 +2853,11 @@ def _waivers(ctx, g) -> None:
         if budget and not (queued or top):
             with _drawer("Your claims", "none queued"):
                 _claim_builder(ctx, g, board, left, budget, weeks_left)
+        if budget and getattr(meta, "platform", "") == "sleeper":
+            _lk = ctx["league_key"]
+            with _drawer("Every claim", "all seasons · sort by price, team, position", key=f"fh_{_lk}"):
+                if _lazy(f"fh_{_lk}", "Load every FAAB claim in this league's history"):
+                    _claims_history(ctx, g)
         rc = _waiver_recap(ctx, g) if budget else None
         if rc:
             rec, rrows, when_s = rc
@@ -2873,6 +2878,81 @@ def _waivers(ctx, g) -> None:
                      if p not in started and not (krows.get(str(p)) and krows[str(p)]["verdict"] == "keep")), None)
         with _drawer("Drop candidates", (f"{safe} first" if safe else "") + " · keeper-aware"):
             _drop_list(ctx, g, started, krows)
+
+
+@st.cache_data(ttl=600, show_spinner="Reading every waiver run…")
+def _claims_cached(league_id: str, season: int) -> list:
+    from .. import faabhistory as FH
+    return FH.all_claims(league_id, season)
+
+
+def _claims_history(ctx, g) -> None:
+    """Every FAAB claim the league has made, every season it ran FAAB: who won,
+    what they paid, and who else bid what. Sorted by price by default — the
+    whole history at once, since budgets changed ($250 in 2023) there's a
+    share-of-budget sort too."""
+    from .. import faabhistory as FH
+    meta, lk = ctx["meta"], ctx["league_key"]
+    rows = _claims_cached(str(meta.league_id), int(g["season"]))
+    if not rows:
+        _note("No FAAB claims on record for this league yet.")
+        return
+    seasons = sorted({r["season"] for r in rows}, reverse=True)
+    teams = sorted({b["team"] for r in rows for b in r["bids"] if b["team"] and b["team"] != "?"}, key=str.lower)
+    c = st.columns([2.2, 3.2, 2.2])
+    s_lab = ["All"] + [str(x) for x in seasons]
+    s_pick = c[0].segmented_control("Season", s_lab, key=f"fh_season_{lk}", selection_mode="single", default="All",
+                                    on_change=_keep_open(f"fh_{lk}")) or "All"
+    sort = c[1].segmented_control("Sort", list(FH.SORTS), key=f"fh_sort_{lk}", selection_mode="single", default="Price",
+                                  on_change=_keep_open(f"fh_{lk}")) or "Price"
+    pos = c[2].segmented_control("Pos", ["All", "QB", "RB", "WR", "TE", "K", "DEF"], key=f"fh_pos_{lk}",
+                                 selection_mode="single", default="All", on_change=_keep_open(f"fh_{lk}")) or "All"
+    c2 = st.columns([3, 2, 2])
+    team = c2[0].selectbox("Team", ["All teams"] + teams, key=f"fh_team_{lk}", on_change=_keep_open(f"fh_{lk}"))
+    q = c2[1].text_input("Player", key=f"fh_q_{lk}", placeholder="search a player", on_change=_keep_open(f"fh_{lk}"))
+    failed = c2[2].toggle("Include claims nobody won", key=f"fh_failed_{lk}", on_change=_keep_open(f"fh_{lk}"))
+
+    show = [r for r in rows if (failed or r["won"] is not None)
+            and (s_pick == "All" or str(r["season"]) == s_pick)
+            and (pos == "All" or r["pos"] == pos or (pos == "DEF" and r["pos"] in ("DEF", "DST")))
+            and (team == "All teams" or any(b["team"] == team for b in r["bids"]))
+            and (not q or q.strip().lower() in r["name"].lower())]
+    show.sort(key=FH.SORTS.get(sort, FH.SORTS["Price"]))
+
+    # one line per season: what the league spent and the claim that cost most
+    summ = FH.summary([r for r in rows if s_pick == "All" or str(r["season"]) == s_pick])
+    _tiles([(f"{s} · {v['n']} claims", f"${v['spent']:,}",
+             f"of ${v['budget']} budgets · {v['free'] / v['n']:.0%} for $0 · top {v['top']['name']} ${v['top']['won']}",
+             "var(--ink)") for s, v in summ.items()])
+
+    me = str(g.get("me") or "")
+    cap = 150
+    full = st.session_state.get(f"fh_all_{lk}")
+    vis = show if full else show[:cap]
+    rws = []
+    for i, r in enumerate(vis, 1):
+        mine = me and str(r.get("winner_user") or "") == me
+        others = [b for b in r["bids"] if not b["won"]]
+        other_s = " · ".join(f'{_esc_(b["team"])} ${b["bid"]}' for b in others[:4]) + (f" · +{len(others) - 4}" if len(others) > 4 else "")
+        win_s = (f'<b title="{_esc_(r.get("winner_team") or "")}">{_esc_(r["winner"] or "")}</b>' + (' <span class="ws-dim">(you)</span>' if mine else "")) \
+            if r["won"] is not None else '<span class="ws-dim">nobody — every claim failed</span>'
+        rws.append([str(i), f'{r["season"]} · W{r["week"]}',
+                    f'<b>{_esc_(r["name"])}</b> <span class="ws-dim">{_esc_(r["pos"])}{(" " + _esc_(r["team"])) if r["team"] else ""}</span>',
+                    win_s,
+                    f'<b>${r["won"]}</b>' if r["won"] is not None else "—",
+                    f'{r["pct"]:.0%}' if r["pct"] is not None else "—",
+                    f'${r["runner_up"]}' if r["runner_up"] is not None else '<span class="ws-dim">—</span>',
+                    other_s or '<span class="ws-dim">no other bids</span>',
+                    str(r["bidders"])])
+    _note(f"{len(show)} claim{'s' if len(show) != 1 else ''}" + (f" · showing the first {cap}" if len(show) > cap and not full else "")
+          + " · hover a manager for that season's team name")
+    st.markdown(_tbl(["#", "When", "Player", "Won by", "~Paid", "~% budget", "~2nd bid", "Other bids", "~Bids"], rws,
+                     widths=["38px", "92px", "22%", "15%", "64px", "76px", "70px", "auto", "48px"], wide=True),
+                unsafe_allow_html=True)
+    if len(show) > cap and not full:
+        st.button(f"Show all {len(show)}", key=f"fh_allbtn_{lk}",
+                  on_click=lambda: (st.session_state.__setitem__(f"fh_all_{lk}", True),
+                                    st.session_state.__setitem__(f"drawer_fh_{lk}", True)))
 
 
 def _streaming(ctx, g, taken, wv, _start_kd) -> None:
