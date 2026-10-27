@@ -2487,7 +2487,7 @@ def _claim_builder(ctx, g, board, left: int, budget: int, weeks_left: int) -> No
         cols = st.columns(len(adds))
         for col, r in zip(cols, adds):
             _hb = FM.bid(ctx["meta"], g["week"], r, budget, left, weeks_left) if r in hot_adds else None
-            _lab = (f'🔥 {r["name"].split()[-1]} ${_hb["high"]}' if (_hb and _hb.get("mode") == "hot")
+            _lab = (f'+ {r["name"].split()[-1]} ${_hb["high"]} · hot' if (_hb and _hb.get("mode") == "hot")
                     else f'+ {r["name"].split()[-1]} {r["gain"]:+.1f}')
             if col.button(_lab, key=f"cb_add_{lk}_{r['pid']}", use_container_width=True,
                           help=(_hb or {}).get("note")):
@@ -2739,7 +2739,7 @@ def _fa_list(ctx, g, board, taken, wv, gain_of, budget, left, weeks_left) -> Non
         if r["gain"] > 0.05 or (budget and str(r["pid"]) in FM.hot_pids()):
             b = FM.bid(meta, g["week"], r, budget, left, weeks_left) if budget else None
             if b and b.get("mode") == "hot":
-                bid, _bnote = f'🔥 ${b["high"]}', b.get("note") or ""
+                bid, _bnote = f'${b["high"]} hot', b.get("note") or ""
             else:
                 bid = ("claim" if (b is None or b.get("mode") == "priority") else f'${b["low"]}–{b["high"]}')
         else:
