@@ -2886,6 +2886,68 @@ def _claims_cached(league_id: str, season: int) -> list:
     return FH.all_claims(league_id, season)
 
 
+@st.cache_data(ttl=600, show_spinner=False)
+def _faab_left_cached(league_id: str) -> dict:
+    from .. import faabhistory as FH
+    return FH.faab_left(league_id)
+
+
+def _hot_claims(ctx, g, rows, seasons) -> None:
+    """What a top-tier claim costs here, and how each team bids on one.
+
+    A hot claim is one two or more teams put money on, or that went for 15%+
+    of the budget. Per team: what it bid when it put money down, its biggest
+    hot bid, and what it has left — a team can't bid more than that, so its
+    likely ceiling is the smaller of the two. The line on top is the bid that
+    beats every rival's ceiling, and the one that wins a typical hot claim."""
+    from .. import faabhistory as FH
+    meta, lk = ctx["meta"], ctx["league_key"]
+    budget = int((inseason.faab(meta) or {}).get("budget") or 0) or 100
+    opts = ["Since 2024", "All seasons"] if min(seasons) < 2024 else ["All seasons"]
+    pick = st.segmented_control("Hot claims", opts, key=f"fh_hot_{lk}", selection_mode="single", default=opts[0],
+                                on_change=_keep_open(f"fh_{lk}")) or opts[0]
+    since = 2024 if pick == "Since 2024" else None
+    m = FH.hot_market(rows, since)
+    if not m["n"]:
+        return
+    prof = FH.hot_profiles(rows, since)
+    left = _faab_left_cached(str(meta.league_id))
+    me_name = next((b["team"] for r in rows for b in r["bids"] if str(b.get("user") or "") == str(g.get("me"))), None)
+    usd = lambda share: int(round(share * budget))  # noqa: E731
+    # each rival's likely ceiling: its biggest hot bid, but never more than it has left
+    ceil = {}
+    for t, p in prof.items():
+        if t == me_name:
+            continue
+        cap = left.get(t)
+        ceil[t] = min(usd(p["max"]), cap) if cap is not None else usd(p["max"])
+    top_rival = max(ceil.items(), key=lambda kv: kv[1]) if ceil else None
+    typical = usd(m["won_avg"] or 0)
+    beat_most = usd(m["second_p90"] or 0) + 1
+    line = (f'A top-tier claim here has gone for <b>${typical}</b> on average (median ${usd(m["won_med"] or 0)}, '
+            f'top quarter ${usd(m["won_p75"] or 0)}+). The second bid — what the winner actually had to beat — '
+            f'was under <b>${beat_most}</b> nine times in ten.')
+    if top_rival:
+        line += (f' To beat every rival\'s biggest hot bid (capped by what they have left), bid '
+                 f'<b>${top_rival[1] + 1}</b> — {_esc_(top_rival[0])} is the one to beat.')
+    st.markdown(f'<div class="ws-note">{line}</div>', unsafe_allow_html=True)
+    rws = []
+    for t, p in sorted(prof.items(), key=lambda kv: -kv[1]["avg_paid"]):
+        tp = p["top"] or {}
+        rws.append([f'<b>{_esc_(t)}</b>' + (' <span class="ws-dim">(you)</span>' if t == me_name else ""),
+                    f'${left[t]}' if t in left else "—",
+                    f'{p["n"]}', f'{p["wins"]}',
+                    f'<b>${usd(p["avg_paid"])}</b>' if p["n_money"] else "—",
+                    f'${usd(p["max"])}',
+                    f'{_esc_(tp.get("name", ""))} <span class="ws-dim">{tp.get("season", "")} · ${tp.get("bid", "")}</span>' if tp else "",
+                    "—" if t == me_name else f'${ceil.get(t, 0)}'])
+    st.markdown(_tbl(["Team", "~FAAB left", "~Hot claims", "~Won", "~Avg bid", "~Biggest", "Biggest on", "~Can bid up to"], rws,
+                     widths=["18%", "80px", "86px", "60px", "76px", "76px", "auto", "100px"], wide=True),
+                unsafe_allow_html=True)
+    _note(f"{m['n']} hot claims · bids in today's ${budget} budget (2023's $250 budget scaled down) · "
+          "avg bid counts only the claims a team put money on · a team can't bid more than it has left")
+
+
 def _claims_history(ctx, g) -> None:
     """Every FAAB claim the league has made, every season it ran FAAB: who won,
     what they paid, and who else bid what. Sorted by price by default — the
@@ -2898,6 +2960,7 @@ def _claims_history(ctx, g) -> None:
         _note("No FAAB claims on record for this league yet.")
         return
     seasons = sorted({r["season"] for r in rows}, reverse=True)
+    _hot_claims(ctx, g, rows, seasons)
     teams = sorted({b["team"] for r in rows for b in r["bids"] if b["team"] and b["team"] != "?"}, key=str.lower)
     c = st.columns([2.2, 3.2, 2.2])
     s_lab = ["All"] + [str(x) for x in seasons]

@@ -135,3 +135,82 @@ def summary(rows: List[dict]) -> dict:
         out[s] = {"n": len(rs), "spent": sum(bids), "median": bids[len(bids) // 2],
                   "free": sum(1 for b in bids if b == 0), "budget": rs[0]["budget"], "top": top}
     return out
+
+
+# ------------------------------------------------------------------ hot claims
+HOT_TEAMS = 2           # at least two different teams putting real money on him…
+HOT_SHARE = 0.15        # …or a winning bid of 15% of the budget
+
+
+def team_bids(r: dict) -> Dict[str, int]:
+    """{team: its highest bid} on one claim. Sleeper logs one claim per drop,
+    so a team's two $0 claims on a player are one bidder, not two."""
+    out: Dict[str, int] = {}
+    for b in r["bids"]:
+        out[b["team"]] = max(out.get(b["team"], 0), int(b["bid"]))
+    return out
+
+
+def is_hot(r: dict) -> bool:
+    """A top-tier claim: two or more teams bidding money, or a big winning bid."""
+    paying = sum(1 for v in team_bids(r).values() if v >= 1)
+    return paying >= HOT_TEAMS or bool(r["won"] is not None and r["budget"] and r["won"] >= HOT_SHARE * r["budget"])
+
+
+def hot_profiles(rows: List[dict], since: Optional[int] = None) -> Dict[str, dict]:
+    """How each team bids when a claim is contested: on every hot claim it was
+    in, its bid as a share of that season's budget (budgets changed: $250 in
+    2023, $100 since). `since` limits to seasons from that year on."""
+    out: Dict[str, dict] = {}
+    for r in rows:
+        if not r["budget"] or (since and r["season"] < since) or not is_hot(r):
+            continue
+        for team, bid in team_bids(r).items():
+            p = out.setdefault(team, {"team": team, "n": 0, "wins": 0, "shares": [], "money": [], "top": None})
+            p["n"] += 1
+            share = bid / r["budget"]
+            p["shares"].append(share)
+            if bid >= 1:
+                p["money"].append(share)
+            if r["winner"] == team:
+                p["wins"] += 1
+            if p["top"] is None or share > p["top"]["share"]:
+                p["top"] = {"share": share, "bid": bid, "name": r["name"], "season": r["season"], "week": r["week"]}
+    for p in out.values():
+        s, m = p.pop("shares"), p.pop("money")
+        p["avg"] = sum(s) / len(s) if s else 0.0             # every hot claim it was in, $0s included
+        p["avg_paid"] = sum(m) / len(m) if m else 0.0        # only when it put money down
+        p["max"] = max(s) if s else 0.0
+        p["n_money"] = len(m)
+    return out
+
+
+def hot_market(rows: List[dict], since: Optional[int] = None) -> dict:
+    """The league's hot claims overall: what won them and the 2nd bid (the
+    price that actually had to be beaten), as shares of the budget."""
+    hot = [r for r in rows if r["won"] is not None and r["budget"] and (not since or r["season"] >= since) and is_hot(r)]
+
+    def q(xs, p):
+        xs = sorted(xs)
+        return xs[min(len(xs) - 1, int(p * len(xs)))] if xs else None
+    won = [r["won"] / r["budget"] for r in hot]
+    second = []
+    for r in hot:
+        tb = sorted(team_bids(r).values(), reverse=True)
+        second.append((tb[1] if len(tb) > 1 else 0) / r["budget"])
+    return {"n": len(hot), "won_med": q(won, .5), "won_p75": q(won, .75), "won_avg": sum(won) / len(won) if won else None,
+            "second_med": q(second, .5), "second_p75": q(second, .75), "second_p90": q(second, .9),
+            "second_max": max(second) if second else None, "claims": hot}
+
+
+def faab_left(league_id: str) -> Dict[str, int]:
+    """{manager: FAAB left this season} from Sleeper's rosters."""
+    try:
+        lg = api.get_league(str(league_id)) or {}
+        budget = int((lg.get("settings") or {}).get("waiver_budget") or 0)
+        users = {u.get("user_id"): str(u.get("display_name") or "").strip() for u in api.get_users(str(league_id)) or []}
+        rosters = api.get_rosters(str(league_id)) or []
+    except Exception:  # noqa: BLE001
+        return {}
+    return {users.get(r.get("owner_id"), f"Team {r.get('roster_id')}"):
+            budget - int((r.get("settings") or {}).get("waiver_budget_used") or 0) for r in rosters}
