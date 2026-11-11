@@ -1249,3 +1249,74 @@ def availability_report(pids, slots, proj, registry, *, byes=None, week=None,
             "current_total": round(cur_total, 1),
             "cost_if_all_out": round(cur_total - all_out_total, 1),
             "n_risky_starters": len(at_risk)}
+
+
+# ---------------------------------------------------------------- play the odds
+def blended_sd(pos: str, mean: float, recent=None, spread: float = 0.0) -> float:
+    """One player's week-to-week spread, made personal.
+
+    `player_sd` knows only his position. Two more things are known: what he has
+    actually scored lately (`recent`, a list of points — a boom-or-bust receiver
+    shows it there) and how far apart the sources are on him this week
+    (`spread`). The model and his own record are averaged once he has three
+    games; the sources' disagreement is added on top as its own uncertainty."""
+    sd = player_sd(pos, mean)
+    rec = [float(x) for x in (recent or [])]
+    if len(rec) >= 3:
+        m = sum(rec) / len(rec)
+        emp = (sum((x - m) ** 2 for x in rec) / (len(rec) - 1)) ** 0.5
+        sd = 0.5 * sd + 0.5 * max(_FLOOR_SD, emp)
+    return (sd ** 2 + (float(spread or 0) / 2.0) ** 2) ** 0.5
+
+
+def odds_swaps(lineup, bench, proj: dict, registry, opp_mean: float, opp_sd: float, *,
+               sd_of=None, locked=None, min_gain: float = 0.005, max_n: int = 2) -> List[dict]:
+    """Swaps that raise the chance of WINNING, which is not the same as points.
+
+    The optimiser maximises the projected total. But an underdog doesn't need
+    the best average — he needs a big week, and a volatile flex gives him more
+    of those; a favourite wants the reverse. So this tries every bench man in
+    every slot he can fill and keeps the swaps that move the win probability by
+    at least `min_gain` while COSTING projection (a swap that gains points is an
+    ordinary lineup move and is reported as one already).
+
+    `lineup` = [(slot, pid)], `bench` = [pid], `sd_of(pid)` -> his spread,
+    `locked(pid)` -> True once his game has kicked off.
+    Returns [{out, in, slot, cost, wp, d_wp, kind: "swing" | "safe"}].
+    """
+    from .lineup import slot_accepts
+    locked = locked or (lambda _p: False)
+
+    def sd(p):
+        if sd_of:
+            return float(sd_of(p))
+        return player_sd(_pos(registry, p), float(proj.get(str(p)) or 0))
+
+    pj = lambda p: float(proj.get(str(p)) or 0.0)  # noqa: E731
+    cur = [(s, str(p)) for s, p in lineup if p]
+    mean = sum(pj(p) for _s, p in cur)
+    var = sum(sd(p) ** 2 for _s, p in cur)
+    wp0 = win_prob(mean, var ** 0.5, opp_mean, opp_sd)
+    out = []
+    for b in map(str, bench or []):
+        if pj(b) <= 0 or locked(b) or b not in _playable([b], registry):
+            continue
+        for slot, s in cur:
+            if locked(s) or not slot_accepts(slot, _pos(registry, b)):
+                continue
+            cost = pj(s) - pj(b)
+            if cost < 0.05:
+                continue                      # a points gain: already a "move"
+            v2 = max(1.0, var - sd(s) ** 2 + sd(b) ** 2)
+            wp = win_prob(mean - cost, v2 ** 0.5, opp_mean, opp_sd)
+            if wp - wp0 >= min_gain:
+                out.append({"out": s, "in": b, "slot": slot, "cost": round(cost, 1), "wp": wp,
+                            "d_wp": wp - wp0, "kind": "swing" if sd(b) > sd(s) else "safe"})
+    out.sort(key=lambda x: -x["d_wp"])
+    seen, keep = set(), []
+    for x in out:
+        if x["out"] in seen or x["in"] in seen:
+            continue
+        seen.update({x["out"], x["in"]})
+        keep.append(x)
+    return keep[:max_n]

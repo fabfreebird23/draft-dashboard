@@ -98,6 +98,13 @@ def pulse(preset: dict, registry, week: int, byes: Optional[dict] = None) -> dic
         from . import projections as PJ
         proj = PJ.for_league(meta, registry, season, week=week) or {}
         games = GT.load_week(season, week)
+        # the same blended number the league's own pages use, or Home and the
+        # page argue about the lineup
+        try:
+            from . import blend as BL
+            proj, _bd = BL.for_league(meta, registry, season, week, proj, games=games)
+        except Exception:  # noqa: BLE001
+            pass
         phase = GT.week_phase(games)
         out.update({"name": meta.name or out["name"], "n_teams": meta.num_teams, "phase": phase})
         se = (rosters.get(me) or {}).get("settings") or {}

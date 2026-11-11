@@ -148,3 +148,48 @@ def line(pos: str, row: Optional[dict]) -> str:
     if _i(row, "fum_lost"):
         bits.append(f'{_i(row, "fum_lost")} fum lost')
     return " · ".join(bits)
+
+
+# ------------------------------------------------------------ finished weeks
+# A week that is over never changes, and the usage trends and the Monday
+# review both want several of them at once. The live feed above is ~1.5 MB a
+# week; this keeps the fields those two read and holds each week for good.
+_FINAL_KEEP = ("gp", "gs", "off_snp", "tm_off_snp", "rec_tgt", "rec", "rec_yd", "rec_td", "rec_air_yd",
+               "rec_rz_tgt", "rush_att", "rush_yd", "rush_td", "rush_rz_att", "pass_att", "pass_cmp",
+               "pass_yd", "pass_td", "pass_int", "pass_2pt", "pass_inc", "pass_fd", "pass_sack",
+               "rush_2pt", "rush_fd", "rec_2pt", "rec_fd", "bonus_rec_te", "bonus_rec_rb",
+               "bonus_rec_wr", "fum_lost", "fum", "pts_ppr", "pts_half_ppr", "pts_std",
+               "fgm", "fga", "xpm", "xpa")
+_FINAL: Dict[str, Dict[str, dict]] = {}
+
+
+def final(season: int, week: int) -> Dict[str, dict]:
+    """{pid | "TEAM_XXX": slim stat row} for a FINISHED week. {} if unreachable."""
+    key = f"{season}_{week}"
+    if key in _FINAL:
+        return _FINAL[key]
+    cp = config.DATA_DIR / f"nflfinal_{season}_w{week}.json"
+    rows: Dict[str, dict] = {}
+    try:
+        if cp.exists():
+            rows = json.loads(cp.read_text())
+    except Exception:  # noqa: BLE001
+        rows = {}
+    if not rows:
+        try:
+            r = requests.get(_URL.format(season=season, week=week), timeout=15)
+            r.raise_for_status()
+            for k, v in (r.json() or {}).items():
+                if not isinstance(v, dict):
+                    continue
+                slim = {f: v[f] for f in _FINAL_KEEP if v.get(f) is not None}
+                if slim:
+                    rows[str(k)] = slim
+            if rows:
+                config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+                cp.write_text(json.dumps(rows))
+        except Exception:  # noqa: BLE001
+            rows = {}
+    if rows:
+        _FINAL[key] = rows
+    return rows

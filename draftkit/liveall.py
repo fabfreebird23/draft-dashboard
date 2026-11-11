@@ -94,6 +94,11 @@ def static_for(preset: dict, registry, week: int, byes: Optional[dict] = None) -
         oid = _opponent(provider, plat, lid, rosters, me, week)
         slots = provider.get_roster_slots()
         proj = PJ.for_league(meta, registry, season, week=week) or {}
+        try:
+            from . import blend as BL
+            proj, _bd = BL.for_league(meta, registry, season, week, proj)
+        except Exception:  # noqa: BLE001
+            pass
         mine = rosters[me]["players"]
         starters = rosters[me]["starters"]
         ost = ((rosters.get(oid) or {}).get("starters") or []) if oid else []

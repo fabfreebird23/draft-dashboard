@@ -293,7 +293,7 @@ def _gather(ctx, week):
 # Bump when _gather_raw changes shape: st.cache_data hashes only the cached
 # function's own code, so a fix inside _gather_raw (the 7½ pick book) sat
 # behind a stale cache on Cloud until the bucket rolled over.
-_GATHER_V = 2
+_GATHER_V = 3
 
 
 @st.cache_data(show_spinner=False, max_entries=8)
@@ -340,7 +340,17 @@ def _gather_raw(ctx, week):
     # fresh about: before kickoff it is a wasted round trip on every tab.
     live = (_live(meta.platform, str(meta.league_id), week, ctx["provider"])
             if (games and phase in ("live", "late", "done")) else {})
+    # ONE number per player from every source (draftkit/blend.py). Every screen
+    # reads g["proj"]; the host's own projection stays beside it as proj_base,
+    # and g["blend"] says, per player, what each source had and how far apart.
+    base, bdetail = proj, {}
+    try:
+        from .. import blend as BL
+        proj, bdetail = BL.for_league(meta, reg, season, week, base, games=games, ecr=ecr["wk"])
+    except Exception:  # noqa: BLE001 — a panel hiccup leaves the host's numbers standing
+        proj, bdetail = base, {}
     return {"rosters": rosters, "me": me, "mine": mine, "starters": starters,
+            "proj_base": base, "blend": bdetail,
             "games": games, "phase": phase, "live": live,
             # The LINEUP, not the draft roster: in-season every question is about
             # the nine you start, and in a fixed-roster league the two lists are
@@ -1399,6 +1409,104 @@ def _start_sit(ctx, g, lc) -> None:
                 unsafe_allow_html=True)
 
 
+@st.cache_data(ttl=6 * 3600, show_spinner=False, hash_funcs={"builtins.object": id})
+def _usage_cached(season: int, week: int, scoring: str, weights, _registry) -> dict:
+    from .. import usage as U
+    return U.profiles(season, week, _registry, scoring=scoring, weights=dict(weights) if weights else None)
+
+
+def _usage(ctx, g) -> dict:
+    """{pid: usage profile} for the finished weeks — snaps, targets, carries,
+    red-zone work and the opportunity points they add up to (draftkit/usage.py)."""
+    meta = ctx["meta"]
+    w = getattr(meta, "scoring_weights", None) or {}
+    try:
+        return _usage_cached(g["season"], g["week"], getattr(meta, "scoring", "ppr") or "ppr",
+                             tuple(sorted(w.items())) if w else None, ctx["registry"])
+    except Exception:  # noqa: BLE001 — a trend line is never worth the page
+        return {}
+
+
+def _usage_tag(prof) -> str:
+    """"▲ snaps 48→71%" as a row tag, or ""."""
+    from .. import usage as U
+    t = U.tag(prof)
+    if not t:
+        return ""
+    up = prof["trend"] == "up"
+    return f'<b class="ux {"up" if up else "dn"}">{"▲" if up else "▼"} {_esc_(t)}</b>'
+
+
+def _blend_n(g) -> int:
+    """How many sources actually answered this week (1 = the host alone)."""
+    return max([d.get("n", 1) for d in (g.get("blend") or {}).values()] or [1])
+
+
+def _split_line(g, pid) -> str:
+    """"Sleeper 14.2 · FantasyPros 9.8 · …" when the sources split sharply on
+    him, else "". The blend is the number; this is the argument behind it."""
+    from .. import blend as BL
+    d = (g.get("blend") or {}).get(str(pid))
+    if not BL.split(d, float(g["proj"].get(str(pid), 0) or 0)):
+        return ""
+    by = d["by"]
+    return " · ".join(f'{BL.LABEL[s]} {by[s]:.1f}' for s in BL.SOURCES if s in by)
+
+
+def _sd_fn(ctx, g):
+    """pid -> his week's spread: the position model, his own last games and how
+    far apart the sources are on him (weekly.blended_sd)."""
+    reg, us, bd = ctx["registry"], _usage(ctx, g), g.get("blend") or {}
+
+    def sd(pid):
+        pid = str(pid)
+        try:
+            pos = (reg.meta(pid).position or "").upper()
+        except Exception:  # noqa: BLE001
+            pos = ""
+        rec = [w["pts"] for w in (us.get(pid) or {}).get("weeks", [])]
+        return W.blended_sd(pos, float(g["proj"].get(pid, 0) or 0), rec,
+                            float((bd.get(pid) or {}).get("spread") or 0))
+    return sd
+
+
+def _odds_block(ctx, g, lineup, bench) -> None:
+    """Play the odds: the swap that raises the chance of WINNING even though it
+    costs projection — the boom-or-bust man when he's the underdog, the steady
+    one when he's ahead (weekly.odds_swaps)."""
+    reg, games = ctx["registry"], g.get("games") or {}
+    oid, opp = _opponent(ctx, g)
+    if not opp:
+        return
+    sd = _sd_fn(ctx, g)
+    ost = [str(p) for p in _opp_starters(g, oid) if p and str(p) != "0"]
+    if not ost:
+        return
+    om = sum(float(g["proj"].get(p, 0) or 0) for p in ost)
+    osd = sum(sd(p) ** 2 for p in ost) ** 0.5
+    cur = [(s_, str(p)) for s_, p in lineup if p]
+    mm = sum(float(g["proj"].get(p, 0) or 0) for _s, p in cur)
+    msd = sum(sd(p) ** 2 for _s, p in cur) ** 0.5
+    wp0 = W.win_prob(mm, msd, om, osd)
+    locked = lambda p: GT.status(WV.game_of(reg, games, p)) in ("in", "post") if games else False  # noqa: E731
+    swaps = W.odds_swaps(cur, bench, g["proj"], reg, om, osd, sd_of=sd, locked=locked)
+    if not swaps:
+        return
+    them = _owner_name(ctx, oid).split()[0]
+    stance = ("the underdog" if wp0 < 0.45 else "the favourite" if wp0 > 0.55 else "in a coin flip")
+    for x in swaps:
+        i, o = reg.meta(x["in"]), reg.meta(x["out"])
+        why = (f"{i.name.split()[-1]} swings wider (±{sd(x['in']):.0f} against ±{sd(x['out']):.0f}), and a wide "
+               f"swing is what catches a better team" if x["kind"] == "swing" else
+               f"{i.name.split()[-1]} is steadier (±{sd(x['in']):.0f} against ±{sd(x['out']):.0f}), and a lead "
+               f"is protected by not giving a week away")
+        st.markdown(C.action_html(
+            "info", "%", f'Play the odds: {i.name} over {o.name} at {x["slot"]}',
+            f'You are <b>{stance}</b> against {_esc_(them)} at {100 * wp0:.0f}%. This costs <b>{x["cost"]:.1f}</b> '
+            f'projected points and still moves you to <b>{100 * x["wp"]:.1f}%</b> — {why}.',
+            f'{100 * x["d_wp"]:+.1f}', "win %"), unsafe_allow_html=True)
+
+
 def _lineup(ctx, g) -> None:
     """What is on the platform beside what to set, slot by slot, seated by
     kickoff, with the taps to make in the order the platform will take them."""
@@ -1411,36 +1519,11 @@ def _lineup(ctx, g) -> None:
                    "against. The Command Center shows the best available lineup.")
         return
     pn = _panels(ctx, g)
-    # ---- which panel decides ---------------------------------------------
-    # Projections are the default; the others rank instead of scoring, so the
-    # optimiser is fed "rank turned into a score" and the POINTS shown are still
-    # the projection for whatever set that panel picks — the two panels are
-    # then comparable on one number.
-    _srcs = ["Projections", "FantasyPros", "Flock", "The Ballers", "Vegas"]
-    _skey = f"lineup_src_{ctx['league_key']}"
-    with st.container(key="lineup_src"):
-        st.session_state.setdefault(_skey, _srcs[0])
-        src = st.segmented_control("Rank by", _srcs, key=_skey, selection_mode="single",
-                                   label_visibility="collapsed") or _srcs[0]
-    score, score_label = _source_scores(pn, g, src)
-    if src != "Projections":
-        lc_src = W.lineup_check(g["mine"], g["slots"], score, reg, g["byes"], g["week"],
-                                current=g.get("starters"))
-        # points, not rank units, for the totals and the gains
-        _p = g["proj"]
-        _opt_set = [str(p) for _s, p in lc_src["optimal"] if p]
-        lc_src["optimal_total"] = round(sum(float(_p.get(x, 0) or 0) for x in _opt_set), 1)
-        lc_src["current_total"] = round(sum(float(_p.get(str(x), 0) or 0)
-                                            for _s, x in lc_src["current"] if x), 1)
-        for m in lc_src["moves"]:
-            m["gain"] = round(float(_p.get(m["in"], 0) or 0) - float(_p.get(m["out"], 0) or 0), 1)
-        lc_src["gain"] = round(lc_src["optimal_total"] - lc_src["current_total"], 1)
-        missing = [p for p in g["mine"] if str(p) not in score and reg.meta(p).position in ("QB", "RB", "WR", "TE")]
-        if missing:
-            _note(f"{src} doesn't rank " + ", ".join(reg.meta(p).name for p in missing[:5])
-                       + (" and others" if len(missing) > 5 else "")
-                       + " — they sort behind everyone it does.")
-        lc = _open_moves(lc_src, reg, games)
+    # One number decides: the BLEND of every source (draftkit/blend.py). The
+    # five-way "rank by" switch that sat here asked him to pick a source each
+    # week; the sources are now averaged, and a row says so only when they
+    # split sharply on a player.
+    us = _usage(ctx, g)
     cur = lc["current"]
     slots = [s for s, _p in cur]
     # The set to start: the optimiser's. Then SEAT it by kickoff.
@@ -1516,6 +1599,12 @@ def _lineup(ctx, g) -> None:
             sub = f'<b class="xl-lk">{"LIVE" if GT.status(gm) == "in" else "DONE"} · LOCKED</b> ' + sub
         if av["status"]:
             sub += f' · <b class="xl-q">{av["status"][:4].upper()}</b>'
+        _ut = _usage_tag(us.get(str(new)))
+        if _ut:
+            sub += " · " + _ut
+        _sp = _split_line(g, new)
+        if _sp:
+            sub += f'<span class="xl-sp"><b>SOURCES SPLIT</b> {_esc_(_sp)}</span>'
         state, gain = "", ""
         if new in ins:
             state = "in"
@@ -1528,7 +1617,7 @@ def _lineup(ctx, g) -> None:
             state = "mv"
             sub += f' · from {_pos_of.get(new, "bench")}, so the later game holds the {slot}'
         one.append({"slot": slot, "name": pm.name, "sub": sub, "pid": _photo_of(new),
-                    "pts": float(g["proj"].get(str(new), 0) or 0), "pts_label": score_label(new),
+                    "pts": float(g["proj"].get(str(new), 0) or 0),
                     "state": state, "gain": gain})
     if n_moves or n_seat:
         _head = " · ".join(x for x in (f'{n_moves} MOVE{"S" if n_moves != 1 else ""} · {_gain:+.1f}' if n_moves else "",
@@ -1542,15 +1631,20 @@ def _lineup(ctx, g) -> None:
     def _bsub(q):
         _st = W.availability(reg.meta(q))["status"]
         return (f'{reg.meta(q).team} · {GT.day_label(WV.game_of(reg, games, q))}'
-                + (f' · <b class="xl-q">{_esc_(_st[:4].upper())}</b>' if _st else ""))
+                + (f' · <b class="xl-q">{_esc_(_st[:4].upper())}</b>' if _st else "")
+                + ((" · " + _usage_tag(us.get(str(q)))) if _usage_tag(us.get(str(q))) else ""))
     _bench = [(reg.meta(q).name, _bsub(q), v, _photo_of(q)) for v, q in sorted(_bench, reverse=True)[:7]]
     c_l, c_b = st.columns([1.55, 1])
     with c_l:
         st.markdown(C.lineup_one_html(one, head=_head, hot=bool(n_moves or n_seat))
                     .replace('</span></div>', f'</span><span class="xl-hs">{_sub_head}</span></div>', 1)
-                    + ("" if src == "Projections" else
-                       f'<div class="xl-src">sorted by {_esc_(src)} · points are our projections</div>'),
+                    + f'<div class="xl-src">points are the blend of {_blend_n(g)} sources</div>',
                     unsafe_allow_html=True)
+        try:
+            _odds_block(ctx, g, [(slots[i], q) for i, q in seated.items()],
+                        [q for q in map(str, g["mine"]) if q not in set(map(str, seated.values()))])
+        except Exception:  # noqa: BLE001 — advice on top of advice; never the page
+            pass
     with c_b:
         st.markdown('<div class="ws-h">Bench</div>' + C.bench_list_html(_bench), unsafe_allow_html=True)
 
@@ -1596,7 +1690,7 @@ def _lineup(ctx, g) -> None:
                     vs = _panel_verdicts(pn, m["out"], m["in"])
                     st.markdown(C.action_html("go" if float(m["gain"]) >= 0 else "warn", "↑",
                                               f'Start {_in.name}, bench {_out.name}',
-                                              f'Worth <b>{float(m["gain"]):+.1f}</b> this week by our projections. '
+                                              f'Worth <b>{float(m["gain"]):+.1f}</b> this week on the blended projection. '
                                               + (_verdict_chips(vs) if vs else "No panel ranks both."),
                                               f'{float(m["gain"]):+.1f}', "points"), unsafe_allow_html=True)
             with c2:

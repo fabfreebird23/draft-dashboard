@@ -3253,6 +3253,12 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 .pw-r b{ font-family:'Roboto Mono',monospace; font-weight:500; font-size:11.5px; } .pw-r b.in{ color:#7fd8b4; } .pw-r b.out{ color:#ff8fae; }
 @media (max-width:900px){ .pw{ grid-template-columns:1fr 1fr; } }
 @media (max-width:520px){ .pw{ grid-template-columns:1fr; } }
+/* usage trend tags + sources-split line */
+.ux{ font-family:'Roboto Mono',monospace; font-style:normal; font-weight:500; font-size:10px; letter-spacing:.02em; white-space:nowrap; }
+.ux.up{ color:#7fd8b4; } .ux.dn{ color:#ff8fae; }
+.xl-sp{ display:block; font-size:10.5px; color:var(--mut2); margin-top:2px; }
+.xl-sp b{ font-family:'Roboto Mono',monospace; font-size:9px; letter-spacing:.1em; font-weight:500; color:#f0b357;
+  border:1px solid rgba(240,179,87,.45); border-radius:3px; padding:0 4px; margin-right:5px; }
 /* keeper unlock finder */
 .un-h{ display:flex; align-items:baseline; gap:10px; margin:10px 0 4px; }
 .un-h b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:17px; text-transform:uppercase; letter-spacing:.03em; }
