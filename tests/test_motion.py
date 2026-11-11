@@ -12,10 +12,8 @@ def test_flap_handles_a_longer_score():
     assert C.flap_html("101.2", "99.8").count('m3-fl go') == 4
 
 
-def test_towers_and_ring_render():
+def test_towers_render():
     assert C.towers_html([("QB", 20.0, 18.0), ("RB", 30.0, 35.0)]).count("m3-pr ") == 4
-    assert C.league_ring_html([{"name": "A", "rec": "1-0"}]) == ""
-    assert "m3-lc" in C.league_ring_html([{"name": "A"}, {"name": "B"}])
 
 
 def test_scoreboard_flashes_the_side_that_scored():

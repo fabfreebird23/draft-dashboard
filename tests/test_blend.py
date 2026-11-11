@@ -71,3 +71,20 @@ def test_underdog_takes_the_volatile_flex_and_favourite_does_not():
     fav = W.odds_swaps(lineup, bench, proj, reg, opp_mean=20.0, opp_sd=8.0, sd_of=lambda p: sd[p])
     assert not fav                                # he's already holding the safe one
     assert W.blended_sd("WR", 10.0, [2, 25, 4, 22]) > W.blended_sd("WR", 10.0, [9, 11, 10, 10])
+
+
+def test_sweep_skips_byes_and_lists_designations(monkeypatch):
+    from draftkit import weekpulse as WP, gametime as GT, weather as WX
+    import time
+    monkeypatch.setattr(WX, "for_week", lambda games, s, w: {"AAA": {"bad": True, "label": "22 mph wind"}})
+    k = time.strftime("%Y-%m-%dT%H:%MZ", time.gmtime(time.time() + 86400))
+    games = {"AAA": {"opp": "BBB", "home": True, "kickoff": k, "state": "pre"}}
+
+    class R:
+        def meta(self, pid):
+            return SimpleNamespace(position={"q": "QB", "r": "RB", "bye": "WR"}[pid], name=pid,
+                                   team={"q": "AAA", "r": "AAA", "bye": "ZZZ"}[pid],
+                                   injury_status={"r": "Questionable"}.get(pid))
+    rows = WP._sweep([("QB", "q"), ("RB", "r"), ("WR", "bye")], R(), games, [], 2026, 10)
+    kinds = {(r["name"], r["kind"]) for r in rows}
+    assert kinds == {("q", "wx"), ("r", "inj")}       # the RB isn't a weather position; the bye isn't listed

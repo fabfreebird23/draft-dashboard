@@ -242,8 +242,8 @@ def _inbox(presets, pulses, on_pick) -> None:
     n = len(items)
     st.markdown(C.hero_html(f"ACROSS {len(grid) or len(presets)} LEAGUES" + (f" · FIRST LOCK {nxt.upper()}" if nxt else ""),
                             str(n), ("thing needs" if n == 1 else "things need") + " you before Sunday"
-                            if n else "Nothing needs you — every lineup is set",
-                            grid=grid[:4] or None), unsafe_allow_html=True)
+                            if n else "Nothing needs you — every lineup is set"),
+                unsafe_allow_html=True)
     for i, it in enumerate(items):
         st.markdown(C.inbox_item_html(it), unsafe_allow_html=True)
         with st.container(key=f"ibact_{i}"):
@@ -271,8 +271,18 @@ def _inbox(presets, pulses, on_pick) -> None:
              if pu.get("ok") and pr.get("label") not in busy]
     if items:
         st.markdown(C.inbox_quiet_html(quiet), unsafe_allow_html=True)
-    # (the win-% strip that sat here repeated the league ring and the rows
-    # below, unlabelled, beside the hero's playoff % — three numbers, one look)
+    # the sweep: every starter still to play with a designation or a weather
+    # flag, all four leagues, in kickoff order — the list to run down on a
+    # Sunday morning. The inbox above is what needs a decision; this is what
+    # needs a look.
+    try:
+        from .. import injuries as IJ
+        sw = [(short.get(pr.get("label"), pr.get("label")), pu.get("sweep") or [])
+              for pr, pu in zip(presets, pulses) if pu.get("ok")]
+        if sw:
+            st.markdown(C.sweep_html(sw, IJ.age_minutes()), unsafe_allow_html=True)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _render_pulse(presets, on_pick) -> None:
@@ -285,24 +295,9 @@ def _render_pulse(presets, on_pick) -> None:
     games = GT.load_week(config.current_season(), week)
     phase = GT.week_phase(games)
     _inbox(presets, pulses, on_pick)
-    band = WP.day_band(pulses, week, phase)
-    st.markdown(C.day_band_html(kicker=band["kicker"], title=band["title"], sub=band["sub"],
-                                number=band.get("number"), number_label=band.get("label", "")),
-                unsafe_allow_html=True)
-    # every league on one turning ring: record, this week's game, the odds
-    _ring = []
-    for preset, p in zip(presets, pulses):
-        if not p.get("ok"):
-            continue
-        _sc = f' · {p.get("me_pts")}–{p.get("opp_pts")}' if p.get("me_pts") not in (None, "") else ""
-        _pp = p.get("playoff_pct")
-        _ring.append({"name": p.get("name") or preset.get("label"),
-                      "rec": p.get("record") or "", "po": (f"{_pp:.0f}% playoffs" if _pp is not None else ""),
-                      "line": f'vs {p.get("opp_name") or "—"}{_sc}', "pct": p.get("win_pct"),
-                      "on": p.get("action") in ("Fix lineup", "Decide", "Claim")})
-    _rh = C.league_ring_html(_ring)
-    if _rh:
-        st.markdown(_rh, unsafe_allow_html=True)
+    # Home is the inbox, the sweep and one row a league. The playoff tiles on
+    # the hero, the "games on" band and the league carousel each repeated what
+    # the rows below already say; the playoff odds moved onto the rows.
     for preset, p in zip(presets, pulses):
         lkey = f"{preset['platform']}_{preset['league_id']}"
         with st.container(key=f"hmrow_{lkey}"):
@@ -315,9 +310,11 @@ def _render_pulse(presets, on_pick) -> None:
                         me_name="—", me_pts="", opp_name="—", opp_pts="", mid_label="",
                         chips=[("couldn't load", "")], tone=""), unsafe_allow_html=True)
                 else:
+                    _pp = p.get("playoff_pct")
                     meta = " · ".join(x for x in (
                         "ESPN" if p["platform"] == "espn" else "Sleeper",
-                        str(p.get("n_teams") or ""), p.get("record") or "") if x)
+                        str(p.get("n_teams") or ""), p.get("record") or "",
+                        (f"{_pp:.0f}% playoffs" if _pp is not None else "")) if x)
                     st.markdown(C.league_row_html(
                         name=p["name"], meta=meta, me_name=p["me_name"], me_pts=p.get("me_pts", ""),
                         opp_name=p["opp_name"], opp_pts=p.get("opp_pts", ""),

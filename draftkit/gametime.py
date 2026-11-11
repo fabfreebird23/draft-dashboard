@@ -91,6 +91,7 @@ def load_week(season: int, week: int, *, max_age: Optional[int] = None) -> Dict[
         redzone = bool(sit.get("isRedZone"))
         last_play = ((sit.get("lastPlay") or {}).get("text") or "") if isinstance(sit.get("lastPlay"), dict) else ""
         kick = e.get("date") or ""
+        _venue = comp.get("venue") or {}
         odds = (comp.get("odds") or [{}])[0] or {}
         total = odds.get("overUnder")
         details = str(odds.get("details") or "")       # "SEA -3"
@@ -125,6 +126,8 @@ def load_week(season: int, week: int, *, max_age: Optional[int] = None) -> Dict[
             except (TypeError, ValueError):
                 sc = 0.0
             out[ab] = {"opp": opp, "home": home, "kickoff": kick, "state": state,
+                       "venue": _venue.get("fullName") or "", "indoor": bool(_venue.get("indoor")),
+                       "neutral": bool(comp.get("neutralSite")),
                        "clock": clock, "period": period, "detail": detail,
                        "down": down_txt, "redzone": redzone, "last_play": last_play,
                        "has_ball": bool(poss_id and poss_id == str(t.get("id") or "")),

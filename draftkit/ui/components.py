@@ -2435,19 +2435,8 @@ def keeper_tray_html(keeps, reg_max: int, rook_max: int) -> str:
                 face = str(r.get("face") or "")
                 src = (f"https://sleepercdn.com/images/team_logos/nfl/{_esc(face.lower())}.png" if face.isalpha()
                        else f"https://sleepercdn.com/content/nfl/players/thumb/{_esc(face)}.jpg")
-                sur = r.get("surplus")
-                worth = r.get("worth")
-                back = (f'<div class="kx-b"><div class="kx-n">{_esc(r["name"])}</div>'
-                        f'<div class="kx-m">{_esc(r.get("pos") or "")} · {_esc(r.get("team") or "FA")}</div>'
-                        f'<div class="kx-r"><span>Costs</span><strong>R{r["cost_round"]}</strong></div>'
-                        + (f'<div class="kx-r"><span>ADP</span><strong>#{worth}</strong></div>' if worth else "")
-                        + (f'<div class="kx-r"><span>This week</span><strong>{r.get("proj") or 0:.1f}</strong></div>')
-                        + (f'<div class="kx-v">{sur:+d}<small>KEEPER VALUE</small></div>' if sur is not None else "")
-                        + '</div>')
-                cells.append(f'<div class="kt-slot {kind} kx" tabindex="0" style="--dl:{len(cells) * 120}ms">'
-                             f'<div class="kx-in"><div class="kx-f"><img class="kt-ph" src="{src}" alt="" loading="lazy">'
-                             f'<b>R{r["cost_round"]}</b><span>{_esc(r["name"].split()[-1])}</span><i class="kx-sh"></i></div>'
-                             f'{back}</div></div>')
+                cells.append(f'<div class="kt-slot {kind}"><img class="kt-ph" src="{src}" alt="" loading="lazy">'
+                             f'<b>R{r["cost_round"]}</b><span>{_esc(r["name"].split()[-1])}</span></div>')
             else:
                 cells.append(f'<div class="kt-slot {kind} empty"><div class="kt-empty"></div><b>—</b><span>open</span></div>')
     return (f'<div class="kt-tray"><div class="kt-k">YOUR {reg_max + rook_max} FOR NEXT YEAR · '
@@ -2963,27 +2952,6 @@ def towers_html(groups, *, me="You", them="Them", note="projected points by posi
             f'<span>{_esc(note)}</span></div></div>')
 
 
-def drum_html(*, slot: int, pct: float, top3: float, n_teams: int, my_share: float, season: int) -> str:
-    """The lottery drum: balls on a tumbling sphere, yours crimson in the share
-    the league's weights give you, and one drops out to your likeliest slot."""
-    import math
-    n = 30
-    mine = max(1, round(n * max(0.0, min(1.0, my_share))))
-    balls = []
-    for i in range(n):
-        y = 1 - 2 * (i + .5) / n
-        r = math.sqrt(max(0.0, 1 - y * y))
-        th = i * 2.39996
-        hot = (i * 7) % n < mine
-        balls.append(f'<i class="{"hot" if hot else ""}" style="transform:translate3d('
-                     f'{math.cos(th) * r * 78:.0f}px,{y * 78:.0f}px,{math.sin(th) * r * 78:.0f}px)">'
-                     f'{(i % n_teams) + 1}</i>')
-    return (f'<div class="m3-dr"><div class="m3-sp">{"".join(balls)}<s></s><s class="y"></s><s class="x"></s></div>'
-            f'<div class="m3-ball">{slot}</div>'
-            f'<div class="m3-dk"><span>{season} · YOUR LIKELIEST SLOT</span><b>1.{slot:02d}</b>'
-            f'<em>{pct:.0f}% to land it · {top3:.0f}% top three</em></div></div>')
-
-
 def clock_cube_html(cur: str, cur_sub: str, prev: Optional[str] = None, prev_sub: str = "") -> str:
     """The pick on the clock as a cube face; after a pick it rolls in from the
     last one, so every Draft click visibly turns the board over."""
@@ -2992,47 +2960,20 @@ def clock_cube_html(cur: str, cur_sub: str, prev: Optional[str] = None, prev_sub
             f'<small>{_esc(cur_sub)}</small></div>{side}</div>')
 
 
-def league_ring_html(cards) -> str:
-    """[{name, rec, po, line, pct, on}] as a cover-flow: one league centred and
-    square-on, its neighbours angled in at each side, the rest waiting behind;
-    every few seconds they all shift one place. Hover holds it.
-
-    Each card runs the same loop of positions, offset in time by its place, so
-    it is plain CSS. (A rotating ring showed edge-on cards that ran off the
-    stage and cut their text.)"""
-    cards = [c for c in cards if c]
-    n = len(cards)
-    if n < 2:
-        return ""
-    hold, T = 3.0, 3.0 * n
-    half = n // 2
-
-    def pos(o):
-        if o == 0:
-            return "transform:translateX(0) translateZ(0) rotateY(0deg);opacity:1"
-        if abs(o) == 1:
-            return (f"transform:translateX(calc({o} * var(--cf-x,84%))) translateZ(-140px) rotateY({-o * 30}deg);opacity:.72")
-        return "transform:translateX(0) translateZ(-300px) rotateY(0deg) scale(.82);opacity:0"
-    stops = []
-    for j in range(n + 1):
-        o = ((-j + half) % n) - half
-        t0 = 100 * j / n
-        stops.append(f"{t0:.2f}%{{{pos(o)}}}")
-        if j < n:
-            stops.append(f"{t0 + 100 / n * .74:.2f}%{{{pos(o)}}}")
-    kf = f"m3cf{n}"
-    faces = []
-    for i, c in enumerate(cards):
-        o = ((i + half) % n) - half              # where card i starts
-        j = (-o) % n                             # the step of the loop that puts it there
-        pct = c.get("pct")
-        po = f'<span class="po">{_esc(c["po"])}</span>' if c.get("po") else ""
-        faces.append(
-            f'<div class="m3-lc{" on" if c.get("on") else ""}" style="animation-name:{kf};animation-duration:{T:.1f}s;'
-            f'animation-delay:-{j * hold:.1f}s">'
-            f'<span class="nm">{_esc(c["name"])}</span><b>{_esc(c.get("rec") or "—")}{po}</b>'
-            f'<em>{_esc(c.get("line") or "")}</em>'
-            + (f'<div class="wp"><i style="width:{max(0, min(100, pct)):.0f}%"></i></div><small>{pct:.0f}% to win this week</small>'
-               if pct is not None else "<small>&nbsp;</small>") + "</div>")
-    return (f'<style>@keyframes {kf}{{{"".join(stops)}}}</style>'
-            f'<div class="m3-ringst"><div class="m3-ring">' + "".join(faces) + '</div></div>')
+def sweep_html(leagues, age=None) -> str:
+    """The pre-kickoff sweep: per league, every starter with a designation or
+    a weather flag, in kickoff order — or "clear". `leagues` = [(name, rows)]."""
+    out = []
+    n = sum(len(r) for _n, r in leagues)
+    for name, rows in leagues:
+        if not rows:
+            chips = '<span class="sw-ok">clear</span>'
+        else:
+            chips = "".join(
+                f'<span class="sw-c {r["kind"]}{" hot" if r.get("sev", 0) >= 3 else ""}"><b>{_esc(r["name"])}</b>'
+                f'<em>{_esc(r["tag"])}</em><i>{_esc(r["when"])}</i>'
+                + (f'<u>{_esc(r["sub"])}</u>' if r.get("sub") else "") + "</span>" for r in rows)
+        out.append(f'<div class="sw-r"><span class="sw-l">{_esc(name)}</span><div class="sw-cs">{chips}</div></div>')
+    fresh = f' · injury report {age} min old' if age is not None else ""
+    return (f'<div class="sw"><div class="sw-h"><b>SWEEP</b><span>{n} starter{"s" if n != 1 else ""} to check before kickoff'
+            f' — designations and weather, in kickoff order{fresh}</span></div>{"".join(out)}</div>')

@@ -313,6 +313,12 @@ def _gather_raw(ctx, week):
     """Everything the tabs share, fetched once."""
     meta, reg = ctx["meta"], ctx["registry"]
     season = config.current_season()
+    # injury designations minutes old, not a day old (draftkit/injuries.py)
+    try:
+        from .. import injuries as IJ
+        IJ.apply(reg)
+    except Exception:  # noqa: BLE001
+        pass
     # ESPN rosters come through the provider (same shape); everything below is
     # platform-blind from here. Without this the whole in-season tab read an empty
     # league and every screen drew nothing — for a league whose rosters were full.
@@ -1950,6 +1956,11 @@ def _lineup(ctx, g, into=None) -> None:
     # week; the sources are now averaged, and a row says so only when they
     # split sharply on a player.
     us = _usage(ctx, g)
+    try:
+        from .. import weather as WX
+        _wx = WX.for_week(games, g["season"], g["week"])
+    except Exception:  # noqa: BLE001
+        _wx = {}
     cur = lc["current"]
     slots = [s for s, _p in cur]
     # The set to start: the optimiser's. Then SEAT it by kickoff.
@@ -2029,6 +2040,9 @@ def _lineup(ctx, g, into=None) -> None:
         _ut = _usage_tag(us.get(str(new)))
         if _ut:
             sub += " · " + _ut
+        _wl = (_wx.get((pm.team or "").upper()) or {}).get("label")
+        if _wl and (pm.position or "").upper() in ("QB", "WR", "TE", "K"):
+            sub += f' · <span class="ux wx">{_esc_(_wl)}</span>'
         _sp = _split_line(g, new)
         if _sp:
             sub += f'<span class="xl-sp"><b>SOURCES SPLIT</b> {_esc_(_sp)}</span>'
@@ -4888,9 +4902,6 @@ def _next_board(ctx, g) -> None:
                 "final": "final standing incl. the Chase, champion floored, two choices drawn",
                 "chase": "Chase winner, then worst to best, champion last"}.get(_spec.get("style"), "")
         with _odds_box, st.container(key=f"lo_{ctx['league_key']}"):
-            if _best:
-                st.markdown(C.drum_html(slot=_best, pct=_mine[_best - 1], top3=sum(_mine[:3]), n_teams=len(owners),
-                                        my_share=(_mine[0] / 100 if _mine else 0.1), season=nxt), unsafe_allow_html=True)
             st.markdown(f'<div class="ws-h">{nxt} draft-order odds &middot; 10,000 seasons &middot; '
                         f'{_esc_(_how)}</div>' + _odds_html(odds, owners, me, first)
                         + (f'<div class="lo-k">You: likeliest <b>slot {_best}</b> ({_mine[_best - 1]:.0f}%) '

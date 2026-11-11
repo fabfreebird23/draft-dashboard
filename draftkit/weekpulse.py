@@ -96,6 +96,11 @@ def pulse(preset: dict, registry, week: int, byes: Optional[dict] = None) -> dic
             out["error"] = "no roster"
             return out
         from . import projections as PJ
+        try:
+            from . import injuries as IJ
+            IJ.apply(registry)
+        except Exception:  # noqa: BLE001
+            pass
         proj = PJ.for_league(meta, registry, season, week=week) or {}
         games = GT.load_week(season, week)
         # the same blended number the league's own pages use, or Home and the
@@ -174,6 +179,10 @@ def pulse(preset: dict, registry, week: int, byes: Optional[dict] = None) -> dic
         risky = avail["at_risk"]
         out["injuries"] = [(a["name"], a["status"], a.get("cost_if_out")) for a in risky]
         out["injury_rows"] = risky
+        try:
+            out["sweep"] = _sweep(cur, registry, games, risky, season, week)
+        except Exception:  # noqa: BLE001 — the sweep must never take the league row down
+            out["sweep"] = []
         # a swap is only a swap while both men are still to play: once either has
         # kicked off it's locked, and counting it showed "2 changes · +81.8"
         # in the middle of Sunday for moves nobody could make
@@ -329,6 +338,49 @@ def _next_waivers_ts(now: float) -> float:
     return run.timestamp()
 
 
+def _sweep(cur, registry, games: dict, risky: list, season: int, week: int) -> List[dict]:
+    """Every starter still to play who carries a designation, or plays in
+    weather worth a flag — the list to run down before kickoff.
+    [{kind: "inj"|"wx", pid, name, tag, when, ts, sev, sub}]"""
+    import time as _t
+    try:
+        from . import weather as WX
+        wx = WX.for_week(games, season, week)
+    except Exception:  # noqa: BLE001
+        wx = {}
+    by_risk = {str(a["pid"]): a for a in (risky or []) if a.get("pid")}
+    rows = []
+    for _slot, pid in cur or []:
+        if not pid:
+            continue
+        g_ = WV.game_of(registry, games, pid)
+        if GT.status(g_) in ("in", "post"):
+            continue
+        try:
+            pm = registry.meta(pid)
+        except Exception:  # noqa: BLE001
+            continue
+        ts = GT.kickoff_ts(g_) or 0.0
+        if not g_ or ts != ts or ts in (float("inf"), float("-inf")) or ts <= 0:
+            continue                               # on bye: not a game-day question
+        when = _t.strftime("%a %-I:%M", _t.localtime(ts))
+        av = W.availability(pm)
+        if av["status"]:
+            a = by_risk.get(str(pid)) or {}
+            sub = ""
+            if a.get("replacement"):
+                c = a.get("cost_if_out")
+                sub = f'{a["replacement"]} covers' + (f' ({-c:+.1f})' if c is not None else "")
+            rows.append({"kind": "inj", "pid": str(pid), "name": pm.name, "tag": av["status"], "when": when,
+                         "ts": ts, "sev": av["severity"], "sub": sub})
+        w = wx.get((pm.team or "").upper())
+        if w and w.get("bad") and (pm.position or "").upper() in ("QB", "WR", "TE", "K"):
+            rows.append({"kind": "wx", "pid": str(pid), "name": pm.name, "tag": w["label"], "when": when,
+                         "ts": ts, "sev": 1, "sub": ""})
+    rows.sort(key=lambda r: (r["ts"] or 9e12, -r["sev"]))
+    return rows
+
+
 def _inbox(out: dict, registry, games: dict, week: int, preset: dict, started: bool) -> List[dict]:
     """The things in this league that need him, each with WHEN it stops mattering.
 
@@ -370,7 +422,8 @@ def _inbox(out: dict, registry, games: dict, week: int, preset: dict, started: b
         if (k and k < now) or not (_pre(o) and _pre(i)):
             continue                              # already locked: nothing to do
         name_o, name_i = registry.meta(o).name, registry.meta(i).name
-        inj = risky.get(o)
+        # a man on bye is being benched for the bye, not for his designation
+        inj = risky.get(o) if kick(o) not in (0.0, float("inf")) else None
         items.append({
             "kind": "LOCK" if inj else "LINEUP", "league": lg, "pid": o,
             "team": (registry.meta(o).team or ""),
