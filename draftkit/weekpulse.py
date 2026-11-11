@@ -338,6 +338,18 @@ def _next_waivers_ts(now: float) -> float:
     return run.timestamp()
 
 
+def _et(ts: float) -> str:
+    """'Thu 8:15' on the clock he lives on. The server's own clock is UTC on
+    Cloud, which turned Thursday night's kickoff into "Fri 1:15" on Home."""
+    import datetime as _dt
+    try:
+        from zoneinfo import ZoneInfo
+        d = _dt.datetime.fromtimestamp(ts, ZoneInfo("America/New_York"))
+    except Exception:  # noqa: BLE001
+        d = _dt.datetime.fromtimestamp(ts)
+    return d.strftime("%a %-I:%M")
+
+
 def _sweep(cur, registry, games: dict, risky: list, season: int, week: int) -> List[dict]:
     """Every starter still to play who carries a designation, or plays in
     weather worth a flag — the list to run down before kickoff.
@@ -363,7 +375,7 @@ def _sweep(cur, registry, games: dict, risky: list, season: int, week: int) -> L
         ts = GT.kickoff_ts(g_) or 0.0
         if not g_ or ts != ts or ts in (float("inf"), float("-inf")) or ts <= 0:
             continue                               # on bye: not a game-day question
-        when = _t.strftime("%a %-I:%M", _t.localtime(ts))
+        when = _et(ts)
         av = W.availability(pm)
         if av["status"]:
             a = by_risk.get(str(pid)) or {}
@@ -412,7 +424,7 @@ def _inbox(out: dict, registry, games: dict, week: int, preset: dict, started: b
         """'Sun 1:00' — the day and the kickoff, in the clock he lives on."""
         if not ts:
             return "this week"
-        return _t.strftime("%a %-I:%M", _t.localtime(ts))
+        return _et(ts)
 
     risky = {str(a["pid"]): a for a in (out.get("injury_rows") or [])}
     seen = set()
