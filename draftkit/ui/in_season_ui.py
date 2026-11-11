@@ -1939,8 +1939,8 @@ def _lineup(ctx, g, into=None) -> None:
     """What is on the platform beside what to set, slot by slot, seated by
     kickoff, with the taps to make in the order the platform will take them.
 
-    `into` = (left, right) columns of the This Week page: the lineup list goes
-    in the right one, the bench under the what-to-do list on the left, and this
+    `into` = (left, right) columns of the This Week page: the lineup list and
+    the bench go in the right one, beside the what-to-do list, and this
     screen's own hero is skipped (This Week has one)."""
     reg = ctx["registry"]
     games = g.get("games") or {}
@@ -1948,7 +1948,7 @@ def _lineup(ctx, g, into=None) -> None:
                                     current=g.get("starters")), reg, games)
     if not lc["have_current"]:
         st.warning("Couldn't read the lineup you have set, so there is nothing to compare "
-                   "against. The Command Center shows the best available lineup.")
+                   "against. This Week shows the best available lineup instead.")
         return
     pn = _panels(ctx, g)
     # One number decides: the BLEND of every source (draftkit/blend.py). The
@@ -2078,7 +2078,9 @@ def _lineup(ctx, g, into=None) -> None:
     if into is None:
         c_l, c_b = st.columns([1.55, 1])
     else:
-        c_b, c_l = into
+        # both in the right-hand column: on a phone the columns stack, and the
+        # bench must not come before the lineup it is the bench of
+        c_l = c_b = into[1]
     with c_l:
         st.markdown(C.lineup_one_html(one, head=_head, hot=bool(n_moves or n_seat))
                     .replace('</span></div>', f'</span><span class="xl-hs">{_sub_head}</span></div>', 1)

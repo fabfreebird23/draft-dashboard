@@ -54,7 +54,8 @@ def test_usage_opportunity_and_lists():
     profs = {"x": {"n": 3, "opp3": 14.0, "pts3": 6.0, "gap": 8.0},
              "star": {"n": 3, "opp3": 20.0, "pts3": 26.0, "gap": -6.0},
              "lucky": {"n": 3, "opp3": 8.0, "pts3": 18.0, "gap": -10.0}}
-    assert U.buys(profs, profs) == ["x"]
+    profs["fading"] = {"n": 3, "opp3": 14.0, "pts3": 6.0, "gap": 8.0, "trend": "down"}
+    assert U.buys(profs, profs) == ["x"]           # a shrinking role isn't a buy
     assert U.sells(profs, profs) == ["lucky"]      # the star beats his workload on talent
     assert U.tag({"trend": "up", "d_snap": -14, "snap": 64, "opp": 12.0, "d_opp": 5.0,
                   "weeks": []}).startswith("workload")

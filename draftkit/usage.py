@@ -124,7 +124,9 @@ def buys(profs: Dict[str, dict], pids, *, min_opp: float = 9.0, min_gap: float =
     points arrive. Needs two played games in the window."""
     c = [p for p in map(str, pids) if p in profs and profs[p]["n"] >= 2
          and profs[p]["opp3"] >= min_opp and profs[p]["gap"] >= min_gap
-         and profs[p]["pts3"] <= 0.7 * profs[p]["opp3"]]
+         and profs[p]["pts3"] <= 0.7 * profs[p]["opp3"]
+         # the work has to still BE there: a role that just shrank isn't owed anything
+         and profs[p].get("trend") != "down"]
     return sorted(c, key=lambda p: -profs[p]["gap"])
 
 
@@ -135,5 +137,6 @@ def sells(profs: Dict[str, dict], pids, *, min_pts: float = 10.0, min_gap: float
     # their workload every week, and that is talent, not luck
     c = [p for p in map(str, pids) if p in profs and profs[p]["n"] >= 2
          and profs[p]["pts3"] >= min_pts and -profs[p]["gap"] >= min_gap
-         and profs[p]["pts3"] >= 1.5 * profs[p]["opp3"]]
+         and profs[p]["pts3"] >= 1.5 * profs[p]["opp3"]
+         and profs[p].get("trend") != "up"]            # ...unless the role is growing into the points
     return sorted(c, key=lambda p: profs[p]["gap"])

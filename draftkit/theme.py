@@ -2978,7 +2978,9 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .xl-n b em{ font-style:normal; font-family:'Roboto Mono',monospace; font-size:9px; background:#f3ead8; color:#141314;
   padding:1px 5px; border-radius:4px; margin-left:6px; vertical-align:2px; }
-.xl-n i{ display:block; font-style:normal; font-size:11px; color:var(--mut2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.xl-n i{ display:block; font-style:normal; font-size:11px; color:var(--mut2); line-height:1.35;
+  /* two lines, not one: a role tag or a weather flag at the end of the line was the part being cut off */
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .xl-n i b.xl-q{ display:inline; font-family:'Roboto Mono',monospace; font-size:10px; font-weight:700; color:#ff6b8a; }
 .xl.in .xl-n i b.xl-q,.xl.mv .xl-n i b.xl-q{ color:#f3ead8; }
 .xl-b{ height:9px; background:var(--panel2); border-radius:99px; overflow:hidden; }
