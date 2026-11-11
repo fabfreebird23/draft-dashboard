@@ -99,9 +99,11 @@ def profiles(season: int, week: int, registry, *, scoring: str = "ppr", weights=
         p["gap"] = round(p["opp3"] - p["pts3"], 1)
         p["n"] = len(ws)
         p["last_week"] = last["week"]
-        up = ((p["d_snap"] or 0) >= 10 or (p["d_opp"] or 0) >= 4) and last["opp"] >= 6
-        down = (((p["d_snap"] or 0) <= -10 or (p["d_opp"] or 0) <= -4)
-                and prev and (sum(w["opp"] for w in prev) / len(prev)) >= 6)
+        # a real change of role, not a normal week's wobble: fifteen points of
+        # snap share, or five opportunity points, on a workload that matters
+        up = ((p["d_snap"] or 0) >= 15 or (p["d_opp"] or 0) >= 5) and last["opp"] >= 7
+        down = (((p["d_snap"] or 0) <= -15 or (p["d_opp"] or 0) <= -5)
+                and prev and (sum(w["opp"] for w in prev) / len(prev)) >= 8)
         p["trend"] = "up" if up and not down else "down" if down and not up else ""
     return out
 
@@ -112,7 +114,7 @@ def tag(p: Optional[dict]) -> str:
         return ""
     sign = 1 if p["trend"] == "up" else -1
     # the line has to say the same thing the arrow does
-    if p.get("d_snap") is not None and sign * p["d_snap"] >= 10:
+    if p.get("d_snap") is not None and sign * p["d_snap"] >= 15:
         return f'snaps {p["snap"] - p["d_snap"]}→{p["snap"]}%'
     return f'workload {p["opp"] - p["d_opp"]:.0f}→{p["opp"]:.0f} pts'
 

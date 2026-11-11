@@ -1225,21 +1225,24 @@ def main():
         # cross-module constants through getattr means a stale submodule degrades to
         # the old single-tab behaviour instead of crashing the page.
         tabs_all = getattr(in_season_ui, "TABS", ["This Week"])
-        # FOUR TABS AND A MENU, not seven. The week is Command Center · Waivers ·
-        # Matchup · Trades; Playoffs, League and Keepers are looked at once a
-        # month and the draft screens once a year, so they sit under More.
-        main = [t for t in tabs_all if t in ("Command Center", "Live", "Lineup", "Rankings",
-                                            "Waivers", "Matchup", "Trades")]
+        # FOUR TABS AND A MENU. The week is This Week · Live · Waivers · Trades;
+        # the review, the reference boards and next year sit under More.
+        _main = getattr(in_season_ui, "MAIN_TABS", ["This Week", "Live", "Waivers", "Trades"])
+        main = [t for t in tabs_all if t in _main]
         more = [t for t in tabs_all if t not in main] + ["Draft"]
         if not (st.session_state.get("league") or {}).get("keeper", True):
             # a redraft league has no keepers to look at
-            more = [t for t in more if t != "Keepers"]
+            more = [t for t in more if t not in ("Keepers", "Next Year")]
         nav = main + ["More"]
         ikey = f"nav_in_{ctx['league_key']}"
         st.session_state.setdefault(ikey, nav[0])
         # Home may have parked a tab that lives under More ("Keepers"): open the
         # menu on it rather than silently landing on the Command Center.
         _want = st.session_state.get(ikey)
+        # an old name (a phone deep link, a Home button): the page it became
+        _alias = getattr(in_season_ui, "TAB_ALIAS", {})
+        if _want in _alias:
+            st.session_state[ikey] = _want = _alias[_want]
         if _want not in nav and _want not in more:
             # a link to a tab this league doesn't have (Keepers in a redraft)
             st.session_state[ikey] = _want = nav[0]

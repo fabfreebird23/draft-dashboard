@@ -3254,7 +3254,7 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 @media (max-width:900px){ .pw{ grid-template-columns:1fr 1fr; } }
 @media (max-width:520px){ .pw{ grid-template-columns:1fr; } }
 /* usage trend tags + sources-split line */
-.ux{ font-family:'Roboto Mono',monospace; font-style:normal; font-weight:500; font-size:10px; letter-spacing:.02em; white-space:nowrap; }
+.ux{ font-family:'Roboto Mono',monospace !important; font-style:normal; font-weight:500 !important; font-size:10px !important; letter-spacing:.02em; white-space:nowrap; display:inline !important; }
 .ux.up{ color:#7fd8b4; } .ux.dn{ color:#ff8fae; }
 .xl-sp{ display:block; font-size:10.5px; color:var(--mut2); margin-top:2px; }
 .xl-sp b{ font-family:'Roboto Mono',monospace; font-size:9px; letter-spacing:.1em; font-weight:500; color:#f0b357;
