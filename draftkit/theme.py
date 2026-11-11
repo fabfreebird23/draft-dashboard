@@ -2942,7 +2942,8 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 .xt-t p{ margin:0; font-size:12px; color:var(--muted); line-height:1.45; } .xt-t p b{ display:inline; font-family:inherit; font-size:inherit; color:var(--ink); }
 .xt-n{ text-align:right; } .xt-n em{ display:block; font-style:normal; font-family:'Anton',sans-serif; font-size:40px; line-height:1; color:#f3ead8; }
 .xt-n small{ font-size:11px; color:var(--muted); white-space:nowrap; }
-[class*="st-key-tcact_"]{ margin:0 0 8px 90px; }
+/* width has to give back the indent, or the row is 90px wider than the page and the whole tab scrolls sideways */
+[class*="st-key-tcact_"]{ margin:0 0 8px 90px; width:calc(100% - 90px) !important; max-width:calc(100% - 90px); }
 [class*="st-key-tcact_"] [data-testid="stColumn"]{ flex:0 0 auto !important; width:auto !important; min-width:0 !important; }
 [class*="st-key-tcact_"] .stButton button{ width:auto !important; padding:5px 14px !important; font-size:12px; border-radius:8px;
   background:transparent; border:1px solid var(--line2); color:var(--muted); }
@@ -2950,7 +2951,7 @@ table.dr-avail td.a{ text-align:right; color:var(--ink); white-space:nowrap; fon
 [class*="st-key-tcact_"] [data-testid="stBaseButton-primary"]{ background:#f3ead8 !important; border-color:#f3ead8 !important;
   color:#141314 !important; font-weight:700; }
 @media (max-width:760px){ .xt{ grid-template-columns:52px minmax(0,1fr) auto; gap:10px; } .xt-p{ width:52px; height:52px; }
-  .xt-n em{ font-size:28px; } [class*="st-key-tcact_"]{ margin-left:0; } }
+  .xt-n em{ font-size:28px; } [class*="st-key-tcact_"]{ margin-left:0; width:100% !important; max-width:100%; } }
 
 /* the label lives in a nested <p> with its own colour */
 [class*="st-key-tcact_"] [data-testid="stBaseButton-primary"] *,
@@ -3254,6 +3255,10 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 .sw-c i{ font-style:normal; font-family:'Roboto Mono',monospace; font-size:10px; color:var(--mut2); }
 .sw-c u{ text-decoration:none; font-size:11px; color:var(--muted); }
 @media (max-width:760px){ .sw-r{ grid-template-columns:1fr; gap:4px; } }
+/* trade ledger working */
+.tl-lines{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:4px 14px; }
+.tl-lines > div{ font-size:13px; line-height:1.5; padding:7px 0; border-bottom:1px solid var(--line2); color:var(--muted); }
+.tl-lines > div:last-child{ border-bottom:0; } .tl-lines b{ color:var(--ink); font-weight:600; }
 /* keeper unlock finder */
 .un-h{ display:flex; align-items:baseline; gap:10px; margin:10px 0 4px; }
 .un-h b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:17px; text-transform:uppercase; letter-spacing:.03em; }

@@ -1862,7 +1862,11 @@ def card_html(*, wash, wash2, left, right=None, mid=None, cells=(), reasons=(),
     cellhtml = ""
     if cells:
         wide = {3: " three", 2: " two"}.get(len(cells), "")
-        cellhtml = (f'<div class="pc2-cells{wide}">'
+        # the grid is every LABEL then every VALUE, so its column count has to
+        # be the cell count: a fifth cell in a four-column grid wrapped and put
+        # every value under the wrong label
+        cols = f' style="grid-template-columns:repeat({len(cells)},1fr)"' if len(cells) > 4 else ""
+        cellhtml = (f'<div class="pc2-cells{wide}"{cols}>'
                     + "".join(f'<span>{_esc(l)}</span>' for l, _v, _t in cells)
                     + "".join(f'<span class="pc2-cell{(" " + t) if t else ""}">{_esc(v)}</span>'
                               for _l, v, t in cells) + "</div>")

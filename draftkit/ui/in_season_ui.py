@@ -251,7 +251,9 @@ def _pick_book(platform: str, league_id: str, season: int, rounds: int, rosters_
     try:
         rids = sorted(int(r) for r in _json.loads(rosters_json))
         traded = api.get_league_traded_picks(league_id) or []
-        seasons = PK.future_seasons(traded, int(season))
+        # three seasons out: that is as far as Sleeper lets a league trade, and
+        # a deal with a 2029 second in it could not be entered at two
+        seasons = PK.future_seasons(traded, int(season), ahead=3)
         own = PK.ownership(traded, rids, seasons, int(rounds or 14))
         # tuple keys don't survive Streamlit's cache serialisation — hand back the
         # per-roster lists the callers actually want.
@@ -301,7 +303,7 @@ def _gather(ctx, week):
 # Bump when _gather_raw changes shape: st.cache_data hashes only the cached
 # function's own code, so a fix inside _gather_raw (the 7½ pick book) sat
 # behind a stale cache on Cloud until the bucket rolled over.
-_GATHER_V = 3
+_GATHER_V = 4
 
 
 @st.cache_data(show_spinner=False, max_entries=8)
@@ -5193,10 +5195,12 @@ def _trades(ctx, g) -> None:
                        "the ones to send. The rest are listed so you can see they were considered "
                        "and rejected, not overlooked.")
             risky = [i for i in mutual if i.get("_ships_keeper")]
-            if risky:
-                worst = max((s_ for i in risky for _p, s_ in i["_ships_keeper"]))
-                who = next(n for i in risky for p, n in zip(i["send"], i["send_names"])
-                           if any(p == q for q, _s in i["_ships_keeper"]))
+            # the most valuable keeper any of these would ship — and only if he
+            # is actually worth something (a "+-12 keeper value" warned about a
+            # player nobody should keep, and named the wrong man)
+            _sk = max(((s_, q) for i in risky for q, s_ in i["_ships_keeper"]), default=None)
+            if _sk and _sk[0] > 0:
+                worst, who = _sk[0], reg.meta(_sk[1]).name
                 _alert("amb", "!", f'<b>These verdicts are about this week only.</b> The deal above '
                                    f'ships <b>{who}</b>, who the Keepers tab rates at <b>+{worst} '
                                    f'keeper value</b> next year. A couple of points a week is '
@@ -5398,6 +5402,389 @@ def _pick_menu(ctx, g, owner_id) -> dict:
     return out
 
 
+# ----------------------------------------------- what a trade is worth NEXT year
+_YEAR_DISCOUNT = 0.85      # a pick a year further out is worth this much of the same pick sooner
+
+
+def _class_sim(ctx, g, keepers=None, book=None) -> Optional[dict]:
+    """Next season's draft played out (draftkit/nextboard.py) under a given set
+    of keepers and a given pick book, and what every team comes away with.
+
+    The trade checker priced a pick at "the middle of its round" on a straight
+    line. In a keeper league that is wrong twice: the pick is at a particular
+    SLOT (a contender's first is late, a tanker's is early), and the board it
+    picks from has fifty keepers missing. So the draft is simulated instead —
+    projected order, every team's keepers on the picks they cost, best
+    available after that — and a pick is worth whoever it lands.
+
+    Value is the draft-value curve at a player's projected next-year rank
+    (weekly.talent_value: #1 ≈ 100, falling ~3.5% a pick).
+
+    Returns {cells, by_rid{rid: [cells]}, total{rid: float}, round_avg{r: avg
+    value of a LIVE pick in round r}, val(pid), rid_of, order, rounds, n, nxt}.
+    """
+    from .. import nextboard as NB, nextyear as NY
+    reg, meta = ctx["registry"], ctx["meta"]
+    n = int(getattr(meta, "num_teams", 10) or 10)
+    nxt = int(g["season"]) + 1
+    rules = K.load_keeper_rules(str(meta.league_id)) or {}
+    rounds = K.price_rounds(rules, int(g["season"]), getattr(meta, "draft_rounds", 14) or 14)
+    rid_of = {o: r.get("roster_id") for o, r in g["rosters"].items() if r.get("roster_id") is not None}
+    if len(rid_of) < 2:
+        return None
+    try:
+        status = _league_status_cached(ctx["league_key"], g["week"], _slow_bucket(g["season"], g["week"]), ctx, g)
+    except Exception:  # noqa: BLE001
+        status = {}
+
+    def _finish(o):
+        if o in status:
+            return status[o]["seed"]
+        se = g["rosters"][o].get("settings") or {}
+        return -(int(se.get("wins") or 0) * 1000 + float(se.get("fpts") or 0))
+    owners = sorted(rid_of, key=_finish, reverse=True)          # projected finish, worst first
+    order = [rid_of[o] for o in owners]
+    book = book if book is not None else (g.get("picks") or {})
+    held = {}
+    for rid, picks in book.items():
+        for pk in picks:
+            if str(pk.get("season")) == str(nxt):
+                held[(int(pk["round"]), int(pk["origin"]))] = int(rid)
+    krows = keepers if keepers is not None else _league_keepers(ctx, g)
+    kp = {rid_of[o]: [(str(r["pid"]), r.get("cost_round")) for r in rows]
+          for o, rows in krows.items() if o in rid_of}
+    worth = {str(r["pid"]): r.get("worth") for rows in krows.values() for r in rows}
+    w8 = getattr(meta, "scoring_weights", None) or {}
+    ppr = 1.0 if float(w8.get("rec", 1.0)) >= 0.75 else 0.5 if float(w8.get("rec", 1.0)) >= 0.25 else 0.0
+    proj = NY.projected(n, ppr)
+    if not proj:
+        return None
+    pool = [pid for pid, _r in sorted(proj.items(), key=lambda kv: kv[1]["rank"])]
+    pos_of = {}
+    for pid in pool + [p for ks in kp.values() for p, _c in ks]:
+        try:
+            pos_of[pid] = (reg.meta(pid).position or "").upper()
+        except Exception:  # noqa: BLE001
+            pos_of[pid] = ""
+    cells = NB.build(order, rounds, held, kp, pool, pos_of)
+
+    def val(pid) -> float:
+        r = (proj.get(str(pid)) or {}).get("rank") or worth.get(str(pid))
+        return float(W.talent_value(r)) if r else 1.0
+    by_rid, per_round = {}, {}
+    for c in cells.values():
+        c["value"] = val(c["pid"]) if c["pid"] else 0.0
+        c["rank"] = (proj.get(str(c["pid"])) or {}).get("rank") if c["pid"] else None
+        by_rid.setdefault(c["holder"], []).append(c)
+        if c["pid"] and not c["keeper"]:
+            per_round.setdefault(c["round"], []).append(c["value"])
+    # a roster holds `rounds` players: extra picks push the cheapest off the end
+    total = {rid: round(sum(sorted((c["value"] for c in cs), reverse=True)[:rounds]), 1) for rid, cs in by_rid.items()}
+    return {"cells": cells, "by_rid": by_rid, "total": total, "val": val, "rid_of": rid_of,
+            "round_avg": {r: sum(v) / len(v) for r, v in per_round.items() if v},
+            "order": order, "rounds": rounds, "n": n, "nxt": nxt, "proj": proj}
+
+
+def _trade_future(ctx, g, oid, send, get, send_picks, get_picks) -> Optional[dict]:
+    """A trade's effect on NEXT season and after, for both teams.
+
+    Runs next year's draft twice (`_class_sim`) — as things stand, and with the
+    players and picks moved, each team's keepers re-chosen from its new roster
+    and its new picks — and compares what each team comes away with. Picks for
+    seasons past next year can't be simulated (nobody knows that board), so
+    each is worth an average live pick of its round, discounted 15% a year.
+
+    {me: {before, after, d_class, later, net}, them: {...}, lines: [str]}
+    """
+    reg = ctx["registry"]
+    me = str(g["me"])
+    oid = str(oid)
+    # a keeper league's question; a redraft league has no next year to price
+    if ctx["meta"].platform != "sleeper" or not K.league_has_keepers(str(ctx["meta"].league_id)):
+        return None
+    before = _class_sim(ctx, g)
+    if not before:
+        return None
+    rid_of, nxt = before["rid_of"], before["nxt"]
+    my_rid, th_rid = rid_of.get(me), rid_of.get(oid)
+    if my_rid is None or th_rid is None:
+        return None
+    send, get = [str(p) for p in send], [str(p) for p in get]
+    send_picks, get_picks = list(send_picks or []), list(get_picks or [])
+    # the pick book and the rosters, after
+    book = {int(r): list(v) for r, v in (g.get("picks") or {}).items()}
+    for pk in send_picks:
+        book[int(my_rid)] = [x for x in book.get(int(my_rid), []) if x is not pk]
+        book.setdefault(int(th_rid), []).append(dict(pk, own=False))
+    for pk in get_picks:
+        book[int(th_rid)] = [x for x in book.get(int(th_rid), []) if x is not pk]
+        book.setdefault(int(my_rid), []).append(dict(pk, own=False))
+    mine_after = [str(p) for p in g["mine"] if str(p) not in send] + get
+    their_now = [str(p) for p in (g["rosters"].get(oid) or {}).get("players") or []]
+    their_after = [p for p in their_now if p not in get] + send
+    rosters = dict(g["rosters"])
+    rosters[me] = dict(rosters[me], players=mine_after)
+    rosters[oid] = dict(rosters[oid], players=their_after)
+    g2 = dict(g, picks=book, rosters=rosters, mine=mine_after)
+    keep = dict(_league_keepers(ctx, g))
+    keep[me] = [r for r in _keeper_rows(ctx, g2, pids=mine_after, from_owner=oid) if r.get("verdict") == "keep"]
+    keep[oid] = [r for r in _keeper_rows(ctx, g2, pids=their_after, from_owner=me, as_owner=oid)
+                 if r.get("verdict") == "keep"]
+    after = _class_sim(ctx, g2, keepers=keep, book=book)
+    if not after:
+        return None
+
+    def later(pks) -> float:
+        tot = 0.0
+        for pk in pks:
+            yrs = int(pk.get("season")) - nxt
+            if yrs > 0:
+                tot += before["round_avg"].get(int(pk["round"]), 1.0) * (_YEAR_DISCOUNT ** yrs)
+        return tot
+    l_in, l_out = later(get_picks), later(send_picks)
+    out = {}
+    for who, rid, sign in (("me", my_rid, 1), ("them", th_rid, -1)):
+        b, a = before["total"].get(rid, 0.0), after["total"].get(rid, 0.0)
+        lt = sign * (l_in - l_out)
+        out[who] = {"before": b, "after": a, "d_class": round(a - b, 1), "later": round(lt, 1),
+                    "net": round(a - b + lt, 1)}
+    # ---- the working, in sentences ------------------------------------------
+    nm = lambda p: reg.meta(p).name  # noqa: E731
+    lines = []
+
+    def pick_no(c):
+        return f'{c["round"]}.{c["slot"]:02d}'
+    kb = {str(c["pid"]): c for c in before["by_rid"].get(my_rid, []) if c["keeper"]}
+    ka = {str(c["pid"]): c for c in after["by_rid"].get(my_rid, []) if c["keeper"]}
+    tka = {str(c["pid"]): c for c in after["by_rid"].get(th_rid, []) if c["keeper"]}
+    for p in send:
+        if p in kb:
+            c = kb[p]
+            freed = after["cells"].get((c["round"], c["slot"]))
+            took = (f'{nm(freed["pid"])} (#{freed["rank"]}, {freed["value"]:.0f})'
+                    if freed and freed["pid"] and freed["holder"] == my_rid and not freed["keeper"] else None)
+            lines.append(
+                f'You were keeping <b>{_esc_(nm(p))}</b> (#{c["rank"] or "—"}, worth {c["value"]:.0f}) on pick {pick_no(c)}. '
+                + (f'Without him that pick takes <b>{_esc_(took)}</b> instead.' if took
+                   else "That pick is spent another way after the trade."))
+        else:
+            lines.append(f'<b>{_esc_(nm(p))}</b> was not one of your projected keepers, so next year loses nothing with him.')
+        if p in tka:
+            c = tka[p]
+            how = ""
+            if p in kb and c["pick"] > kb[p]["pick"]:
+                how = " — a later pick than yours, so the same keeper costs them less"
+            elif p in kb and c["pick"] < kb[p]["pick"]:
+                how = " — an earlier pick than yours, so he costs them more than he cost you"
+            lines.append(f'{_esc_(_owner_name(ctx, oid).split()[0])} would keep {_esc_(nm(p).split()[-1])} '
+                         f'(worth {c["value"]:.0f}) on pick {pick_no(c)}{how}.')
+        else:
+            back = next((c for c in after["cells"].values() if str(c["pid"]) == p), None)
+            lines.append(f'{_esc_(_owner_name(ctx, oid).split()[0])} is not projected to keep {_esc_(nm(p).split()[-1])} next year'
+                         + (f' — he goes back in the draft and projects to pick {pick_no(back)}'
+                            + (" (yours)" if back["holder"] == my_rid else "") if back else "") + ".")
+    for p in get:
+        if p in ka:
+            c = ka[p]
+            lines.append(f'<b>{_esc_(nm(p))}</b> (#{c["rank"] or "—"}, worth {c["value"]:.0f}) becomes one of your keepers, on pick {pick_no(c)}.')
+        else:
+            lines.append(f'<b>{_esc_(nm(p))}</b> would not make your keepers — he helps this season only.')
+    my_lost = [p for p in kb if p not in ka and p not in send]
+    my_moved = [p for p in kb if p in ka and ka[p]["pick"] != kb[p]["pick"]]
+    if my_lost:
+        lines.append("You would no longer keep " + ", ".join(
+            f'<b>{_esc_(nm(p))}</b> (worth {kb[p]["value"]:.0f}, was on pick {pick_no(kb[p])})' for p in my_lost)
+            + " — the pick he sat on is in this deal, and at an earlier pick he doesn't make the cut.")
+    if my_moved:
+        lines.append("Your keepers move: " + ", ".join(
+            f'{_esc_(nm(p))} from {pick_no(kb[p])} to {pick_no(ka[p])}' for p in my_moved) + ".")
+    newk = [p for p in ka if p not in kb and p not in get]
+    if newk:
+        lines.append("Your keepers reshuffle: " + ", ".join(
+            f'<b>{_esc_(nm(p))}</b> (worth {ka[p]["value"]:.0f}, pick {pick_no(ka[p])})' for p in newk) + " now make the cut.")
+    # the other side's keepers move too — most of all when the picks he is
+    # offering are the ones his own keepers were going to sit on
+    tkb = {str(c["pid"]): c for c in before["by_rid"].get(th_rid, []) if c["keeper"]}
+    them_nm = _esc_(_owner_name(ctx, oid).split()[0])
+    lost = [p for p in tkb if p not in tka and p not in get]
+    moved = [p for p in tkb if p in tka and tka[p]["pick"] != tkb[p]["pick"]]
+    gained = [p for p in tka if p not in tkb and p not in send]
+    if lost:
+        lines.append(f"{them_nm} would no longer keep " + ", ".join(
+            f'<b>{_esc_(nm(p))}</b> (worth {tkb[p]["value"]:.0f}, was on pick {pick_no(tkb[p])})' for p in lost)
+            + " — the pick he sat on is in this deal, and at an earlier pick he doesn't make the cut.")
+    if moved:
+        lines.append(f"{them_nm}'s keepers move up: " + ", ".join(
+            f'{_esc_(nm(p))} from {pick_no(tkb[p])} to {pick_no(tka[p])}' for p in moved)
+            + " — a keeper whose round is traded away costs the next earlier pick.")
+    if gained:
+        lines.append(f"{them_nm} keeps " + ", ".join(f'{_esc_(nm(p))} (worth {tka[p]["value"]:.0f})' for p in gained)
+                     + " in the slot that opens.")
+    for lab, pks, sim, rid in (("You get", get_picks, after, my_rid), ("You send", send_picks, after, th_rid)):
+        for pk in pks:
+            if str(pk.get("season")) == str(nxt):
+                slot = next((i + 1 for i, r in enumerate(sim["order"]) if int(r) == int(pk["origin"])), None)
+                c = sim["cells"].get((int(pk["round"]), slot)) if slot else None
+                if c and c["pid"]:
+                    lines.append(f'{lab} <b>{nxt} R{pk["round"]}</b> = pick {pick_no(c)} (#{c["pick"]} overall) → '
+                                 + (f'{_esc_(nm(c["pid"]))} kept there' if c["keeper"] else
+                                    f'projects <b>{_esc_(nm(c["pid"]))}</b> (#{c["rank"]}, worth {c["value"]:.0f})') + ".")
+            else:
+                yrs = int(pk.get("season")) - nxt
+                v = before["round_avg"].get(int(pk["round"]), 1.0)
+                lines.append(f'{lab} <b>{pk["season"]} R{pk["round"]}</b> ≈ {v * _YEAR_DISCOUNT ** yrs:.0f} '
+                             f'(an average live R{pk["round"]} lands {v:.0f}; {yrs} year{"s" if yrs != 1 else ""} further out, '
+                             f'−15% a year).')
+    out["lines"] = lines
+    out["them_lost"] = [(nm(p), tkb[p]) for p in lost]
+    out["them_moved"] = [(nm(p), tkb[p], tka[p]) for p in moved]
+    out["before_sim"], out["after_sim"] = before, after
+    out["my_rid"], out["th_rid"] = my_rid, th_rid
+    return out
+
+
+def _better_version(ctx, g, oid, r, fut, get_picks, their_menu):
+    """The same deal with DIFFERENT picks of his, if one is at least as good for
+    you and clearly cheaper for him — usually because the offer on the table
+    takes the picks his own keepers sit on. Tries his live early picks one at a
+    time (and in pairs) in place of next year's picks in the offer; the picks
+    for later seasons stay as they are. Returns (future, [pick labels]) or None.
+    """
+    from itertools import combinations
+    sim, nx = fut["before_sim"], fut["before_sim"]["nxt"]
+    slot = {int(rid): i + 1 for i, rid in enumerate(sim["order"])}
+    in_deal = {id(pk) for pk in get_picks}
+    now_nxt = [pk for pk in get_picks if str(pk.get("season")) == str(nx)]
+    if not now_nxt:
+        return None
+    keep_later = [pk for pk in get_picks if str(pk.get("season")) != str(nx)]
+    lab_of = {id(pk): lab for lab, pk in their_menu.items()}
+    live = []
+    for lab, pk in their_menu.items():
+        if str(pk.get("season")) != str(nx) or id(pk) in in_deal or int(pk["round"]) > 8:
+            continue
+        c = sim["cells"].get((int(pk["round"]), slot.get(int(pk["origin"]))))
+        if c and c["pid"] and not c["keeper"]:
+            live.append((c["value"], pk))
+    live = [pk for _v, pk in sorted(live, key=lambda x: -x[0])[:4]]
+    best = None
+    for combo in [(a,) for a in live] + list(combinations(live, 2)):
+        f2 = _trade_future(ctx, g, oid, r["_send_pids"], r["_get_pids"], r["_send_picks"], keep_later + list(combo))
+        if not f2:
+            continue
+        # at least as good for you (within a couple of points), clearly cheaper for him
+        if f2["me"]["net"] >= fut["me"]["net"] - 2 and f2["them"]["net"] >= fut["them"]["net"] + 8:
+            score = f2["me"]["net"] + f2["them"]["net"]
+            if best is None or score > best[0]:
+                best = (score, f2, [lab_of[id(pk)] for pk in list(combo) + keep_later])
+    return (best[1], best[2]) if best else None
+
+
+def _trade_ledger(ctx, g, oid, r, fut, odds, odds_them, get_picks, their_menu) -> None:
+    """Both sides of the deal on one ledger — this season and next — then the
+    working behind next year's number, and what his other picks would be worth
+    to you if you asked for one of those instead."""
+    reg = ctx["registry"]
+    them = _owner_name(ctx, oid).split()[0]
+    nx = fut["before_sim"]["nxt"]
+    me_, th_ = fut["me"], fut["them"]
+
+    def sgn(v, unit=""):
+        cls = "ws-up" if v > 0.05 else "ws-dn" if v < -0.05 else "ws-fnt"
+        return f'<b class="{cls}">{v:+.1f}{unit}</b>' if abs(v) < 10 else f'<b class="{cls}">{v:+.0f}{unit}</b>'
+    rows = [["This week's lineup", sgn(r["week"], " pts"), sgn(r["them"], " pts")]]
+    if odds and odds_them:
+        rows.append(["Playoff odds", f'{odds[0]}% → <b>{odds[1]}%</b>', f'{odds_them[0]}% → <b>{odds_them[1]}%</b>'])
+    rows.append([f"{nx} draft class", f'{me_["before"]:.0f} → {me_["after"]:.0f} &nbsp;{sgn(me_["d_class"])}',
+                 f'{th_["before"]:.0f} → {th_["after"]:.0f} &nbsp;{sgn(th_["d_class"])}'])
+    if abs(me_["later"]) >= 0.5:
+        rows.append([f"Picks after {nx}", sgn(me_["later"]), sgn(th_["later"])])
+    rows.append([f"<b>{nx} and after</b>", sgn(me_["net"]), sgn(th_["net"])])
+    st.markdown('<div class="ws-h" style="margin-top:10px">What it is worth to each side</div>'
+                + _tbl(["", "You", _esc_(them)], rows, widths=["auto", "34%", "34%"], wide=True),
+                unsafe_allow_html=True)
+    # ---- will he take it, and is there a version that is better for both ------
+    if th_["net"] < -5:
+        gain_now = (odds_them[1] - odds_them[0]) if odds_them else None
+        why = ""
+        if fut.get("them_lost") or fut.get("them_moved"):
+            ks = [n for n, _c in fut.get("them_lost") or []] + [n for n, _b, _a in fut.get("them_moved") or []]
+            why = (f' Most of that is because the picks in this deal are the ones his own keepers sit on '
+                   f'({_esc_(", ".join(ks))}).')
+        st.markdown(C.callout_html(
+            f'<b>Will {_esc_(them)} take it?</b> It costs him <b>{abs(th_["net"]):.0f}</b> of {nx} and after'
+            + (f' for <b>{gain_now:+d}</b> points of playoff odds this season' if gain_now is not None else "")
+            + f'.{why}', red=bool(why)), unsafe_allow_html=True)
+        _memo = st.session_state.setdefault(f"tl_memo_{ctx['league_key']}", {})
+        try:
+            if "alt" not in _memo:
+                with st.spinner("Looking for a version that is better for both…"):
+                    _memo["alt"] = _better_version(ctx, g, oid, r, fut, get_picks, their_menu)
+            alt_deal = _memo["alt"]
+        except Exception:  # noqa: BLE001
+            alt_deal = None
+        if alt_deal:
+            f2, labs = alt_deal
+            cc = st.columns([4, 1.3], vertical_alignment="center")
+            with cc[0]:
+                st.markdown(C.action_html(
+                    "go", "⇄", f'Better for both: ask for {" + ".join(labs)} instead',
+                    f'Worth <b>{f2["me"]["net"]:+.0f}</b> to you (this offer: {me_["net"]:+.0f}) and costs '
+                    f'{_esc_(them)} <b>{abs(f2["them"]["net"]):.0f}</b> (this offer: {abs(th_["net"]):.0f}) — '
+                    f'his keepers stay where they are.', f'{f2["me"]["net"] - me_["net"]:+.0f}', "for you"),
+                    unsafe_allow_html=True)
+            with cc[1]:
+                _prefill_button(ctx, "Load this version", f"tl_alt_{ctx['league_key']}", str(oid),
+                                send=list(r.get("_send_names") or []), get=list(r.get("_get_names") or []),
+                                sendp=list(r.get("_sendp") or []), getp=labs, primary=True)
+    st.markdown(f'<div class="ws-h" style="margin-top:10px">Where the {nx} number comes from</div>'
+                + '<div class="tl-lines">' + "".join(f"<div>{ln}</div>" for ln in fut["lines"]) + "</div>",
+                unsafe_allow_html=True)
+    # what ELSE he holds, priced the same way — the menu for a counter
+    sim, th_rid = fut["before_sim"], fut["th_rid"]
+    slot = {int(rid): i + 1 for i, rid in enumerate(sim["order"])}
+    have = {id(pk) for pk in get_picks}
+    alt = []
+    for lab, pk in their_menu.items():
+        if str(pk.get("season")) == str(nx):
+            c = sim["cells"].get((int(pk["round"]), slot.get(int(pk["origin"]))))
+            if not c or not c["pid"] or int(pk["round"]) > 8:
+                continue
+            tag = " " + _chip("in this deal", "acc") if id(pk) in have else ""
+            if c["keeper"]:
+                # his keeper sits here: to you it is worth what the pick would
+                # land if it were live — the next live pick after it
+                nxt_live = min((x for x in sim["cells"].values() if x["pick"] > c["pick"] and x["pid"] and not x["keeper"]),
+                               key=lambda x: x["pick"], default=None)
+                v = nxt_live["value"] if nxt_live else 1.0
+                alt.append((v, [f'<b>{_esc_(lab)}</b>{tag}', f'{c["round"]}.{c["slot"]:02d}',
+                                f'<span class="ws-dn">{_esc_(reg.meta(c["pid"]).name)} is kept on this pick</span> — '
+                                f'costs {_esc_(them)} more than it is worth to you', f'<b>≈{v:.0f}</b>']))
+                continue
+            alt.append((c["value"], [f'<b>{_esc_(lab)}</b>{tag}',
+                                     f'{c["round"]}.{c["slot"]:02d}', f'{_esc_(reg.meta(c["pid"]).name)} <span class="ws-fnt">#{c["rank"]}</span>',
+                                     f'<b>{c["value"]:.0f}</b>']))
+        elif int(pk["round"]) <= 3:
+            yrs = int(pk["season"]) - nx
+            v = sim["round_avg"].get(int(pk["round"]), 1.0) * (_YEAR_DISCOUNT ** yrs)
+            alt.append((v, [f'<b>{_esc_(lab)}</b>' + (" " + _chip("in this deal", "acc") if id(pk) in have else ""),
+                            "—", f'<span class="ws-fnt">an average R{pk["round"]}, {yrs} yr{"s" if yrs != 1 else ""} out</span>',
+                            f'<b>{v:.0f}</b>']))
+    if alt:
+        with st.container(key="drawers_tl"), _drawer(f"{them}'s picks, priced the same way",
+                                                     "what each would be worth to you — the menu for a counter",
+                                                     key=f"tl_{ctx['league_key']}"):
+            st.markdown(_tbl(["Pick", "Slot", "Projects to land", "~Worth"],
+                             [row for _v, row in sorted(alt, key=lambda x: -x[0])],
+                             widths=["auto", "70px", "44%", "70px"], wide=True), unsafe_allow_html=True)
+    _note(f"**How this is priced.** The {nx} draft is simulated twice — as things stand, and with this trade made: "
+          f"projected finish for the order, every team's keepers on the picks they cost, best available after that. "
+          f"A player is worth the draft-value curve at his projected {nx} rank (#1 ≈ 100, about 3.5% less each pick), "
+          f"and a team's class is its keepers plus what its picks land. Picks past {nx} can't be simulated, so each "
+          f"is an average live pick of its round, less 15% a year. The lottery will move the order — "
+          f"a pick here sits where the standings project it.")
+
+
 def _analyzer(ctx, g, oid, opp) -> None:
     """Judge a SPECIFIC offer — the one in your inbox.
 
@@ -5460,7 +5847,7 @@ def _analyzer(ctx, g, oid, opp) -> None:
 
     # What the deal does to the season, not just the week: the real remaining
     # schedule played 4,000 times with both teams' new lineups.
-    odds = None
+    odds = odds_them = None
     try:
         si = _sim_inputs(ctx, g)
         if si["fx"]:
@@ -5480,8 +5867,41 @@ def _analyzer(ctx, g, oid, opp) -> None:
             after = W.season_sim(means, sds, si["recs"], si["pf"], fx, si["pt"], me, n_sims=4000,
                                  median=si["median"])
             odds = (base["teams"][me]["playoff_pct"], after["teams"][me]["playoff_pct"])
+            odds_them = (base["teams"][str(oid)]["playoff_pct"], after["teams"][str(oid)]["playoff_pct"])
     except Exception:  # noqa: BLE001
         odds = None
+
+    # NEXT year and after: the draft simulated with and without this trade
+    # (kept for the session per exact deal: a rerun of this page — any click on
+    # it — would otherwise replay next year's draft a dozen times)
+    _sig = (str(oid), tuple(send), tuple(get), tuple(sendp), tuple(getp), int(g["week"]), len(g["proj"]),
+            _slow_bucket(g["season"], g["week"]))
+    _memo = st.session_state.setdefault(f"tl_memo_{ctx['league_key']}", {})
+    if _memo.get("sig") != _sig:
+        _memo.clear()
+        _memo["sig"] = _sig
+    try:
+        if "fut" not in _memo:
+            _memo["fut"] = _trade_future(ctx, g, oid, [mine_names[n] for n in send], _get_p,
+                                         [my_picks[k] for k in sendp], [their_picks[k] for k in getp])
+        fut = _memo["fut"]
+    except Exception:  # noqa: BLE001 — the week's verdict still stands without it
+        fut = None
+    mode_ = st.session_state.get(f"td_resolved_{ctx['league_key']}", "balanced")
+    if fut:
+        # The verdict follows what this team is actually playing for. Out of the
+        # race, this season's points buy nothing and next year decides it; in
+        # it, the week's verdict stands unless next year is being sold cheap.
+        net, tnet = fut["me"]["net"], fut["them"]["net"]
+        dead = mode_ == "tank" or (odds is not None and max(odds) <= 3)
+        if dead:
+            r["verdict"] = "accept" if net >= 5 else "reject" if net <= -5 else "counter"
+            r["why"] = (f"you are playing for {fut['before_sim']['nxt']}, and this is worth {net:+.0f} to it"
+                        + (" — a real gain" if net >= 5 else " — you would be giving value away" if net <= -5
+                           else " — close to even, so ask for a little more"))
+        elif net <= -15 and not (odds and odds[1] - odds[0] >= 8):
+            r["verdict"] = "counter"
+            r["why"] += f" — but it costs {abs(net):.0f} of next year, which is a lot for what it adds now"
 
     # ---- the offer as a card: two sides, four numbers, the verdict -----------
     # A trade is the most two-sided screen in the app, so it takes the card shape
@@ -5491,12 +5911,19 @@ def _analyzer(ctx, g, oid, opp) -> None:
     _gt = ", ".join(list(get) + list(getp)) or "—"
     _cells = [("This week", f'{r["week"]:+.1f}', "on" if r["week"] > 0 else "bad"),
               ("Rest of season", f'{r["rest"]:+.0f}', "on" if r["rest"] > 0 else "bad")]
-    if r["keeper"] is not None:
-        _cells.append(("Keeper surplus", f'{r["keeper"]:+d}',
-                       "on" if r["keeper"] > 0 else "bad"))
-    if r["capital"] is not None:
-        _cells.append(("Draft capital", f'{r["capital"]:+d}',
-                       "on" if r["capital"] > 0 else "bad"))
+    if fut:
+        _nx = fut["before_sim"]["nxt"]
+        _cells.append((f"{_nx} draft class", f'{fut["me"]["d_class"]:+.0f}',
+                       "on" if fut["me"]["d_class"] > 0 else "bad" if fut["me"]["d_class"] < 0 else ""))
+        if abs(fut["me"]["later"]) >= 0.5:
+            _cells.append(("Later picks", f'{fut["me"]["later"]:+.0f}', "on" if fut["me"]["later"] > 0 else "bad"))
+    else:
+        if r["keeper"] is not None:
+            _cells.append(("Keeper surplus", f'{r["keeper"]:+d}',
+                           "on" if r["keeper"] > 0 else "bad"))
+        if r["capital"] is not None:
+            _cells.append(("Draft capital", f'{r["capital"]:+d}',
+                           "on" if r["capital"] > 0 else "bad"))
     if odds:
         _cells.append(("Playoff odds", f'{odds[0]}→{odds[1]}%',
                        "on" if odds[1] > odds[0] else ("bad" if odds[1] < odds[0] else "")))
@@ -5506,7 +5933,12 @@ def _analyzer(ctx, g, oid, opp) -> None:
               if (r["capital"] or 0) < 0 else
               "no lineup reason for them to say yes — expect a counter")),
             "for them", "g" if (r["them"] > 0.05 or (r["capital"] or 0) < 0) else "w")]
-    if r["out_keepers"]:
+    if fut:
+        _n, _t = fut["me"]["net"], fut["them"]["net"]
+        _rs.append((f'{fut["before_sim"]["nxt"]} and after: {_n:+.0f} for you',
+                    f'{_t:+.0f} for them — next year\'s draft simulated with and without the deal, below',
+                    "next year", "g" if _n > 0 else "b"))
+    elif r["out_keepers"]:
         _rs.append((f'{len(r["out_keepers"])} keeper(s) leaving',
                     "you would be shipping next year's discount with them",
                     "cost", "b"))
@@ -5520,6 +5952,11 @@ def _analyzer(ctx, g, oid, opp) -> None:
         unsafe_allow_html=True)
 
     # (the verdict is the card's own footer; it was printed twice)
+    if fut:
+        r["_send_names"], r["_get_names"], r["_sendp"] = list(send), list(get), list(sendp)
+        r["_send_pids"], r["_get_pids"] = [mine_names[n] for n in send], _get_p
+        r["_send_picks"] = [my_picks[k] for k in sendp]
+        _trade_ledger(ctx, g, oid, r, fut, odds, odds_them, [their_picks[k] for k in getp], their_picks)
 
     a, b = st.columns([1, 1], gap="medium")
     with a:
@@ -5547,7 +5984,7 @@ def _analyzer(ctx, g, oid, opp) -> None:
                                  else f'<span class="ws-fnt">{k.get("surplus") if k.get("surplus") is not None else "—"}</span>'))]
                               for n, k in in_keep],
                              widths=["auto", "44%", "96px"], wide=True), unsafe_allow_html=True)
-        if r["out_keepers"]:
+        if r["out_keepers"] and not fut:
             st.markdown('<div class="ws-h">Keepers you would be shipping</div>',
                         unsafe_allow_html=True)
             st.markdown(_tbl(["Player", "Costs", "~Surplus"],
@@ -5557,7 +5994,7 @@ def _analyzer(ctx, g, oid, opp) -> None:
                              widths=["auto", "44%", "84px"], wide=True), unsafe_allow_html=True)
             _note("These cost a late pick and are worth an early one. Giving one up is a "
                        "next-season decision, and the week number above does not price it.")
-        if r["picks_out"] or r["picks_in"]:
+        if (r["picks_out"] or r["picks_in"]) and not fut:
             st.markdown('<div class="ws-h">Picks changing hands</div>', unsafe_allow_html=True)
             prows = []
             for lbl, side, cls in (("You send", r["picks_out"], "ws-dn"),
