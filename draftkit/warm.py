@@ -96,15 +96,34 @@ def _warm_league(preset: dict, week: int) -> str:
     else:
         IS._fa_gain_cached(lk, week, slow, ctx, g, taken)       # the optimiser pass
         IS._waiver_board_cached(lk, week, slow, ctx, g, taken)
-    try:  # every team's keepers, priced once: the 2027 board, preview, trades
+    # THIS WEEK, whole: the role trends, the weather flags and (inside the
+    # gather above) the blended projection and the fresh injury report — so
+    # the decision page opens warm in every league, on either host.
+    try:
+        IS._usage(ctx, g)
+        from . import weather as WX
+        WX.for_week(g.get("games") or {}, int(g["season"]), int(g["week"]))
+    except Exception:  # noqa: BLE001
+        pass
+    try:  # grade any finished week not graded yet (once: the record is league-wide)
+        IS._grades_cached(int(g["season"]), int(g["week"]), reg)
+    except Exception:  # noqa: BLE001
+        pass
+    try:  # every team's keepers, priced once — Trades and the unlock finder read
+        # them. (Next year's board and its player histories are NOT warmed any
+        # more: that page is opened a few times a season, and builds on demand.)
         from . import keepers as K
         if ctx["meta"].platform == "sleeper" and K.league_has_keepers(str(ctx["meta"].league_id)):
             IS._league_keeper_rows_cached(lk, week, slow, IS._GATHER_V, ctx, g)
-            IS._player_history(str(ctx["meta"].league_id), int(g["season"]))   # board pop-outs
-            from . import nextyear as NY                                      # 2027 ADP
-            NY.projected(int(getattr(ctx["meta"], "num_teams", 10) or 10), 1.0)
     except Exception:  # noqa: BLE001
         pass
+    if MODE != "light":
+        try:  # the Review page's lineup replays: a month of weeks, ~30 s cold
+            if ctx["meta"].platform == "sleeper":
+                IS._lineup_reviews(lk, str(ctx["meta"].league_id), str(g["me"]), int(g["week"]),
+                                   int(g["season"]), ctx, g["slots"], "|".join(g["slots"]))
+        except Exception:  # noqa: BLE001
+            pass
     try:  # the league's FAAB market: ~5 s of Sleeper reads the first time
         from . import faabmarket as FM
         FM.market_for(ctx["meta"], week)

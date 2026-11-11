@@ -20,6 +20,10 @@ class State(private val ctx: Context) {
 
     fun putBool(key: String, v: Boolean) = sp.edit().putBoolean(key, v).apply()
 
+    fun getLong(key: String): Long? = if (!sp.contains(key)) null else sp.getLong(key, 0L)
+
+    fun putLong(key: String, v: Long) = sp.edit().putLong(key, v).apply()
+
     /** His league ids, discovered once from his Sleeper user and then kept. */
     fun leagueId(slug: String): String? {
         val key = "lid_$slug"

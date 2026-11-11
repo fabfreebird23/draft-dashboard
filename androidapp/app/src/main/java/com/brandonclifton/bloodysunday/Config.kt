@@ -30,8 +30,8 @@ object Config {
      *  Today is the cross-league screen and has no league of its own. */
     val TABS = listOf(
         Tab("Today", null, R.drawable.ic_today),
+        Tab("Week", "This Week", R.drawable.ic_lineup),
         Tab("Live", "Live", R.drawable.ic_live),
-        Tab("Lineup", "Lineup", R.drawable.ic_lineup),
         Tab("Wire", "Waivers", R.drawable.ic_wire),
         Tab("More", MORE, R.drawable.ic_more),
     )
@@ -40,7 +40,7 @@ object Config {
      *  last pill opens these rather than standing for one of them. */
     const val MORE = "__more__"
     val MORE_TABS = listOf(
-        "Command Center", "Rankings", "Matchup", "Trades", "Playoffs", "League", "Keepers",
+        "Trades", "Review", "Rankings", "Playoffs", "League", "Keepers", "Next Year",
     )
 
     data class League(val label: String, val slug: String)
@@ -52,7 +52,8 @@ object Config {
         if (tab.tab == null) {
             sb.append("&view=today")
         } else {
-            sb.append("&league=").append(league.slug).append("&tab=").append(tab.tab)
+            sb.append("&league=").append(league.slug).append("&tab=")
+                .append(tab.tab.replace(" ", "%20"))
         }
         return sb.toString()
     }
