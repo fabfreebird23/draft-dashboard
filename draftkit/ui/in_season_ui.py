@@ -37,7 +37,7 @@ _PANEL_VER = 2
 # (the decisions) and Live (the game). The old names still open the right
 # page, because the phone and Mac shells deep-link by name.
 MAIN_TABS = ["This Week", "Live", "Waivers", "Trades"]
-TABS = MAIN_TABS + ["Review", "Rankings", "Playoffs", "League", "Keepers", "Next Year"]
+TABS = MAIN_TABS + ["Playoff Run", "Review", "Rankings", "Playoffs", "League", "Keepers", "Next Year"]
 TAB_ALIAS = {"Command Center": "This Week", "Lineup": "This Week", "Today": "This Week",
              "Matchup": "Live", "Wire": "Waivers"}
 
@@ -476,6 +476,7 @@ def _links(ctx, week: int) -> dict:
 
 
 _TAB_LINK = {"This Week": "team", "Live": "matchup", "Rankings": "waivers", "Waivers": "waivers",
+             "Playoff Run": "waivers",
              "Trades": "trades", "Review": "team", "Playoffs": "standings", "League": "league",
              "Keepers": "team", "Next Year": "team"}
 
@@ -519,6 +520,8 @@ def render(ctx, summary=None, tab="This Week") -> None:
         _waivers(ctx, g)
     elif tab == "Trades":
         _trades(ctx, g)
+    elif tab == "Playoff Run":
+        _playoff_run(ctx, g)
     elif tab == "Review":
         _review(ctx, g)
     elif tab == "Playoffs":
@@ -3452,6 +3455,29 @@ def _waivers(ctx, g) -> None:
                 st.markdown(C.waiver_recap_html(rec, when=when_s, left=left, budget=budget, rows=rrows),
                             unsafe_allow_html=True)
 
+        try:
+            from .. import stretch as ST
+            _bwp, _pwp, _winp = _stretch_inputs(ctx, g, "playoffs")
+            if _winp:
+                _bwin = {w: _bwp[w] for w in _winp}
+                _slp = [s_ for s_ in g["slots"] if s_ not in ("BN", "IR", "TAXI")]
+                _brd = ST.board(_bwin)
+                _cnd = sorted((p for p in _brd if p not in taken and _brd[p]["total"] > 0), key=lambda p: -_brd[p]["total"])[:150]
+                _pp = ST.pickups(g["mine"], _slp, _bwin, reg, _cnd, playoff=set(_winp), limit=6)
+                if _pp:
+                    with _drawer("Playoff pickups", f'weeks {_winp[0]}–{_winp[-1]} · {reg.meta(_pp[0]["pid"]).name} '
+                                                    f'+{_pp[0]["gain"]:.1f} first', key=f"ppk_{ctx['league_key']}"):
+                        st.markdown(_tbl(["Free agent", "~Adds", "~Starts"] + [f"~Wk {w}" for w in _winp],
+                                         [[f'<b>{_esc_(reg.meta(r["pid"]).name)}</b> {_pos_pill(reg.meta(r["pid"]).position)}',
+                                           f'<b class="ws-up">+{r["gain"]:.1f}</b>', f'{r["starts"]}/{len(_winp)}']
+                                          + [(f'+{r["by_week"][w]:.1f} <span class="ws-fnt">{_esc_(_brd[r["pid"]]["wk"][w]["opp"] or "bye")}</span>'
+                                              if r["by_week"][w] >= 0.5 else
+                                              f'<span class="ws-fnt">{_esc_(_brd[r["pid"]]["wk"][w]["opp"] or "bye")}</span>') for w in _winp]
+                                          for r in _pp], wide=True), unsafe_allow_html=True)
+                        _note("What each free agent adds to your best lineup in your playoff weeks, summed. "
+                              "The full board — every player, every week, matchups — is **More ▸ Playoff Run**.")
+        except Exception:  # noqa: BLE001
+            pass
         with _drawer(f"Next week's wire", f"who to add now for week {int(g['week']) + 1} — byes, starters-to-be, defenses",
                      key=f"nww_{ctx['league_key']}"):
             if _lazy(f"nww_{ctx['league_key']}", f"Work out week {int(g['week']) + 1}"):
@@ -4277,6 +4303,284 @@ def _mode_panel(ctx, g, status, resolved) -> None:
 
 
 # ---------------------------------------------------- byes & playoff weeks
+# --------------------------------------------------------------- playoff run
+@st.cache_data(ttl=3 * 3600, show_spinner="Projecting every week through the playoffs…")
+def _stretch_cached(season: int, wks: tuple, weights, scoring: str) -> dict:
+    from .. import stretch as ST
+    return ST.weeks(season, wks, dict(weights) if weights else None, scoring)
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False, hash_funcs={"builtins.object": id})
+def _dvp_now(season: int, through: int, scoring: str, _registry):
+    return SCH.load_dvp_season(season, through, _registry, scoring)
+
+
+def _stretch_inputs(ctx, g, which: str = "playoffs"):
+    """(by_week, playoff_weeks, window) — the projections for every week from
+    next week through this league's last playoff week, and which of those
+    weeks are the playoffs."""
+    meta = ctx["meta"]
+    pw = tuple(int(w) for w in SCH.playoff_weeks(meta))
+    # from THIS week while any of it is still to play (on a Tuesday the
+    # current week is the upcoming one), else from next week
+    first = max(1, int(g["week"]) + (1 if g.get("phase") == "done" else 0))
+    if pw and first > pw[-1]:
+        return {}, pw, ()
+    allw = tuple(range(first, (pw[-1] if pw else 17) + 1))
+    window = tuple(w for w in allw if w in pw) if which == "playoffs" else allw
+    w8 = getattr(meta, "scoring_weights", None) or {}
+    if not w8 and meta.platform == "sleeper":
+        w8 = (api.get_league(str(meta.league_id)) or {}).get("scoring_settings") or {}
+    by_week = _stretch_cached(int(g["season"]), allw, tuple(sorted(w8.items())) if w8 else None,
+                              getattr(meta, "scoring", "ppr") or "ppr")
+    return by_week, pw, window
+
+
+def _pr_cell(cell, pos, dvp, sched_team_wk, team, wk) -> str:
+    """One week of one player: points, the opponent, tinted by how generous that
+    defense has been to his position (green soft, red tough). BYE when his team
+    isn't playing; OUT when it is and Sleeper projects him for nothing."""
+    pts, opp = cell["pts"], cell["opp"]
+    if not opp:
+        plays = (sched_team_wk.get(team) or {}).get(str(wk))
+        if not plays:
+            return '<span class="pr-c bye">BYE</span>'
+        return f'<span class="pr-c out">OUT<i>{_esc_(plays)}</i></span>'
+    tint = ""
+    rk = ((dvp or {}).get(pos) or {}).get(opp)
+    if rk:
+        n = max((dvp.get(pos) or {}).values() or [32])
+        f = (rk - 1) / max(1, n - 1)          # 0 stingiest … 1 most generous
+        tint = " soft" if f >= 0.67 else " tough" if f <= 0.33 else ""
+    return f'<span class="pr-c{tint}"><b>{pts:.1f}</b><i>{_esc_(opp)}</i></span>'
+
+
+def _playoff_run(ctx, g) -> None:
+    """The stretch run: who to have on the roster for the weeks that decide it.
+
+    Your best lineup in every playoff week, the free agents who'd improve it
+    (summed over those weeks, so a man who only starts in week 16 still counts),
+    and every player's week-by-week projection against that week's opponent."""
+    from .. import stretch as ST, userstate as US
+    meta, reg, lk = ctx["meta"], ctx["registry"], ctx["league_key"]
+    me = str(g["me"])
+    pw = tuple(int(w) for w in SCH.playoff_weeks(meta))
+    if pw and int(g["week"]) > pw[-1]:
+        st.info("The season is over.")
+        return
+    wkey = f"pr_win_{lk}"
+    opts = ["Playoff weeks", "Rest of season"]
+    c0 = st.columns([1.6, 3])
+    with c0[0]:
+        which = st.segmented_control("Window", opts, key=wkey, selection_mode="single", default=opts[0],
+                                     label_visibility="collapsed") or opts[0]
+    by_week, pw, window = _stretch_inputs(ctx, g, "playoffs" if which == opts[0] else "all")
+    if not by_week or not window:
+        st.info("No projections for the weeks ahead yet.")
+        return
+    bw = {w: by_week[w] for w in window}
+    in_po = int(g["week"]) >= (pw[0] if pw else 99)
+    with c0[1]:
+        st.markdown(f'<div class="ws-note" style="margin-top:9px">Your playoffs are <b>weeks {pw[0]}–{pw[-1]}</b>'
+                    + (" — you're in them" if in_po else f" · {pw[0] - int(g['week'])} week{'s' if pw[0] - int(g['week']) != 1 else ''} of regular season left")
+                    + f' · showing weeks {window[0]}–{window[-1]}</div>', unsafe_allow_html=True)
+    slots = [s_ for s_ in g["slots"] if s_ not in ("BN", "IR", "TAXI")]
+    try:
+        dvp, _dvl = _dvp_now(int(g["season"]), max(0, int(g["week"]) - 1), getattr(meta, "scoring", "ppr") or "ppr", reg)
+    except Exception:  # noqa: BLE001
+        dvp = {}
+    sched = ctx.get("schedule") or {}
+    try:
+        if not sched:
+            sched = SCH.load_schedule(int(g["season"]))
+    except Exception:  # noqa: BLE001
+        sched = {}
+
+    # ---- how your playoff roster stacks up --------------------------------------
+    rosters = {o: [str(p) for p in r.get("players") or []] for o, r in g["rosters"].items() if r.get("players")}
+    strength = ST.team_strength(rosters, slots, bw, reg)
+    order = sorted(strength, key=lambda o: -strength[o])
+    my_rank = order.index(me) + 1 if me in order else None
+    lb = ST.lineup_by_week(g["mine"], slots, bw, reg)
+    worst_w = min(lb, key=lambda w: lb[w]["pts"]) if lb else None
+    owner_of = {str(p): o for o, ps in rosters.items() for p in ps}
+    taken = set(owner_of)
+    board = ST.board(bw)
+    # the pickups: every free agent who scores at all in these weeks, best first
+    cands = sorted((p for p in board if p not in taken and board[p]["total"] > 0),
+                   key=lambda p: -board[p]["total"])[:150]
+    picks = ST.pickups(g["mine"], slots, bw, reg, cands, playoff=set(window), limit=10)
+    top = picks[0] if picks else None
+    grid = [("Best lineup", f'{strength.get(me, 0):.0f}', f"a week over weeks {window[0]}–{window[-1]}"),
+            ("League's best", f'{strength[order[0]]:.0f}' if order else "—",
+             _owner_name(ctx, order[0]).split()[0] if order and order[0] != me else "that's you"),
+            ("Weakest week", f'Wk {worst_w}' if worst_w else "—", f'{lb[worst_w]["pts"]:.0f} projected' if worst_w else ""),
+            ("Top pickup", reg.meta(top["pid"]).name.split()[-1] if top else "nobody",
+             f'+{top["gain"]:.1f} over the window' if top else "no free agent helps")]
+    st.markdown(C.hero_html(f"PLAYOFF RUN · WEEKS {window[0]}–{window[-1]}",
+                            C._ordinal(my_rank) if my_rank else "—",
+                            f'best playoff roster of {len(order)} — your best lineup projects '
+                            f'<b>{strength.get(me, 0):.0f}</b> a week through week {window[-1]}',
+                            grid=grid, tone="ink"), unsafe_allow_html=True)
+
+    # ---- the pickups ---------------------------------------------------------------
+    st.markdown(f'<div class="ws-h">Pickups for weeks {window[0]}–{window[-1]} — what each adds to your best lineup</div>',
+                unsafe_allow_html=True)
+    if not picks:
+        _note("No free agent would start for you in any of these weeks.")
+    # who you'd drop: the bench man who starts least in these weeks, not a projected keeper
+    kp = set()
+    try:
+        kp = {str(r["pid"]) for r in _keeper_rows(ctx, g) if r.get("verdict") == "keep"}
+    except Exception:  # noqa: BLE001
+        pass
+    starts = {}
+    for w, v in lb.items():
+        for p in v["starters"]:
+            starts[p] = starts.get(p, 0) + 1
+    drops = sorted((p for p in map(str, g["mine"]) if p not in kp),
+                   key=lambda p: (starts.get(p, 0), board.get(p, {}).get("total", 0)))
+    drop = drops[0] if drops else None
+    budget = int((inseason.faab(meta) or {}).get("budget") or 0)
+    for i, r in enumerate(picks[:8]):
+        pm = reg.meta(r["pid"])
+        wks_txt = " ".join(
+            (f'<span class="pr-g{" on" if r["by_week"][w] >= 0.5 else ""}">W{w} '
+             + (f'+{r["by_week"][w]:.1f}' if r["by_week"][w] >= 0.5 else "—")
+             + f' <i>{_esc_(board[r["pid"]]["wk"][w]["opp"] or "bye")}</i></span>') for w in window)
+        later = sum(r["by_week"][w] for w in window if w >= (pw[0] if pw else 0))
+        detail = (f'{pm.position} · {_esc_(pm.team or "FA")} · starts for you in <b>{r["starts"]} of {len(window)}</b> weeks'
+                  + (f' · {_usage_tag(_usage(ctx, g).get(r["pid"]))}' if _usage_tag(_usage(ctx, g).get(r["pid"])) else "")
+                  + f'<div class="pr-gs">{wks_txt}</div>')
+        cc = st.columns([4, 1.2], vertical_alignment="center")
+        with cc[0]:
+            st.markdown(C.action_html("go" if i == 0 else "info", "+", pm.name, detail, f'+{r["gain"]:.1f}',
+                                      "over the window"), unsafe_allow_html=True)
+        with cc[1]:
+            def _q(pid=r["pid"], name=pm.name, gain=r["gain"]):
+                US.add_claim(lk, {"pid": pid, "name": name, "bid": None, "range": None,
+                                  "gain": gain, "drop": reg.meta(drop).name if drop else None})
+            st.button("Queue claim" if budget else "Add to claims", key=f"pr_q_{lk}_{r['pid']}", on_click=_q,
+                      use_container_width=True)
+    if picks and drop:
+        _note(f"The man to drop for any of these is **{reg.meta(drop).name}** — he starts for you in "
+              f"{starts.get(drop, 0)} of these {len(window)} weeks and isn't a projected keeper. Claims go to "
+              f"the Waivers tab's queue. Gains are each player added on his own; two adds at the same "
+              f"position don't stack.")
+
+    # ---- your lineup, week by week -------------------------------------------------
+    st.markdown('<div class="ws-h" style="margin-top:14px">Your roster, week by week — bold = in your best lineup that week</div>',
+                unsafe_allow_html=True)
+    mine_rows = sorted(map(str, g["mine"]), key=lambda p: -board.get(p, {"total": 0})["total"])
+    rws = []
+    for p in mine_rows[:18]:
+        pm = reg.meta(p)
+        pos = "DST" if (pm.position or "") in ("DEF", "DST") else (pm.position or "")
+        b = board.get(p) or {"wk": {w: {"pts": 0.0, "opp": ""} for w in window}, "total": 0.0}
+        cells = []
+        for w in window:
+            c = _pr_cell(b["wk"][w], pos, dvp, sched, pm.team, w)
+            if p in lb[w]["starters"]:
+                c = c.replace('class="pr-c', 'class="pr-c start', 1)
+            cells.append(c)
+        rws.append([f'<b>{_esc_(pm.name)}</b> {_pos_pill(pm.position)}', *cells,
+                    f'<b>{b["total"]:.0f}</b>', f'{starts.get(p, 0)}/{len(window)}'])
+    rws.append(["<b>Best lineup</b>", *[f'<b>{lb[w]["pts"]:.0f}</b>' for w in window], "", ""])
+    st.markdown(_tbl(["Player"] + [f"~Wk {w}" + (" ★" if w in pw else "") for w in window] + ["~Total", "~Starts"], rws,
+                     wide=True), unsafe_allow_html=True)
+
+    # ---- everyone, ranked over the window ------------------------------------------
+    st.markdown(f'<div class="ws-h" style="margin-top:14px">Rankings, weeks {window[0]}–{window[-1]}</div>',
+                unsafe_allow_html=True)
+    # ALL ranks by points over a REPLACEMENT starter at the position — raw
+    # points put every quarterback above every back. Replacement is the man
+    # just past what the league starts: teams × that position's slots (a flex
+    # counted half to RB and WR, a superflex as a QB).
+    n_t = max(1, len(g["rosters"]))
+    sc = {"QB": 0.0, "RB": 0.0, "WR": 0.0, "TE": 0.0, "K": 0.0, "DST": 0.0}
+    for s_ in slots:
+        u = s_.upper()
+        if u in sc:
+            sc[u] += 1
+        elif u in ("DEF", "D/ST"):
+            sc["DST"] += 1
+        elif u in ("SUPER_FLEX", "SUPERFLEX", "OP"):
+            sc["QB"] += 1
+        elif u in ("FLEX", "W/R/T", "RB/WR/TE"):
+            sc["RB"] += .45
+            sc["WR"] += .45
+            sc["TE"] += .1
+    # only the positions this league starts
+    _posopts = ["ALL"] + [x for x in ("QB", "RB", "WR", "TE") if sc[x] > 0] + (["FLEX"] if sc["RB"] and sc["WR"] else []) \
+        + [x for x in ("K", "DST") if sc[x] > 0]
+    f1, f2 = st.columns([1.5, 3])
+    with f1:
+        who = st.segmented_control("Who", ["Free agents", "All", "Mine"], key=f"pr_who_{lk}", selection_mode="single",
+                                   default="Free agents", label_visibility="collapsed") or "Free agents"
+    with f2:
+        if st.session_state.get(f"pr_pos_{lk}") not in _posopts:
+            st.session_state.pop(f"pr_pos_{lk}", None)
+        posf = st.segmented_control("Pos", _posopts, key=f"pr_pos_{lk}",
+                                    selection_mode="single", default="ALL", label_visibility="collapsed") or "ALL"
+    want = {"FLEX": {"RB", "WR", "TE"}, "DST": {"DEF", "DST"}}.get(posf, {posf}) if posf != "ALL" else None
+    pool = []
+    for p, b in board.items():
+        if b["total"] <= 0:
+            continue
+        if who == "Free agents" and p in taken:
+            continue
+        if who == "Mine" and owner_of.get(p) != me:
+            continue
+        pm = reg.meta(p)
+        pos = (pm.position or "").upper()
+        if not pos or (want and pos not in want):
+            continue
+        if sc.get("DST" if pos in ("DEF", "DST") else pos, 0) <= 0:
+            continue                               # a position this league doesn't start
+        pool.append((b["total"], p, pos))
+    pool.sort(reverse=True)
+    # positional rank over the window, among EVERYONE (not just this filter)
+    by_pos = {}
+    for p, b in board.items():
+        ps = (reg.meta(p).position or "").upper()
+        if ps:
+            by_pos.setdefault(ps, []).append((b["total"], p))
+    prank = {}
+    for ps, lst in by_pos.items():
+        for i, (_t, p) in enumerate(sorted(lst, reverse=True), 1):
+            prank[p] = f"{'DST' if ps in ('DEF', 'DST') else ps}{i}"
+    repl = {}
+    for ps, lst in by_pos.items():
+        key = "DST" if ps in ("DEF", "DST") else ps
+        tot = sorted((t for t, _p in lst), reverse=True)
+        k = int(round(n_t * sc.get(key, 1.0)))
+        repl[ps] = tot[k] if 0 <= k < len(tot) else 0.0
+    if posf == "ALL":
+        pool = sorted(((t - repl.get(ps, 0.0), p, ps) for t, p, ps in pool), reverse=True)
+    rws = []
+    for i, (_k, p, pos) in enumerate(pool[:40], 1):
+        tot = board[p]["total"]
+        pm = reg.meta(p)
+        own = owner_of.get(p)
+        who_ = ("you" if own == me else _owner_name(ctx, own).split()[0]) if own else "FA"
+        cells = [_pr_cell(board[p]["wk"][w], "DST" if pos == "DEF" else pos, dvp, sched, pm.team, w) for w in window]
+        rws.append([f'{i}', f'<b>{_esc_(pm.name)}</b> {_pos_pill(pm.position)} <span class="ws-fnt">{_esc_(pm.team or "")}</span>',
+                    f'<span class="ws-fnt">{prank.get(p, "")}</span>', *cells, f'<b>{tot:.0f}</b>',
+                    f'<span class="{"ws-up" if tot - repl.get(pos, 0) > 0 else "ws-fnt"}">{tot - repl.get(pos, 0):+.0f}</span>',
+                    ('<b class="ws-up">FA</b>' if who_ == "FA" else f'<span class="{"ws-up" if own == me else "ws-fnt"}">{_esc_(who_)}</span>')])
+    if rws:
+        st.markdown(_tbl(["#", "Player", "~Rank"] + [f"~Wk {w}" + (" ★" if w in pw else "") for w in window]
+                         + ["~Total", "~vs repl", "Owner"], rws, wide=True), unsafe_allow_html=True)
+    else:
+        _note("Nobody matches that filter.")
+    _note(f"Sleeper's projection for each week, scored under this league's settings — it already knows the "
+          f"opponent. The tint is that opponent's defense against the position this season (green: among the "
+          f"most generous third; red: the stingiest third). **BYE** is a bye week; **OUT** means his team plays "
+          f"but he isn't projected (injured or inactive). ★ marks your playoff weeks. **vs repl** is his total "
+          f"over the window above a replacement-level starter at his position — what ALL is sorted by, so a "
+          f"quarterback and a back are compared on what they add, not on raw points.")
+
+
 def _bye_planner(ctx, g) -> None:
     """Every starter's bye through the last playoff week, the weeks you're
     short, and who could cover each: a rental on a team that's out of it, or a

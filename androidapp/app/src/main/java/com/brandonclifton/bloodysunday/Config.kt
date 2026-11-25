@@ -40,7 +40,7 @@ object Config {
      *  last pill opens these rather than standing for one of them. */
     const val MORE = "__more__"
     val MORE_TABS = listOf(
-        "Trades", "Review", "Rankings", "Playoffs", "League", "Keepers", "Next Year",
+        "Trades", "Playoff Run", "Review", "Rankings", "Playoffs", "League", "Keepers", "Next Year",
     )
 
     data class League(val label: String, val slug: String)

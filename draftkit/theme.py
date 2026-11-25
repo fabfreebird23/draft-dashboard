@@ -3259,6 +3259,21 @@ details.ws-why b{ color:var(--ink); font-weight:600; }
 .tl-lines{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:4px 14px; }
 .tl-lines > div{ font-size:13px; line-height:1.5; padding:7px 0; border-bottom:1px solid var(--line2); color:var(--muted); }
 .tl-lines > div:last-child{ border-bottom:0; } .tl-lines b{ color:var(--ink); font-weight:600; }
+/* playoff run */
+.pr-c{ display:inline-flex; flex-direction:column; align-items:center; min-width:44px; padding:3px 6px; border-radius:6px;
+  background:var(--panel2); line-height:1.15; }
+.pr-c b{ font-family:'Roboto Mono',monospace; font-size:12px; font-weight:500; color:var(--muted); }
+.pr-c i{ font-style:normal; font-family:'Roboto Mono',monospace; font-size:9px; color:var(--mut2); letter-spacing:.04em; }
+.pr-c.start b{ color:var(--ink); font-weight:700; }
+.pr-c.start{ box-shadow:inset 0 0 0 1px rgba(243,234,216,.35); }
+.pr-c.soft{ background:rgba(95,220,143,.16); } .pr-c.tough{ background:rgba(255,51,108,.16); }
+.pr-c.bye, .pr-c.out{ font-family:'Roboto Mono',monospace; font-size:10px; color:var(--mut2); background:transparent;
+  border:1px dashed var(--line); padding:5px 6px; }
+.pr-c.out{ color:#ff8fae; border-color:rgba(255,51,108,.4); }
+.pr-gs{ display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+.pr-g{ font-family:'Roboto Mono',monospace; font-size:10.5px; color:var(--mut2); border:1px solid var(--line);
+  border-radius:5px; padding:1px 6px; }
+.pr-g.on{ color:#7fd8b4; border-color:rgba(95,220,143,.45); } .pr-g i{ font-style:normal; color:var(--mut2); }
 /* keeper unlock finder */
 .un-h{ display:flex; align-items:baseline; gap:10px; margin:10px 0 4px; }
 .un-h b{ font-family:'Oswald',sans-serif; font-weight:500; font-size:17px; text-transform:uppercase; letter-spacing:.03em; }
